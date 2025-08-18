@@ -15,7 +15,7 @@ static unsigned char sdbuf[512];
 static FILE *edsk;
 static int reading;
 static int read_ptr;
-VerilatedVcdC* trace;
+
 
 
 int img_read(int sd_rd) {

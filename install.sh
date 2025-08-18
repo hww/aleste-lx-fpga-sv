@@ -57,6 +57,7 @@ sudo apt-get install -y \
     iverilog \
     ghdl \
     ghdl-gtkwave
+    gtkwave
 
 # Install FPGA toolchain (Lattice iCE40 and ECP5)
 echo -e "${GREEN}Installing FPGA toolchain...${NC}"
