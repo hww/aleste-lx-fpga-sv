@@ -1,0 +1,16 @@
+# Verilator
+sim/verilator/obj_dir/
+
+# General
+*.swp
+*.o
+*.d
+*.log
+*.vcd
+*.vvp
+*.dump
+
+# Editors
+.idea/
+.vscode/
+*.bak
