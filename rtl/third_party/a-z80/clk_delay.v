@@ -28,7 +28,6 @@
 // PROGRAM		"Quartus II 64-Bit"
 // VERSION		"Version 13.0.1 Build 232 06/12/2013 Service Pack 1 SJ Web Edition"
 // CREATED		"Sat Dec 10 08:59:31 2016"
-
 module clk_delay(
 	clk,
 	in_intr,
