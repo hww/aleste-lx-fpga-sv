@@ -78,11 +78,105 @@ localparam MAX_BURST = 8;
 wire fifo_empty_n;
 ```
 
+
+## State Machines
+```systemverilog
+
+// State enum (UPPER_CASE for states)  
+typedef enum logic [2:0] {  
+    IDLE,  
+    READ_FIFO,  
+    WRITE_RAM,  
+    ERROR_HANDLE  
+} fsm_state_t;  
+
+// Signals:  
+logic [2:0] current_state, next_state;  // Prefix with "state_" if ambiguous  
+```
+### Best Practices:
+
+1. Suffix _t for typedefs (optional but common in SV)
+
+2. Use current_/next_ prefix for explicit FSM registers
+
+## Packages
+
+```systemverilog
+
+package pkg_uart;  // "pkg_" prefix for packages  
+  localparam BAUD_RATE = 115200;  
+  typedef logic [7:0] uart_data_t;  
+endpackage  
+```
+
+## Interfaces
+
+```systemverilog
+interface axi_stream_if #(parameter WIDTH = 32);  // "_if" suffix  
+  logic [WIDTH-1:0] tdata;  
+  logic             tvalid;  
+  logic             tready;  
+  modport master (output tdata, tvalid, input tready);  
+endinterface  
+```
+
+## Best Practices:
+
+1. Use _if suffix for interface definitions
+
+2. Name modports by role (master, slave, initiator, target)
+
+## Assertions
+
+```systemverilog
+// SVA naming:  
+property p_no_overflow;  // "p_" prefix for properties  
+  @(posedge clk) disable iff (!rst_n)  
+    fifo_count <= FIFO_DEPTH;  
+endproperty  
+
+assert property (p_no_overflow)  
+  else $error("FIFO overflow detected");  // Descriptive error messages  
+```
+
+# Generate Blocks
+
+```systemverilog
+
+generate  
+  for (genvar i = 0; i < 8; i++) begin : gen_byte_lane  // "gen_" prefix for blocks  
+    assign data_out[i*8 +: 8] = byte_mask[i] ? data_in[i*8 +: 8] : 8'hFF;  
+  end  
+endgenerate  
+```
+
+# Clock Domains
+
+```systemverilog
+logic clk_core;      // Primary clock  
+logic clk_uart_2x;   // Derived clock (2x UART baud)  
+logic rst_async_n;   // Asynchronous reset  
+```
+
+# Additional Recommendations
+
+1. File Names: Match module name (e.g., uart_transceiver.sv for module uart_transceiver)
+
+2. Macros: UPPER_CASE with project prefix:
+    systemverilog
+
+3. `define RISCV_TILELINK_MAX_PAYLOAD 64  
+
+4. Testbench: Prefix with tb_ (e.g., tb_uart.sv)
+
 ## Exceptions
 
-- Vendor IP may follow different conventions - maintain as-is for compatibility
+- Vendor IP: Preserve original names (e.g., Xilinx’s s_axis_* for AXI streams)
+
+- Legacy Code: Isolate with wrappers if refactoring is impractical
 
 - Generated code (Verilator, Yosys) may use different styles - isolate these
+
 
 ## This follows:
 
@@ -93,3 +187,9 @@ wire fifo_empty_n;
 - Industry consensus from OpenTitan, lowRISC projects
 
 - Tool compatibility with Verilator/Yosys/Questa
+
+- Accellera’s SV Guidelines
+
+- ARM’s AMBA AXI Naming
+
+- Synopsys/Intel FPGA Recommendations

@@ -278,12 +278,26 @@ reg  [7:0] m_data;    //data register
 assign dout = a0 ? m_data : m_status;
 
 function [15:0] SECTOR_SIZE;
-	input [3:0] n;
-	input [15:0] stored_size;
-	begin
-		reg [15:0] logical_size = (16'h80 << (n[3] ? 4'h8 : n[2:0]));
-		return (logical_size < stored_size ? logical_size : stored_size);
-	end
+    input [3:0] n;
+    input [15:0] stored_size;
+    reg [15:0] logical_size;
+    begin
+        // Заменяем тернарный оператор на явное условие
+        if (n[3]) begin
+            logical_size = 16'h80 << 4'h8;  // 0x8000
+        end
+        else begin
+            logical_size = 16'h80 << n[2:0];
+        end
+        
+        // Возвращаем минимальное значение
+        if (logical_size < stored_size) begin
+            SECTOR_SIZE = logical_size;
+        end
+        else begin
+            SECTOR_SIZE = stored_size;
+        end
+    end
 endfunction
 
 always @(posedge clk_sys) begin : fdc

@@ -24,6 +24,7 @@ int img_read(int sd_rd) {
 	fread(&sdbuf, 512, 1, edsk);
 	reading = 1;
 	read_ptr = 0;
+	return 0;
 }
 
 void tick(int c) {
@@ -265,4 +266,5 @@ int main(int argc, char **argv) {
 
 	fclose(edsk);
 	trace->close();
+    return 0;  // Явно возвращаем целое число
 }
