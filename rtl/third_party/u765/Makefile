@@ -12,7 +12,7 @@ endif
 
 VERILATOR_FLAGS = --trace --cc --bbox-unsup --x-assign unique
 
-all: u765_tb run
+all: u765_tb run wave
 
 $(OBJ_DIR)/Vu765_tb.cpp: u765_test.sv u765.sv
 	@mkdir -p $(OBJ_DIR)
@@ -34,6 +34,9 @@ run: u765_tb
 	@echo "[Makefile] Test started"
 	./u765_tb
 	@echo "[Makefile] Test completed"
+
+wave: run
+	gtkwave waveform.vcd &
 
 clean:
 	rm -rf $(OBJ_DIR) u765_tb

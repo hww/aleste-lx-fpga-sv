@@ -15,6 +15,8 @@ static unsigned char sdbuf[512];
 static FILE *edsk;
 static int reading;
 static int read_ptr;
+VerilatedVcdC* trace;
+
 
 int img_read(int sd_rd) {
 	if (!sd_rd) return 0;
@@ -27,30 +29,32 @@ int img_read(int sd_rd) {
 	return 0;
 }
 
+
 void tick(int c) {
-	int sd_rd, sd_wr;
+    int sd_rd, sd_wr;
 
-	tb->clk_sys = c;
-	tb->eval();
-	trace->dump(tickcount++);
+    tb->clk_sys = c;
+    tb->eval();
+    trace->dump(tickcount++);  // Запись в VCD файл
 
-	if (c) {
-		if (reading) {
-			tb->sd_ack = 1;
-			tb->sd_buff_wr = 1;
-			tb->sd_buff_dout = sdbuf[read_ptr];
-			tb->sd_buff_addr = read_ptr;
-			read_ptr++;
-			if (read_ptr == 512) reading = 0;
-		} else {
-			tb->sd_ack = 0;
-			tb->sd_buff_wr = 0;
-		}
+    if (c) {
+        if (reading) {
+            tb->sd_ack = 1;
+            tb->sd_buff_wr = 1;
+            tb->sd_buff_dout = sdbuf[read_ptr];
+            tb->sd_buff_addr = read_ptr;
+            read_ptr++;
+            if (read_ptr == 512) reading = 0;
+        } else {
+            tb->sd_ack = 0;
+            tb->sd_buff_wr = 0;
+        }
 
-		if (sd_rd != tb->sd_rd) img_read(tb->sd_rd);
-		sd_rd = tb->sd_rd;
-	}
+        if (sd_rd != tb->sd_rd) img_read(tb->sd_rd);
+        sd_rd = tb->sd_rd;
+    }
 }
+
 
 void wait (int t) {
 	for (int i=0; i<t; i++) {
@@ -208,63 +212,73 @@ void mount(FILE *edsk, int dno) {
 
 
 int main(int argc, char **argv) {
+    // Initialize test disk
+    edsk = fopen("test.dsk", "rb");
+    if (!edsk) {
+        printf("Cannot open test.dsk.\n");
+        return -1;
+    }
 
-	// Initialize test disk
-	edsk=fopen("test.dsk", "rb");
-	if (!edsk) {
-		printf("Cannot open test.dsk.\n");
-		return(-1);
-	}
+    // Initialize Verilator
+    Verilated::commandArgs(argc, argv);
+    Verilated::traceEverOn(true);  // Включаем трассировку
+    
+    // Create trace object
+    trace = new VerilatedVcdC;
+    
+    // Create DUT
+    tb = new Vu765_test;
+    tb->trace(trace, 99);  // Подключаем трассировку
+    
+    // Open waveform file
+    trace->open("waveform.vcd");
 
-	// Initialize Verilators variables
-	Verilated::commandArgs(argc, argv);
-//	Verilated::debug(1);
-	Verilated::traceEverOn(true);
-	trace = new VerilatedVcdC;
-	tickcount = 0;
+    // Инициализация
+    tb->reset = 1;
+    tb->ce = 1;
+    tb->nWR = 1;
+    tb->nRD = 1;
+    tick(1);
+    tick(0);
+    // Сброс
+    tick(1);
+    tick(0);
+    tick(1);
+    tick(0);
+    tb->reset = 0;
 
-	// Create an instance of our module under test
-	tb = new Vu765_test;
-	tb->trace(trace, 99);
-	trace->open("u765.vcd");
+    // Основная логика теста
+    reading = 0;
+    mount(edsk, 0);
 
-	tb->reset = 1;
-	tb->ce = 1;
-	tb->nWR = 1;
-	tb->nRD = 1;
-	tick(1);
-	tick(0);
+    tb->motor = 1;
+    tb->ready = 1;
+    tb->available = 1;
 
-	tick(1);
-	tick(0);
-	tick(1);
-	tick(0);
-	tb->reset = 0;
+    wait(100000);
 
-	reading = 0;
-	mount(edsk, 0);
+    // Команды тестирования
+    cmd_recalibrate();
+    wait(1000);
+    cmd_read(0,0,0x41,2,0xff,2,0xff);
+    cmd_seek(1);
+    wait(1000);
+    cmd_read(1,0,0,5,0xff,2,0xff);
+    cmd_read(1,0,0x1d,2,0xff,2,0xff);
+    cmd_read(1,0,0xff,0,0xff,2,1);
 
-	tb->motor = 1;
-	tb->ready = 1;
-	tb->available = 1;
+    // Многократное чтение ID
+    for (int i=0; i<10; i++) {
+        cmd_read_id(0);
+        wait(1000);
+    }
 
-	wait(100000);
+    // Завершение
+    fclose(edsk);
+    trace->close();
+    delete trace;
+    delete tb;
+    return 0;
 
-	cmd_recalibrate();
-	wait(1000);
-	cmd_read(0,0,0x41,2,0xff,2,0xff);
-	cmd_seek(1);
-	wait(1000);
-	cmd_read(1,0,0,5,0xff,2,0xff);
-	cmd_read(1,0,0x1d,2,0xff,2,0xff);
-	cmd_read(1,0,0xff,0,0xff,2,1);
-
-	for (int i=0;i<10;i++) {
-		cmd_read_id(0);
-		wait(1000);
-	}
-
-	fclose(edsk);
-	trace->close();
-    return 0;  // Явно возвращаем целое число
 }
+
