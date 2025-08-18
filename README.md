@@ -23,6 +23,7 @@ Note: This remains a work in progress with no definitive completion timeline.
 
 This is a clean project structure for SystemVerilog/Verilog development with Verilator integration, following modern best practices while keeping things simple.
 
+```
 project_root/
 │
 ├── .editorconfig       # Editor configuration for consistent coding style
@@ -47,3 +48,4 @@ project_root/
 ├── docs/               # Documentation
 ├── scripts/            # Utility scripts
 └── Makefile            # Main build file
+```
