@@ -1,6 +1,6 @@
 # Verilator
 sim/verilator/obj_dir/
-
+obj_dir
 # General
 *.swp
 *.o
