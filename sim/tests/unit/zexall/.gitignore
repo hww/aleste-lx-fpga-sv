@@ -1,2 +1,3 @@
 .obj_dir
-
+tb_z80.sv
+test.log
