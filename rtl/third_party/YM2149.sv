@@ -38,6 +38,20 @@
 //   1   0   write value
 //   1   1   set address
 //
+//    MODE = 0: 5-битный выход (стандартный для YM2149)
+//
+//    MODE = 1: 6-битный выход (расширенный режим)
+//
+//    Определяет разрядность выходных сигналов каналов A, B, C
+//
+//    SEL = 0: Делитель = 0xxx = делитель 7-8
+//
+//    SEL = 1: Делитель = 1xxx = делитель 15-16
+//
+//    Управляет базовой частотой работы внутренних генераторов
+//
+//    Влияет на частоту тона и шума
+
 
 module YM2149
 (
@@ -300,19 +314,23 @@ always @(posedge CLK) begin
 	C <= {MODE, ~((ymreg[7][2] | tone_gen_op[3]) & (ymreg[7][5] | noise_gen_op[2])) ? 5'd0 : ymreg[10][4] ? env_vol[4:0] : {ymreg[10][3:0], ymreg[10][3]}};
 end
 
-wire [7:0] volTable[64] = '{
-	//YM2149
-	8'h00, 8'h01, 8'h01, 8'h02, 8'h02, 8'h03, 8'h03, 8'h04, 
-	8'h06, 8'h07, 8'h09, 8'h0a, 8'h0c, 8'h0e, 8'h11, 8'h13, 
-	8'h17, 8'h1b, 8'h20, 8'h25, 8'h2c, 8'h35, 8'h3e, 8'h47, 
-	8'h54, 8'h66, 8'h77, 8'h88, 8'ha1, 8'hc0, 8'he0, 8'hff,
-
-	//AY8910
-	8'h00, 8'h00, 8'h03, 8'h03, 8'h04, 8'h04, 8'h06, 8'h06, 
-	8'h0a, 8'h0a, 8'h0f, 8'h0f, 8'h15, 8'h15, 8'h22, 8'h22, 
-	8'h28, 8'h28, 8'h41, 8'h41, 8'h5b, 8'h5b, 8'h72, 8'h72, 
-	8'h90, 8'h90, 8'hb5, 8'hb5, 8'hd7, 8'hd7, 8'hff, 8'hff 
-};
+wire [7:0] volTable [0:63];
+assign volTable[0] = 8'h00; assign volTable[1] = 8'h01; assign volTable[2] = 8'h01; assign volTable[3] = 8'h02;
+assign volTable[4] = 8'h02; assign volTable[5] = 8'h03; assign volTable[6] = 8'h03; assign volTable[7] = 8'h04;
+assign volTable[8] = 8'h06; assign volTable[9] = 8'h07; assign volTable[10] = 8'h09; assign volTable[11] = 8'h0a;
+assign volTable[12] = 8'h0c; assign volTable[13] = 8'h0e; assign volTable[14] = 8'h11; assign volTable[15] = 8'h13;
+assign volTable[16] = 8'h17; assign volTable[17] = 8'h1b; assign volTable[18] = 8'h20; assign volTable[19] = 8'h25;
+assign volTable[20] = 8'h2c; assign volTable[21] = 8'h35; assign volTable[22] = 8'h3e; assign volTable[23] = 8'h47;
+assign volTable[24] = 8'h54; assign volTable[25] = 8'h66; assign volTable[26] = 8'h77; assign volTable[27] = 8'h88;
+assign volTable[28] = 8'ha1; assign volTable[29] = 8'hc0; assign volTable[30] = 8'he0; assign volTable[31] = 8'hff;
+assign volTable[32] = 8'h00; assign volTable[33] = 8'h00; assign volTable[34] = 8'h03; assign volTable[35] = 8'h03;
+assign volTable[36] = 8'h04; assign volTable[37] = 8'h04; assign volTable[38] = 8'h06; assign volTable[39] = 8'h06;
+assign volTable[40] = 8'h0a; assign volTable[41] = 8'h0a; assign volTable[42] = 8'h0f; assign volTable[43] = 8'h0f;
+assign volTable[44] = 8'h15; assign volTable[45] = 8'h15; assign volTable[46] = 8'h22; assign volTable[47] = 8'h22;
+assign volTable[48] = 8'h28; assign volTable[49] = 8'h28; assign volTable[50] = 8'h41; assign volTable[51] = 8'h41;
+assign volTable[52] = 8'h5b; assign volTable[53] = 8'h5b; assign volTable[54] = 8'h72; assign volTable[55] = 8'h72;
+assign volTable[56] = 8'h90; assign volTable[57] = 8'h90; assign volTable[58] = 8'hb5; assign volTable[59] = 8'hb5;
+assign volTable[60] = 8'hd7; assign volTable[61] = 8'hd7; assign volTable[62] = 8'hff; assign volTable[63] = 8'hff;
 
 assign CHANNEL_A = volTable[A];
 assign CHANNEL_B = volTable[B];

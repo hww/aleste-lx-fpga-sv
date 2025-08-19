@@ -4,6 +4,8 @@ VERILATOR_FLAGS = \
 	-Wall --cc --trace \
 	--Wno-UNOPTFLAT \
 	--Wno-UNUSEDSIGNAL \
+	--Wno-WIDTHEXPAND \
+	--Wno-WIDTHTRUNC \
 	--Wno-CASEX \
 	--x-assign unique \
 	--x-initial unique \
