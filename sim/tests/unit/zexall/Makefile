@@ -9,12 +9,9 @@ VERILATOR_FLAGS = \
 	--timing \
 	--timescale "1ns/1ps"
 
-#VERILATOR_FLAGS = --timing -Wall --cc --exe --build --pins-inout-enabled --trace --binary -Wno-lint -Wno-style --x-assign unique --x-initial unique --trace --Wno-UNOPTFLAT --Wno-UNUSEDSIGNAL --timescale "1ns/1ps"
 SOURCES = tb_z80.sv ../../../../rtl/third_party/a-z80/z80_top_direct_n.v
 CPP_SOURCES = zexall.cpp
 INCLUDE_DIR = -I../../../../rtl/third_party/a-z80
-
-
 
 all: run
 

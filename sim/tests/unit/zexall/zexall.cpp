@@ -39,7 +39,7 @@ size_t load_binary(const char* filename, uint16_t start_addr) {
     fclose(fp);
     return read;
 }
-bool wasAccessToAddress0x100;
+int pass100;
 
 void clock_tick(Vtb_z80* top, VerilatedVcdC* tfp) {
     // Переключаем тактовый сигнал
@@ -54,7 +54,7 @@ void clock_tick(Vtb_z80* top, VerilatedVcdC* tfp) {
             if (!top->nMREQ && !top->nRD) {
                 top->D = memory[top->A];
                 printf("M1 CYCLE: PC=0x%04X OP=0x%02X D=0x%02X\n", top->A, memory[top->A], top->D);
-                if (top->A == 0x100) wasAccessToAddress0x100 = true;
+                if (top->A == 0x100) pass100++;
             }
         }
 
@@ -98,6 +98,8 @@ void reset_cpu(Vtb_z80* top, VerilatedVcdC* tfp) {
     top->nRESET = 1;
     printf("Reset complete\n");
 }
+
+/// @brief The BDOS simulator
 void init_bdos()
 {
     // Загрузка программы zexall
@@ -192,6 +194,29 @@ void init_bdos()
     // 7. Зарезервируем ячейку для вывода символа (по желанию)
     memory[0xFFF0] = 0x00; // Сюда будет сохраняться последний выведенный символ
 
+    // 8. Заполнение векторов прерываний (RST) в нулевой странице
+    // RST 0 (Адрес 0x0000) - уже заполнен (JP 0x0100)
+    // RST 1 (Адрес 0x0008) - Обработчик: просто возвращаемся
+    memory[8] = 0xC9;   // RET
+
+    // RST 2 (Адрес 0x0010) - Обработчик: просто возвращаемся
+    memory[0x10] = 0xC9; // RET
+
+    // RST 3 (Адрес 0x0018) - Обработчик: просто возвращаемся
+    memory[0x18] = 0xC9; // RET
+
+    // RST 4 (Адрес 0x0020) - Обработчик: просто возвращаемся
+    memory[0x20] = 0xC9; // RET
+
+    // RST 5 (Адрес 0x0028) - Обработчик: просто возвращаемся
+    memory[0x28] = 0xC9; // RET
+
+    // RST 6 (Адрес 0x0030) - Обработчик: просто возвращаемся
+    memory[0x30] = 0xC9; // RET
+
+    // RST 7 (Адрес 0x0038) - Обработчик: просто возвращаемся
+    memory[0x38] = 0xC9; // RET
+
     printf("BDOS handler installed at 0x%04X\n", bdos_handler_addr);
 }
 int main(int argc, char** argv) {
@@ -218,7 +243,7 @@ int main(int argc, char** argv) {
     while (!test_complete && main_time < 1000000) {
         clock_tick(top, tfp);
         
-        if (wasAccessToAddress0x100 && !top->nM1 && !top->nRD && top->A==0x0000) {
+        if (pass100>1) {
             test_complete = true;
             printf("Test completed successfully!\n");
         }
