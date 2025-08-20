@@ -1,29 +1,54 @@
 `timescale 1ns / 1ps
-module tb_sdram_controller;
+module tb_sdram_controller(
 
-    reg clk_sys = 0;
-    reg rst = 1;
-    reg locked = 0;
-    // Добавьте здесь сигналы интерфейса SDRAM
+    input  wire        clk_sys,
+    input  wire        rst,
+    input  wire        locked,
+
+    // Интерфейс хоста
+    input  wire        host_wr_req,
+    input  wire        host_rd_req,
+    input  wire [23:0] host_addr,
+    input  wire [15:0] host_data_in,
+    output reg  [15:0] host_data_out,
+    output reg         host_busy,
+    output reg         host_rd_valid,
+
+    // SDRAM интерфейс
+    output reg         sdram_cke,
+    output reg         sdram_cs_n,
+    output reg         sdram_ras_n,
+    output reg         sdram_cas_n,
+    output reg         sdram_we_n,
+    output reg [12:0]  sdram_a,
+    output reg [1:0]   sdram_ba,
+    inout  wire [15:0] sdram_dq,
+    output wire [1:0]  sdram_dm
+);
+
 
     // Instantiate the controller
     sdram_controller DUT (
         .clk_sys(clk_sys),
         .rst(rst),
-        .locked(locked)
-        // ... подключите остальные порты ...
+        .locked(locked),
+        .host_wr_req(host_wr_req),
+        .host_rd_req(host_rd_req),
+        .host_addr(host_addr),
+        .host_data_in(host_data_in),
+        .host_data_out(host_data_out),
+        .host_busy(host_busy),
+        .host_rd_valid(host_rd_valid),
+        .sdram_cke(sdram_cke),
+        .sdram_cs_n(sdram_cs_n),
+        .sdram_ras_n(sdram_ras_n),
+        .sdram_cas_n(sdram_cas_n),
+        .sdram_we_n(sdram_we_n),
+        .sdram_a(sdram_a),
+        .sdram_ba(sdram_ba),
+        .sdram_dq(sdram_dq),
+        .sdram_dm(sdram_dm)
     );
 
-    // Generate system clock
-    always #5.2 clk_sys = ~clk_sys; // ~96 MHz
-
-    initial begin
-        $dumpfile("tb_sdram.vcd");
-        $dumpvars(0, tb_sdram_controller);
-        #100 locked = 1; // PLL locked
-        #50 rst = 0;     // Release reset
-        #10000;          // Run simulation
-        $finish;
-    end
 
 endmodule
