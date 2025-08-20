@@ -26,26 +26,49 @@ This is a clean project structure for SystemVerilog/Verilog development with Ver
 ```
 project_root/
 │
-├── .editorconfig       # Editor configuration for consistent coding style
-├── .gitignore          # Git ignore rules
-├── foldersinit.sh      # Script to generate folder structure
-├── README.md           # This file
+├── .editorconfig
+├── .gitignore
+├── foldersinit.sh
+├── README.md
 │
-├── rtl/                # Main RTL code
-│   ├── core/           # Core project modules
-│   ├── third_party/    # Third-party IP cores (z80, i8255, etc.)
-│   └── top.sv          # Top-level module
+├── rtl/                          # Main RTL code
+│   ├── core/                     # Core project-specific modules
+│   │   ├── alesta/               # Уникальная логика Alesta
+│   │   ├── clock/                # Все генераторы тактов, PLL (clk_gen.v)
+│   │   ├── memory/               # Контроллеры памяти (sdram_controller.v)
+│   │   ├── video/                # Видеоконтроллер, скалер
+│   │   ├── sound/                # Интерфейсы для звука (YM2149)
+│   │   ├── io/                   # Порты, UART, интерфейсы (i8251, i8255)
+│   │   └── fdc/                  # Контроллер дисковода (u765)
+│   ├── third_party/              # Third-party IP cores (немодифицированные)
+│   │   ├── cpu/                  # z80_top_direct_n.v и ВСЕ файлы ядра Z80
+│   │   ├── crtc/                 # UM6845R.v
+│   │   ├── sound/                # YM2149.sv
+│   │   ├── fdc/                  # u765/ (весь каталог)
+│   │   └── ...                   # Другие ядра
+│   ├── interfaces/               # Общие шины, арбитры, адаптеры
+│   └── top.sv                    # Top-level module
 │
-├── sim/                # Simulation files
-│   ├── tests/          # Testbenches
-│   │   ├── unit/       # Unit tests (near corresponding modules)
-│   │   └── system/     # System-level tests
-│   ├── verilator/      # Verilator-specific files
-│   │   ├── obj_dir/    # Verilator generated files (in .gitignore)
-│   │   └── main.cpp    # Verilator main C++ harness
-│   └── modelsim/       # Other simulator files (optional)
+├── sim/
+│   ├── tests/
+│   │   ├── unit/
+│   │   │   ├── clock/            # Тесты clk_gen
+│   │   │   ├── memory/           # Тесты sdram_controller
+│   │   │   ├── video/
+│   │   │   ├── sound/
+│   │   │   ├── io/               # i8251, i8255
+│   │   │   └── third_party/      # zexall, тесты ядер (z80, ym2149, um6845, u765)
+│   │   └── system/               # System-level tests
+│   ├── verilator/
+│   │   ├── obj_dir/              # .gitignore
+│   │   └── main.cpp
+│   └── modelsim/                 # Optional
 │
-├── docs/               # Documentation
-├── scripts/            # Utility scripts
-└── Makefile            # Main build file
+├── constr/                       # CONSTRAINTS (важно!)
+│   ├── ice_sugar_pro.lpf         # Основной файл констрейнов
+│   └── ...                       # Возможно, другие для разных плат
+│
+├── docs/
+├── scripts/                      # Utility scripts
+└── Makefile
 ```
