@@ -31,8 +31,8 @@ run: compile
 	@./obj_dir/V$(TOP_MODULE)
 
 wave:
-	gtkwave $(TOP_MODULE).vcd &
-
+	#gtkwave $(TOP_MODULE).vcd &
+	gtkwave waveform.fst waveform.gtkw
 clean:
 	rm -rf obj_dir *.vcd *.log
 
