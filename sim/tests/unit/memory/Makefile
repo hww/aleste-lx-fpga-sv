@@ -1,27 +1,26 @@
 VERILATOR = verilator
-VERILATOR_FLAGS = -Wall --cc --trace --Wno-UNOPTFLAT --Wno-UNUSEDSIGNAL --Wno-WIDTHEXPAND --Wno-SYNCASYNCNET --Wno-UNUSEDPARAM --Wno-CASEX --x-assign unique --x-initial unique --timing --timescale "1ns/1ps" --converge-limit 2000 --trace-fst --trace-depth 10 --public-flat-rw  --trace
+VERILATOR_FLAGS = -Wall --cc --exe --build --trace --Wno-UNUSEDSIGNAL -Wno-UNDRIVEN --Wno-UNUSEDPARAM
 INCLUDE_DIRS = -I../../../../rtl/core/memory
 
-TARGET = Vtb_sdram_controller
-SOURCES = sdram_test.cpp
-VERILOG_SOURCES = tb_sdram_controller.sv
+DUT = sdram_controller.v
+SIMPLE_TEST = simple_test.cpp
+ADVANCED_TEST = advanced_test.cpp
 
-all: verilate build
+all: simple advanced
 
-verilate: $(SOURCES) $(VERILOG_SOURCES)
-	$(VERILATOR) $(VERILATOR_FLAGS) $(VERILOG_SOURCES) $(SOURCES) $(INCLUDE_DIRS) --top-module tb_sdram_controller
+simple:
+	$(VERILATOR) $(VERILATOR_FLAGS) $(DUT) $(SIMPLE_TEST) $(INCLUDE_DIRS)
 
-build:
-	cd obj_dir && make -f $(TARGET).mk
+advanced:
+	$(VERILATOR) $(VERILATOR_FLAGS) $(DUT) $(ADVANCED_TEST) $(INCLUDE_DIRS)
 
-run: build
-	cd obj_dir && ./$(TARGET)
+run_simple: simple
+	./obj_dir/Vsdram_controller
 
-wave:
-	gtkwave sdram_controller.vcd &
+run_advanced: advanced
+	./obj_dir/Vsdram_controller
 
 clean:
-	rm -rf obj_dir
-	rm -f sdram_controller.vcd
+	rm -rf obj_dir *.vcd
 
-.PHONY: all verilate build run wave clean
+.PHONY: all simple advanced run_simple run_advanced clean
