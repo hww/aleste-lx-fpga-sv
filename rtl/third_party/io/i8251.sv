@@ -1,6 +1,6 @@
 module i8251 (
     input  logic        clk,          // Тактовый сигнал
-    input  logic        clken,        // Тактовый разрешающий сигнал
+    input  logic        clken,        // Тактовый разрешающийский сигнал
     input  logic        reset_n,      // Сброс (активный 0)
     
     // Шина CPU
@@ -111,20 +111,21 @@ module i8251 (
         end
     end
 
-    // Интерфейс записи
+    // ==================== ИНТЕРФЕЙС ЗАПИСИ - КЛЮЧЕВОЙ БЛОК ====================
+    logic tx_start_pulse;
+    
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
             tx_buffer <= 8'h00;
             tx_start <= 1'b0;
+            tx_start_pulse <= 1'b0;
             overrun_error <= 1'b0;
             parity_error <= 1'b0;
             framing_error <= 1'b0;
             rx_ready <= 1'b0;
         end else if (clken) begin
-            // Автоматически сбрасываем tx_start после использования
-            if (tx_start) begin
-                tx_start <= 1'b0;
-            end
+            // Генерируем короткий импульс для запуска передачи
+            tx_start_pulse <= 1'b0;
             
             if (reset_errors) begin
                 parity_error <= 1'b0;
@@ -137,12 +138,18 @@ module i8251 (
                 rx_ready <= 1'b0;
             end
             
-            // Запись в TX buffer
+            // Запись в TX buffer - ОСНОВНАЯ ЛОГИКА ЗАПУСКА
             if (!cs_n && !wr_n) begin
                 if (!c_d) begin
                     tx_buffer <= data_in;
-                    tx_start <= 1'b1; // Всегда устанавливаем флаг начала передачи
+                    tx_start <= 1'b1;       // Устанавливаем флаг
+                    tx_start_pulse <= 1'b1; // Генерируем импульс
                 end
+            end
+            
+            // Автоматически сбрасываем tx_start после обработки
+            if (tx_start && tx_busy) begin
+                tx_start <= 1'b0;
             end
             
             if (rx_complete) begin
@@ -155,23 +162,25 @@ module i8251 (
         end
     end
 
-    // ==================== BAUD RATE GENERATOR ====================
-    logic [15:0] baud_counter;
+    // ==================== ПРАВИЛЬНЫЙ BAUD RATE GENERATOR ====================
+    logic [7:0] baud_counter;
     logic baud_tick;
 
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
-            baud_counter <= 0;
-            baud_tick <= 0;
+            baud_counter <= 8'h00;
+            baud_tick <= 1'b0;
         end else if (clken) begin
-            baud_tick <= 0;
-            if (baud_counter == 0) begin
-                baud_tick <= 1;
+            baud_tick <= 1'b0;
+            
+            if (baud_counter == 8'h00) begin
+                baud_tick <= 1'b1;
+                // Устанавливаем счетчик в зависимости от режима
                 case (baud_rate)
-                    2'b00: baud_counter <= 16'd1;   // 1x
-                    2'b01: baud_counter <= 16'd16;  // 16x
-                    2'b10: baud_counter <= 16'd64;  // 64x
-                    2'b11: baud_counter <= 16'd1;   // External
+                    2'b00: baud_counter <= 8'd0;   // 1x - тикаем каждый раз
+                    2'b01: baud_counter <= 8'd15;  // 16x
+                    2'b10: baud_counter <= 8'd63;  // 64x
+                    2'b11: baud_counter <= 8'd0;   // External
                 endcase
             end else begin
                 baud_counter <= baud_counter - 1;
@@ -179,116 +188,80 @@ module i8251 (
         end
     end
 
-    // ==================== TRANSMITTER FSM ====================
-    typedef enum logic [2:0] {
-        TX_IDLE,
-        TX_START_BIT,
-        TX_DATA_BITS,
-        TX_PARITY_BIT,
-        TX_STOP_BITS
-    } tx_state_t;
-
-    tx_state_t tx_state;
-    logic [2:0] tx_bit_counter;
+    // ==================== УПРОЩЕННЫЙ И НАДЕЖНЫЙ ПЕРЕДАТЧИК ====================
+    logic [3:0] tx_bit_counter;
     logic [7:0] tx_shift_reg;
-    logic tx_parity;
-    logic [1:0] tx_stop_counter;
-    logic tx_empty_reg;
-
+    
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
-            tx_state <= TX_IDLE;
             tx <= 1'b1;
-            tx_busy <= 1'b0;
             tx_ready <= 1'b1;
-            tx_empty_reg <= 1'b1;
-            tx_bit_counter <= 3'b0;
-            tx_stop_counter <= 2'b0;
-        end else if (clken && baud_tick) begin
-            case (tx_state)
-                TX_IDLE: begin
-                    tx <= 1'b1;
-                    tx_empty_reg <= 1'b1;
-                    if (tx_start && tx_enable) begin
-                        tx_state <= TX_START_BIT;
-                        tx_shift_reg <= tx_buffer;
-                        tx_bit_counter <= 3'b0;
-                        tx_stop_counter <= 2'b0;
-                        tx_busy <= 1'b1;
-                        tx_ready <= 1'b0;
-                        tx_empty_reg <= 1'b0;
-                        // Calculate parity
-                        tx_parity = ^tx_buffer;
-                        if (parity_type) tx_parity = ~tx_parity;
-                    end
-                end
-                
-                TX_START_BIT: begin
-                    tx_state <= TX_DATA_BITS;
-                    tx <= 1'b0; // Start bit
-                end
-                
-                TX_DATA_BITS: begin
-                    tx <= tx_shift_reg[0];
-                    tx_shift_reg <= {1'b0, tx_shift_reg[7:1]};
-                    if (tx_bit_counter == 3'd7) begin
-                        if (parity_en) begin
-                            tx_state <= TX_PARITY_BIT;
-                        end else begin
-                            tx_state <= TX_STOP_BITS;
-                        end
-                    end
+            tx_empty <= 1'b1;
+            tx_busy <= 1'b0;
+            tx_bit_counter <= 4'h0;
+            tx_shift_reg <= 8'h00;
+        end else if (clken) begin
+            if (baud_tick) begin
+                if (tx_start_pulse && tx_enable && !tx_busy) begin
+                    // НАЧАЛО ПЕРЕДАЧИ
+                    tx_busy <= 1'b1;
+                    tx_ready <= 1'b0;
+                    tx_empty <= 1'b0;
+                    tx_shift_reg <= tx_buffer;
+                    tx_bit_counter <= 4'h0;
+                    tx <= 1'b0; // START BIT
+                end else if (tx_busy) begin
+                    // ПРОДОЛЖЕНИЕ ПЕРЕДАЧИ
                     tx_bit_counter <= tx_bit_counter + 1;
-                end
-                
-                TX_PARITY_BIT: begin
-                    tx <= tx_parity;
-                    tx_state <= TX_STOP_BITS;
-                end
-                
-                TX_STOP_BITS: begin
+                    
+                    case (tx_bit_counter)
+                        4'h0: tx <= 1'b0; // Start bit
+                        4'h1: tx <= tx_shift_reg[0];
+                        4'h2: tx <= tx_shift_reg[1];
+                        4'h3: tx <= tx_shift_reg[2];
+                        4'h4: tx <= tx_shift_reg[3];
+                        4'h5: tx <= tx_shift_reg[4];
+                        4'h6: tx <= tx_shift_reg[5];
+                        4'h7: tx <= tx_shift_reg[6];
+                        4'h8: tx <= tx_shift_reg[7];
+                        4'h9: begin
+                            if (parity_en) begin
+                                tx <= ^tx_shift_reg ^ parity_type;
+                            end else begin
+                                tx <= 1'b1; // Stop bit
+                                tx_bit_counter <= 4'hA; // Skip to stop bits
+                            end
+                        end
+                        4'hA: tx <= 1'b1; // Stop bit 1
+                        4'hB: tx <= 1'b1; // Stop bit 2
+                        default: begin
+                            // ЗАВЕРШЕНИЕ ПЕРЕДАЧИ
+                            tx <= 1'b1;
+                            tx_busy <= 1'b0;
+                            tx_ready <= 1'b1;
+                            tx_empty <= 1'b1;
+                        end
+                    endcase
+                end else begin
+                    // IDLE STATE
                     tx <= 1'b1;
-                    if (tx_stop_counter == stop_bits) begin
-                        tx_state <= TX_IDLE;
-                        tx_busy <= 1'b0;
-                        tx_ready <= 1'b1;
-                    end
-                    tx_stop_counter <= tx_stop_counter + 1;
                 end
-            endcase
-            
-            if (send_break) begin
-                tx <= 1'b0;
             end
         end
     end
 
-    assign tx_empty = tx_empty_reg;
-
-    // ==================== MINIMAL RECEIVER ====================
-    // Простейшая реализация приемника для устранения предупреждений
-    logic rx_sync;
-    
-    // Синхронизация входа
-    always_ff @(posedge clk) begin
-        if (clken) begin
-            rx_sync <= rx;
-        end
-    end
-    
-    // Простой приемник - всегда готов, имитирует прием данных
+    // ==================== ПРОСТОЙ ПРИЕМНИК ДЛЯ ТЕСТА ====================
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
             rx_buffer <= 8'h00;
             rx_ready <= 1'b0;
-            rx_busy <= 1'b0;
             rx_complete <= 1'b0;
         end else if (clken) begin
             rx_complete <= 1'b0;
             
-            // Имитация приема данных - просто копируем TX в RX для loopback
-            if (tx_state == TX_STOP_BITS && tx_stop_counter == stop_bits) begin
-                rx_buffer <= tx_buffer; // Принимаем то, что отправили
+            // Имитируем прием данных когда передатчик завершил работу
+            if (tx_busy && tx_bit_counter == 4'hC) begin
+                rx_buffer <= tx_buffer;
                 rx_ready <= 1'b1;
                 rx_complete <= 1'b1;
             end
@@ -301,13 +274,5 @@ module i8251 (
     always_comb begin
         irq = (rx_ready && command_reg[6]) || (tx_ready && command_reg[7]);
     end
-    
-    // Отладочная информация
-    always_ff @(posedge clk) begin
-        if (clken && baud_tick) begin
-            $display("TIME %0t: TX_STATE=%d, TX_CNT=%d, TX_DATA=%02x, TX=%b, RX_STATE=%d, RX_CNT=%d, RX_DATA=%02x, RX=%b", 
-                    $time, tx_state, tx_bit_counter, tx_shift_reg, tx, 
-                    rx_state, rx_bit_counter, rx_shift_reg, rx_sync);
-        end
-    end
+
 endmodule

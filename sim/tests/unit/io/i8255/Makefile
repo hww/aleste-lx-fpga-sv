@@ -6,6 +6,7 @@ VERILATOR_FLAGS = \
 	--Wno-CASEX \
 	--x-assign unique \
 	--x-initial unique \
+	--trace-depth 10 \
 	--public \
 	--timing \
 	--timescale "1ns/1ps"

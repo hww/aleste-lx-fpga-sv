@@ -95,8 +95,8 @@ wire [3:0] charLenBits = (L == 2'b00) ? 4'd4 : (L == 2'b01) ? 4'd5 : (L == 2'b10
 wire [6:0] baudRateDiv = (~B[1]) ? 7'd0 : (~B[0]) ? 7'd15 : 7'd63; // 00 = Sync Mode, 01 = 1x, 10 = 16x, 11 = 64x
 wire [6:0] baudHalfRateDiv = (~B[1]) ? 7'd0 : (~B[0]) ? 7'd7 : 7'd31; // 00 = Sync Mode, 01 = 1/2=1x, 10 = 16/2=8x, 11 = 64/2=32x
 reg [3:0] RESET_Internal_cnt = 0;
-wire RESET_Internal = RESET || (RESET_Internal_cnt != 4'd0);
-
+//wire RESET_Internal = RESET || (RESET_Internal_cnt != 4'd0);
+wire RESET_Internal = RESET;
 
 always @(posedge TxRDYStatusSet or posedge TxRDYStatusReset)
 begin

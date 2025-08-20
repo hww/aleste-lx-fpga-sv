@@ -1,0 +1,38 @@
+[4] 
+[1] === TEST 1: RESET STATE ===
+[1] === TEST 2: CONFIGURATION ===
+[1] === TEST 3: LOOPBACK TEST ===
+[1] === TEST COMPLETE ===
+[1] === i8251 UART TEST START ===
+[1] Cycle 0: TXD=1 RXRDY=0
+[1] Cycle 100: TXD=1 RXRDY=0
+[1] Cycle 120: TXD=1 RXRDY=0
+[1] Cycle 140: TXD=1 RXRDY=0
+[1] Cycle 160: TXD=1 RXRDY=0
+[1] Cycle 180: TXD=1 RXRDY=0
+[1] Cycle 20: TXD=1 RXRDY=0
+[1] Cycle 40: TXD=1 RXRDY=0
+[1] Cycle 60: TXD=1 RXRDY=0
+[1] Cycle 80: TXD=1 RXRDY=0
+[1] Monitoring transmission...
+[1] Sending test data: 0x55
+[1] Status after config: 0x84
+[1] Status after reset: 0x84
+[1] TIMEOUT: No data received after 200 cycles
+[1] [PINS] After command config TXD=1 TXRDY=0 TXEMPTY=1 RXD=1 RXRDY=0 DTR=1 RTS=1
+[1] [PINS] After mode config TXD=1 TXRDY=0 TXEMPTY=1 RXD=1 RXRDY=0 DTR=1 RTS=1
+[1] [PINS] After reset TXD=1 TXRDY=0 TXEMPTY=1 RXD=1 RXRDY=0 DTR=1 RTS=1
+[1] [PINS] After write data TXD=1 TXRDY=0 TXEMPTY=1 RXD=1 RXRDY=0 DTR=1 RTS=1
+[1] [PINS] Final state TXD=1 TXRDY=0 TXEMPTY=1 RXD=1 RXRDY=0 DTR=1 RTS=1
+[1] [PINS] Timeout state TXD=1 TXRDY=0 TXEMPTY=1 RXD=1 RXRDY=0 DTR=1 RTS=1
+[202] [READ]  CTRL = 0x84
+[1] [RESET] Asserting reset...
+[1] [RESET] Reset released
+[1] [WRITE] CTRL = 0x00
+[1] [WRITE] CTRL = 0x37
+[1] [WRITE] DATA = 0x55
+[1] cd obj_dir && make -j -f Vtb_i8251.mk
+[1] make[1]: Entering directory '/home/valery/asv/sim/tests/unit/io/i8251/obj_dir'
+[1] make[1]: Leaving directory '/home/valery/asv/sim/tests/unit/io/i8251/obj_dir'
+[1] make[1]: Nothing to be done for 'default'.
+[1] verilator -Wall --cc --trace --Wno-UNOPTFLAT --Wno-UNUSEDSIGNAL --Wno-WIDTHEXPAND --Wno-SYNCASYNCNET --Wno-CASEX --x-assign unique --x-initial unique --timing --timescale "1ns/1ps" --converge-limit 2000 tb_i8251.sv ../../../../../rtl/third_party/io/i8251.v --top-module tb_i8251 --exe i8251_test.cpp

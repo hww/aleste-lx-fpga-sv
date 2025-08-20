@@ -47,32 +47,44 @@ int main(int argc, char** argv) {
     dut->reset_n = 0;
     dut->clken = 1;
     dut->rx = 1;
-    clock_tick(dut, 10);
+    clock_tick(dut, 5);
     dut->reset_n = 1;
-    clock_tick(dut, 10);
+    clock_tick(dut, 5);
     
-    std::cout << "[Info] Configuring UART..." << std::endl;
+    std::cout << "[Info] Configuring UART for 1x baud rate..." << std::endl;
     write_reg(dut, true, 0x00); // 8N1, 1x
+    
+    std::cout << "[Info] Enabling TX/RX..." << std::endl;
     write_reg(dut, true, 0x37); // TX/RX enable, reset errors
     
-    // Проверка что TX включен
+    // Проверка статуса
     uint8_t status = read_reg(dut, true);
-    std::cout << "Status after enable: 0x" << std::hex << (int)status << std::endl;
+    std::cout << "Status after config: 0x" << std::hex << (int)status << std::endl;
     
     // Отправка данных
     std::cout << "[Info] Sending data: 0x55" << std::endl;
     write_reg(dut, false, 0x55);
     
-    // Мониторинг передачи
-    for (int i = 0; i < 100; i++) {
+    // Проверка статуса после отправки
+    status = read_reg(dut, true);
+    std::cout << "Status after write: 0x" << std::hex << (int)status << std::endl;
+    
+    // Детальный мониторинг
+    std::cout << "[Info] Detailed monitoring (40 cycles):" << std::endl;
+    for (int i = 0; i < 40; i++) {
         dut->rx = dut->tx; // Loopback
         clock_tick(dut, 1);
         
-        if (i < 20 || i % 10 == 0) {
-            std::cout << "Cycle " << i << ": TX=" << (int)dut->tx << std::endl;
+        std::cout << "Cycle " << std::dec << i << ": TX=" << (int)dut->tx 
+                  << ", clken=" << (int)dut->clken
+                  << std::endl;
+        
+        // Частая проверка статуса
+        if (i % 5 == 0) {
+            status = read_reg(dut, true);
+            std::cout << "  Status: 0x" << std::hex << (int)status << std::endl;
         }
         
-        status = read_reg(dut, true);
         if (status & 0x02) { // RX ready
             uint8_t received = read_reg(dut, false);
             std::cout << "Received: 0x" << std::hex << (int)received << std::endl;

@@ -10,9 +10,12 @@ VERILATOR_FLAGS = \
 	--x-initial unique \
 	--timing \
 	--timescale "1ns/1ps" \
-	--converge-limit 2000
+	--converge-limit 2000 \
+	--trace-fst \
+	--trace-depth 10 \
+	--public-flat-rw 
 
-SOURCES = tb_i8251.sv ../../../../rtl/third_party/i8251.v
+SOURCES = tb_i8251.sv ../../../../../rtl/third_party/io/i8251.v
 CPP_SOURCES = i8251_test.cpp
 TOP_MODULE = tb_i8251
 
