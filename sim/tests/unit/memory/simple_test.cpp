@@ -4,7 +4,6 @@
 #include <iostream>
 
 vluint64_t main_time = 0;
-
 double sc_time_stamp() { return main_time; }
 
 int main(int argc, char** argv) {
@@ -22,27 +21,46 @@ int main(int argc, char** argv) {
     top->rst = 1;
     top->locked = 0;
     
-    std::cout << "=== Simple SDRAM Test ===" << std::endl;
+    std::cout << "=== SDRAM Controller Initialization Test ===" << std::endl;
     
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 25000; i++) {
         top->clk_sys = !top->clk_sys;
         
-        if (i < 10) { 
-            top->rst = 1; 
+        // Сброс и включение PLL
+        if (i < 10) {
+            top->rst = 1;
             top->locked = 0;
         } else if (i == 10) {
             top->rst = 0;
             top->locked = 1;
-            std::cout << "Reset released" << std::endl;
+            std::cout << "rst released, PLL locked" << std::endl;
         }
         
-        // Простые тестовые операции
-        if (i == 50) {
-            top->host_wr_req = 1;
-            top->host_addr = 0x1000;
-            top->host_data_in = 0x1234;
-        } else if (i == 51) {
-            top->host_wr_req = 0;
+        // Мониторинг состояния каждые 100 тактов
+        if (i % 100 == 0 && i > 20) {
+            std::cout << "Time " << main_time << ": "
+                      << "CKE=" << (int)top->sdram_cke
+                      << ", CS_N=" << (int)top->sdram_cs_n
+                      << ", BUSY=" << (int)top->host_busy
+                      << ", RAS_N=" << (int)top->sdram_ras_n
+                      << ", CAS_N=" << (int)top->sdram_cas_n
+                      << ", WE_N=" << (int)top->sdram_we_n
+                      << std::endl;
+        }
+        
+        // Проверка завершения инициализации
+        if (i > 1000 && !top->host_busy && top->sdram_cke) {
+            std::cout << "✓ Initialization completed at time " << main_time << std::endl;
+            break;
+        }
+        
+        // Таймаут
+        if (i == 24999) {
+            std::cout << "✗ TIMEOUT: Initialization failed" << std::endl;
+            std::cout << "Final state: CKE=" << (int)top->sdram_cke
+                      << ", CS_N=" << (int)top->sdram_cs_n
+                      << ", BUSY=" << (int)top->host_busy
+                      << std::endl;
         }
         
         top->eval();
@@ -54,6 +72,5 @@ int main(int argc, char** argv) {
     delete top;
     delete tfp;
     
-    std::cout << "Simple test completed" << std::endl;
     return 0;
 }

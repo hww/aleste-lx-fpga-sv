@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
-module tb_sdram_controller(
 
+module tb_sdram_controller(
     input  wire        clk_sys,
     input  wire        rst,
     input  wire        locked,
@@ -23,8 +23,22 @@ module tb_sdram_controller(
     output reg [12:0]  sdram_a,
     output reg [1:0]   sdram_ba,
     inout  wire [15:0] sdram_dq,
-    output wire [1:0]  sdram_dm
+    output wire [1:0]  sdram_dm,
+    output wire [2:0]  debug_state
 );
+
+    tb_sdram_model sdram_model (
+        .clk(clk_sys),
+        .rst(rst),
+        .cs_n(sdram_cs_n),
+        .ras_n(sdram_ras_n),
+        .cas_n(sdram_cas_n),
+        .we_n(sdram_we_n),
+        .ba(sdram_ba),
+        .a(sdram_a),
+        .dq(sdram_dq),
+        .dm(sdram_dm)
+    );
 
 
     // Instantiate the controller
@@ -47,7 +61,8 @@ module tb_sdram_controller(
         .sdram_a(sdram_a),
         .sdram_ba(sdram_ba),
         .sdram_dq(sdram_dq),
-        .sdram_dm(sdram_dm)
+        .sdram_dm(sdram_dm),
+        .debug_state(debug_state)
     );
 
 
