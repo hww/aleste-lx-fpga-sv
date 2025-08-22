@@ -5,7 +5,7 @@ INCLUDE_DIRS = -I../../../../rtl/core/memory
 SIMPLE_TEST = simple_test.cpp
 ADVANCED_TEST = advanced_test.cpp
 DUT = tb_sdram_controller.sv
-SDRAM_MODEL = tb_sdram_model.v
+SDRAM_MODEL = sdram_model.v
 
 all: simple advanced
 

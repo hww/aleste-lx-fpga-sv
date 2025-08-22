@@ -27,7 +27,13 @@ module tb_sdram_controller(
     output wire [2:0]  debug_state
 );
 
-    tb_sdram_model sdram_model (
+logic [15..0] sdram_dq_in;
+logic [15..0] sdram_dq_out;
+
+assign sdram_dq = 
+
+dq_in
+    sdram_model sdram_model (
         .clk(clk_sys),
         .rst(rst),
         .cs_n(sdram_cs_n),
@@ -36,7 +42,8 @@ module tb_sdram_controller(
         .we_n(sdram_we_n),
         .ba(sdram_ba),
         .a(sdram_a),
-        .dq(sdram_dq),
+        .dq_in(sdram_dq_in),
+        .dq_out(sdram_dq_out),
         .dm(sdram_dm)
     );
 
