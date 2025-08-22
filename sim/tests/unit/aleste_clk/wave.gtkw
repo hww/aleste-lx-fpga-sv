@@ -1,0 +1,62 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Fri Aug 22 16:24:33 2025
+[*]
+[dumpfile] "/home/valery/asv/sim/tests/unit/aleste_clk/waveform.vcd"
+[dumpfile_mtime] "Fri Aug 22 16:21:52 2025"
+[dumpfile_size] 91787
+[savefile] "/home/valery/asv/sim/tests/unit/aleste_clk/wave.gtkw"
+[timestart] 1094
+[size] 1920 1110
+[pos] -1 -1
+*-3.450263 1123 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 297
+[signals_width] 166
+[sst_expanded] 1
+[sst_vpaned_height] 334
+@28
+TOP.clk_13m
+TOP.clk_16m
+TOP.high
+@200
+-CPU
+@28
+TOP.clk
+@200
+-
+@25
+[color] 1
+TOP.cpu_cycle[2:0]
+@200
+-
+@22
+[color] 3
+TOP.cpu_addr[15:0]
+[color] 6
+TOP.cpu_data_out[7:0]
+[color] 6
+TOP.cpu_data_in[7:0]
+@28
+TOP.mreq_n
+TOP.rd_n
+[color] 1
+TOP.wr_n
+TOP.rfsh_n
+TOP.wait_n
+@200
+-MEMORY
+@28
+TOP.ras_n
+TOP.cas_n
+TOP.cbuf_n
+TOP.vbuf_n
+[color] 1
+TOP.we_n
+@200
+-CRT
+@28
+TOP.dis
+TOP.mvi_n
+TOP.st[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

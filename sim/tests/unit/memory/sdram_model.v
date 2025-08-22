@@ -1,118 +1,91 @@
-`timescale 1ns / 1ps
-/* verilator lint_off MULTITOP */
-module sdram_model
-(
-	input       clk,
-	input       cs_n,               // CHIP SELECT
-	input       we_n,
-	input       cas_n,              //COLUMN ADRESS STROBE
-	input       ras_n,              //ROW ADRESS STROBE
-	input[1:0]  ba,                 // BANK SELECTION BITS
-	input[13:0] a,      
-	input[31:0] dq_in,
-
-	output reg [31:0] dq_out 
+module sdram_model (
+    input        clk,
+    input        cke,
+    input        cs_n,
+    input        ras_n,
+    input        cas_n,
+    input        we_n,
+    input [1:0]  ba,
+    input [12:0] a,
+    inout [15:0] dq,
+    input [1:0]  dm,
+    output [2:0] model_state
 );
 
-	parameter DATA   = 16,
-			  ROW    = 16384,
-			  COLUMN = 512;
-			
-	wire ACT,
-		 READ_CAS,
-		 WRITE_CAS,
-		 NOP,
-		 WRITE_READY;
- 
-	
-	reg [13:0]registered_row     = 14'b0;
-	reg [8:0]registered_column   = 9'b0;
-	reg [1:0]registered_bank_sel = 2'b0;
-	reg [1:0]nop_counter	     = 2'b0;
-	reg registered_write_cas     = 1'b0, registered_read_cas = 1'b0;
-		
-	assign ACT         = ~cs_n && ~ras_n && cas_n && we_n;
-	assign READ_CAS    = ~cs_n && ras_n && ~cas_n && we_n;
-	assign WRITE_CAS   = ~cs_n && ras_n && ~cas_n && ~we_n;
-	assign NOP         = ~cs_n && ras_n && cas_n && we_n;
-	assign WRITE_READY = (nop_counter == 2 && NOP && registered_write_cas)? 1'b1: 1'b0; 
-	reg [DATA-1 : 0] bank0 [0 : ROW-1][0 : COLUMN-1];
-	reg [DATA-1 : 0] bank1 [0 : ROW-1][0 : COLUMN-1];
-	reg [DATA-1 : 0] bank2 [0 : ROW-1][0 : COLUMN-1];
-	reg [DATA-1 : 0] bank3 [0 : ROW-1][0 : COLUMN-1];
-	
-	localparam BANK0 = 2'b00,
-			   BANK1 = 2'b01,
-			   BANK2 = 2'b10,
-			   BANK3 = 2'b11;
-	
-	always @(posedge clk)begin
-		if(!cs_n)begin
-			if(ACT) begin
-				registered_row[13:0]     <= a[13:0];
-				registered_bank_sel[1:0] <= ba[1:0];
-			end
-			else if (READ_CAS || WRITE_CAS)begin
-				registered_column[8:0]   <= a[8:0];
-				registered_bank_sel[1:0] <= ba[1:0];
-				registered_write_cas     <= WRITE_CAS;
-			end
-
-            if(nop_counter == 3)begin
-                nop_counter <= 2'b0;
-            end
-            else if(NOP)begin
-                nop_counter <= nop_counter + 1;    
-            end	
-		end
-	end
-
-    always @(*) begin
-		if(WRITE_READY)begin
-
-			case(registered_bank_sel)
-		
-				BANK0:begin
-					bank0[registered_row][registered_column] = dq_in;
-				end
-		
-				BANK1:begin
-					bank1[registered_row][registered_column] = dq_in;
-				end
-		
-				BANK2:begin
-					bank2[registered_row][registered_column] = dq_in;
-				end
-		
-				BANK3:begin
-					bank3[registered_row][registered_column] = dq_in;
-				end
-		
-			endcase	
-		end
-		else if(we_n)begin
-		
-			case(registered_bank_sel)
-		
-				BANK0:begin
-					dq_out = bank0[registered_row][registered_column];
-				end
-		
-				BANK1:begin
-					dq_out = bank1[registered_row][registered_column];
-				end
-		
-				BANK2:begin
-					dq_out = bank2[registered_row][registered_column];
-				end
-		
-				BANK3:begin
-					dq_out = bank3[registered_row][registered_column];
-				end
-		
-			endcase
-		end	
-	end
+    // SDRAM memory array
+    reg [15:0] memory [0:1024*1024-1]; // 2MB memory
+    
+    // Internal signals
+    reg [15:0] dq_out;
+    reg        dq_oe;
+    assign dq = dq_oe ? dq_out : 16'bzzzz_zzzz_zzzz_zzzz;
+    
+    // Command decoding
+    wire [3:0] command = {cs_n, ras_n, cas_n, we_n};
+    
+    // Model states
+    localparam STATE_IDLE = 0;
+    localparam STATE_ACTIVE = 1;
+    localparam STATE_READ = 2;
+    localparam STATE_WRITE = 3;
+    localparam STATE_PRECHARGE = 4;
+    
+    reg [2:0] state = STATE_IDLE;
+    assign model_state = state;
+    
+    // Address and bank tracking
+    reg [12:0] active_row [0:3];
+    reg [1:0]  active_bank;
+    reg        bank_active [0:3];
+    
+    initial begin
+        for (int i = 0; i < 4; i++) begin
+            bank_active[i] = 0;
+            active_row[i] = 0;
+        end
+    end
+    
+    always @(posedge clk) begin
+        if (cke && !cs_n) begin
+            case (command)
+                4'b0011: begin // ACTIVATE
+                    state <= STATE_ACTIVE;
+                    active_bank <= ba;
+                    active_row[ba] <= a;
+                    bank_active[ba] <= 1;
+                end
+                
+                4'b0101: begin // READ
+                    if (bank_active[ba]) begin
+                        state <= STATE_READ;
+                        dq_out <= memory[{{ba, active_row[ba], a[8:0]}}[19:0]];
+                        dq_oe <= 1;
+                        #30 dq_oe <= 0; // CAS latency simulation
+                    end
+                end
+                
+                4'b0100: begin // WRITE
+                    if (bank_active[ba]) begin
+                        state <= STATE_WRITE;
+                        memory[{{ba, active_row[ba], a[8:0]}}[19:0]] <= dq;
+                    end
+                end
+                
+                4'b0010: begin // PRECHARGE
+                    state <= STATE_PRECHARGE;
+                    if (a[10]) begin // Precharge all banks
+                        for (int i = 0; i < 4; i++) bank_active[i] <= 0;
+                    end else begin
+                        bank_active[ba] <= 0;
+                    end
+                end
+                
+                default: state <= STATE_IDLE;
+            endcase
+        end else begin
+            state <= STATE_IDLE;
+            dq_oe <= 0;
+        end
+    end
 
 endmodule
-/* verilator lint_on MULTITOP */

@@ -1,4 +1,4 @@
-#include "Vtb_sdram_controller.h"
+#include "Vtb_sdram_wb_controller.h"
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 #include <iostream>
@@ -9,14 +9,14 @@ double sc_time_stamp() { return main_time; }
 
 class SDRAMTest {
 private:
-    Vtb_sdram_controller* dut;
+    Vtb_sdram_wb_controller* dut;
     VerilatedVcdC* tfp;
     vluint64_t time;
     
 public:
     SDRAMTest() : time(0) {
         Verilated::traceEverOn(true);
-        dut = new Vtb_sdram_controller;
+        dut = new Vtb_sdram_wb_controller;
         tfp = new VerilatedVcdC;
         dut->trace(tfp, 99);
         tfp->open("sdram_advanced.vcd");
