@@ -25,7 +25,7 @@ module sdram_model_tb;
     // Тестовый процесс
     initial begin
         $timeformat(-9, 0, " ns", 10);
-        $dumpfile("wave.vcd");
+        $dumpfile("sdram_model.vcd");
         $dumpvars(0, sdram_model_tb);
         
         #100ns;
@@ -85,7 +85,7 @@ module sdram_model_tb;
     
     logic [15:0] captured_data;
     logic data_valid;
-    
+
     always @(posedge clk) begin
         if (dq !== 16'hzzzz) begin
             captured_data <= dq;

@@ -1,16 +1,21 @@
-module sdram_model (
-    input wire          clk,   // Clock   
-    input wire          cke,   // Clock Enable
-    input wire          cs_n,  // Chip Select
-    input wire          ras_n, // Row Address Strobe
-    input wire          cas_n, // Column Address Strobe
-    input wire          we_n,  // Write Enable
-    input wire [12:0]   a,     // Address bus
-    input wire [1:0]    ba,    // Bank Address
-    inout wire [15:0]   dq,    // Data bus
-    input wire [1:0]    dqm    // Data Mask
+module sdram_model #(
+    parameter SDRAM_ADDR_WIDTH = 13,
+    parameter SDRAM_DATA_WIDTH = 16,
+    parameter SDRAM_BANK_WIDTH = 2,
+    parameter SDRAM_COL_WIDTH = 9,
+    parameter SDRAM_ROW_WIDTH = 13
+)(
+    input wire                          clk,   // Clock   
+    input wire                          cke,   // Clock Enable
+    input wire                          cs_n,  // Chip Select
+    input wire                          ras_n, // Row Address Strobe
+    input wire                          cas_n, // Column Address Strobe
+    input wire                          we_n,  // Write Enable
+    input wire [SDRAM_ADDR_WIDTH-1:0]   a,     // Address bus
+    input wire [SDRAM_BANK_WIDTH-1:0]   ba,   // Bank Address
+    inout wire [SDRAM_DATA_WIDTH-1:0]   dq,    // Data bus
+    input wire [1:0]                    dqm    // Data Mask
 );
-
     // Размер памяти: 4 банка × 8192 строк × 512 столбцов = 16M words (32MB)
     logic [15:0] memory [0:4*8192*512-1];
     logic [15:0] data_out;
