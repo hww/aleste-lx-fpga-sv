@@ -33,7 +33,8 @@ module sdram_wb_controller #(
     output             sdram_cke,       // Clock enable
     
     // Debug
-    output       [2:0] debug_state      // Current state
+    output       [2:0] debug_state,     // Current state
+    output reg         sdram_dq_oe
 );
 
 // Local parameters
@@ -88,7 +89,6 @@ assign debug_state = state;
 
 // Data bus control
 reg [15:0] sdram_dq_out;
-reg        sdram_dq_oe;
 assign sdram_dq = sdram_dq_oe ? sdram_dq_out : 16'bzzzz_zzzz_zzzz_zzzz;
 
 // Wishbone interface

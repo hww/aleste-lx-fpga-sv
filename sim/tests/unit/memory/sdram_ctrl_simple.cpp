@@ -1,6 +1,6 @@
 #include <verilated.h>
 #include <verilated_vcd_c.h>
-#include "Vtb_sdram_wb_controller.h"
+#include "Vsdram_ctrl.h"
 #include <iostream>
 
 vluint64_t main_time = 0;
