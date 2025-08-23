@@ -39,7 +39,7 @@ void print_controller_state(Vsdram_ctrl_tb* dut) {
     static int last_state = -1;
     
     if (dut->debug_state != last_state) {
-        std::cout << "TIME " << main_time << ": ";
+        std::cout << "[CPP] TIME " << main_time << ": ";
         std::cout << "STATE=" << (int)dut->debug_state << " | ";
         
         switch(dut->debug_state) {
@@ -73,7 +73,7 @@ void print_sdram_command(Vsdram_ctrl_tb* dut) {
                      (dut->sdram_cas_n << 1) | (dut->sdram_we_n);
     
     if (current_cmd != last_cmd && dut->sdram_cke) {
-        std::cout << "TIME " << main_time << ": SDRAM_CMD: ";
+        std::cout << "[CPP] TIME " << main_time << ": SDRAM_CMD: ";
         
         if (dut->sdram_cs_n) {
             std::cout << "DESELECT";
@@ -203,7 +203,7 @@ public:
         dut->wb_dat_i = data;
         
         if (!wait_for_ack()) {
-            std::cout << "[CPP] WRITE timeout" << std::endl;
+            std::cout << "[CPP] [ERROR] WRITE timeout" << std::endl;
             dut->wb_cyc_i = 0;
             dut->wb_stb_i = 0;
             return false;
@@ -225,7 +225,7 @@ public:
         dut->wb_adr_i = addr;
         
         if (!wait_for_ack()) {
-            std::cout << "[CPP] READ timeout" << std::endl;
+            std::cout << "[CPP] [ERROR] READ timeout" << std::endl;
             dut->wb_cyc_i = 0;
             dut->wb_stb_i = 0;
             return 0xFFFF;
@@ -241,7 +241,7 @@ public:
     }
     
     void run_memory_test() {
-        std::cout << "\n=== Memory Test Pattern ===" << std::endl;
+        std::cout << "\n[CPP] === Memory Test Pattern ===" << std::endl;
         
         // Test pattern 1: Sequential
         std::cout << "\n1. Sequential write/read test..." << std::endl;
@@ -252,7 +252,7 @@ public:
             if (write(addr, data)) {
                 uint16_t result = read(addr);
                 if (result != data) {
-                    std::cout << "[CPP] ERROR at 0x" << std::hex << addr 
+                    std::cout << "[CPP] [ERROR] at 0x" << std::hex << addr 
                               << ": expected 0x" << data << ", got 0x" << result << std::endl;
                 }
             }
@@ -260,7 +260,7 @@ public:
         }
         
         // Test pattern 2: Random data
-        std::cout << "\n2. Random data test..." << std::endl;
+        std::cout << "\n[CPP] 2. Random data test..." << std::endl;
         uint16_t test_pattern[] = {0x0000, 0xFFFF, 0x5555, 0xAAAA, 0x1234, 0x5678};
         
         for (int i = 0; i < sizeof(test_pattern)/sizeof(test_pattern[0]); i++) {
@@ -268,7 +268,7 @@ public:
             if (write(addr, test_pattern[i])) {
                 uint16_t result = read(addr);
                 if (result != test_pattern[i]) {
-                    std::cout << "[CPP] ERROR: pattern 0x" << std::hex << test_pattern[i]
+                    std::cout << "[CPP] [ERROR]: pattern 0x" << std::hex << test_pattern[i]
                               << " mismatch at 0x" << addr << std::endl;
                 }
             }
@@ -276,7 +276,7 @@ public:
         }
         
         // Test pattern 3: Different banks
-        std::cout << "\n3. Bank switching test..." << std::endl;
+        std::cout << "\n[CPP] 3. Bank switching test..." << std::endl;
         for (int bank = 0; bank < 4; bank++) {
             uint32_t addr = bank * 0x4000; // Different banks
             uint16_t data = 0xB000 + bank;
@@ -284,7 +284,7 @@ public:
             if (write(addr, data)) {
                 uint16_t result = read(addr);
                 if (result != data) {
-                    std::cout << "[CPP] ERROR in bank " << bank << ": expected 0x" 
+                    std::cout << "[CPP] [ERROR] in bank " << bank << ": expected 0x" 
                               << data << ", got 0x" << result << std::endl;
                 }
             }
@@ -293,7 +293,7 @@ public:
     }
     
     void run_performance_test() {
-        std::cout << "\n=== Performance Test ===" << std::endl;
+        std::cout << "\n[CPP] === Performance Test ===" << std::endl;
         
         const int NUM_OPS = 100;
         vluint64_t start_time = time;
@@ -325,7 +325,7 @@ public:
             uint16_t result = read(addr);
             
             if (result != data) {
-                std::cout << "STRESS ERROR: 0x" << std::hex << addr 
+                std::cout << "[CPP] [ERROR] STRESS TEST: 0x" << std::hex << addr 
                           << " expected 0x" << data << " got 0x" << result << std::endl;
             }
             
@@ -336,14 +336,14 @@ public:
     }
     
     void run_comprehensive_test() {
-        std::cout << "=== SDRAM WB Controller Comprehensive Test ===" << std::endl;
+        std::cout << "[CPP] === SDRAM WB Controller Comprehensive Test ===" << std::endl;
         
         reset();
         
         // Wait for initialization
         std::cout << "[CPP] Waiting for SDRAM initialization..." << std::endl;
         if (!wait_for_state(1, 2000)) { // Wait for IDLE state
-            std::cout << "[CPP] Initialization timeout!" << std::endl;
+            std::cout << "[CPP] [ERROR] Initialization timeout!" << std::endl;
             return;
         }
         std::cout << "[CPP] SDRAM initialized successfully" << std::endl;
@@ -353,7 +353,7 @@ public:
         run_performance_test();
         run_stress_test();
         
-        std::cout << "\n=== Test Complete ===" << std::endl;
+        std::cout << "\n[CPP] === Test Complete ===" << std::endl;
         std::cout << "[CPP] Total simulation time: " << time << " cycles" << std::endl;
         std::cout << "[CPP] VCD trace saved to: sdram_test.vcd" << std::endl;
     }

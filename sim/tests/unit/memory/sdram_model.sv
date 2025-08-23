@@ -153,11 +153,11 @@ module sdram_model #(
     endfunction
 
     // Отладочный вывод
-    always @(posedge clk) begin
-        if (cke && !cs_n) begin
-            $display("[SDRAM MODEL] TIME %0t: cmd=%b%b%b, a=%h, ba=%h, dq=%h", 
-                    $time, ras_n, cas_n, we_n, a, ba, dq);
-        end
-    end
+    //always @(posedge clk) begin
+    //    if (cke && !cs_n) begin
+    //        $display("[SDRAM] TIME %0t: cmd=%b%b%b, a=%h, ba=%h, dq=%h, init=%h", 
+    //                $time, ras_n, cas_n, we_n, a, ba, dq, init_done);
+    //    end
+    //end
 
 endmodule

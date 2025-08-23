@@ -97,10 +97,14 @@ assign sdram_dq = sdram_dq_oe ? sdram_dq_out : {WB_DATA_WIDTH{1'bz}};
 // Wishbone interface
 always @(posedge wb_clk_i) begin
     if (wb_rst_i) begin
+        $display("[SDRAMCTRL] WISHBONE RESET");               
         wb_ack_o <= 0;
         pending <= 0;
         we_pending <= 0;
+
     end else begin
+        $display("[SDRAMCTRL] WISHBONE wb_cyc_i=%d, wb_stb_i=%d, state=%d", 
+            wb_cyc_i, wb_stb_i, state);           
         wb_ack_o <= 0;
         
         if (wb_cyc_i && wb_stb_i && !pending && state == STATE_IDLE) begin
@@ -146,6 +150,7 @@ always @(posedge wb_clk_i) begin
         
         case (state)
             STATE_INIT: begin
+                $display("[SDRAMCTRL] STATE_INIT %d", init_counter);                  
                 init_counter <= init_counter + 1;
                 
                 if (init_counter == 100) begin
@@ -172,6 +177,7 @@ always @(posedge wb_clk_i) begin
             end
             
             STATE_IDLE: begin
+                $display("[SDRAMCTRL] STATE_IDLE", );                       
                 sdram_dq_oe <= 0;
                 sdram_dqm <= {BYTE_SEL_WIDTH{1'b1}};
                 
@@ -184,6 +190,7 @@ always @(posedge wb_clk_i) begin
             end
             
             STATE_ACTIVATE: begin
+                $display("[SDRAMCTRL] STATE_ACTIVATE");                    
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_ACTIVE;
                 
                 if (delay_counter == 0) begin
@@ -198,6 +205,7 @@ always @(posedge wb_clk_i) begin
             end
             
             STATE_READ: begin
+                $display("[SDRAMCTRL] STATE_READ");                     
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_READ;
                 sdram_addr <= {{(SDRAM_ADDR_WIDTH-SDRAM_COL_WIDTH){1'b0}}, 
                               addr_pending[SDRAM_COL_WIDTH-1:0]};
@@ -207,6 +215,7 @@ always @(posedge wb_clk_i) begin
             end
             
             STATE_READ2: begin
+                $display("[SDRAMCTRL] STATE_READ2");                      
                 if (delay_counter == 0) begin
                     data_out <= sdram_dq;
                     state <= STATE_PRECHARGE;
@@ -217,6 +226,7 @@ always @(posedge wb_clk_i) begin
             end
             
             STATE_WRITE: begin
+                $display("[SDRAMCTRL] STATE_WRITE");                
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_WRITE;
                 sdram_addr <= {{(SDRAM_ADDR_WIDTH-SDRAM_COL_WIDTH){1'b0}}, 
                               addr_pending[SDRAM_COL_WIDTH-1:0]};
@@ -228,6 +238,7 @@ always @(posedge wb_clk_i) begin
             end
             
             STATE_PRECHARGE: begin
+                $display("[SDRAMCTRL] STATE_PRECHARGE");
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_PRECHARGE;
                 sdram_addr[SDRAM_ADDR_WIDTH-1] <= 1'b1; // Precharge all banks
                 
@@ -239,12 +250,14 @@ always @(posedge wb_clk_i) begin
             end
             
             STATE_REFRESH: begin
+                $display("[SDRAMCTRL] STATE_REFRESH");
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_AUTO_REFRESH;
                 state <= STATE_REFRESH + 1;
                 delay_counter <= 7; // tRFC
             end
             
             STATE_REFRESH + 1: begin
+                $display("[SDRAMCTRL] REFRESH");
                 if (delay_counter == 0) begin
                     state <= STATE_IDLE;
                 end else begin
