@@ -1,49 +1,72 @@
-module sdram_ctrl_tb (
+module sdram_ctrl_tb #(
+    parameter CLK_FREQ = 100_000_000,          // Frequency of the clock input
+    parameter SDRAM_FREQ = 100_000_000,        // Frequency of SDRAM operation
+    parameter SDRAM_ADDR_WIDTH = 13,           // SDRAM address bus width
+    parameter SDRAM_COL_WIDTH = 9,             // SDRAM column address width
+    parameter SDRAM_ROW_WIDTH = 13,            // SDRAM row address width
+    parameter SDRAM_BANK_WIDTH = 2,            // SDRAM bank address width
+    parameter WB_ADDR_WIDTH = 24,              // Wishbone address width
+    parameter WB_DATA_WIDTH = 16,              // Wishbone data width
+    parameter CAS_LATENCY = 2,                 // CAS latency (2 or 3)
+    parameter REFRESH_CYCLES = 7800            // Refresh cycles (64ms @ 100MHz)
+)(
     // Testbench control
-    input  wire        clk,
-    input  wire        rst,
+    input  wire        clk_i,
+    input  wire        rst_i,
     
     // Wishbone Master Interface
-    input  reg         wb_cyc_i,
-    input  reg         wb_stb_i,
-    output wire        wb_ack_o,
-    input  reg         wb_we_i,
-    input  reg  [23:0] wb_adr_i,
-    input  reg  [15:0] wb_dat_i,
-    output wire [15:0] wb_dat_o,
-    input  reg  [1:0]  wb_sel_i,
+    input  wire                    wb_cyc_i,
+    input  wire                    wb_stb_i,
+    output wire                    wb_ack_o,
+    input  wire                    wb_we_i,
+    input  wire [WB_ADDR_WIDTH-1:0] wb_adr_i,
+    input  wire [WB_DATA_WIDTH-1:0] wb_dat_i,
+    output wire [WB_DATA_WIDTH-1:0] wb_dat_o,
+    input  wire [WB_DATA_WIDTH/8-1:0] wb_sel_i,
     
     // SDRAM Interface (monitoring)
-    inout   wire [15:0] sdram_dq,
-    output  wire [12:0] sdram_addr,
-    output  wire        sdram_dqml,
-    output  wire        sdram_dqmh,
-    output  wire [1:0]  sdram_ba,
-    output  wire        sdram_cs_n,
-    output  wire        sdram_we_n,
-    output  wire        sdram_ras_n,
-    output  wire        sdram_cas_n,
-    output  wire        sdram_dq_en,
-    output  wire        sdram_cke,
+    inout  wire [WB_DATA_WIDTH-1:0] sdram_dq,
+    output wire [SDRAM_ADDR_WIDTH-1:0] sdram_addr,
+    output wire [WB_DATA_WIDTH/8-1:0] sdram_dqm,
+    output wire [SDRAM_BANK_WIDTH-1:0] sdram_ba,
+    output wire                    sdram_cs_n,
+    output wire                    sdram_we_n,
+    output wire                    sdram_ras_n,
+    output wire                    sdram_cas_n,
+    output wire                    sdram_cke,
+    
     // Debug
-    output  wire [2:0]  debug_state,
-    output  wire [2:0]  model_state,
-    output  wire        sdram_dq_oe
+    output wire [2:0]            debug_state,
+    output wire [2:0]            model_state,
+    output wire                  sdram_initialized    
 );
 
-    // Internal signals for SDRAM model
-    wire [1:0] sdram_dm;
+    // Local parameters
+    localparam BYTE_SEL_WIDTH = WB_DATA_WIDTH / 8;
 
+    // Internal signals for SDRAM model
+    wire [BYTE_SEL_WIDTH-1:0] sdram_dm;
+    wire                      sdram_dq_oe;
+
+    // Connect DQM signals
+    assign sdram_dm = sdram_dqm;
 
     // Instantiate SDRAM controller
-    sdram_wb_controller #(
-        .CLK_FREQ(100_000_000),
-        .SDRAM_FREQ(100_000_000),
-        .CAS_LATENCY(2),
-        .BURST_LENGTH(1)
+    sdram_ctrl_wb #(
+        .CLK_FREQ(CLK_FREQ),
+        .SDRAM_FREQ(SDRAM_FREQ),
+        .SDRAM_ADDR_WIDTH(SDRAM_ADDR_WIDTH),
+        .SDRAM_COL_WIDTH(SDRAM_COL_WIDTH),
+        .SDRAM_ROW_WIDTH(SDRAM_ROW_WIDTH),
+        .SDRAM_BANK_WIDTH(SDRAM_BANK_WIDTH),
+        .WB_ADDR_WIDTH(WB_ADDR_WIDTH),
+        .WB_DATA_WIDTH(WB_DATA_WIDTH),
+        .CAS_LATENCY(CAS_LATENCY),
+        .REFRESH_CYCLES(REFRESH_CYCLES)
     ) DUT (
-        .wb_clk_i(clk),
-        .wb_rst_i(rst),
+        // Wishbone Interface
+        .wb_clk_i(clk_i),
+        .wb_rst_i(rst_i),
         .wb_cyc_i(wb_cyc_i),
         .wb_stb_i(wb_stb_i),
         .wb_ack_o(wb_ack_o),
@@ -53,10 +76,10 @@ module sdram_ctrl_tb (
         .wb_dat_o(wb_dat_o),
         .wb_sel_i(wb_sel_i),
         
+        // SDRAM Interface
         .sdram_dq(sdram_dq),
         .sdram_addr(sdram_addr),
-        .sdram_dqml(sdram_dqml),
-        .sdram_dqmh(sdram_dqmh),
+        .sdram_dqm(sdram_dqm),
         .sdram_ba(sdram_ba),
         .sdram_cs_n(sdram_cs_n),
         .sdram_we_n(sdram_we_n),
@@ -64,13 +87,21 @@ module sdram_ctrl_tb (
         .sdram_cas_n(sdram_cas_n),
         .sdram_cke(sdram_cke),
         
-        .debug_state(debug_state),
-        .sdram_dq_oe(sdram_dq_oe)
+        // Debug
+        .debug_state(debug_state)
     );
 
+
     // Instantiate SDRAM model
-    sdram_model sdram_model (
-        .clk(clk),
+    sdram_model #(
+        .SDRAM_ADDR_WIDTH(SDRAM_ADDR_WIDTH),
+        .SDRAM_DATA_WIDTH(WB_DATA_WIDTH),
+        .SDRAM_BANK_WIDTH(SDRAM_BANK_WIDTH),
+        .SDRAM_COL_WIDTH(SDRAM_COL_WIDTH),
+        .SDRAM_ROW_WIDTH(SDRAM_ROW_WIDTH)
+    ) sdram_model_inst (
+        .clk(clk_i),
+        .cke(sdram_cke),
         .cs_n(sdram_cs_n),
         .ras_n(sdram_ras_n),
         .cas_n(sdram_cas_n),
@@ -78,11 +109,13 @@ module sdram_ctrl_tb (
         .ba(sdram_ba),
         .a(sdram_addr),
         .dq(sdram_dq),
-        .dm(sdram_dm),
-        .dq_en(sdram_dq_en),
-        .sdram_cke(sdram_cke),
-        .model_state(model_state)
+        .dqm(sdram_dm)
+        // Note: model_state and dq_en are not part of the standard sdram_model interface
     );
 
+    // For debugging, you might want to add these as internal signals
+    // if your sdram_model actually has them:
+    // assign model_state = ...;
+    // assign sdram_dq_en = ...;
 
 endmodule

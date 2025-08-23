@@ -1,0 +1,46 @@
+[1] # End time: 15:41:36 on Aug 23,2025, Elapsed time: 0:00:01
+[1] # 2024.1
+[3] 
+[1] QuestaSim-64 vlog 2024.1 Compiler 2024.02 Feb  1 2024
+[1] 	sdram_ctrl_simple_tb
+[1] # Start time: 15:41:35 on Aug 23,2025
+[1] # //  Questa Sim-64
+[108] # [SDRAM] PRECHARGE ALL BANKS
+[1] vlog.exe -sv sdram_ctrl_simple_tb.sv sdram_model.sv ../../../../rtl/core/memory/sdram_ctrl_wb.v
+[1] # ???µ???? ?????µ??????...
+[1] #    Time: 11530 ns  Iteration: 0  Instance: /sdram_ctrl_simple_tb
+[1] # ???µ???? ?·?°????????...
+[1] vlog -sv sdram_ctrl_simple_tb.sv sdram_model.sv ../../../../rtl/core/memory/sdram_ctrl_wb.v 
+[200] # [SDRAM] UNKNOWN COMMAND: cs_n=0, ras_n=0, cas_n=0, we_n=1
+[1] # //  Version 2024.1 win64 Feb  1 2024
+[1] ** Warning: (vlib-34) Library already exists at "work".
+[1] -- Compiling module sdram_ctrl_simple_tb
+[1] -- Compiling module sdram_ctrl_wb
+[1] # // Unpublished work. Copyright 2024 Siemens
+[1] # // and may not be used in any way not expressly authorized by SISW.
+[1] # // "SISW"), or its licensors. Access to and use of this information is strictly
+[1] Errors: 0, Warnings: 1
+[1] -- Compiling module sdram_model
+[1] # Loading work.sdram_ctrl_simple_tb(fast)
+[1] # ** Note: $finish    : sdram_ctrl_simple_tb.sv(141)
+[1] # run -all
+[1] # ** Note: (vsim-8009) Loading existing optimized design _opt1
+[4] # //
+[1] vsim.exe -c sdram_ctrl_simple_tb -do "run -all; quit"
+[1] # // of the Customer's facilities without the express written permission of SISW,
+[1] # // limited as set forth in the Customer's applicable agreements with SISW.
+[1] End time: 15:41:34 on Aug 23,2025, Elapsed time: 0:00:01
+[1] vlib.exe work
+[1] # Errors: 0, Warnings: 0
+[1] Start time: 15:41:33 on Aug 23,2025
+[1] # Loading sv_std.std
+[7] # [SDRAM] ACTIVE bank=x row=0xxxxx
+[1] Top level modules:
+[102] # [SDRAM] UNKNOWN COMMAND: cs_n=0, ras_n=0, cas_n=0, we_n=0
+[1] # // owned by Siemens Industry Software Inc. or its affiliates (collectively,
+[1] # // This material may not be copied, distributed, or otherwise disclosed outside
+[1] # // This material contains trade secrets or otherwise confidential information
+[1] Errors: 0, Warnings: 0
+[1] Reading pref.tcl
+[1] # vsim -c sdram_ctrl_simple_tb -do "run -all; quit" 
+[1] # ???µ?????????????°?????µ ?·?°???µ?????µ????. ?????°?»???·???????????µ waveform.

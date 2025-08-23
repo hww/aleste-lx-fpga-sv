@@ -1,21 +1,47 @@
-#include "Vtb_sdram_wb_controller.h"
+#include "Vsdram_ctrl_tb.h"
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 #include <iostream>
 #include <cassert>
+#include <vector>
 
 vluint64_t main_time = 0;
 double sc_time_stamp() { return main_time; }
 
-void print_controller_state(Vtb_sdram_wb_controller* dut) {
+// Простая модель SDRAM для Verilator
+class SDRAMModel {
+private:
+    std::vector<uint16_t> memory;
+    uint32_t capacity;
+    
+public:
+    SDRAMModel(uint32_t size_mb = 8) : capacity(size_mb * 1024 * 1024 / 2) {
+        memory.resize(capacity, 0x0000);
+    }
+    
+    uint16_t read(uint32_t address) {
+        if (address < capacity) {
+            return memory[address];
+        }
+        return 0xFFFF;
+    }
+    
+    void write(uint32_t address, uint16_t data) {
+        if (address < capacity) {
+            memory[address] = data;
+        }
+    }
+    
+    uint32_t get_capacity() const { return capacity; }
+};
+
+void print_controller_state(Vsdram_ctrl_tb* dut) {
     static int last_state = -1;
     
-    // Печатаем только при изменении состояния
     if (dut->debug_state != last_state) {
         std::cout << "TIME " << main_time << ": ";
         std::cout << "STATE=" << (int)dut->debug_state << " | ";
         
-        // Расшифровка состояния
         switch(dut->debug_state) {
             case 0: std::cout << "INIT       "; break;
             case 1: std::cout << "IDLE       "; break;
@@ -27,130 +53,91 @@ void print_controller_state(Vtb_sdram_wb_controller* dut) {
             default: std::cout << "UNKNOWN(" << (int)dut->debug_state << ")"; break;
         }
         
-        // Wishbone сигналы
         std::cout << " | WB: CYC=" << (int)dut->wb_cyc_i 
                   << " STB=" << (int)dut->wb_stb_i 
                   << " ACK=" << (int)dut->wb_ack_o
                   << " WE=" << (int)dut->wb_we_i;
         
-        // Адрес и данные
         std::cout << " | ADDR=0x" << std::hex << dut->wb_adr_i
                   << " DAT_I=0x" << dut->wb_dat_i
                   << " DAT_O=0x" << dut->wb_dat_o;
-        
-        // SDRAM управляющие сигналы
-        std::cout << " | SDRAM: CS=" << (int)dut->sdram_cs_n
-                  << " RAS=" << (int)dut->sdram_ras_n
-                  << " CAS=" << (int)dut->sdram_cas_n
-                  << " WE=" << (int)dut->sdram_we_n;
-        
-        // Bank и адрес
-        std::cout << " | BA=0x" << (int)dut->sdram_ba
-                  << " SADDR=0x" << std::hex << dut->sdram_addr;
-        
-        // Шина данных
-        std::cout << " | DQ=0x" << std::hex << dut->sdram_dq
-                  << " DQ_OE=" << (int)dut->sdram_dq_oe
-                  << " DQML=" << (int)dut->sdram_dqml
-                  << " DQMH=" << (int)dut->sdram_dqmh;
         
         std::cout << std::endl;
         last_state = dut->debug_state;
     }
 }
-void print_sdram_command(Vtb_sdram_wb_controller* dut) {
+
+void print_sdram_command(Vsdram_ctrl_tb* dut) {
     static int last_cmd = -1;
     int current_cmd = (dut->sdram_cs_n << 3) | (dut->sdram_ras_n << 2) | 
                      (dut->sdram_cas_n << 1) | (dut->sdram_we_n);
     
-    // Печатаем только при изменении команды
     if (current_cmd != last_cmd && dut->sdram_cke) {
         std::cout << "TIME " << main_time << ": SDRAM_CMD: ";
         
-        // Расшифровка команды
         if (dut->sdram_cs_n) {
             std::cout << "DESELECT";
         } else {
             if (!dut->sdram_ras_n && !dut->sdram_cas_n && !dut->sdram_we_n) {
                 std::cout << "MODE_REG_SET";
-                std::cout << " MR=0x" << std::hex << ((dut->sdram_ba << 13) | dut->sdram_addr);
             }
             else if (!dut->sdram_ras_n && !dut->sdram_cas_n && dut->sdram_we_n) {
                 std::cout << "AUTO_REFRESH";
             }
             else if (!dut->sdram_ras_n && dut->sdram_cas_n && !dut->sdram_we_n) {
                 std::cout << "PRECHARGE";
-                std::cout << " ALL=" << (dut->sdram_addr & 1<<10 ? "YES" : "NO");
             }
             else if (!dut->sdram_ras_n && dut->sdram_cas_n && dut->sdram_we_n) {
                 std::cout << "ACTIVATE";
-                std::cout << " BA=0x" << (int)dut->sdram_ba;
+                std::cout << " BA=" << (int)dut->sdram_ba;
                 std::cout << " ROW=0x" << std::hex << dut->sdram_addr;
             }
             else if (dut->sdram_ras_n && !dut->sdram_cas_n && !dut->sdram_we_n) {
                 std::cout << "WRITE";
-                std::cout << " BA=0x" << (int)dut->sdram_ba;
-                std::cout << " COL=0x" << std::hex << dut->sdram_addr;
-                std::cout << " DATA=0x" << dut->sdram_dq;
-                std::cout << " OE=" << (int)dut->sdram_dq_oe;
+                std::cout << " BA=" << (int)dut->sdram_ba;
+                std::cout << " COL=0x" << std::hex << (dut->sdram_addr & 0x3FF);
             }
             else if (dut->sdram_ras_n && !dut->sdram_cas_n && dut->sdram_we_n) {
                 std::cout << "READ";
-                std::cout << " BA=0x" << (int)dut->sdram_ba;
-                std::cout << " COL=0x" << std::hex << dut->sdram_addr;
+                std::cout << " BA=" << (int)dut->sdram_ba;
+                std::cout << " COL=0x" << std::hex << (dut->sdram_addr & 0x3FF);
             }
             else {
                 std::cout << "NOP";
             }
         }
         
-        // Дополнительная информация
-        std::cout << " | CKE=" << (int)dut->sdram_cke;
-        std::cout << " | DQ=0x" << std::hex << dut->sdram_dq;
-        std::cout << " | DQ_OE=" << (int)dut->sdram_dq_oe;
-        
-        if (dut->sdram_dq_oe) {
-            std::cout << " (CONTROLLER -> SDRAM)";
-        } else {
-            std::cout << " (SDRAM -> CONTROLLER)";
-        }
-        
         std::cout << std::endl;
         last_cmd = current_cmd;
     }
 }
-void analyze_address(uint32_t wb_addr) {
-    std::cout << "ADDR_ANALYSIS: WB=0x" << std::hex << wb_addr << " -> ";
-    std::cout << "BANK=" << ((wb_addr >> 13) & 0x3);
-    std::cout << ", ROW=" << ((wb_addr >> 2) & 0x1FFF); 
-    std::cout << ", COL=" << (wb_addr & 0x3FF);
-    std::cout << std::endl;
-}
+
 class SDRAMTest {
 private:
-    Vtb_sdram_wb_controller* dut;
+    Vsdram_ctrl_tb* dut;
     VerilatedVcdC* tfp;
     vluint64_t time;
+    SDRAMModel sdram_model;
     
 public:
-    SDRAMTest() : time(0) {
+    SDRAMTest() : time(0), sdram_model(8) {
         Verilated::traceEverOn(true);
-        dut = new Vtb_sdram_wb_controller;
+        dut = new Vsdram_ctrl_tb;
         tfp = new VerilatedVcdC;
         dut->trace(tfp, 99);
-        tfp->open("sdram_advanced.vcd");
+        tfp->open("sdram_ctrl_advanced.vcd");
         
-        // Initialize with correct signals
-        dut->clk = 0;
-        dut->rst = 1;
-        
-        // Initialize Wishbone signals
+        // Initialize - FIXED: Use correct signal names
+        // Check your Verilog module for actual clock and reset signal names
+        // They might be something like: clk_i, rst_i, or just clk, rst
+        dut->clk_i = 0;        // Changed from wb_clk_i
+        dut->rst_i = 1;        // Changed from wb_rst_i
         dut->wb_cyc_i = 0;
         dut->wb_stb_i = 0;
         dut->wb_we_i = 0;
         dut->wb_adr_i = 0;
         dut->wb_dat_i = 0;
-        dut->wb_sel_i = 0;
+        dut->wb_sel_i = 3;
     }
     
     ~SDRAMTest() {
@@ -159,36 +146,46 @@ public:
         delete tfp;
     }
     
-    void tick(int cycles = 1) {
+    void tick() {
+        dut->clk_i = 0;        // Changed from wb_clk_i
+        dut->eval();
+        tfp->dump(main_time);
+        main_time += 5;
+        
+        dut->clk_i = 1;        // Changed from wb_clk_i
+        dut->eval();
+        print_controller_state(dut);
+        print_sdram_command(dut);
+        tfp->dump(main_time);
+        main_time += 5;
+        
+        time += 10;
+    }
+    
+    // Add this method to handle multiple ticks
+    void tick(int cycles) {
         for (int i = 0; i < cycles; i++) {
-            dut->clk = 0;
-            dut->eval();
-            print_controller_state(dut);    // ← Добавить здесь
-            print_sdram_command(dut);       // ← Добавить здесь
-            tfp->dump(main_time);
-            main_time += 5;
-            
-            dut->clk = 1;
-            dut->eval();
-            print_controller_state(dut);    // ← Добавить здесь
-            print_sdram_command(dut);       // ← Добавить здесь
-            tfp->dump(main_time);
-            main_time += 5;
-            
-            time += 10;
+            tick();
         }
     }
     
     void reset() {
-        std::cout << "Resetting..." << std::endl;
-        dut->rst = 1;
-        tick(10);
-        dut->rst = 0;
-        tick(5);
-        std::cout << "Reset complete" << std::endl;
+        std::cout << "[CPP] Resetting controller..." << std::endl;
+        dut->rst_i = 1;        // Changed from wb_rst_i
+        for (int i = 0; i < 10; i++) tick();
+        dut->rst_i = 0;        // Changed from wb_rst_i
+        std::cout << "[CPP] Reset complete" << std::endl;
     }
     
-    bool wait_for_ack(int max_cycles = 100) {
+    bool wait_for_state(int target_state, int max_cycles = 1000) {
+        for (int i = 0; i < max_cycles; i++) {
+            if (dut->debug_state == target_state) return true;
+            tick();
+        }
+        return false;
+    }
+    
+    bool wait_for_ack(int max_cycles = 200) {
         for (int i = 0; i < max_cycles; i++) {
             if (dut->wb_ack_o) return true;
             tick();
@@ -197,128 +194,180 @@ public:
     }
     
     bool write(uint32_t addr, uint16_t data) {
-        std::cout << "WRITE: addr=0x" << std::hex << addr 
-                  << ", data=0x" << data << std::endl;
-        analyze_address(addr);
-        // Setup Wishbone transaction
+        std::cout << "[CPP] WRITE: 0x" << std::hex << addr << " = 0x" << data << std::endl;
+        
         dut->wb_cyc_i = 1;
         dut->wb_stb_i = 1;
         dut->wb_we_i = 1;
         dut->wb_adr_i = addr;
         dut->wb_dat_i = data;
-        dut->wb_sel_i = 3; // Both bytes selected
         
-        // Wait for acknowledgment
-        if (!wait_for_ack(200)) {
-            std::cout << "✗ Write timeout - no ACK received" << std::endl;
+        if (!wait_for_ack()) {
+            std::cout << "[CPP] WRITE timeout" << std::endl;
             dut->wb_cyc_i = 0;
             dut->wb_stb_i = 0;
             return false;
         }
         
-        // Complete transaction
         tick();
         dut->wb_cyc_i = 0;
         dut->wb_stb_i = 0;
         
-        std::cout << "✓ Write completed successfully" << std::endl;
         return true;
     }
     
     uint16_t read(uint32_t addr) {
-        std::cout << "READ: addr=0x" << std::hex << addr << std::endl;
+        std::cout << "[CPP] READ: 0x" << std::hex << addr << std::endl;
         
-        // Setup Wishbone transaction
         dut->wb_cyc_i = 1;
         dut->wb_stb_i = 1;
         dut->wb_we_i = 0;
         dut->wb_adr_i = addr;
-        dut->wb_sel_i = 3;
         
-        // Wait for acknowledgment and data
-        if (!wait_for_ack(200)) {
-            std::cout << "✗ Read timeout - no ACK received" << std::endl;
+        if (!wait_for_ack()) {
+            std::cout << "[CPP] READ timeout" << std::endl;
             dut->wb_cyc_i = 0;
             dut->wb_stb_i = 0;
             return 0xFFFF;
         }
         
         uint16_t data = dut->wb_dat_o;
-        
-        // Complete transaction
         tick();
         dut->wb_cyc_i = 0;
         dut->wb_stb_i = 0;
         
-        std::cout << "READ: addr=0x" << std::hex << addr
-                  << ", data=0x" << data << std::endl;
-        
+        std::cout << "[CPP] READ: 0x" << std::hex << addr << " = 0x" << data << std::endl;
         return data;
     }
     
-    void run_comprehensive_test() {
-        std::cout << "\n=== Comprehensive SDRAM WB Controller Test ===" << std::endl;
+    void run_memory_test() {
+        std::cout << "\n=== Memory Test Pattern ===" << std::endl;
         
-        reset();
-        
-        // Wait for initialization (monitor debug_state)
-        std::cout << "Waiting for initialization..." << std::endl;
-        int timeout = 1000;
-        while (timeout > 0) {
-            if (dut->debug_state != 0) break; // Wait until out of init state
-            tick();
-            timeout--;
-        }
-        
-        if (timeout == 0) {
-            std::cout << "✗ Initialization timeout" << std::endl;
-            return;
-        }
-        
-        std::cout << "✓ Controller initialized, state=" << (int)dut->debug_state << std::endl;
-        
-        // Test basic write/read
-        std::cout << "\nTest 1: Basic write/read operations" << std::endl;
-        uint32_t test_addr = 0x1000;
-        uint16_t test_data = 0x55AA;
-        
-        if (write(test_addr, test_data)) {
-            uint16_t read_data = read(test_addr);
-            
-            if (read_data == test_data) {
-                std::cout << "✓ Basic test PASSED: Data matches" << std::endl;
-            } else {
-                std::cout << "✗ Basic test FAILED: Expected 0x" << std::hex << test_data 
-                          << ", got 0x" << read_data << std::endl;
-            }
-        }
-        
-        // Test multiple addresses
-        std::cout << "\nTest 2: Multiple address pattern" << std::endl;
-        for (int i = 0; i < 4; i++) {
-            uint32_t addr = 0x2000 + i * 0x100;
-            uint16_t data = 0x1000 + i;
+        // Test pattern 1: Sequential
+        std::cout << "\n1. Sequential write/read test..." << std::endl;
+        for (int i = 0; i < 16; i++) {
+            uint32_t addr = i * 0x100;
+            uint16_t data = 0xA000 + i;
             
             if (write(addr, data)) {
                 uint16_t result = read(addr);
-                if (result == data) {
-                    std::cout << "✓ Address 0x" << std::hex << addr << " OK" << std::endl;
-                } else {
-                    std::cout << "✗ Address 0x" << std::hex << addr << " FAILED" << std::endl;
+                if (result != data) {
+                    std::cout << "[CPP] ERROR at 0x" << std::hex << addr 
+                              << ": expected 0x" << data << ", got 0x" << result << std::endl;
                 }
             }
+            tick(10);
         }
         
-        std::cout << "\n✓ Test completed!" << std::endl;
-        std::cout << "Total simulation time: " << time << " units" << std::endl;
+        // Test pattern 2: Random data
+        std::cout << "\n2. Random data test..." << std::endl;
+        uint16_t test_pattern[] = {0x0000, 0xFFFF, 0x5555, 0xAAAA, 0x1234, 0x5678};
+        
+        for (int i = 0; i < sizeof(test_pattern)/sizeof(test_pattern[0]); i++) {
+            uint32_t addr = 0x1000 + i * 0x100;
+            if (write(addr, test_pattern[i])) {
+                uint16_t result = read(addr);
+                if (result != test_pattern[i]) {
+                    std::cout << "[CPP] ERROR: pattern 0x" << std::hex << test_pattern[i]
+                              << " mismatch at 0x" << addr << std::endl;
+                }
+            }
+            tick(10);
+        }
+        
+        // Test pattern 3: Different banks
+        std::cout << "\n3. Bank switching test..." << std::endl;
+        for (int bank = 0; bank < 4; bank++) {
+            uint32_t addr = bank * 0x4000; // Different banks
+            uint16_t data = 0xB000 + bank;
+            
+            if (write(addr, data)) {
+                uint16_t result = read(addr);
+                if (result != data) {
+                    std::cout << "[CPP] ERROR in bank " << bank << ": expected 0x" 
+                              << data << ", got 0x" << result << std::endl;
+                }
+            }
+            tick(20);
+        }
+    }
+    
+    void run_performance_test() {
+        std::cout << "\n=== Performance Test ===" << std::endl;
+        
+        const int NUM_OPS = 100;
+        vluint64_t start_time = time;
+        
+        for (int i = 0; i < NUM_OPS; i++) {
+            uint32_t addr = 0x2000 + i * 4;
+            uint16_t data = 0xC000 + i;
+            write(addr, data);
+        }
+        
+        vluint64_t end_time = time;
+        vluint64_t total_time = end_time - start_time;
+        double time_per_op = (double)total_time / NUM_OPS;
+        
+        std::cout << "[CPP] Performance: " << NUM_OPS << " operations in " 
+                  << total_time << " cycles" << std::endl;
+        std::cout << "[CPP] Time per operation: " << time_per_op << " cycles" << std::endl;
+    }
+    
+    void run_stress_test() {
+        std::cout << "\n=== Stress Test ===" << std::endl;
+        
+        // Rapid fire operations
+        for (int i = 0; i < 50; i++) {
+            uint32_t addr = 0x3000 + (i % 16) * 0x100;
+            uint16_t data = 0xD000 + i;
+            
+            write(addr, data);
+            uint16_t result = read(addr);
+            
+            if (result != data) {
+                std::cout << "STRESS ERROR: 0x" << std::hex << addr 
+                          << " expected 0x" << data << " got 0x" << result << std::endl;
+            }
+            
+            if (i % 10 == 0) {
+                tick(50); // Add some delay occasionally
+            }
+        }
+    }
+    
+    void run_comprehensive_test() {
+        std::cout << "=== SDRAM WB Controller Comprehensive Test ===" << std::endl;
+        
+        reset();
+        
+        // Wait for initialization
+        std::cout << "[CPP] Waiting for SDRAM initialization..." << std::endl;
+        if (!wait_for_state(1, 2000)) { // Wait for IDLE state
+            std::cout << "[CPP] Initialization timeout!" << std::endl;
+            return;
+        }
+        std::cout << "[CPP] SDRAM initialized successfully" << std::endl;
+        
+        // Run all tests
+        run_memory_test();
+        run_performance_test();
+        run_stress_test();
+        
+        std::cout << "\n=== Test Complete ===" << std::endl;
+        std::cout << "[CPP] Total simulation time: " << time << " cycles" << std::endl;
+        std::cout << "[CPP] VCD trace saved to: sdram_test.vcd" << std::endl;
     }
 };
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
+    Verilated::debug(0);
+    
+    std::cout << "[CPP] Starting SDRAM WB Controller Test..." << std::endl;
     
     SDRAMTest test;
     test.run_comprehensive_test();
     
+    std::cout << "[CPP] Test finished." << std::endl;
     return 0;
 }

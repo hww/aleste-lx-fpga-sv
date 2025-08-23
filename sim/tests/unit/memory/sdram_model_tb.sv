@@ -2,25 +2,42 @@
 
 module sdram_model_tb;
 
+    // Параметры должны соответствовать DUT
+    localparam SDRAM_ADDR_WIDTH = 13;
+    localparam SDRAM_DATA_WIDTH = 16;
+    localparam SDRAM_BANK_WIDTH = 2;
+    localparam SDRAM_COL_WIDTH = 9;
+    localparam SDRAM_ROW_WIDTH = 13;
+    localparam SDRAM_LATENCY = 2;
+    localparam SDRAM_SIZE_MB = 32;
+
     logic clk = 1'b0;
     logic cke = 1'b1;
     logic cs_n = 1'b1;
     logic ras_n = 1'b1;
     logic cas_n = 1'b1;
     logic we_n = 1'b1;
-    logic [1:0] ba = 2'b00;
-    logic [12:0] a = 13'b0;
-    logic [15:0] dq_drive = 16'b0;
+    logic [SDRAM_BANK_WIDTH-1:0] ba = '0;
+    logic [SDRAM_ADDR_WIDTH-1:0] a = '0;
+    logic [SDRAM_DATA_WIDTH-1:0] dq_drive = '0;
     logic dq_drive_en = 1'b0;
-    logic [1:0] dqm = 2'b00;
+    logic [SDRAM_DATA_WIDTH/8-1:0] dqm = '0;
     
-    wire [15:0] dq = dq_drive_en ? dq_drive : 16'hzzzz;
+    wire [SDRAM_DATA_WIDTH-1:0] dq = dq_drive_en ? dq_drive : {SDRAM_DATA_WIDTH{1'bz}};
 
     // Тактовый сигнал
     always #10ns clk = ~clk;
 
-    // DUT
-    sdram_model dut (.*);
+    // DUT с передачей параметров
+    sdram_model #(
+        .SDRAM_ADDR_WIDTH(SDRAM_ADDR_WIDTH),
+        .SDRAM_DATA_WIDTH(SDRAM_DATA_WIDTH),
+        .SDRAM_BANK_WIDTH(SDRAM_BANK_WIDTH),
+        .SDRAM_COL_WIDTH(SDRAM_COL_WIDTH),
+        .SDRAM_ROW_WIDTH(SDRAM_ROW_WIDTH),
+        .SDRAM_LATENCY(SDRAM_LATENCY),
+        .SDRAM_SIZE_MB(SDRAM_SIZE_MB)
+    ) dut (.*);
 
     // Тестовый процесс
     initial begin
@@ -61,22 +78,15 @@ module sdram_model_tb;
         #100ns;
         
         // 4. READ
-        //$display("\n[TEST] 4. READ from bank 1, col 0x00F1");
-        //send_command(4'b0101); // Read
-        //ba <= 2'b01;
-        //a <= 13'h00F1;
-        //#20ns;
-        //send_nop();
-        //
-        //// Ожидание данных
-        //#200ns;
-        //
-        //// Проверка
-        //if (dq === 16'hDEAD) begin
-        //    $display("[TEST] SUCCESS: Correct data read: 0x%h", dq);
-        //end else begin
-        //    $display("[TEST] ERROR: Expected 0xDEAD, got 0x%h", dq);
-        //end
+        $display("\n[TEST] 4. READ from bank 1, col 0x00F1");
+        send_command(4'b0101); // Read
+        ba <= 2'b01;
+        a <= 13'h00F1;
+        #20ns;
+        send_nop();
+
+        // Ожидание данных
+        #200ns;
 
         #100ns;
         $display("=== TEST COMPLETE ===");

@@ -1,5 +1,5 @@
 # vsim -c sdram_model_tb -do "run -all; quit" 
-# Start time: 14:14:21 on Aug 23,2025
+# Start time: 18:40:10 on Aug 23,2025
 # ** Note: (vsim-3813) Design is being optimized due to module recompilation...
 # Support of the MGLS_LICENSE_FILE and LM_LICENSE_FILE licensing environment variables will be discontinued starting with the 2025.1 release. Please update to using the SALT_LICENSE_SERVER variable.
 # Please contact Siemens EDA Customer Support (https://support.sw.siemens.com/) for assistance.
@@ -20,56 +20,105 @@
 # Loading sv_std.std
 # Loading work.sdram_model_tb(fast)
 # run -all
+# [SDRAM] Initialized: 4 banks, 8192 rows, 512 cols, 32 MB
 # CAPTURED DATA: xxxx at time      10 ns
 # [TEST] ERROR: Expected 0xDEAD, got 0xxxxx
 # T=     10 ns: CMD={cs_n=1, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xxxxx
-# [SDRAM] UNKNOWN COMMAND: cs_n=1, ras_n=1, cas_n=1, we_n=1
 # T=     30 ns: CMD={cs_n=1, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz
-# [SDRAM] UNKNOWN COMMAND: cs_n=1, ras_n=1, cas_n=1, we_n=1
 # T=     50 ns: CMD={cs_n=1, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz
-# [SDRAM] UNKNOWN COMMAND: cs_n=1, ras_n=1, cas_n=1, we_n=1
 # T=     70 ns: CMD={cs_n=1, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz
-# [SDRAM] UNKNOWN COMMAND: cs_n=1, ras_n=1, cas_n=1, we_n=1
 # T=     90 ns: CMD={cs_n=1, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz
 # === SDRAM MODEL TEST START ===
 # 
 # [TEST] 1. Precharge all banks
 # [SDRAM] PRECHARGE ALL BANKS
+# [SDRAM MODEL] TIME 110 ns: cmd=010, a=0400, ba=0, dq=zzzz
 # T=    110 ns: CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x0400, DQ=0xzzzz
 # [SDRAM] PRECHARGE ALL BANKS
+# [SDRAM MODEL] TIME 130 ns: cmd=010, a=0400, ba=0, dq=zzzz
 # T=    130 ns: CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x0400, DQ=0xzzzz
+# [SDRAM MODEL] TIME 150 ns: cmd=111, a=0400, ba=0, dq=zzzz
 # T=    150 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0400, DQ=0xzzzz
+# [SDRAM MODEL] TIME 170 ns: cmd=111, a=0400, ba=0, dq=zzzz
 # T=    170 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0400, DQ=0xzzzz
+# [SDRAM MODEL] TIME 190 ns: cmd=111, a=0400, ba=0, dq=zzzz
 # T=    190 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0400, DQ=0xzzzz
+# [SDRAM MODEL] TIME 210 ns: cmd=111, a=0400, ba=0, dq=zzzz
 # T=    210 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0400, DQ=0xzzzz
 # 
 # [TEST] 2. ACTIVE bank 1, row 0x1ABC
+# [SDRAM MODEL] TIME 230 ns: cmd=111, a=0400, ba=0, dq=zzzz
 # T=    230 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0400, DQ=0xzzzz
 # [SDRAM] ACTIVE bank=1 row=0x1abc
+# [SDRAM MODEL] TIME 250 ns: cmd=011, a=1abc, ba=1, dq=zzzz
 # T=    250 ns: CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x1, A=0x1abc, DQ=0xzzzz
+# [SDRAM MODEL] TIME 270 ns: cmd=111, a=1abc, ba=1, dq=zzzz
 # T=    270 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x1abc, DQ=0xzzzz
+# [SDRAM MODEL] TIME 290 ns: cmd=111, a=1abc, ba=1, dq=zzzz
 # T=    290 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x1abc, DQ=0xzzzz
+# [SDRAM MODEL] TIME 310 ns: cmd=111, a=1abc, ba=1, dq=zzzz
 # T=    310 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x1abc, DQ=0xzzzz
+# [SDRAM MODEL] TIME 330 ns: cmd=111, a=1abc, ba=1, dq=zzzz
 # T=    330 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x1abc, DQ=0xzzzz
+# [SDRAM MODEL] TIME 350 ns: cmd=111, a=1abc, ba=1, dq=zzzz
 # T=    350 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x1abc, DQ=0xzzzz
 # 
 # [TEST] 3. WRITE to bank 1, col 0x00F1
-# [SDRAM] WRITE bank=1 col=0x00f1 data=0xdead (dqm=0b00)
+# [SDRAM] WRITE bank=1 col=0x0f1 data=0xdead (dqm=0x0)
+# [SDRAM MODEL] TIME 370 ns: cmd=100, a=00f1, ba=1, dq=dead
 # CAPTURED DATA: dead at time     370 ns
 # [TEST] SUCCESS: Correct data read: 0xdead
 # T=    370 ns: CMD={cs_n=0, ras_n=1, cas_n=0, we_n=0}, BA=0x1, A=0x00f1, DQ=0xdead
+# [SDRAM MODEL] TIME 390 ns: cmd=111, a=00f1, ba=1, dq=zzzz
 # T=    390 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 410 ns: cmd=111, a=00f1, ba=1, dq=zzzz
 # T=    410 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 430 ns: cmd=111, a=00f1, ba=1, dq=zzzz
 # T=    430 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 450 ns: cmd=111, a=00f1, ba=1, dq=zzzz
 # T=    450 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 470 ns: cmd=111, a=00f1, ba=1, dq=zzzz
 # T=    470 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
-# T=    490 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# 
+# [TEST] 4. READ from bank 1, col 0x00F1
+# [SDRAM] READ bank=1 col=0x0f1
+# [SDRAM MODEL] TIME 490 ns: cmd=101, a=00f1, ba=1, dq=zzzz
+# T=    490 ns: CMD={cs_n=0, ras_n=1, cas_n=0, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 510 ns: cmd=111, a=00f1, ba=1, dq=zzzz
 # T=    510 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM] DATA OUT: 0xdead (latency=2)
+# [SDRAM MODEL] TIME 530 ns: cmd=111, a=00f1, ba=1, dq=zzzz
 # T=    530 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
-# T=    550 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 550 ns: cmd=111, a=00f1, ba=1, dq=dead
+# CAPTURED DATA: dead at time     550 ns
+# [TEST] SUCCESS: Correct data read: 0xdead
+# T=    550 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xdead
+# [SDRAM MODEL] TIME 570 ns: cmd=111, a=00f1, ba=1, dq=zzzz
 # T=    570 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 590 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    590 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 610 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    610 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 630 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    630 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 650 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    650 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 670 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    670 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 690 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    690 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 710 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    710 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 730 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    730 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 750 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    750 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 770 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    770 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
+# [SDRAM MODEL] TIME 790 ns: cmd=111, a=00f1, ba=1, dq=zzzz
+# T=    790 ns: CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x1, A=0x00f1, DQ=0xzzzz
 # === TEST COMPLETE ===
-# ** Note: $finish    : sdram_model_tb.sv(83)
-#    Time: 580 ns  Iteration: 0  Instance: /sdram_model_tb
-# End time: 14:14:26 on Aug 23,2025, Elapsed time: 0:00:05
+# ** Note: $finish    : sdram_model_tb.sv(93)
+#    Time: 800 ns  Iteration: 0  Instance: /sdram_model_tb
+# End time: 18:40:16 on Aug 23,2025, Elapsed time: 0:00:06
 # Errors: 0, Warnings: 0
