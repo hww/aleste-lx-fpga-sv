@@ -78,7 +78,6 @@ wire [SDRAM_ROW_WIDTH-1:0] row = wb_adr_i[WB_ADDR_WIDTH-SDRAM_BANK_WIDTH-1 -: SD
 wire [SDRAM_COL_WIDTH-1:0] col = wb_adr_i[SDRAM_COL_WIDTH-1:0];
 
 // Internal registers
-reg [WB_DATA_WIDTH-1:0] data_out;
 reg [WB_DATA_WIDTH-1:0] data_in;
 reg                     pending = 0;
 reg                     we_pending = 0;
@@ -97,12 +96,12 @@ assign sdram_dq = sdram_dq_oe ? sdram_dq_out : {WB_DATA_WIDTH{1'bz}};
 
 logic data_valid;
 
-// Wishbone interface
 always @(posedge wb_clk_i) begin
     if (wb_rst_i) begin
         wb_ack_o <= 0;
         pending <= 0;
         we_pending <= 0;
+        wb_dat_o <= 0;
     end else begin
         wb_ack_o <= 0;
         
@@ -113,13 +112,13 @@ always @(posedge wb_clk_i) begin
             addr_pending <= wb_adr_i;
         end
         
-        // Ключевое изменение: проверяем не только STATE_IDLE, но и валидность данных!
+        // Данные готовы - сразу отправляем в Wishbone!
         if (pending && data_valid) begin
             pending <= 0;
             wb_ack_o <= 1;
             
             if (!we_pending) begin
-                wb_dat_o <= data_out;  // Только когда данные действительно готовы
+                wb_dat_o <= sdram_dq;  // ← НЕПОСРЕДСТВЕННО из SDRAM!
             end
         end
     end
@@ -221,7 +220,6 @@ always @(posedge wb_clk_i) begin
             STATE_READ2: begin
                 $display("[SDRAMCTRL] STATE_READ2");        
                 if (delay_counter == 0) begin
-                    data_out <= sdram_dq;
                     data_valid <= 1;
                     state <= STATE_PRECHARGE;
                     delay_counter <= 2; // tRP
