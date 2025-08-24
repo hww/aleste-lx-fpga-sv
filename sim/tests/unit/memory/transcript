@@ -1,4 +1,8 @@
-# Reading pref.tcl
+# vsim -c -do "run -all; quit" work.sdram_ctrl_tb 
+# Start time: 16:19:53 on Aug 24,2025
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# Support of the MGLS_LICENSE_FILE and LM_LICENSE_FILE licensing environment variables will be discontinued starting with the 2025.1 release. Please update to using the SALT_LICENSE_SERVER variable.
+# Please contact Siemens EDA Customer Support (https://support.sw.siemens.com/) for assistance.
 # //  Questa Sim-64
 # //  Version 2024.1 win64 Feb  1 2024
 # //
@@ -13,428 +17,402 @@
 # // of the Customer's facilities without the express written permission of SISW,
 # // and may not be used in any way not expressly authorized by SISW.
 # //
-# do scripts/sdram_ctrl_sim.tcl
-# === SDRAM Controller Simulation ===
-# vsim -voptargs="+acc" work.sdram_ctrl_tb 
-# Start time: 14:52:33 on Aug 24,2025
-# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
-# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
-# Support of the MGLS_LICENSE_FILE and LM_LICENSE_FILE licensing environment variables will be discontinued starting with the 2025.1 release. Please update to using the SALT_LICENSE_SERVER variable.
-# Please contact Siemens EDA Customer Support (https://support.sw.siemens.com/) for assistance.
-# ** Note: (vopt-143) Recognized 1 FSM in module "sdram_ctrl_wb(fast)".
-# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
 # Loading sv_std.std
 # Loading work.sdram_ctrl_tb(fast)
-# Loading work.sdram_ctrl_wb(fast)
-# Loading work.sdram_model(fast)
-# 0 ps
-# 1 ns
-# Waveforms configured
+# run -all
 # [SDRAM] Initialized: 4 banks, 8192 rows, 512 cols, 32 MB
-# T=      5 ns: SDRAM CMD={cs_n=x, ras_n=x, cas_n=x, we_n=x}, BA=0xx, A=0xxxxx, DQ=0xxxxx, State=7
-# T=     15 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=      5 ns: SDRAM CMD={cs_n=x, ras_n=x, cas_n=x, we_n=x}, BA=0xx, A=0xxxxx, DQ=0xxxxx, State= 8
+# T=     15 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT     0
-# T=     25 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=     25 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT     1
-# T=     35 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=     35 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT     2
-# T=     45 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=     45 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT     3
-# T=     55 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=     55 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT     4
-# T=     65 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=     65 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT     5
-# T=     75 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=     75 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT     6
-# T=     85 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=     85 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT     7
-# T=     95 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=     95 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT     8
-# T=    105 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    105 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT     9
-# T=    115 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    115 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # === SDRAM CONTROLLER TEST START ===
 # Time:     120 ns
 # [SDRAMCTRL] STATE_INIT    10
-# T=    125 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    125 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    11
-# T=    135 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    135 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    12
-# T=    145 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    145 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    13
-# T=    155 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    155 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    14
-# T=    165 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    165 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    15
-# T=    175 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    175 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    16
-# T=    185 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    185 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    17
-# T=    195 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    195 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    18
-# T=    205 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    205 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    19
-# T=    215 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    215 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    20
-# T=    225 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    225 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    21
-# T=    235 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    235 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    22
-# T=    245 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    245 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    23
-# T=    255 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    255 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    24
-# T=    265 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    265 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    25
-# T=    275 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    275 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    26
-# T=    285 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    285 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    27
-# T=    295 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    295 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    28
-# T=    305 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    305 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    29
-# T=    315 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    315 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    30
-# T=    325 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    325 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    31
-# T=    335 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    335 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    32
-# T=    345 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    345 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    33
-# T=    355 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    355 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    34
-# T=    365 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    365 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    35
-# T=    375 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    375 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    36
-# T=    385 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    385 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    37
-# T=    395 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    395 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    38
-# T=    405 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    405 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    39
-# T=    415 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    415 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    40
-# T=    425 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    425 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    41
-# T=    435 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    435 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    42
-# T=    445 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    445 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    43
-# T=    455 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    455 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    44
-# T=    465 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    465 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    45
-# T=    475 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    475 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    46
-# T=    485 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    485 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    47
-# T=    495 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    495 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    48
-# T=    505 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    505 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    49
-# T=    515 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    515 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    50
-# T=    525 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    525 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    51
-# T=    535 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    535 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    52
-# T=    545 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    545 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    53
-# T=    555 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    555 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    54
-# T=    565 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    565 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    55
-# T=    575 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    575 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    56
-# T=    585 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    585 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    57
-# T=    595 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    595 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    58
-# T=    605 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    605 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    59
-# T=    615 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    615 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    60
-# T=    625 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    625 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    61
-# T=    635 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    635 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    62
-# T=    645 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    645 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    63
-# T=    655 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    655 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    64
-# T=    665 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    665 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    65
-# T=    675 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    675 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    66
-# T=    685 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    685 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    67
-# T=    695 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    695 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    68
-# T=    705 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    705 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    69
-# T=    715 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    715 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    70
-# T=    725 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    725 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    71
-# T=    735 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    735 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    72
-# T=    745 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    745 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    73
-# T=    755 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    755 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    74
-# T=    765 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    765 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    75
-# T=    775 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    775 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    76
-# T=    785 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    785 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    77
-# T=    795 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    795 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    78
-# T=    805 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    805 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    79
-# T=    815 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    815 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    80
-# T=    825 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    825 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    81
-# T=    835 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    835 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    82
-# T=    845 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    845 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    83
-# T=    855 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    855 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    84
-# T=    865 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    865 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    85
-# T=    875 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    875 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    86
-# T=    885 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    885 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    87
-# T=    895 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    895 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    88
-# T=    905 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    905 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    89
-# T=    915 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    915 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    90
-# T=    925 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    925 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    91
-# T=    935 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    935 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    92
-# T=    945 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    945 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    93
-# T=    955 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    955 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    94
-# T=    965 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    965 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    95
-# T=    975 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    975 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    96
-# T=    985 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    985 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    97
-# T=    995 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=    995 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    98
-# T=   1005 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=   1005 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT    99
-# T=   1015 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
+# T=   1015 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   100
-# T=   1025 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=7
-# [SDRAM] PRECHARGE bank=0
+# T=   1025 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   101
-# T=   1035 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# [SDRAM] PRECHARGE bank=0
+# T=   1035 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   102
-# T=   1045 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1045 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   103
-# T=   1055 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1055 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   104
-# T=   1065 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1065 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   105
-# T=   1075 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1075 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   106
-# T=   1085 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1085 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   107
-# T=   1095 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1095 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   108
-# T=   1105 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1105 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   109
-# T=   1115 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1115 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   110
-# T=   1125 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAM] AUTO REFRESH
+# T=   1125 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   111
-# T=   1135 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=0, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAMCTRL] STATE_INIT   112
-# T=   1145 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAMCTRL] STATE_INIT   113
-# T=   1155 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAMCTRL] STATE_INIT   114
-# T=   1165 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAMCTRL] STATE_INIT   115
-# T=   1175 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAMCTRL] STATE_INIT   116
-# T=   1185 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAMCTRL] STATE_INIT   117
-# T=   1195 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAMCTRL] STATE_INIT   118
-# T=   1205 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAMCTRL] STATE_INIT   119
-# T=   1215 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAMCTRL] STATE_INIT   120
-# T=   1225 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
 # [SDRAM] AUTO REFRESH
+# T=   1135 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=0, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
+# [SDRAMCTRL] STATE_INIT   112
+# T=   1145 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
+# [SDRAMCTRL] STATE_INIT   113
+# T=   1155 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
+# [SDRAMCTRL] STATE_INIT   114
+# T=   1165 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
+# [SDRAMCTRL] STATE_INIT   115
+# T=   1175 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
+# [SDRAMCTRL] STATE_INIT   116
+# T=   1185 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
+# [SDRAMCTRL] STATE_INIT   117
+# T=   1195 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
+# [SDRAMCTRL] STATE_INIT   118
+# T=   1205 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
+# [SDRAMCTRL] STATE_INIT   119
+# T=   1215 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
+# [SDRAMCTRL] STATE_INIT   120
+# T=   1225 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   121
-# T=   1235 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=0, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# [SDRAM] AUTO REFRESH
+# T=   1235 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=0, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   122
-# T=   1245 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1245 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   123
-# T=   1255 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1255 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   124
-# T=   1265 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1265 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   125
-# T=   1275 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1275 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   126
-# T=   1285 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1285 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   127
-# T=   1295 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1295 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   128
-# T=   1305 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1305 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   129
-# T=   1315 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
+# T=   1315 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   130
-# T=   1325 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State=7
-# [SDRAM] LOAD MODE REGISTER: 0x0020
+# T=   1325 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1000, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   131
-# T=   1335 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=0, we_n=0}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# [SDRAM] LOAD MODE REGISTER: 0x0020
+# T=   1335 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=0, we_n=0}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   132
-# T=   1345 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# T=   1345 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   133
-# T=   1355 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# T=   1355 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   134
-# T=   1365 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# T=   1365 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   135
-# T=   1375 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# T=   1375 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   136
-# T=   1385 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# T=   1385 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   137
-# T=   1395 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# T=   1395 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   138
-# T=   1405 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# T=   1405 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   139
-# T=   1415 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# T=   1415 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   140
-# T=   1425 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# T=   1425 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # [SDRAMCTRL] STATE_INIT   141
-# T=   1435 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=7
+# T=   1435 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 8
 # 
 # [TEST] Writing data to address 0x000100
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1445 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
+# [SDRAMCTRL] STATE_IDLE
+# T=   1445 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_IDLE
 # T=   1455 ns: WB CYC=1 STB=1 WE=1 ADDR=0x000100 DATA=0xabcd
-# T=   1455 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
+# T=   1455 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_ACTIVATE
 # T=   1465 ns: WB CYC=1 STB=1 WE=1 ADDR=0x000100 DATA=0xabcd
-# T=   1465 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0020, DQ=0xzzzz, State=0
+# T=   1465 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 1
 # [SDRAMCTRL] STATE_ACTIVATE
+# [SDRAM] ACTIVE bank=0 row=0x0000
 # T=   1475 ns: WB CYC=1 STB=1 WE=1 ADDR=0x000100 DATA=0xabcd
-# T=   1475 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=1
-# [SDRAM] ACTIVE bank=0 row=0x0000
+# T=   1475 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 1
 # [SDRAMCTRL] STATE_ACTIVATE
+# [SDRAM] ACTIVE bank=0 row=0x0000
 # T=   1485 ns: WB CYC=1 STB=1 WE=1 ADDR=0x000100 DATA=0xabcd
-# T=   1485 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=1
-# [SDRAM] ACTIVE bank=0 row=0x0000
-# [SDRAMCTRL] STATE_ACTIVATE
-# T=   1495 ns: WB CYC=1 STB=1 WE=1 ADDR=0x000100 DATA=0xabcd
-# T=   1495 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=1
-# [SDRAM] ACTIVE bank=0 row=0x0000
+# T=   1485 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 1
 # [SDRAMCTRL] STATE_WRITE
-# T=   1505 ns: WB CYC=1 STB=1 WE=1 ADDR=0x000100 DATA=0xabcd
-# T=   1505 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=4
+# [SDRAM] ACTIVE bank=0 row=0x0000
+# T=   1495 ns: WB CYC=1 STB=1 WE=1 ADDR=0x000100 DATA=0xabcd
+# T=   1495 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 5
+# [SDRAMCTRL] STATE_PRECHARGE
 # [SDRAM] WRITE bank=0 col=0x100 data=0xabcd (dqm=0x0)
+# T=   1505 ns: WB CYC=1 STB=1 WE=1 ADDR=0x000100 DATA=0xabcd
+# T=   1505 ns: WB ACK received
+# T=   1505 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=0, we_n=0}, BA=0x0, A=0x0100, DQ=0xabcd, State= 6
 # [SDRAMCTRL] STATE_PRECHARGE
-# T=   1515 ns: WB CYC=1 STB=1 WE=1 ADDR=0x000100 DATA=0xabcd
-# T=   1515 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=0, we_n=0}, BA=0x0, A=0x0100, DQ=0xabcd, State=5
 # [SDRAM] PRECHARGE bank=0
-# [SDRAMCTRL] STATE_PRECHARGE
-# T=   1525 ns: WB CYC=1 STB=1 WE=1 ADDR=0x000100 DATA=0xabcd
-# T=   1525 ns: WB ACK received
-# T=   1525 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xabcd, State=5
-# [SDRAM] PRECHARGE bank=0
-# [SDRAMCTRL] STATE_PRECHARGE
-# T=   1535 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xabcd, State=5
+# T=   1515 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 6
 # 
 # [TEST] Reading data from address 0x000100
+# [SDRAMCTRL] STATE_PRECHARGE
 # [SDRAM] PRECHARGE bank=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1545 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xabcd, State=0
-# [SDRAMCTRL] STATE_IDLE 
+# T=   1525 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 6
+# [SDRAMCTRL] STATE_IDLE
+# [SDRAM] PRECHARGE bank=0
+# T=   1535 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
+# T=   1535 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_ACTIVATE
+# T=   1545 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
+# T=   1545 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 1
+# [SDRAMCTRL] STATE_ACTIVATE
+# [SDRAM] ACTIVE bank=0 row=0x0000
 # T=   1555 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
-# T=   1555 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
+# T=   1555 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 1
+# [SDRAMCTRL] STATE_ACTIVATE
+# [SDRAM] ACTIVE bank=0 row=0x0000
 # T=   1565 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
-# T=   1565 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_ACTIVATE
-# T=   1575 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
-# T=   1575 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=1
-# [SDRAM] ACTIVE bank=0 row=0x0000
-# [SDRAMCTRL] STATE_ACTIVATE
-# T=   1585 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
-# T=   1585 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=1
-# [SDRAM] ACTIVE bank=0 row=0x0000
-# [SDRAMCTRL] STATE_ACTIVATE
-# T=   1595 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
-# T=   1595 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=1
-# [SDRAM] ACTIVE bank=0 row=0x0000
+# T=   1565 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 1
 # [SDRAMCTRL] STATE_READ
-# T=   1605 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
-# T=   1605 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State=2
+# [SDRAM] ACTIVE bank=0 row=0x0000
+# T=   1575 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
+# T=   1575 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=1}, BA=0x0, A=0x0000, DQ=0xzzzz, State= 2
+# [SDRAMCTRL] STATE_READ2 delay_counter= 2
 # [SDRAM] READ bank=0 col=0x100
-# [SDRAMCTRL] STATE_READ2
-# T=   1615 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
-# T=   1615 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=0, we_n=1}, BA=0x0, A=0x0100, DQ=0xzzzz, State=3
-# [SDRAMCTRL] STATE_READ2
-# T=   1625 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
-# T=   1625 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0100, DQ=0xzzzz, State=3
+# T=   1585 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
+# T=   1585 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=0, we_n=1}, BA=0x0, A=0x0100, DQ=0xzzzz, State= 3
+# [SDRAMCTRL] STATE_READ2 delay_counter= 1
+# T=   1595 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
+# T=   1595 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0100, DQ=0xzzzz, State= 3
+# [SDRAMCTRL] STATE_READ2 delay_counter= 0
 # [SDRAM] DATA OUT: 0xabcd (latency=2)
-# [SDRAMCTRL] STATE_READ2
-# T=   1635 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
-# T=   1635 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0100, DQ=0xzzzz, State=3
+# T=   1605 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
+# T=   1605 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0100, DQ=0xzzzz, State= 3
+# [SDRAMCTRL] STATE_READ3 - фиксация и подтверждение
+# T=   1615 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
+# T=   1615 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0100, DQ=0xabcd, State= 4
 # [SDRAMCTRL] STATE_PRECHARGE
-# T=   1645 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0x0000
-# T=   1645 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0100, DQ=0xabcd, State=5
+# T=   1625 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0xabcd
+# T=   1625 ns: WB ACK received
+# T=   1625 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x0100, DQ=0xzzzz, State= 6
+# [SDRAMCTRL] STATE_PRECHARGE
 # [SDRAM] PRECHARGE bank=0
-# [SDRAMCTRL] STATE_PRECHARGE
-# T=   1655 ns: WB CYC=1 STB=1 WE=0 ADDR=0x000100 DATA=0xabcd
-# T=   1655 ns: WB ACK received
-# T=   1655 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xzzzz, State=5
-# [SDRAM] PRECHARGE bank=0
-# [SDRAMCTRL] STATE_PRECHARGE
-# T=   1665 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xzzzz, State=5
+# T=   1635 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 6
 # [TEST] [RESULT] SUCCESS: Read correct data 0xabcd
+# [SDRAMCTRL] STATE_PRECHARGE
 # [SDRAM] PRECHARGE bank=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1675 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1685 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1695 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1705 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1715 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1725 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1735 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1745 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1755 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
-# [SDRAMCTRL] STATE_IDLE 
-# T=   1765 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State=0
+# T=   1645 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 6
+# [SDRAMCTRL] STATE_IDLE
+# [SDRAM] PRECHARGE bank=0
+# T=   1655 ns: SDRAM CMD={cs_n=0, ras_n=0, cas_n=1, we_n=0}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_IDLE
+# T=   1665 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_IDLE
+# T=   1675 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_IDLE
+# T=   1685 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_IDLE
+# T=   1695 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_IDLE
+# T=   1705 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_IDLE
+# T=   1715 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_IDLE
+# T=   1725 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 0
+# [SDRAMCTRL] STATE_IDLE
+# T=   1735 ns: SDRAM CMD={cs_n=0, ras_n=1, cas_n=1, we_n=1}, BA=0x0, A=0x1100, DQ=0xzzzz, State= 0
 # === TEST COMPLETE ===
 # ** Note: $finish    : ./sdram_ctrl_tb.sv(148)
-#    Time: 1775 ns  Iteration: 0  Instance: /sdram_ctrl_tb
-# 1
-# Break in Module sdram_ctrl_tb at ./sdram_ctrl_tb.sv line 148
-# Simulation completed
-# End time: 14:59:35 on Aug 24,2025, Elapsed time: 0:07:02
-# Errors: 0, Warnings: 1
+#    Time: 1745 ns  Iteration: 0  Instance: /sdram_ctrl_tb
+# End time: 16:19:58 on Aug 24,2025, Elapsed time: 0:00:05
+# Errors: 0, Warnings: 0

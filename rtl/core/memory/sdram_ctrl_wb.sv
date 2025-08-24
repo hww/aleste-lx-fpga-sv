@@ -37,7 +37,7 @@ module sdram_ctrl_wb #(
     output                          sdram_cke,       // Clock enable
     
     // Debug
-    output       [2:0] debug_state
+    output       [3:0] debug_state
 );
 
 // Local parameters
@@ -58,14 +58,14 @@ localparam STATE_IDLE       = 0;
 localparam STATE_ACTIVATE   = 1;
 localparam STATE_READ       = 2;
 localparam STATE_READ2      = 3;
-localparam STATE_WRITE      = 4;
-localparam STATE_PRECHARGE  = 5;
-localparam STATE_REFRESH    = 6;
-localparam STATE_INIT       = 7;
-localparam STATE_REFRESH_WAIT = 8; 
+localparam STATE_READ3      = 4;
+localparam STATE_WRITE      = 5;
+localparam STATE_PRECHARGE  = 6;
+localparam STATE_REFRESH    = 7;
+localparam STATE_INIT       = 8;
+localparam STATE_REFRESH_WAIT = 9; 
 
-reg [2:0] state = STATE_INIT;
-reg [2:0] next_state;
+reg [3:0] state = STATE_INIT;
 
 // Timing counters
 reg [15:0] init_counter = 0;
@@ -94,38 +94,9 @@ reg [WB_DATA_WIDTH-1:0] sdram_dq_out;
 reg                     sdram_dq_oe;
 assign sdram_dq = sdram_dq_oe ? sdram_dq_out : {WB_DATA_WIDTH{1'bz}};
 
-logic data_valid;
-
-always @(posedge wb_clk_i) begin
-    if (wb_rst_i) begin
-        wb_ack_o <= 0;
-        pending <= 0;
-        we_pending <= 0;
-        wb_dat_o <= 0;
-    end else begin
-        wb_ack_o <= 0;
-        
-        if (wb_cyc_i && wb_stb_i && !pending && state == STATE_IDLE) begin
-            pending <= 1;
-            we_pending <= wb_we_i;
-            data_in <= wb_dat_i;
-            addr_pending <= wb_adr_i;
-        end
-        
-        // Данные готовы - сразу отправляем в Wishbone!
-        if (pending && data_valid) begin
-            pending <= 0;
-            wb_ack_o <= 1;
-            
-            if (!we_pending) begin
-                wb_dat_o <= sdram_dq;  // ← НЕПОСРЕДСТВЕННО из SDRAM!
-            end
-        end
-    end
-end
-
 
 // Main state machine - параметризированная версия
+// Main state machine with integrated Wishbone interface
 always @(posedge wb_clk_i) begin
     if (wb_rst_i) begin
         state <= STATE_INIT;
@@ -136,8 +107,21 @@ always @(posedge wb_clk_i) begin
         sdram_ba <= 0;
         sdram_dqm <= {BYTE_SEL_WIDTH{1'b1}};
         sdram_dq_oe <= 0;
-        data_valid <= 0;  // Сброс по умолчанию
+        
+        // Wishbone signals
+        wb_ack_o <= 0;
+        wb_dat_o <= 0;
+        pending <= 0;
+        we_pending <= 0;
+        data_in <= 0;
+        addr_pending <= 0;
+        
     end else begin
+        // Default values
+        wb_ack_o <= 0;
+        {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_NOP;
+        sdram_dq_oe <= 0;
+        
         // Refresh counter
         refresh_counter <= refresh_counter + 1;
         if (refresh_counter >= REFRESH_CYCLES) begin
@@ -147,10 +131,6 @@ always @(posedge wb_clk_i) begin
             end
         end
         
-        // Default command
-        {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_NOP;
-
-
         case (state)
             STATE_INIT: begin
                 $display("[SDRAMCTRL] STATE_INIT %d", init_counter);                  
@@ -159,7 +139,7 @@ always @(posedge wb_clk_i) begin
                 if (init_counter == 100) begin
                     // Precharge all
                     {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_PRECHARGE;
-                    sdram_addr[SDRAM_ADDR_WIDTH-1] <= 1'b1; // Precharge all banks
+                    sdram_addr[SDRAM_ADDR_WIDTH-1] <= 1'b1;
                 end
                 else if (init_counter == 110) begin
                     // Auto refresh
@@ -180,14 +160,19 @@ always @(posedge wb_clk_i) begin
             end
             
             STATE_IDLE: begin
-                $display("[SDRAMCTRL] STATE_IDLE", );                       
-                sdram_dq_oe <= 0;
+                $display("[SDRAMCTRL] STATE_IDLE");                       
                 sdram_dqm <= {BYTE_SEL_WIDTH{1'b1}};
-                data_valid <= 0;  
-                if (pending) begin
+                
+                // Accept new Wishbone commands
+                if (wb_cyc_i && wb_stb_i && !pending) begin
+                    pending <= 1;
+                    we_pending <= wb_we_i;
+                    data_in <= wb_dat_i;
+                    addr_pending <= wb_adr_i;
                     state <= STATE_ACTIVATE;
-                    sdram_ba <= addr_pending[WB_ADDR_WIDTH-1 -: SDRAM_BANK_WIDTH];
-                    sdram_addr <= addr_pending[WB_ADDR_WIDTH-SDRAM_BANK_WIDTH-1 -: SDRAM_ROW_WIDTH];
+                    
+                    sdram_ba <= wb_adr_i[WB_ADDR_WIDTH-1 -: SDRAM_BANK_WIDTH];
+                    sdram_addr <= wb_adr_i[WB_ADDR_WIDTH-SDRAM_BANK_WIDTH-1 -: SDRAM_ROW_WIDTH];
                     delay_counter <= 2; // tRCD
                 end
             end
@@ -208,25 +193,40 @@ always @(posedge wb_clk_i) begin
             end
             
             STATE_READ: begin
+                // Контроллер выдает команду READ и адрес столбца на SDRAM
                 $display("[SDRAMCTRL] STATE_READ");                     
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_READ;
                 sdram_addr <= {{(SDRAM_ADDR_WIDTH-SDRAM_COL_WIDTH){1'b0}}, 
-                              addr_pending[SDRAM_COL_WIDTH-1:0]};
+                            addr_pending[SDRAM_COL_WIDTH-1:0]};
                 sdram_dqm <= {BYTE_SEL_WIDTH{1'b0}};
-                delay_counter <= CAS_LATENCY; // CAS latency
+                delay_counter <= CAS_LATENCY;
                 state <= STATE_READ2;
             end
             
             STATE_READ2: begin
-                $display("[SDRAMCTRL] STATE_READ2");        
+                // В этом состоянии SDRAM ТОЛЬКО НАЧИНАЕТ выставлять данные на шину
+                // Данные еще не стабильны - фиксировать их РАНЬШЕ СЛЕДУЮЩЕГО ТАКТА НЕЛЬЗЯ
+                $display("[SDRAMCTRL] STATE_READ2 delay_counter=%d", delay_counter);
                 if (delay_counter == 0) begin
-                    data_valid <= 1;
-                    state <= STATE_PRECHARGE;
-                    delay_counter <= 2; // tRP
+                    // Переходим в состояние фиксации
+                    state <= STATE_READ3;
                 end else begin
-                    data_valid <= 0;
                     delay_counter <= delay_counter - 1;
                 end
+            end
+
+            STATE_READ3: begin
+                $display("[SDRAMCTRL] STATE_READ3 - фиксация и подтверждение");
+                // В НАЧАЛЕ этого такта данные на sdram_dq УЖЕ СТАБИЛЬНЫ (установились за предыдущий такт)
+                // ФИКСИРУЕМ их в выходной регистр Wishbone
+                wb_dat_o <= sdram_dq;  // ← ФИКСАЦИЯ ВЕРНА!
+
+                // ОДНОВРЕМЕННО выдаемACK - данные УЖЕ валидны в регистре wb_dat_o
+                wb_ack_o <= 1;
+                pending <= 0;
+
+                state <= STATE_PRECHARGE;
+                delay_counter <= 2; // tRP
             end
             
             STATE_WRITE: begin
@@ -234,10 +234,14 @@ always @(posedge wb_clk_i) begin
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_WRITE;
                 sdram_addr <= {{(SDRAM_ADDR_WIDTH-SDRAM_COL_WIDTH){1'b0}}, 
                               addr_pending[SDRAM_COL_WIDTH-1:0]};
-                data_valid <= 1;               
                 sdram_dq_out <= data_in;
                 sdram_dq_oe <= 1;
-                sdram_dqm <= ~wb_sel_i;               
+                sdram_dqm <= ~wb_sel_i;
+                
+                // WRITE COMPLETE - acknowledge immediately!
+                wb_ack_o <= 1;
+                pending <= 0;
+                
                 state <= STATE_PRECHARGE;
                 delay_counter <= 2; // tRP
             end
@@ -245,7 +249,7 @@ always @(posedge wb_clk_i) begin
             STATE_PRECHARGE: begin
                 $display("[SDRAMCTRL] STATE_PRECHARGE");
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_PRECHARGE;
-                sdram_addr[SDRAM_ADDR_WIDTH-1] <= 1'b1; // Precharge all banks
+                sdram_addr[SDRAM_ADDR_WIDTH-1] <= 1'b1;
                 
                 if (delay_counter == 0) begin
                     state <= STATE_IDLE;
@@ -262,9 +266,11 @@ always @(posedge wb_clk_i) begin
             end
 
             STATE_REFRESH_WAIT: begin
-                $display("[SDRAMCTRL] ЫЕФЕУ_REFRESH_ЦФШЕ ");                
+                $display("[SDRAMCTRL] STATE_REFRESH_WAIT");                
                 if (delay_counter == 0) begin
                     state <= STATE_IDLE;
+                end else begin
+                    delay_counter <= delay_counter - 1;
                 end
             end
         endcase

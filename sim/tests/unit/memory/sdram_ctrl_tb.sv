@@ -41,7 +41,7 @@ module sdram_ctrl_tb;
     logic sdram_cke;
     
     // Отладочные сигналы
-    logic [2:0] debug_state;
+    logic [3:0] debug_state;
     
     // Драйверы для шины данных
     logic [WB_DATA_WIDTH-1:0] sdram_dq_drive = '0;
