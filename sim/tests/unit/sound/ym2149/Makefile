@@ -13,7 +13,7 @@ VERILATOR_FLAGS = \
 	--timescale "1ns/1ps" \
 	--converge-limit 2000
 
-SOURCES = tb_ym2149.sv ../../../../rtl/third_party/sound/YM2149.sv
+SOURCES = tb_ym2149.sv ../../../../../rtl/third_party/sound/YM2149.sv
 CPP_SOURCES = ym2149_test.cpp
 TOP_MODULE = tb_ym2149
 

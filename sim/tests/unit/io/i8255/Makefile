@@ -11,9 +11,9 @@ VERILATOR_FLAGS = \
 	--timing \
 	--timescale "1ns/1ps"
 
-SOURCES = tb_i8255.sv ../../../../rtl/third_party/i8255.v
+SOURCES = tb_i8255.sv ../../../../../rtl/third_party/io/i8255.v
 CPP_SOURCES = i8255_test.cpp
-INCLUDE_DIR = -I../../../../rtl/third_party
+INCLUDE_DIR = -I../../../../../rtl/third_party/io
 
 all: run
 

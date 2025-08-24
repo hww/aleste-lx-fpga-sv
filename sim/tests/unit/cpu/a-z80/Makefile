@@ -9,9 +9,9 @@ VERILATOR_FLAGS = \
 	--timing \
 	--timescale "1ns/1ps"
 
-SOURCES = tb_z80.sv ../../../../rtl/third_party/cpu/a-z80/z80_top_direct_n.v
+SOURCES = tb_z80.sv ../../../../../rtl/third_party/cpu/a-z80/z80_top_direct_n.v
 CPP_SOURCES = zexall.cpp
-INCLUDE_DIR = -I../../../../rtl/third_party/cpu/a-z80
+INCLUDE_DIR = -I../../../../../rtl/third_party/cpu/a-z80
 
 all: run
 

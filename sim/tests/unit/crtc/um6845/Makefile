@@ -10,7 +10,7 @@ VERILATOR_FLAGS = \
 	--timescale "1ns/1ps" \
 	--converge-limit 2000
 
-SOURCES = tb_um6845r.sv ../../../../rtl/third_party/crtc/UM6845R.v
+SOURCES = tb_um6845r.sv ../../../../../rtl/third_party/crtc/UM6845R.v
 CPP_SOURCES = um6845r_test.cpp
 TOP_MODULE = tb_um6845r
 

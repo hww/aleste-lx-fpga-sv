@@ -1,4 +1,4 @@
-#include "Vsdram_ctrl_tb.h"
+#include "Vsdram_ctrl_advanced_tb.h"
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 #include <iostream>
@@ -7,13 +7,23 @@
 
 vluint64_t main_time = 0;
 double sc_time_stamp() { return main_time; }
+const int STATE_IDLE       = 0;
+const int STATE_ACTIVATE   = 1;
+const int STATE_READ       = 2;
+const int STATE_READ2      = 3;
+const int STATE_WRITE      = 4;
+const int STATE_PRECHARGE  = 5;
+const int STATE_REFRESH    = 6;
+const int STATE_INIT       = 7;
 
 // Простая модель SDRAM для Verilator
 class SDRAMModel {
 private:
     std::vector<uint16_t> memory;
     uint32_t capacity;
-    
+
+
+
 public:
     SDRAMModel(uint32_t size_mb = 8) : capacity(size_mb * 1024 * 1024 / 2) {
         memory.resize(capacity, 0x0000);
@@ -35,21 +45,23 @@ public:
     uint32_t get_capacity() const { return capacity; }
 };
 
-void print_controller_state(Vsdram_ctrl_tb* dut) {
+void print_controller_state(Vsdram_ctrl_advanced_tb* dut) {
+
     static int last_state = -1;
-    
+
     if (dut->debug_state != last_state) {
-        std::cout << "[CPP] TIME " << main_time << ": ";
+        std::cout << "[CPCTRL] TIME " << main_time << ": ";
         std::cout << "STATE=" << (int)dut->debug_state << " | ";
         
         switch(dut->debug_state) {
-            case 0: std::cout << "INIT       "; break;
-            case 1: std::cout << "IDLE       "; break;
-            case 2: std::cout << "ACTIVATE   "; break;
-            case 3: std::cout << "WRITE      "; break;
-            case 4: std::cout << "READ       "; break;
-            case 5: std::cout << "PRECHARGE  "; break;
-            case 6: std::cout << "REFRESH    "; break;
+            case STATE_INIT:        std::cout << "INIT       "; break;
+            case STATE_IDLE:        std::cout << "IDLE       "; break;
+            case STATE_ACTIVATE:    std::cout << "ACTIVATE   "; break;
+            case STATE_WRITE:       std::cout << "WRITE      "; break;
+            case STATE_READ:        std::cout << "READ1       "; break;
+            case STATE_READ2:       std::cout << "READ2       "; break;
+            case STATE_PRECHARGE:   std::cout << "PRECHARGE  "; break;
+            case STATE_REFRESH:     std::cout << "REFRESH    "; break;
             default: std::cout << "UNKNOWN(" << (int)dut->debug_state << ")"; break;
         }
         
@@ -67,13 +79,13 @@ void print_controller_state(Vsdram_ctrl_tb* dut) {
     }
 }
 
-void print_sdram_command(Vsdram_ctrl_tb* dut) {
+void print_sdram_command(Vsdram_ctrl_advanced_tb* dut) {
     static int last_cmd = -1;
     int current_cmd = (dut->sdram_cs_n << 3) | (dut->sdram_ras_n << 2) | 
                      (dut->sdram_cas_n << 1) | (dut->sdram_we_n);
     
     if (current_cmd != last_cmd && dut->sdram_cke) {
-        std::cout << "[CPP] TIME " << main_time << ": SDRAM_CMD: ";
+        std::cout << "[CPSDRAM] TIME " << main_time << ": SDRAM_CMD: ";
         
         if (dut->sdram_cs_n) {
             std::cout << "DESELECT";
@@ -112,20 +124,23 @@ void print_sdram_command(Vsdram_ctrl_tb* dut) {
     }
 }
 
+
+
 class SDRAMTest {
 private:
-    Vsdram_ctrl_tb* dut;
+    Vsdram_ctrl_advanced_tb* dut;
     VerilatedVcdC* tfp;
     vluint64_t time;
     SDRAMModel sdram_model;
-    
+    const std::string logFile = "sdram_ctrl_advanced.vcd";
+
 public:
     SDRAMTest() : time(0), sdram_model(8) {
         Verilated::traceEverOn(true);
-        dut = new Vsdram_ctrl_tb;
+        dut = new Vsdram_ctrl_advanced_tb;
         tfp = new VerilatedVcdC;
         dut->trace(tfp, 99);
-        tfp->open("sdram_ctrl_advanced.vcd");
+        tfp->open(logFile.c_str());
         
         // Initialize - FIXED: Use correct signal names
         // Check your Verilog module for actual clock and reset signal names
@@ -203,7 +218,7 @@ public:
         dut->wb_dat_i = data;
         
         if (!wait_for_ack()) {
-            std::cout << "[CPP] [ERROR] WRITE timeout" << std::endl;
+            std::cout << "[CPP] [ERROR] WRITE: timeout" << std::endl;
             dut->wb_cyc_i = 0;
             dut->wb_stb_i = 0;
             return false;
@@ -225,7 +240,7 @@ public:
         dut->wb_adr_i = addr;
         
         if (!wait_for_ack()) {
-            std::cout << "[CPP] [ERROR] READ timeout" << std::endl;
+            std::cout << "[CPP] [ERROR] READ: timeout" << std::endl;
             dut->wb_cyc_i = 0;
             dut->wb_stb_i = 0;
             return 0xFFFF;
@@ -244,7 +259,7 @@ public:
         std::cout << "\n[CPP] === Memory Test Pattern ===" << std::endl;
         
         // Test pattern 1: Sequential
-        std::cout << "\n1. Sequential write/read test..." << std::endl;
+        std::cout << "\n[MEM1] 1. Sequential write/read test..." << std::endl;
         for (int i = 0; i < 16; i++) {
             uint32_t addr = i * 0x100;
             uint16_t data = 0xA000 + i;
@@ -252,7 +267,7 @@ public:
             if (write(addr, data)) {
                 uint16_t result = read(addr);
                 if (result != data) {
-                    std::cout << "[CPP] [ERROR] at 0x" << std::hex << addr 
+                    std::cout << "[CPP] [ERROR] MEMTST 1: read at 0x" << std::hex << addr 
                               << ": expected 0x" << data << ", got 0x" << result << std::endl;
                 }
             }
@@ -268,7 +283,7 @@ public:
             if (write(addr, test_pattern[i])) {
                 uint16_t result = read(addr);
                 if (result != test_pattern[i]) {
-                    std::cout << "[CPP] [ERROR]: pattern 0x" << std::hex << test_pattern[i]
+                    std::cout << "[CPP] [ERROR] MEMTST 2: pattern 0x" << std::hex << test_pattern[i]
                               << " mismatch at 0x" << addr << std::endl;
                 }
             }
@@ -284,7 +299,7 @@ public:
             if (write(addr, data)) {
                 uint16_t result = read(addr);
                 if (result != data) {
-                    std::cout << "[CPP] [ERROR] in bank " << bank << ": expected 0x" 
+                    std::cout << "[CPP] [ERROR] MEMTST 3: in bank " << bank << ": expected 0x" 
                               << data << ", got 0x" << result << std::endl;
                 }
             }
@@ -314,7 +329,7 @@ public:
     }
     
     void run_stress_test() {
-        std::cout << "\n=== Stress Test ===" << std::endl;
+        std::cout << "\n[CPP] === Stress Test ===" << std::endl;
         
         // Rapid fire operations
         for (int i = 0; i < 50; i++) {
@@ -342,7 +357,7 @@ public:
         
         // Wait for initialization
         std::cout << "[CPP] Waiting for SDRAM initialization..." << std::endl;
-        if (!wait_for_state(1, 2000)) { // Wait for IDLE state
+        if (!wait_for_state(STATE_IDLE, 2000)) { // Wait for IDLE state
             std::cout << "[CPP] [ERROR] Initialization timeout!" << std::endl;
             return;
         }
@@ -355,7 +370,7 @@ public:
         
         std::cout << "\n[CPP] === Test Complete ===" << std::endl;
         std::cout << "[CPP] Total simulation time: " << time << " cycles" << std::endl;
-        std::cout << "[CPP] VCD trace saved to: sdram_test.vcd" << std::endl;
+        std::cout << "[CPP] VCD trace saved to: " << logFile << std::endl;
     }
 };
 
