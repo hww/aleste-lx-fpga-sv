@@ -11,10 +11,12 @@ const int STATE_IDLE       = 0;
 const int STATE_ACTIVATE   = 1;
 const int STATE_READ       = 2;
 const int STATE_READ2      = 3;
-const int STATE_WRITE      = 4;
-const int STATE_PRECHARGE  = 5;
-const int STATE_REFRESH    = 6;
-const int STATE_INIT       = 7;
+const int STATE_READ3      = 4;
+const int STATE_WRITE      = 5;
+const int STATE_PRECHARGE  = 6;
+const int STATE_REFRESH    = 7;
+const int STATE_INIT       = 8;
+const int STATE_REFRESH_WAIT = 9; 
 
 // Простая модель SDRAM для Verilator
 class SDRAMModel {
@@ -45,36 +47,45 @@ public:
     uint32_t get_capacity() const { return capacity; }
 };
 
-void print_controller_state(Vsdram_ctrl_advanced_tb* dut) {
+// Добавляем в начало файла, после includes
+int verbosity = 0; // 0 = minimal, 1 = normal, 2 = verbose, 3 = debug
 
+void print_controller_state(Vsdram_ctrl_advanced_tb* dut) {
     static int last_state = -1;
 
-    if (dut->debug_state != last_state) {
-        std::cout << "[CPCTRL] TIME " << main_time << ": ";
-        std::cout << "STATE=" << (int)dut->debug_state << " | ";
-        
-        switch(dut->debug_state) {
-            case STATE_INIT:        std::cout << "INIT       "; break;
-            case STATE_IDLE:        std::cout << "IDLE       "; break;
-            case STATE_ACTIVATE:    std::cout << "ACTIVATE   "; break;
-            case STATE_WRITE:       std::cout << "WRITE      "; break;
-            case STATE_READ:        std::cout << "READ1       "; break;
-            case STATE_READ2:       std::cout << "READ2       "; break;
-            case STATE_PRECHARGE:   std::cout << "PRECHARGE  "; break;
-            case STATE_REFRESH:     std::cout << "REFRESH    "; break;
-            default: std::cout << "UNKNOWN(" << (int)dut->debug_state << ")"; break;
+    // Выводим только при изменении состояния или в verbose режиме
+    if (dut->debug_state != last_state || verbosity >= 2) {
+        if (verbosity >= 1) { // normal и выше
+            std::cout << "[CPCTRL] TIME " << main_time << ": ";
+            std::cout << "STATE=" << (int)dut->debug_state << " | ";
+            
+            switch(dut->debug_state) {
+                case STATE_INIT:        std::cout << "INIT       "; break;
+                case STATE_IDLE:        std::cout << "IDLE       "; break;
+                case STATE_ACTIVATE:    std::cout << "ACTIVATE   "; break;
+                case STATE_WRITE:       std::cout << "WRITE      "; break;
+                case STATE_READ:        std::cout << "READ1      "; break;
+                case STATE_READ2:       std::cout << "READ2      "; break;
+                case STATE_READ3:       std::cout << "READ3      "; break;
+                case STATE_PRECHARGE:   std::cout << "PRECHARGE  "; break;
+                case STATE_REFRESH:     std::cout << "REFRESH    "; break;
+                case STATE_REFRESH_WAIT: std::cout << "STATE_REFRESH_WAIT    "; break;
+                default: std::cout << "UNKNOWN(" << (int)dut->debug_state << ")"; break;
+            }
+            
+            if (verbosity >= 2) { // verbose и debug
+                std::cout << " | WB: CYC=" << (int)dut->wb_cyc_i 
+                          << " STB=" << (int)dut->wb_stb_i 
+                          << " ACK=" << (int)dut->wb_ack_o
+                          << " WE=" << (int)dut->wb_we_i;
+                
+                std::cout << " | ADDR=0x" << std::hex << dut->wb_adr_i
+                          << " DAT_I=0x" << dut->wb_dat_i
+                          << " DAT_O=0x" << dut->wb_dat_o;
+            }
+            
+            std::cout << std::endl;
         }
-        
-        std::cout << " | WB: CYC=" << (int)dut->wb_cyc_i 
-                  << " STB=" << (int)dut->wb_stb_i 
-                  << " ACK=" << (int)dut->wb_ack_o
-                  << " WE=" << (int)dut->wb_we_i;
-        
-        std::cout << " | ADDR=0x" << std::hex << dut->wb_adr_i
-                  << " DAT_I=0x" << dut->wb_dat_i
-                  << " DAT_O=0x" << dut->wb_dat_o;
-        
-        std::cout << std::endl;
         last_state = dut->debug_state;
     }
 }
@@ -84,47 +95,47 @@ void print_sdram_command(Vsdram_ctrl_advanced_tb* dut) {
     int current_cmd = (dut->sdram_cs_n << 3) | (dut->sdram_ras_n << 2) | 
                      (dut->sdram_cas_n << 1) | (dut->sdram_we_n);
     
-    if (current_cmd != last_cmd && dut->sdram_cke) {
-        std::cout << "[CPSDRAM] TIME " << main_time << ": SDRAM_CMD: ";
-        
-        if (dut->sdram_cs_n) {
-            std::cout << "DESELECT";
-        } else {
-            if (!dut->sdram_ras_n && !dut->sdram_cas_n && !dut->sdram_we_n) {
-                std::cout << "MODE_REG_SET";
+    if ((current_cmd != last_cmd || verbosity >= 2) && dut->sdram_cke) {
+        if (verbosity >= 2) { // только в verbose режиме
+            std::cout << "[CPSDRAM] TIME " << main_time << ": SDRAM_CMD: ";
+            
+            if (dut->sdram_cs_n) {
+                std::cout << "DESELECT";
+            } else {
+                if (!dut->sdram_ras_n && !dut->sdram_cas_n && !dut->sdram_we_n) {
+                    std::cout << "MODE_REG_SET";
+                }
+                else if (!dut->sdram_ras_n && !dut->sdram_cas_n && dut->sdram_we_n) {
+                    std::cout << "AUTO_REFRESH";
+                }
+                else if (!dut->sdram_ras_n && dut->sdram_cas_n && !dut->sdram_we_n) {
+                    std::cout << "PRECHARGE";
+                }
+                else if (!dut->sdram_ras_n && dut->sdram_cas_n && dut->sdram_we_n) {
+                    std::cout << "ACTIVATE";
+                    std::cout << " BA=" << (int)dut->sdram_ba;
+                    std::cout << " ROW=0x" << std::hex << dut->sdram_addr;
+                }
+                else if (dut->sdram_ras_n && !dut->sdram_cas_n && !dut->sdram_we_n) {
+                    std::cout << "WRITE";
+                    std::cout << " BA=" << (int)dut->sdram_ba;
+                    std::cout << " COL=0x" << std::hex << (dut->sdram_addr & 0x3FF);
+                }
+                else if (dut->sdram_ras_n && !dut->sdram_cas_n && dut->sdram_we_n) {
+                    std::cout << "READ";
+                    std::cout << " BA=" << (int)dut->sdram_ba;
+                    std::cout << " COL=0x" << std::hex << (dut->sdram_addr & 0x3FF);
+                }
+                else {
+                    std::cout << "NOP";
+                }
             }
-            else if (!dut->sdram_ras_n && !dut->sdram_cas_n && dut->sdram_we_n) {
-                std::cout << "AUTO_REFRESH";
-            }
-            else if (!dut->sdram_ras_n && dut->sdram_cas_n && !dut->sdram_we_n) {
-                std::cout << "PRECHARGE";
-            }
-            else if (!dut->sdram_ras_n && dut->sdram_cas_n && dut->sdram_we_n) {
-                std::cout << "ACTIVATE";
-                std::cout << " BA=" << (int)dut->sdram_ba;
-                std::cout << " ROW=0x" << std::hex << dut->sdram_addr;
-            }
-            else if (dut->sdram_ras_n && !dut->sdram_cas_n && !dut->sdram_we_n) {
-                std::cout << "WRITE";
-                std::cout << " BA=" << (int)dut->sdram_ba;
-                std::cout << " COL=0x" << std::hex << (dut->sdram_addr & 0x3FF);
-            }
-            else if (dut->sdram_ras_n && !dut->sdram_cas_n && dut->sdram_we_n) {
-                std::cout << "READ";
-                std::cout << " BA=" << (int)dut->sdram_ba;
-                std::cout << " COL=0x" << std::hex << (dut->sdram_addr & 0x3FF);
-            }
-            else {
-                std::cout << "NOP";
-            }
+            
+            std::cout << std::endl;
         }
-        
-        std::cout << std::endl;
         last_cmd = current_cmd;
     }
 }
-
-
 
 class SDRAMTest {
 private:
@@ -207,9 +218,11 @@ public:
         }
         return false;
     }
-    
+
     bool write(uint32_t addr, uint16_t data) {
-        std::cout << "[CPP] WRITE: 0x" << std::hex << addr << " = 0x" << data << std::endl;
+        if (verbosity >= 1) {
+            std::cout << "[CPP] WRITE: 0x" << std::hex << addr << " = 0x" << data << std::endl;
+        }
         
         dut->wb_cyc_i = 1;
         dut->wb_stb_i = 1;
@@ -230,9 +243,11 @@ public:
         
         return true;
     }
-    
+        
     uint16_t read(uint32_t addr) {
-        std::cout << "[CPP] READ: 0x" << std::hex << addr << std::endl;
+        if (verbosity >= 1) {
+            std::cout << "[CPP] READ: 0x" << std::hex << addr << std::endl;
+        }
         
         dut->wb_cyc_i = 1;
         dut->wb_stb_i = 1;
@@ -251,7 +266,9 @@ public:
         dut->wb_cyc_i = 0;
         dut->wb_stb_i = 0;
         
-        std::cout << "[CPP] READ: 0x" << std::hex << addr << " = 0x" << data << std::endl;
+        if (verbosity >= 1) {
+            std::cout << "[CPP] READ: 0x" << std::hex << addr << " = 0x" << data << std::endl;
+        }
         return data;
     }
     
@@ -378,11 +395,27 @@ int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     Verilated::debug(0);
     
-    std::cout << "[CPP] Starting SDRAM WB Controller Test..." << std::endl;
+    // Обработка аргументов вербозности
+    for (int i = 1; i < argc; i++) {
+        if (std::string(argv[i]) == "-v") {
+            verbosity = 1;
+        } else if (std::string(argv[i]) == "-vv") {
+            verbosity = 2;
+        } else if (std::string(argv[i]) == "-vvv") {
+            verbosity = 3;
+        }
+    }
+    
+    if (verbosity >= 1) {
+        std::cout << "[CPP] Starting SDRAM WB Controller Test..." << std::endl;
+        std::cout << "[CPP] Verbosity level: " << verbosity << std::endl;
+    }
     
     SDRAMTest test;
     test.run_comprehensive_test();
     
-    std::cout << "[CPP] Test finished." << std::endl;
+    if (verbosity >= 1) {
+        std::cout << "[CPP] Test finished." << std::endl;
+    }
     return 0;
 }

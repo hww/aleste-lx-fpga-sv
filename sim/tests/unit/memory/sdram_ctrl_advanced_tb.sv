@@ -36,7 +36,7 @@ module sdram_ctrl_advanced_tb #(
     output wire                    sdram_cke,
     
     // Debug
-    output wire [2:0]            debug_state,
+    output wire [3:0]            debug_state,
     output wire [2:0]            model_state,
     output wire                  sdram_initialized    
 );
