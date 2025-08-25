@@ -1,4 +1,4 @@
-module z80_wb_wrapper (
+module z80_wb (
     // Z80 interface
     output logic nM1,
     output logic nMREQ,
