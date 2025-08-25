@@ -1,0 +1,58 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Aug 25 07:48:53 2025
+[*]
+[dumpfile] "/home/valery/asv/sim/tests/unit/memory/sdram_ctrl_simple.vcd"
+[dumpfile_mtime] "Mon Aug 25 07:43:08 2025"
+[dumpfile_size] 29938
+[savefile] "/home/valery/asv/sim/tests/unit/memory/sdram_ctrl_simple.gtkw"
+[timestart] 288
+[size] 1920 1110
+[pos] -1 -1
+*-4.196026 379 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 297
+[signals_width] 223
+[sst_expanded] 1
+[sst_vpaned_height] 334
+@200
+-Control Lines
+@28
+TOP.wb_clk_i
+TOP.wb_rst_i
+@200
+-SDRAM
+@28
+TOP.sdram_cke
+@22
+TOP.sdram_addr[12:0]
+@28
+TOP.sdram_ba[1:0]
+TOP.sdram_cs_n
+TOP.sdram_ras_n
+TOP.sdram_cas_n
+TOP.sdram_we_n
+@29
+TOP.sdram_dqm[1:0]
+@22
+TOP.sdram_dq[15:0]
+TOP.sdram_dq_drive[15:0]
+@28
+TOP.sdram_dq_drive_en
+@200
+-SDRAM Conroller
+@22
+TOP.debug_state[3:0]
+@200
+-Wishbone
+@22
+TOP.wb_adr_i[23:0]
+TOP.wb_dat_i[15:0]
+TOP.wb_dat_o[15:0]
+@28
+TOP.wb_sel_i[1:0]
+TOP.wb_cyc_i
+TOP.wb_stb_i
+TOP.wb_we_i
+TOP.wb_ack_o
+[pattern_trace] 1
+[pattern_trace] 0

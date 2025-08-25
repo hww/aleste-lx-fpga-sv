@@ -1,8 +1,6 @@
 # vsim -c -do "run -all; quit" work.sdram_ctrl_tb 
-# Start time: 16:19:53 on Aug 24,2025
-# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
-# Support of the MGLS_LICENSE_FILE and LM_LICENSE_FILE licensing environment variables will be discontinued starting with the 2025.1 release. Please update to using the SALT_LICENSE_SERVER variable.
-# Please contact Siemens EDA Customer Support (https://support.sw.siemens.com/) for assistance.
+# Start time: 09:51:16 on Aug 25,2025
+# ** Note: (vsim-8009) Loading existing optimized design _opt2
 # //  Questa Sim-64
 # //  Version 2024.1 win64 Feb  1 2024
 # //
@@ -414,5 +412,5 @@
 # === TEST COMPLETE ===
 # ** Note: $finish    : ./sdram_ctrl_tb.sv(148)
 #    Time: 1745 ns  Iteration: 0  Instance: /sdram_ctrl_tb
-# End time: 16:19:58 on Aug 24,2025, Elapsed time: 0:00:05
+# End time: 09:51:18 on Aug 25,2025, Elapsed time: 0:00:02
 # Errors: 0, Warnings: 0

@@ -1,0 +1,77 @@
+# Reading pref.tcl
+# //  Questa Sim-64
+# //  Version 2024.1 win64 Feb  1 2024
+# //
+# // Unpublished work. Copyright 2024 Siemens
+# //
+# // This material contains trade secrets or otherwise confidential information
+# // owned by Siemens Industry Software Inc. or its affiliates (collectively,
+# // "SISW"), or its licensors. Access to and use of this information is strictly
+# // limited as set forth in the Customer's applicable agreements with SISW.
+# //
+# // This material may not be copied, distributed, or otherwise disclosed outside
+# // of the Customer's facilities without the express written permission of SISW,
+# // and may not be used in any way not expressly authorized by SISW.
+# //
+# do scripts/run.tcl
+# === SDRAM Controller Simulation ===
+# 1
+# 1
+# vsim -voptargs="+acc" work.z80_wb_wrapper_tb 
+# Start time: 08:24:15 on Aug 25,2025
+# ** Note: (vsim-3812) Design is being optimized...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# Support of the MGLS_LICENSE_FILE and LM_LICENSE_FILE licensing environment variables will be discontinued starting with the 2025.1 release. Please update to using the SALT_LICENSE_SERVER variable.
+# Please contact Siemens EDA Customer Support (https://support.sw.siemens.com/) for assistance.
+# ** Note: (vopt-143) Recognized 1 FSM in module "z80_wb_wrapper(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.z80_wb_wrapper_tb(fast)
+# Loading work.z80_wb_wrapper(fast)
+# Loading work.z80_top_direct_n(fast)
+# ** Error (suppressible): (vsim-3009) [TSCALE] - Module 'z80_wb_wrapper_tb' does not have a timeunit/timeprecision specification in effect, but other modules do.
+#    Time: 0 ns  Iteration: 0  Instance: /z80_wb_wrapper_tb/dut/z80_core File: ../../../../rtl/third_party/cpu/a-z80/z80_top_direct_n.v
+# Loading work.clk_delay(fast)
+# Loading work.decode_state(fast)
+# Loading work.execute(fast)
+# Loading work.interrupts(fast)
+# Loading work.ir(fast)
+# Loading work.pin_control(fast)
+# Loading work.pla_decode(fast)
+# Loading work.resets(fast)
+# Loading work.memory_ifc(fast)
+# Loading work.sequencer(fast)
+# Loading work.alu_control(fast)
+# Loading work.alu_mux_4(fast)
+# Loading work.alu_mux_8(fast)
+# Loading work.alu_select(fast)
+# Loading work.alu_flags(fast)
+# Loading work.alu_mux_2(fast)
+# Loading work.alu(fast)
+# Loading work.alu_core(fast)
+# Loading work.alu_slice(fast)
+# Loading work.alu_bit_select(fast)
+# Loading work.alu_shifter_core(fast)
+# Loading work.alu_mux_2z(fast)
+# Loading work.alu_mux_3z(fast)
+# Loading work.alu_prep_daa(fast)
+# Loading work.reg_file(fast)
+# Loading work.reg_latch(fast)
+# Loading work.reg_control(fast)
+# Loading work.address_latch(fast)
+# Loading work.address_mux(fast)
+# Loading work.inc_dec(fast)
+# Loading work.inc_dec_2bit(fast)
+# Loading work.bus_control(fast)
+# Loading work.bus_switch(fast)
+# Loading work.data_switch(fast)
+# Loading work.data_switch_mask(fast)
+# Loading work.address_pins(fast)
+# Loading work.data_pins(fast)
+# Loading work.control_pins_n(fast)
+# Error loading design
+# Error: Error loading design
+#        Pausing macro execution
+# MACRO ./scripts/run.tcl PAUSED at line 8
+# End time: 08:25:37 on Aug 25,2025, Elapsed time: 0:01:22
+# Errors: 1, Warnings: 1

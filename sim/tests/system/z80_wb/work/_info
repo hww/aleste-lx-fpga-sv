@@ -1,0 +1,1021 @@
+m255
+K4
+z2
+!s12c _opt
+Z0 !s99 nomlopt
+!s11f vlog 2024.1 2024.02, Feb  1 2024
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z1 d//wsl.localhost/Ubuntu/home/valery/asv/sim/tests/system/z80_wb
+T_opt
+!s110 1756099458
+VDaSd75o:O3o5oZ;Y2Yjc91
+04 17 4 work z80_wb_wrapper_tb fast 0
+=1-b06ebf81cd2e-68abf380-6f-5870
+R0
+!s12f OEM100
+!s12b OEM100
+!s124 OEM100
+o-quiet -auto_acc_if_foreign -work work +acc
+Z2 tCvgOpt 0
+n@_opt
+OL;O;2024.1;79
+vaddress_latch
+Z3 2../../../../rtl/third_party/cpu/a-z80/address_latch.v|../../../../rtl/third_party/cpu/a-z80/address_mux.v|../../../../rtl/third_party/cpu/a-z80/address_pins.v|../../../../rtl/third_party/cpu/a-z80/alu.v|../../../../rtl/third_party/cpu/a-z80/alu_bit_select.v|../../../../rtl/third_party/cpu/a-z80/alu_control.v|../../../../rtl/third_party/cpu/a-z80/alu_core.v|../../../../rtl/third_party/cpu/a-z80/alu_flags.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_2.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_2z.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_3z.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_4.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_8.v|../../../../rtl/third_party/cpu/a-z80/alu_prep_daa.v|../../../../rtl/third_party/cpu/a-z80/alu_select.v|../../../../rtl/third_party/cpu/a-z80/alu_shifter_core.v|../../../../rtl/third_party/cpu/a-z80/alu_slice.v|../../../../rtl/third_party/cpu/a-z80/bus_control.v|../../../../rtl/third_party/cpu/a-z80/bus_switch.v|../../../../rtl/third_party/cpu/a-z80/clk_delay.v|../../../../rtl/third_party/cpu/a-z80/data_pins.v|../../../../rtl/third_party/cpu/a-z80/data_switch.v|../../../../rtl/third_party/cpu/a-z80/data_switch_mask.v|../../../../rtl/third_party/cpu/a-z80/decode_state.v|../../../../rtl/third_party/cpu/a-z80/execute.v|../../../../rtl/third_party/cpu/a-z80/inc_dec.v|../../../../rtl/third_party/cpu/a-z80/inc_dec_2bit.v|../../../../rtl/third_party/cpu/a-z80/interrupts.v|../../../../rtl/third_party/cpu/a-z80/ir.v|../../../../rtl/third_party/cpu/a-z80/memory_ifc.v|../../../../rtl/third_party/cpu/a-z80/pin_control.v|../../../../rtl/third_party/cpu/a-z80/pla_decode.v|../../../../rtl/third_party/cpu/a-z80/reg_control.v|../../../../rtl/third_party/cpu/a-z80/reg_file.v|../../../../rtl/third_party/cpu/a-z80/reg_latch.v|../../../../rtl/third_party/cpu/a-z80/resets.v|../../../../rtl/third_party/cpu/a-z80/sequencer.v|../../../../rtl/third_party/cpu/a-z80/control_pins_n.v|../../../../rtl/third_party/cpu/a-z80/z80_top_direct_n.v
+Z4 !s110 1756099444
+!i10b 1
+!s100 cc?IbLkTL_k]@NbFJE;;41
+IRGNQjYeYnKZ=[@acM;LQg3
+R1
+Z5 w1755545986
+8../../../../rtl/third_party/cpu/a-z80/address_latch.v
+F../../../../rtl/third_party/cpu/a-z80/address_latch.v
+!i122 0
+L0 32 110
+Z6 VDg1SIo80bB@j0V0VzS_@n1
+Z7 OL;L;2024.1;79
+r1
+!s85 0
+31
+Z8 !s108 1756099444.000000
+Z9 !s107 ../../../../rtl/third_party/cpu/a-z80/coremodules.vh|../../../../rtl/third_party/cpu/a-z80/globals.vh|../../../../rtl/third_party/cpu/a-z80/core.vh|../../../../rtl/third_party/cpu/a-z80/exec_matrix_compiled.vh|../../../../rtl/third_party/cpu/a-z80/exec_zero.vh|../../../../rtl/third_party/cpu/a-z80/temp_wires.vh|../../../../rtl/third_party/cpu/a-z80/exec_module.vh|../../../../rtl/third_party/cpu/a-z80/z80_top_direct_n.v|../../../../rtl/third_party/cpu/a-z80/control_pins_n.v|../../../../rtl/third_party/cpu/a-z80/sequencer.v|../../../../rtl/third_party/cpu/a-z80/resets.v|../../../../rtl/third_party/cpu/a-z80/reg_latch.v|../../../../rtl/third_party/cpu/a-z80/reg_file.v|../../../../rtl/third_party/cpu/a-z80/reg_control.v|../../../../rtl/third_party/cpu/a-z80/pla_decode.v|../../../../rtl/third_party/cpu/a-z80/pin_control.v|../../../../rtl/third_party/cpu/a-z80/memory_ifc.v|../../../../rtl/third_party/cpu/a-z80/ir.v|../../../../rtl/third_party/cpu/a-z80/interrupts.v|../../../../rtl/third_party/cpu/a-z80/inc_dec_2bit.v|../../../../rtl/third_party/cpu/a-z80/inc_dec.v|../../../../rtl/third_party/cpu/a-z80/execute.v|../../../../rtl/third_party/cpu/a-z80/decode_state.v|../../../../rtl/third_party/cpu/a-z80/data_switch_mask.v|../../../../rtl/third_party/cpu/a-z80/data_switch.v|../../../../rtl/third_party/cpu/a-z80/data_pins.v|../../../../rtl/third_party/cpu/a-z80/clk_delay.v|../../../../rtl/third_party/cpu/a-z80/bus_switch.v|../../../../rtl/third_party/cpu/a-z80/bus_control.v|../../../../rtl/third_party/cpu/a-z80/alu_slice.v|../../../../rtl/third_party/cpu/a-z80/alu_shifter_core.v|../../../../rtl/third_party/cpu/a-z80/alu_select.v|../../../../rtl/third_party/cpu/a-z80/alu_prep_daa.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_8.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_4.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_3z.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_2z.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_2.v|../../../../rtl/third_party/cpu/a-z80/alu_flags.v|../../../../rtl/third_party/cpu/a-z80/alu_core.v|../../../../rtl/third_party/cpu/a-z80/alu_control.v|../../../../rtl/third_party/cpu/a-z80/alu_bit_select.v|../../../../rtl/third_party/cpu/a-z80/alu.v|../../../../rtl/third_party/cpu/a-z80/address_pins.v|../../../../rtl/third_party/cpu/a-z80/address_mux.v|../../../../rtl/third_party/cpu/a-z80/address_latch.v|
+Z10 !s90 -work|work|+incdir+../../../../rtl/third_party/cpu/a-z80|../../../../rtl/third_party/cpu/a-z80/address_latch.v|../../../../rtl/third_party/cpu/a-z80/address_mux.v|../../../../rtl/third_party/cpu/a-z80/address_pins.v|../../../../rtl/third_party/cpu/a-z80/alu.v|../../../../rtl/third_party/cpu/a-z80/alu_bit_select.v|../../../../rtl/third_party/cpu/a-z80/alu_control.v|../../../../rtl/third_party/cpu/a-z80/alu_core.v|../../../../rtl/third_party/cpu/a-z80/alu_flags.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_2.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_2z.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_3z.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_4.v|../../../../rtl/third_party/cpu/a-z80/alu_mux_8.v|../../../../rtl/third_party/cpu/a-z80/alu_prep_daa.v|../../../../rtl/third_party/cpu/a-z80/alu_select.v|../../../../rtl/third_party/cpu/a-z80/alu_shifter_core.v|../../../../rtl/third_party/cpu/a-z80/alu_slice.v|../../../../rtl/third_party/cpu/a-z80/bus_control.v|../../../../rtl/third_party/cpu/a-z80/bus_switch.v|../../../../rtl/third_party/cpu/a-z80/clk_delay.v|../../../../rtl/third_party/cpu/a-z80/data_pins.v|../../../../rtl/third_party/cpu/a-z80/data_switch.v|../../../../rtl/third_party/cpu/a-z80/data_switch_mask.v|../../../../rtl/third_party/cpu/a-z80/decode_state.v|../../../../rtl/third_party/cpu/a-z80/execute.v|../../../../rtl/third_party/cpu/a-z80/inc_dec.v|../../../../rtl/third_party/cpu/a-z80/inc_dec_2bit.v|../../../../rtl/third_party/cpu/a-z80/interrupts.v|../../../../rtl/third_party/cpu/a-z80/ir.v|../../../../rtl/third_party/cpu/a-z80/memory_ifc.v|../../../../rtl/third_party/cpu/a-z80/pin_control.v|../../../../rtl/third_party/cpu/a-z80/pla_decode.v|../../../../rtl/third_party/cpu/a-z80/reg_control.v|../../../../rtl/third_party/cpu/a-z80/reg_file.v|../../../../rtl/third_party/cpu/a-z80/reg_latch.v|../../../../rtl/third_party/cpu/a-z80/resets.v|../../../../rtl/third_party/cpu/a-z80/sequencer.v|../../../../rtl/third_party/cpu/a-z80/control_pins_n.v|../../../../rtl/third_party/cpu/a-z80/z80_top_direct_n.v|
+!i113 0
+Z11 o-work work -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+Z12 !s92 -work work +incdir+../../../../rtl/third_party/cpu/a-z80 -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+R2
+vaddress_mux
+R3
+R4
+!i10b 1
+!s100 fjeRFN4jhczUYT?SEeSF>1
+Ih0RbZeP3[z7oGM:YG97`82
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/address_mux.v
+F../../../../rtl/third_party/cpu/a-z80/address_mux.v
+!i122 0
+Z13 L0 32 30
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vaddress_pins
+R3
+R4
+!i10b 1
+!s100 N5ZBJLchVZ@4;MNg;B:WG1
+IPgc7Ci6>3nc5zf2c1^2@M3
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/address_pins.v
+F../../../../rtl/third_party/cpu/a-z80/address_pins.v
+!i122 0
+L0 32 51
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu
+R3
+R4
+!i10b 1
+!s100 ;`FJHh@k2]?NJbzZeJ66K0
+Ib5>B7Y3OAIPc:lc2cPEVV0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu.v
+F../../../../rtl/third_party/cpu/a-z80/alu.v
+!i122 0
+L0 32 366
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_bit_select
+R3
+R4
+!i10b 1
+!s100 4S]PE=0:9j^4ZC@``SdW60
+I5@L^NmiC]:E<Sfo:8hcXb2
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_bit_select.v
+F../../../../rtl/third_party/cpu/a-z80/alu_bit_select.v
+!i122 0
+L0 32 46
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_control
+R3
+R4
+!i10b 1
+!s100 ^4N;70`e9OWj_fCDF6cFV0
+IinkiS[eeNeGeXim]oE=0_3
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_control.v
+F../../../../rtl/third_party/cpu/a-z80/alu_control.v
+!i122 0
+L0 32 232
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_core
+R3
+R4
+!i10b 1
+!s100 GAZ<biOAHK?jE@zZGZD8G2
+I[4XOO_eMMFKe_RlRmJ1][1
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_core.v
+F../../../../rtl/third_party/cpu/a-z80/alu_core.v
+!i122 0
+L0 32 82
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_flags
+R3
+R4
+!i10b 1
+!s100 8:aOn1k^@7^W4[2>T2O]d0
+I4VlL1UZKL1=EbADI>i54A0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_flags.v
+F../../../../rtl/third_party/cpu/a-z80/alu_flags.v
+!i122 0
+L0 32 340
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_mux_2
+R3
+R4
+!i10b 1
+!s100 :;Y^1KUWlHMjo]JFeY9c=2
+Iii]SUHY2QHG3V?e[kJ5=P3
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_mux_2.v
+F../../../../rtl/third_party/cpu/a-z80/alu_mux_2.v
+!i122 0
+R13
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_mux_2z
+R3
+R4
+!i10b 1
+!s100 UYGb?0FN_WZmOG]V^c>L@3
+In9GNI6ZmWImQVJk1=?RJa2
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_mux_2z.v
+F../../../../rtl/third_party/cpu/a-z80/alu_mux_2z.v
+!i122 0
+L0 32 31
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_mux_3z
+R3
+R4
+!i10b 1
+!s100 5>Z_gFjC9mA`1d:8DH9:h2
+IJnjc24D`45z1SJ2haZn6i2
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_mux_3z.v
+F../../../../rtl/third_party/cpu/a-z80/alu_mux_3z.v
+!i122 0
+L0 32 41
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_mux_4
+R3
+R4
+!i10b 1
+!s100 K[zWYaLTi>X`YQWOVo55G2
+I_ZHoK?oGgBneQQHBfkI0E3
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_mux_4.v
+F../../../../rtl/third_party/cpu/a-z80/alu_mux_4.v
+!i122 0
+L0 32 43
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_mux_8
+R3
+R4
+!i10b 1
+!s100 l`N6;<5W<mFZOQgGJ7T[G1
+IBmE8Gd59YG:jJXUl[9=Y]3
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_mux_8.v
+F../../../../rtl/third_party/cpu/a-z80/alu_mux_8.v
+!i122 0
+L0 32 66
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_prep_daa
+R3
+R4
+!i10b 1
+!s100 52V?_5kgVNM@eSW1;a6L[2
+I?S9mVRYVM8[MD52dJUfC[0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_prep_daa.v
+F../../../../rtl/third_party/cpu/a-z80/alu_prep_daa.v
+!i122 0
+L0 32 45
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_select
+R3
+R4
+!i10b 1
+!s100 NTY4]eSmN2WJ[>eeHTjl92
+I75NeiG>LOV2j?T4ST^o;:1
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_select.v
+F../../../../rtl/third_party/cpu/a-z80/alu_select.v
+!i122 0
+L0 32 96
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_shifter_core
+R3
+R4
+!i10b 1
+!s100 4AC4S4am1DF3WBT<W0acg3
+II[86Je5k8UfT<YL_86?lL0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_shifter_core.v
+F../../../../rtl/third_party/cpu/a-z80/alu_shifter_core.v
+!i122 0
+L0 32 124
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+valu_slice
+R3
+R4
+!i10b 1
+!s100 <mM`=a;4bnefohV:UEIE@3
+I>Il8Hl<FAc@H@<bcW2Ue80
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/alu_slice.v
+F../../../../rtl/third_party/cpu/a-z80/alu_slice.v
+!i122 0
+L0 32 58
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vbus_control
+R3
+R4
+!i10b 1
+!s100 3:B]Nkbcde]^M11K^V3kb2
+I[mPnT[b4;4WQN2X:?zjaT1
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/bus_control.v
+F../../../../rtl/third_party/cpu/a-z80/bus_control.v
+!i122 0
+L0 32 35
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vbus_switch
+R3
+R4
+!i10b 1
+!s100 Qf`05[EGdg481:RL[DDA00
+IX;M?@_ie@R?WiQ<3g:AMH1
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/bus_switch.v
+F../../../../rtl/third_party/cpu/a-z80/bus_switch.v
+!i122 0
+L0 25 30
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vclk_delay
+R3
+R4
+!i10b 1
+!s100 B`>07I@8Nj?[Y:6<QhMhS1
+I=]]8>a;ZD9BSQRkIJ;RCL0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/clk_delay.v
+F../../../../rtl/third_party/cpu/a-z80/clk_delay.v
+!i122 0
+L0 31 141
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vcontrol_pins_n
+R3
+Z14 !s110 1756099445
+!i10b 1
+!s100 DML=ON>j<kh`7H60^7UiM3
+I9<:1PgC2WOl9dmcS81N=b0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/control_pins_n.v
+F../../../../rtl/third_party/cpu/a-z80/control_pins_n.v
+!i122 0
+L0 32 94
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vdata_pins
+R3
+R4
+!i10b 1
+!s100 _`_JS3@aMK:RXR2>TgNVE0
+I_LC6Xk?Q1@B?2T;IfGSn63
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/data_pins.v
+F../../../../rtl/third_party/cpu/a-z80/data_pins.v
+!i122 0
+L0 32 68
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vdata_switch
+R3
+R4
+!i10b 1
+!s100 S7SQ?G=dK1X6ZjzzHZUiD0
+IXI1chOFX3oS;m:I:OecLP2
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/data_switch.v
+F../../../../rtl/third_party/cpu/a-z80/data_switch.v
+!i122 0
+L0 32 37
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vdata_switch_mask
+R3
+R4
+!i10b 1
+!s100 =L<D7f44<M[S:NOLnzG[n1
+I7AQ3[jU7ia51]_cIY_lhI0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/data_switch_mask.v
+F../../../../rtl/third_party/cpu/a-z80/data_switch_mask.v
+!i122 0
+L0 32 50
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vdecode_state
+R3
+R4
+!i10b 1
+!s100 BD:CU<748;;kKW=YTWXRH1
+IazN0Uj<ngg=m1f9b;eXof0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/decode_state.v
+F../../../../rtl/third_party/cpu/a-z80/decode_state.v
+!i122 0
+L0 32 164
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vexecute
+R3
+R14
+!i10b 1
+!s100 ^Gk2RjhWl]:i6e5j^LgSE2
+IkM@YQXFk9QN^ZdWgbF`1^3
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/execute.v
+F../../../../rtl/third_party/cpu/a-z80/execute.v
+F../../../../rtl/third_party/cpu/a-z80/exec_module.vh
+F../../../../rtl/third_party/cpu/a-z80/temp_wires.vh
+F../../../../rtl/third_party/cpu/a-z80/exec_zero.vh
+F../../../../rtl/third_party/cpu/a-z80/exec_matrix_compiled.vh
+!i122 0
+L0 38 6946
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vinc_dec
+R3
+R14
+!i10b 1
+!s100 KX6kYe8[;KD]MTFOdFmFW0
+I^P`[o<BV1c<P4CHiZzQ7a1
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/inc_dec.v
+F../../../../rtl/third_party/cpu/a-z80/inc_dec.v
+!i122 0
+L0 32 163
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vinc_dec_2bit
+R3
+R14
+!i10b 1
+!s100 <g340Ei]kEWAJOBB@<LCD0
+IX4CJ6QIb2><4ZN[9i=fOO0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/inc_dec_2bit.v
+F../../../../rtl/third_party/cpu/a-z80/inc_dec_2bit.v
+!i122 0
+L0 32 36
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vinterrupts
+R3
+R14
+!i10b 1
+!s100 P5PgbJPngU^aD]IMk>3MH0
+I23@1AND^WjN@T_[419YT?0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/interrupts.v
+F../../../../rtl/third_party/cpu/a-z80/interrupts.v
+!i122 0
+L0 32 228
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vir
+R3
+R14
+!i10b 1
+!s100 gnOoPln7blg8PjM[88jIb3
+IdPQaQY:56Ni1CQ_A]Dh8F2
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/ir.v
+F../../../../rtl/third_party/cpu/a-z80/ir.v
+!i122 0
+L0 32 40
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vmemory_ifc
+R3
+R14
+!i10b 1
+!s100 N[0k22NNBKB2zbA3c5PJJ3
+IfYBh836C[5o8Yd2Yfzkn72
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/memory_ifc.v
+F../../../../rtl/third_party/cpu/a-z80/memory_ifc.v
+!i122 0
+L0 32 412
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vpin_control
+R3
+R14
+!i10b 1
+!s100 U<lUNWP:KMdgENRm6>g;C1
+IaUokiCDD];OIAcDc8kY5f1
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/pin_control.v
+F../../../../rtl/third_party/cpu/a-z80/pin_control.v
+!i122 0
+L0 32 71
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vpla_decode
+R3
+R14
+!i10b 1
+!s100 lHOoM4^Dj1fU=9=VA1zeR0
+IMGIJHj41K<:2e2O1K4^_o2
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/pla_decode.v
+F../../../../rtl/third_party/cpu/a-z80/pla_decode.v
+!i122 0
+L0 17 118
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vreg_control
+R3
+R14
+!i10b 1
+!s100 8iWNfKoiAj0hRY8L;idCl2
+IZ24l0M2k<^e26M^fm]cmA0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/reg_control.v
+F../../../../rtl/third_party/cpu/a-z80/reg_control.v
+!i122 0
+L0 32 307
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vreg_file
+R3
+R14
+!i10b 1
+!s100 9ifaSZj8XkE4Vi>c[YSCj1
+I??8Ef2Ka9kmLfgRIAkY0e1
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/reg_file.v
+F../../../../rtl/third_party/cpu/a-z80/reg_file.v
+!i122 0
+L0 32 552
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vreg_latch
+R3
+R14
+!i10b 1
+!s100 64iU4caHnU4YVIDR69V261
+I8=`]H<D2IDOc1R_WNfBhg3
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/reg_latch.v
+F../../../../rtl/third_party/cpu/a-z80/reg_latch.v
+!i122 0
+L0 32 38
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vresets
+R3
+R14
+!i10b 1
+!s100 ;VBaJ5Wh_ZZ4k5U1>9C>J1
+Im_e1db[mm3WG<h6aCPoI>2
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/resets.v
+F../../../../rtl/third_party/cpu/a-z80/resets.v
+!i122 0
+L0 32 126
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vsequencer
+R3
+R14
+!i10b 1
+!s100 XZGkKH^^SZkzb]b^IIjWB0
+ImX;nGZ[5lhn`dKW3dAT1[3
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/sequencer.v
+F../../../../rtl/third_party/cpu/a-z80/sequencer.v
+!i122 0
+L0 32 261
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vz80_top_direct_n
+R3
+R14
+!i10b 1
+!s100 9S26h9E4@9_TAN@gDI0QQ3
+Ia^bKL5>5TzZ[h__V_FNiz0
+R1
+R5
+8../../../../rtl/third_party/cpu/a-z80/z80_top_direct_n.v
+F../../../../rtl/third_party/cpu/a-z80/z80_top_direct_n.v
+F../../../../rtl/third_party/cpu/a-z80/core.vh
+F../../../../rtl/third_party/cpu/a-z80/globals.vh
+F../../../../rtl/third_party/cpu/a-z80/coremodules.vh
+!i122 0
+L0 19 1047
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vz80_wb_wrapper
+2../../../../rtl/core/cpu/z80_wb_wrapper.sv
+Z15 DXx6 sv_std 3 std 0 22 9oUSJO;AeEaW`l:M@^WG92
+Z16 !s110 1756099446
+!i10b 1
+!s100 zh]hBPJSS^G06@HTWzc3=0
+I[l_e]9A1eOhXRV3EOOf[?2
+S1
+R1
+w1756062634
+8../../../../rtl/core/cpu/z80_wb_wrapper.sv
+F../../../../rtl/core/cpu/z80_wb_wrapper.sv
+!i122 1
+L0 1 175
+R6
+R7
+r1
+!s85 0
+31
+!s108 1756099445.000000
+!s107 ../../../../rtl/core/cpu/z80_wb_wrapper.sv|
+!s90 -sv|+acc|-work|work|+incdir+../../../../rtl/third_party/cpu/a-z80|../../../../rtl/core/cpu/z80_wb_wrapper.sv|
+!i113 0
+Z17 o-sv +acc -work work -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+Z18 !s92 -sv +acc -work work +incdir+../../../../rtl/third_party/cpu/a-z80 -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+R2
+vz80_wb_wrapper_tb
+2z80_wb_wrapper_tb.sv
+R15
+R16
+!i10b 1
+!s100 `iBBfjiVBT_648gfCEoWC1
+IaZL0Sa?:]G[`d1zDYbDUc0
+S1
+R1
+w1756065649
+8z80_wb_wrapper_tb.sv
+Fz80_wb_wrapper_tb.sv
+!i122 2
+L0 1 113
+R6
+R7
+r1
+!s85 0
+31
+!s108 1756099446.000000
+!s107 z80_wb_wrapper_tb.sv|
+!s90 -sv|+acc|-work|work|+incdir+../../../../rtl/third_party/cpu/a-z80|z80_wb_wrapper_tb.sv|
+!i113 0
+R17
+R18
+R2

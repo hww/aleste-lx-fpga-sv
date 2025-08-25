@@ -277,6 +277,7 @@ public:
         
         // Test pattern 1: Sequential
         std::cout << "\n[MEM1] 1. Sequential write/read test..." << std::endl;
+        int errors = 0;
         for (int i = 0; i < 16; i++) {
             uint32_t addr = i * 0x100;
             uint16_t data = 0xA000 + i;
@@ -286,10 +287,14 @@ public:
                 if (result != data) {
                     std::cout << "[CPP] [ERROR] MEMTST 1: read at 0x" << std::hex << addr 
                               << ": expected 0x" << data << ", got 0x" << result << std::endl;
+                    errors++;
                 }
             }
             tick(10);
         }
+        if (errors == 0)
+            std::cout << "\n[CPP] [RESULT] SUCCESS Sequential write/read test completed!" << std::endl;
+        errors = 0;
         
         // Test pattern 2: Random data
         std::cout << "\n[CPP] 2. Random data test..." << std::endl;
@@ -302,11 +307,15 @@ public:
                 if (result != test_pattern[i]) {
                     std::cout << "[CPP] [ERROR] MEMTST 2: pattern 0x" << std::hex << test_pattern[i]
                               << " mismatch at 0x" << addr << std::endl;
+                    errors++;
                 }
             }
             tick(10);
         }
-        
+        if (errors == 0)
+            std::cout << "\n[CPP] [RESULT] SUCCESS Sequential write/read test completed!" << std::endl;
+        errors = 0;
+
         // Test pattern 3: Different banks
         std::cout << "\n[CPP] 3. Bank switching test..." << std::endl;
         for (int bank = 0; bank < 4; bank++) {
@@ -318,10 +327,13 @@ public:
                 if (result != data) {
                     std::cout << "[CPP] [ERROR] MEMTST 3: in bank " << bank << ": expected 0x" 
                               << data << ", got 0x" << result << std::endl;
+                    errors++;
                 }
             }
             tick(20);
         }
+        if (errors == 0)
+            std::cout << "\n[CPP] [RESULT] SUCCESS Bank switching test completed!" << std::endl;
     }
     
     void run_performance_test() {
@@ -340,14 +352,14 @@ public:
         vluint64_t total_time = end_time - start_time;
         double time_per_op = (double)total_time / NUM_OPS;
         
-        std::cout << "[CPP] Performance: " << NUM_OPS << " operations in " 
+        std::cout << "[CPP] [RESULT] Performance: " << NUM_OPS << " operations in " 
                   << total_time << " cycles" << std::endl;
-        std::cout << "[CPP] Time per operation: " << time_per_op << " cycles" << std::endl;
+        std::cout << "[CPP] [RESULT] Time per operation: " << time_per_op << " cycles" << std::endl;
     }
     
     void run_stress_test() {
         std::cout << "\n[CPP] === Stress Test ===" << std::endl;
-        
+        int errors = 0;
         // Rapid fire operations
         for (int i = 0; i < 50; i++) {
             uint32_t addr = 0x3000 + (i % 16) * 0x100;
@@ -359,12 +371,15 @@ public:
             if (result != data) {
                 std::cout << "[CPP] [ERROR] STRESS TEST: 0x" << std::hex << addr 
                           << " expected 0x" << data << " got 0x" << result << std::endl;
+                errors++;
             }
             
             if (i % 10 == 0) {
                 tick(50); // Add some delay occasionally
             }
         }
+        if (errors == 0)
+            std::cout << "[CPP] [RESULT] SUCESS Stress Test completed successfully" << std::endl;
     }
     
     void run_comprehensive_test() {
@@ -378,7 +393,7 @@ public:
             std::cout << "[CPP] [ERROR] Initialization timeout!" << std::endl;
             return;
         }
-        std::cout << "[CPP] SDRAM initialized successfully" << std::endl;
+        std::cout << "[CPP] [RESULT] SDRAM initialized successfully" << std::endl;
         
         // Run all tests
         run_memory_test();
