@@ -2,12 +2,12 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include "Vu765_test.h"
+#include "Vu765_tb.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
 
-static Vu765_test *tb;
+static Vu765_tb *tb;
 static VerilatedVcdC *trace;
 static int tickcount;
 
@@ -20,7 +20,7 @@ static int read_ptr;
 
 int img_read(int sd_rd) {
 	if (!sd_rd) return 0;
-	printf("img_read: %02x lba: %d\n", sd_rd, tb->sd_lba);
+	printf("[CPP] img_read: %02x lba: %d\n", sd_rd, tb->sd_lba);
 	int lba = tb->sd_lba;
 	fseek(edsk, lba << 9, SEEK_SET);
 	fread(&sdbuf, 512, 1, edsk);
@@ -121,7 +121,7 @@ int readbyte() {
 }
 
 void read_result() {
-	printf("--- COMMAND RESULT ----\n");
+	printf("[CPP] --- COMMAND RESULT ----\n");
 	printf("ST0 = 0x%02x\n", readbyte());
 	printf("ST1 = 0x%02x\n", readbyte());
 	printf("ST2 = 0x%02x\n", readbyte());
@@ -139,7 +139,7 @@ void read_data() {
 	while(true) {
 		while (((status=readstatus()) & 0xcf) != 0xc0) {};
 		if ((status & 0x20) != 0x20) {
-			printf("Data sum: %ld\n", chksum);
+			printf("[CPP] Data sum: %ld\n", chksum);
 			return;
 		}
 		tb->a0 = 1;
@@ -161,27 +161,27 @@ void read_data() {
 }
 
 void cmd_recalibrate() {
-	printf("=== RECALIBRATE ===\n");
+	printf("[CPP] === RECALIBRATE ===\n");
 	sendbyte(0x07);
 	sendbyte(0x00);
 }
 
 void cmd_seek(int ncn) {
-	printf("=== SEEK ===\n");
+	printf("[CPP] === SEEK ===\n");
 	sendbyte(0x0f);
 	sendbyte(0x00);
 	sendbyte(ncn);
 }
 
 void cmd_read_id(int head) {
-	printf("=== READ ID ===\n");
+	printf("[CPP] === READ ID ===\n");
 	sendbyte(0x0a);
 	sendbyte(head << 2);
 	read_result();
 }
 
 void cmd_read(int c,int h,int r,int n,int eot,int gpl,int dtl) {
-	printf("=== READ ===\n");
+	printf("[CPP] === READ ===\n");
 	sendbyte(0x06);
 	sendbyte(h << 2);
 	sendbyte(c);
@@ -215,7 +215,7 @@ int main(int argc, char **argv) {
     // Initialize test disk
     edsk = fopen("test.dsk", "rb");
     if (!edsk) {
-        printf("Cannot open test.dsk.\n");
+        printf("[CPP] Cannot open test.dsk.\n");
         return -1;
     }
 
@@ -227,11 +227,11 @@ int main(int argc, char **argv) {
     trace = new VerilatedVcdC;
     
     // Create DUT
-    tb = new Vu765_test;
+    tb = new Vu765_tb;
     tb->trace(trace, 99);  // Подключаем трассировку
     
     // Open waveform file
-    trace->open("waveform.vcd");
+    trace->open("u765_tb.vcd");
 
     // Инициализация
     tb->reset = 1;

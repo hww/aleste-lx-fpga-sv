@@ -1,4 +1,4 @@
-module u765_test
+module u765_tb
 (
 	input            clk_sys,   // sys clock
 	input            ce,        // chip enable
