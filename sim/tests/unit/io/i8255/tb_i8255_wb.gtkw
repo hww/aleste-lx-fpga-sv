@@ -1,0 +1,44 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Tue Aug 26 10:59:50 2025
+[*]
+[dumpfile] "/home/valery/asv/sim/tests/unit/io/i8255/tb_i8255_wb.vcd"
+[dumpfile_mtime] "Tue Aug 26 10:20:52 2025"
+[dumpfile_size] 7312
+[savefile] "/home/valery/asv/sim/tests/unit/io/i8255/tb_i8255_wb.gtkw"
+[timestart] 0
+[size] 1920 1110
+[pos] -27 -24
+*-6.061805 14 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 297
+[signals_width] 110
+[sst_expanded] 1
+[sst_vpaned_height] 334
+@200
+-CLOCK
+@28
+TOP.clk_i
+TOP.rst_i
+@200
+-WINDSBONE
+@28
+TOP.stb_i
+@29
+TOP.we_i
+@28
+TOP.ack_o
+TOP.adr_i[1:0]
+@22
+TOP.dat_i[7:0]
+TOP.dat_o[7:0]
+@200
+-PORTS
+@22
+TOP.ipa_i[7:0]
+TOP.ipb_i[7:0]
+TOP.ipc_i[7:0]
+TOP.opa_o[7:0]
+TOP.opb_o[7:0]
+TOP.opc_o[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

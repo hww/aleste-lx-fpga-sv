@@ -21,6 +21,7 @@ module tb_i8255(
 // DUT instantiation - ПРАВИЛЬНОЕ подключение!
 i8255 dut (
     .reset(reset),      // input от тестбенча
+    .cke(1),
     .clk_sys(clk),  // input от тестбенча
     .addr(addr),        // input от тестбенча
     .idata(idata),      // input от тестбенча

@@ -1,4 +1,4 @@
-#include "Vtb_i8255.h"
+#include "Vtb_i8255_wb.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 #include <cstdio>
@@ -7,53 +7,62 @@
 VerilatedVcdC* tfp = nullptr;
 vluint64_t sim_time = 0;
 
-void tick(Vtb_i8255* top) {
-    top->clk = 1;
+void tick(Vtb_i8255_wb* top) {
+    top->clk_i = 1;
     top->eval();
     if (tfp) tfp->dump(sim_time);
     sim_time += 5;
     
-    top->clk = 0;
+    top->clk_i = 0;
     top->eval();
     if (tfp) tfp->dump(sim_time);
     sim_time += 5;
 }
 
-uint8_t read_register(Vtb_i8255* top, int addr, const char* reg_name) {
-    // Важно: установить данные в Z-состояние перед чтением
-    top->idata = 0xFF;
-    
-    top->addr = addr;
-    top->cs = 0;    // Active low
-    top->oe = 0;    // Active low  
-    top->we = 1;    // Write disabled
+uint8_t read_register(Vtb_i8255_wb* top, int addr, const char* reg_name) {
+    // Setup read transaction
+    top->adr_i = addr;
+    top->dat_i = 0x00;  // Don't care for read
+    top->we_i = 0;      // Read operation
+    top->stb_i = 1;     // Strobe active
     
     tick(top);
     
-    top->cs = 1;
-    top->oe = 1;
-    tick(top);
-
-    uint8_t value = top->odata;
+    // Wait for acknowledge
+    while (!top->ack_o) {
+        tick(top);
+    }
+    
+    uint8_t value = top->dat_o;
     printf("[CPP] READ  %s (addr %d): 0x%02X\n", reg_name, addr, value);
     
-
+    // End transaction
+    top->stb_i = 0;
+    top->we_i = 1;
+    tick(top);
+    
     return value;
 }
 
-void write_register(Vtb_i8255* top, int addr, uint8_t value, const char* reg_name) {
-    top->addr = addr;
-    top->idata = value;
-    top->cs = 0;    // Active low
-    top->we = 0;    // Active low
-    top->oe = 1;    // Read disabled
+void write_register(Vtb_i8255_wb* top, int addr, uint8_t value, const char* reg_name) {
+    // Setup write transaction
+    top->adr_i = addr;
+    top->dat_i = value;
+    top->we_i = 1;      // Write operation
+    top->stb_i = 1;     // Strobe active
     
     tick(top);
     
+    // Wait for acknowledge
+    while (!top->ack_o) {
+        tick(top);
+    }
+    
     printf("[CPP] WRITE %s (addr %d): 0x%02X\n", reg_name, addr, value);
     
-    top->cs = 1;
-    top->we = 1;
+    // End transaction
+    top->stb_i = 0;
+    top->we_i = 0;
     tick(top);
 }
 
@@ -61,30 +70,29 @@ int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     Verilated::traceEverOn(true);
     
-    Vtb_i8255* top = new Vtb_i8255;
+    Vtb_i8255_wb* top = new Vtb_i8255_wb;
     
     tfp = new VerilatedVcdC;
     top->trace(tfp, 99);
-    tfp->open("tb_i8255.vcd");
+    tfp->open("tb_i8255_wb.vcd");
     
-    printf("[CPP] Starting i8255 test...\n");
+    printf("[CPP] Starting i8255 Wishbone test...\n");
     
     // Initialize
-    top->reset = 1;
-    top->clk = 0;
-    top->addr = 0;
-    top->idata = 0xFF;  // High impedance
-    top->cs = 1;
-    top->we = 1;
-    top->oe = 1;
-    top->ipa = 0xFF;
-    top->ipb = 0xFF;
-    top->ipc = 0xFF;
+    top->rst_i = 1;
+    top->clk_i = 0;
+    top->adr_i = 0;
+    top->dat_i = 0x00;
+    top->we_i = 0;
+    top->stb_i = 0;
+    top->ipa_i = 0xFF;
+    top->ipb_i = 0xFF;
+    top->ipc_i = 0xFF;
     
     // Reset
     printf("[CPP] Applying reset...\n");
     for (int i = 0; i < 10; i++) tick(top);
-    top->reset = 0;
+    top->rst_i = 0;
     printf("[CPP] Reset released\n");
     for (int i = 0; i < 5; i++) tick(top);
     
@@ -112,11 +120,10 @@ int main(int argc, char** argv) {
     write_register(top, 2, 0x33, "PORT_C");
     
     printf("[CPP] Port outputs - A: 0x%02X, B: 0x%02X, C: 0x%02X\n", 
-           top->opa, top->opb, top->opc);
+           top->opa_o, top->opb_o, top->opc_o);
     
-    // Test 4: Try to read output registers (может не работать для выходных портов)
+    // Test 4: Try to read output registers
     printf("\n[CPP] === Test 4: Try to read output registers ===\n");
-    printf("[CPP] NOTE: Reading output registers may not work in some i8255 implementations\n");
     
     uint8_t read_a = read_register(top, 0, "PORT_A");
     uint8_t read_b = read_register(top, 1, "PORT_B");
@@ -134,15 +141,14 @@ int main(int argc, char** argv) {
     // Test 5: Test input ports
     printf("\n[CPP] === Test 5: Test input ports ===\n");
     
-    // Configure port A as input to test reading
-    write_register(top, 3, 0x9B, "MODE_REG"); // 10010000 - Port A input, others output
+    // Configure all ports as input
+    write_register(top, 3, 0x9B, "MODE_REG"); // 10011011 - все порты input
     
     // Set input values
-
-    int a = 0x12; int b =  0x34; int c = 0x56; 
-    top->ipa = a;
-    top->ipb = b; 
-    top->ipc = c;
+    int a = 0x12; int b = 0x34; int c = 0x56; 
+    top->ipa_i = a;
+    top->ipb_i = b; 
+    top->ipc_i = c;
     
     for (int i = 0; i < 3; i++) tick(top); // Let inputs stabilize
     
@@ -158,6 +164,17 @@ int main(int argc, char** argv) {
     if (read_c != c)
         printf("[CPP] [RESULT] FAILED Configured C register expected 0x%02X got 0x%02X\n", c, read_c);
 
+    // Test 6: Test individual port C bit control
+    printf("\n[CPP] === Test 6: Individual port C bit control ===\n");
+    
+    // Set port C bit 3 to 1
+    write_register(top, 3, 0x07, "PORT_C_BIT"); // 00000111 - set bit 3
+    
+    // Set port C bit 0 to 0  
+    write_register(top, 3, 0x0E, "PORT_C_BIT"); // 00001110 - clear bit 0
+    
+    read_c = read_register(top, 2, "PORT_C_MODIFIED");
+    printf("[CPP] Port C after bit manipulation: 0x%02X\n", read_c);
     
     // Cleanup
     if (tfp) {
@@ -166,6 +183,6 @@ int main(int argc, char** argv) {
     }
     delete top;
     
-    printf("\n[CPP] Test completed.\n");
+    printf("\n[CPP] Wishbone test completed.\n");
     return 0;
 }

@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Tue Aug 26 11:36:07 2025
+[*]
+[dumpfile] "/home/valery/asv/sim/tests/unit/crtc/um6845/tb_um6845r_wb.vcd"
+[dumpfile_mtime] "Tue Aug 26 11:33:41 2025"
+[dumpfile_size] 8550068
+[savefile] "/home/valery/asv/sim/tests/unit/crtc/um6845/tb_um6845r_wb.gtkw"
+[timestart] 55
+[size] 1920 1110
+[pos] -27 -24
+*-7.162677 119 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 297
+[signals_width] 118
+[sst_expanded] 1
+[sst_vpaned_height] 334
+@200
+-CLOCK
+@28
+TOP.clk_i
+TOP.rst_i
+@200
+-WINSBONE
+@28
+TOP.adr_i[0]
+@22
+TOP.dat_i[7:0]
+TOP.dat_o[7:0]
+@28
+TOP.stb_i
+TOP.we_i
+TOP.ack_o
+@200
+-CRTC
+@28
+TOP.crtc_type_i
+@22
+TOP.ma_o[13:0]
+TOP.ra_o[4:0]
+@28
+TOP.vsync_o
+TOP.hsync_o
+@29
+TOP.field_o
+@28
+TOP.de_o
+TOP.cursor_o
+[pattern_trace] 1
+[pattern_trace] 0
