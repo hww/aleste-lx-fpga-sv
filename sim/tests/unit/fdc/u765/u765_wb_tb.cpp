@@ -2,6 +2,8 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <string>
+#include <getopt.h>
 #include "Vu765_wb_tb.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
@@ -15,15 +17,47 @@ static FILE *edsk;
 static int reading;
 static int read_ptr;
 
-int verbosity = 2; // Increased verbosity for debugging
+// Logging system
+static int verbosity = 0;
+
+void print_help() {
+    std::cout << "Usage: u765_wb_tb [options]\n";
+    std::cout << "Options:\n";
+    std::cout << "  -v, --verbose LEVEL  Set verbosity level (0-3, default: 0)\n";
+    std::cout << "  -h, --help           Show this help message\n";
+    std::cout << "  -d, --debug          Enable debug output (equivalent to -v2)\n";
+    std::cout << std::endl;
+}
+
+void log_message(int level, const std::string& message) {
+    if (verbosity >= level) {
+        std::cout << "[CPP] " << message << std::endl;
+    }
+}
+
+void log_io(const std::string& message) {
+    if (verbosity >= 1) {
+        std::cout << "[CPP:IO] " << message << std::endl;
+    }
+}
+
+void log_result(const std::string& message) {
+    std::cout << "[CPP:RESULT] " << message << std::endl;
+}
+
+void log_error(const std::string& message) {
+    std::cerr << "[CPP:ERROR] " << message << std::endl;
+}
 
 int img_read(int sd_rd) {
     if (!sd_rd) return 0;
-    if (verbosity > 0)
-        printf("[CPP] img_read: %02x lba: %d\n", sd_rd, tb->sd_lba);
+    log_message(2, "img_read: " + std::to_string(sd_rd) + " lba: " + std::to_string(tb->sd_lba));
     int lba = tb->sd_lba;
     fseek(edsk, lba << 9, SEEK_SET);
-    fread(&sdbuf, 512, 1, edsk);
+    size_t result = fread(&sdbuf, 512, 1, edsk);
+    if (result != 1) {
+        log_error("Failed to read from disk image");
+    }
     reading = 1;
     read_ptr = 0;
     return 0;
@@ -31,7 +65,7 @@ int img_read(int sd_rd) {
 
 void tick(int c) {
     static int sd_rd_prev = 0;
-    
+
     tb->wb_clk_i = c;
     tb->eval();
     
@@ -49,8 +83,7 @@ void tick(int c) {
             read_ptr++;
             if (read_ptr == 512) {
                 reading = 0;
-                if (verbosity > 0)
-                    printf("[CPP] SD read completed\n");
+                log_message(2, "SD read completed");
             }
         } else {
             tb->sd_ack = 0;
@@ -74,6 +107,8 @@ void wait(int t) {
 
 // Wishbone write function
 void wb_write(int addr, int data) {
+    log_io("WB WRITE ADDR=0x" + std::to_string(addr) + " DATA=0x" + std::to_string(data));
+    
     tb->wb_adr_i = addr;
     tb->wb_dat_i = data;
     tb->wb_we_i = 1;
@@ -81,14 +116,14 @@ void wb_write(int addr, int data) {
     tb->wb_stb_i = 1;
     
     int timeout = 0;
-    while (!tb->wb_ack_o && timeout < 50) {
+    while (!tb->wb_ack_o && timeout < 100) {
         tick(1);
         tick(0);
         timeout++;
     }
     
-    if (timeout >= 50 && verbosity > 0) {
-        printf("[WB_WRITE] TIMEOUT writing to addr 0x%x, data 0x%02x\n", addr, data);
+    if (timeout >= 100) {
+        log_error("WB write timeout");
     }
     
     tb->wb_cyc_i = 0;
@@ -101,51 +136,50 @@ void wb_write(int addr, int data) {
 
 // Wishbone read function
 int wb_read(int addr) {
+    log_io("WB READ ADDR=0x" + std::to_string(addr));
+    
     tb->wb_adr_i = addr;
     tb->wb_we_i = 0;
     tb->wb_cyc_i = 1;
     tb->wb_stb_i = 1;
     
     int timeout = 0;
-    while (!tb->wb_ack_o && timeout < 50) {
+    while (!tb->wb_ack_o && timeout < 100) {
         tick(1);
         tick(0);
         timeout++;
     }
     
-    if (timeout >= 50 && verbosity > 0) {
-        printf("[WB_READ] TIMEOUT reading from addr 0x%x\n", addr);
+    int data = 0xFF;
+    if (timeout >= 100) {
+        log_error("WB read timeout");
+    } else {
+        data = tb->wb_dat_o;
     }
     
-    int data = tb->wb_dat_o;
     tb->wb_cyc_i = 0;
     tb->wb_stb_i = 0;
     
     tick(1);
     tick(0);
     
+    log_io("WB READ RESULT ADDR=0x" + std::to_string(addr) + " DATA=0x" + std::to_string(data));
     return data;
 }
 
 int readstatus() {
-    int status = wb_read(0); // A0=0 for status register
-    if (verbosity > 1) {
-        printf("[CPP] READ STATUS = 0x%02x\n", status);
-    }
+    int status = wb_read(0);
+    log_io("STATUS = 0x" + std::to_string(status));
     return status;
 }
 
 void sendbyte(int byte) {
-    if (verbosity > 0) {
-        printf("[CPP] Sending byte: 0x%02x\n", byte);
-    }
+    log_io("Sending byte: 0x" + std::to_string(byte));
     
-    // Wait for FDC to be ready to receive data (bit 7 = 1, bit 6 = 0)
+    // Wait for FDC to be ready to receive data
     int timeout = 0;
-    int status;
-    
     while (timeout < 1000) {
-        status = readstatus();
+        int status = readstatus();
         if ((status & 0xC0) == 0x80) { // Ready for command
             break;
         }
@@ -154,25 +188,20 @@ void sendbyte(int byte) {
     }
     
     if (timeout >= 1000) {
-        printf("[CPP] ERROR: FDC not ready for command after 1000 attempts\n");
-        printf("[CPP] Last status: 0x%02x\n", status);
+        log_error("Timeout waiting for FDC to be ready");
         return;
     }
     
-    wb_write(1, byte); // A0=1 for data register
+    wb_write(1, byte);
 }
 
 int readbyte() {
-    if (verbosity > 0) {
-        printf("[CPP] Reading byte...\n");
-    }
+    log_io("Reading byte...");
     
-    // Wait for FDC to have data ready (bit 7 = 1, bit 6 = 1)
+    // Wait for FDC to have data ready
     int timeout = 0;
-    int status;
-    
     while (timeout < 1000) {
-        status = readstatus();
+        int status = readstatus();
         if ((status & 0xC0) == 0xC0) { // Data ready
             break;
         }
@@ -181,20 +210,17 @@ int readbyte() {
     }
     
     if (timeout >= 1000) {
-        printf("[CPP] ERROR: FDC data not ready after 1000 attempts\n");
-        printf("[CPP] Last status: 0x%02x\n", status);
+        log_error("Timeout waiting for data");
         return 0xFF;
     }
     
-    int data = wb_read(1); // A0=1 for data register
-    if (verbosity > 0) {
-        printf("[CPP] Read byte: 0x%02x\n", data);
-    }
+    int data = wb_read(1);
+    log_io("Read byte: 0x" + std::to_string(data));
     return data;
 }
 
 void read_result() {
-    printf("[CPP] --- COMMAND RESULT ----\n");
+    log_message(0, "--- COMMAND RESULT ----");
     int st0 = readbyte();
     int st1 = readbyte();
     int st2 = readbyte();
@@ -203,67 +229,64 @@ void read_result() {
     int r = readbyte();
     int n = readbyte();
     
-    printf("[CPP] ST0 = 0x%02x\n", st0);
-    printf("[CPP] ST1 = 0x%02x\n", st1);
-    printf("[CPP] ST2 = 0x%02x\n", st2);
-    printf("[CPP] C   = 0x%02x\n", c);
-    printf("[CPP] H   = 0x%02x\n", h);
-    printf("[CPP] R   = 0x%02x\n", r);
-    printf("[CPP] N   = 0x%02x\n", n);
-    
-    // Check if command was successful
-    if (st0 & 0xC0) {
-        printf("[CPP] WARNING: Command terminated abnormally (ST0: 0x%02x)\n", st0);
-    }
+    log_message(0, "ST0 = 0x" + std::to_string(st0));
+    log_message(0, "ST1 = 0x" + std::to_string(st1));
+    log_message(0, "ST2 = 0x" + std::to_string(st2));
+    log_message(0, "C   = 0x" + std::to_string(c));
+    log_message(0, "H   = 0x" + std::to_string(h));
+    log_message(0, "R   = 0x" + std::to_string(r));
+    log_message(0, "N   = 0x" + std::to_string(n));
 }
 
-void terminate_command() {
-    printf("[CPP] Terminating current command...\n");
-    // Send terminate command (write to data register with specific value)
-    wb_write(1, 0xD0); // Force interrupt command
-    wait(100);
+void read_data() {
+    int status, byte;
+    long chksum = 0;
+    int bytes_read = 0;
+
+    log_message(0, "Reading data...");
     
-    // Read any remaining result bytes to clear the FDC
-    int status = readstatus();
-    if ((status & 0xC0) == 0xC0) {
-        printf("[CPP] Clearing leftover data: ");
-        while ((status & 0xC0) == 0xC0) {
-            int data = wb_read(1);
-            printf("0x%02x ", data);
-            status = readstatus();
+    while (bytes_read < 512) {
+        status = readstatus();
+        if ((status & 0xC0) == 0xC0 && (status & 0x20)) {
+            byte = readbyte();
+            chksum += byte;
+            bytes_read++;
         }
-        printf("\n");
+        wait(1);
+        
+        if (bytes_read > 0 && bytes_read % 64 == 0) {
+            log_message(2, "Read " + std::to_string(bytes_read) + " bytes, checksum: " + std::to_string(chksum));
+        }
     }
+    
+    log_message(0, "Data sum: " + std::to_string(chksum));
 }
 
 void cmd_recalibrate() {
-    printf("[CPP] === RECALIBRATE ===\n");
+    log_message(0, "=== RECALIBRATE ===");
     sendbyte(0x07);
     sendbyte(0x00);
-    wait(2000); // Longer wait for recalibration
+    wait(2000); // Give time for recalibration
 }
 
 void cmd_seek(int ncn) {
-    printf("[CPP] === SEEK ===\n");
-    sendbyte(0x0F);
+    log_message(0, "=== SEEK ===");
+    sendbyte(0x0f);
     sendbyte(0x00);
     sendbyte(ncn);
-    wait(2000); // Longer wait for seek
+    wait(2000); // Give time for seek
 }
 
 void cmd_read_id(int head) {
-    printf("[CPP] === READ ID ===\n");
-    sendbyte(0x0A);
+    log_message(0, "=== READ ID ===");
+    sendbyte(0x0a);
     sendbyte(head << 2);
     read_result();
 }
 
 void cmd_read(int c, int h, int r, int n, int eot, int gpl, int dtl) {
-    printf("[CPP] === READ C:%d H:%d R:%d N:%d ===\n", c, h, r, n);
-    
-    // Make sure FDC is ready
-    terminate_command();
-    
+    log_message(0, "=== READ C:" + std::to_string(c) + " H:" + std::to_string(h) + 
+                   " R:" + std::to_string(r) + " N:" + std::to_string(n) + " ===");
     sendbyte(0x06);
     sendbyte(h << 2);
     sendbyte(c);
@@ -274,34 +297,7 @@ void cmd_read(int c, int h, int r, int n, int eot, int gpl, int dtl) {
     sendbyte(gpl);
     sendbyte(dtl);
 
-    // For read command, we need to handle data transfer differently
-    printf("[CPP] Data transfer phase...\n");
-    
-    int timeout = 0;
-    int status;
-    long chksum = 0;
-    int bytes_read = 0;
-    
-    while (bytes_read < 512 && timeout < 5000) {
-        status = readstatus();
-        
-        if ((status & 0xC0) == 0xC0) {
-            if (status & 0x20) { // Data ready bit
-                int data = readbyte();
-                chksum += data;
-                bytes_read++;
-                
-                if (verbosity > 1 && bytes_read % 64 == 0) {
-                    printf("[CPP] Read %d bytes, checksum: %ld\n", bytes_read, chksum);
-                }
-            }
-        }
-        
-        wait(1);
-        timeout++;
-    }
-    
-    printf("[CPP] Data read: %d bytes, checksum: %ld\n", bytes_read, chksum);
+    read_data();
     read_result();
 }
 
@@ -316,14 +312,41 @@ void mount_disk(FILE *edsk_file, int drive_number) {
     tick(0);
     tb->img_mounted = 0;
     wait(1000);
-    printf("[CPP] Disk mounted in drive %d, size: %d bytes\n", drive_number, fsize);
+    log_message(0, "Disk mounted in drive " + std::to_string(drive_number) + 
+                   ", size: " + std::to_string(fsize) + " bytes");
 }
 
 int main(int argc, char **argv) {
+    // Parse command line arguments
+    static struct option long_options[] = {
+        {"verbose", required_argument, 0, 'v'},
+        {"help", no_argument, 0, 'h'},
+        {"debug", no_argument, 0, 'd'},
+        {0, 0, 0, 0}
+    };
+
+    int opt;
+    while ((opt = getopt_long(argc, argv, "v:hd", long_options, NULL)) != -1) {
+        switch (opt) {
+            case 'v':
+                verbosity = atoi(optarg);
+                break;
+            case 'h':
+                print_help();
+                return 0;
+            case 'd':
+                verbosity = 2;
+                break;
+            default:
+                print_help();
+                return 1;
+        }
+    }
+
     // Initialize test disk
     edsk = fopen("test.dsk", "rb");
     if (!edsk) {
-        printf("[CPP] Cannot open test.dsk.\n");
+        log_error("Cannot open test.dsk");
         return -1;
     }
 
@@ -350,13 +373,13 @@ int main(int argc, char **argv) {
     tb->wb_dat_i = 0;
     
     // Reset sequence
-    printf("[CPP] Starting reset sequence...\n");
+    log_message(0, "Starting reset sequence...");
     for (int i = 0; i < 10; i++) {
         tick(1);
         tick(0);
     }
     tb->wb_rst_i = 0;
-    printf("[CPP] Reset completed\n");
+    log_message(0, "Reset completed");
     
     // Mount disk image
     reading = 0;
@@ -369,17 +392,17 @@ int main(int argc, char **argv) {
     tb->available = 1;
     tb->fast = 0;
 
-    wait(5000);
+    wait(10000);
 
-    printf("[CPP] Starting test commands...\n");
+    log_message(0, "Starting test commands...");
 
-    // First check status
-    printf("[CPP] Testing simple status read...\n");
+    // First, let's just test basic status reading
+    log_message(0, "Testing simple status read...");
     int status = readstatus();
-    printf("[CPP] Initial status: 0x%02x\n", status);
+    log_message(0, "Initial status: 0x" + std::to_string(status));
 
     if (status == 0xFF) {
-        printf("[CPP] ERROR: Cannot read status register\n");
+        log_error("FDC not responding");
         fclose(edsk);
         trace->close();
         delete trace;
@@ -387,17 +410,15 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    // Start with recalibrate
+    // Start with simple commands
+    log_message(0, "Testing RECALIBRATE...");
     cmd_recalibrate();
     
-    // Then read ID to verify
+    log_message(0, "Testing READ ID...");
     cmd_read_id(0);
     
-    // Terminate any previous command before new one
-    terminate_command();
-    
-    // Try simple read
-    cmd_read(0, 0, 1, 2, 0xFF, 2, 0xFF);
+    log_message(0, "Testing READ command...");
+    cmd_read(0, 0, 0x41, 2, 0xff, 2, 0xff);
 
     // Завершение
     fclose(edsk);
@@ -405,6 +426,6 @@ int main(int argc, char **argv) {
     delete trace;
     delete tb;
     
-    printf("[CPP] Test completed.\n");
+    log_message(0, "Test completed.");
     return 0;
 }
