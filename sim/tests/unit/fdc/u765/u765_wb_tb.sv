@@ -86,7 +86,7 @@ always @(posedge wb_clk_i or posedge wb_rst_i) begin
         wb_ack_o <= 1'b0;
         wb_dat_o <= 8'h00;
     end else begin
-        wb_ack_o <= wb_access & ~wb_ack_o;
+        wb_ack_o <= wb_access & ~wb_ack_o; // Однократный ack
         if (wb_access & ~wb_we_i) begin
             wb_dat_o <= fdc_dout;
         end

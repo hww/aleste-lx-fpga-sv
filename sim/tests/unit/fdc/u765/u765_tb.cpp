@@ -6,7 +6,6 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
-
 static Vu765_tb *tb;
 static VerilatedVcdC *trace;
 static int tickcount;
@@ -44,13 +43,17 @@ void tick(int c) {
             tb->sd_buff_dout = sdbuf[read_ptr];
             tb->sd_buff_addr = read_ptr;
             read_ptr++;
-            if (read_ptr == 512) reading = 0;
+            if (read_ptr == 512) {
+				reading = 0;
+			}
         } else {
             tb->sd_ack = 0;
             tb->sd_buff_wr = 0;
         }
 
-        if (sd_rd != tb->sd_rd) img_read(tb->sd_rd);
+        if (sd_rd != tb->sd_rd) {
+			img_read(tb->sd_rd);
+		}
         sd_rd = tb->sd_rd;
     }
 }
@@ -122,13 +125,13 @@ int readbyte() {
 
 void read_result() {
 	printf("[CPP] --- COMMAND RESULT ----\n");
-	printf("ST0 = 0x%02x\n", readbyte());
-	printf("ST1 = 0x%02x\n", readbyte());
-	printf("ST2 = 0x%02x\n", readbyte());
-	printf("C   = 0x%02x\n", readbyte());
-	printf("H   = 0x%02x\n", readbyte());
-	printf("R   = 0x%02x\n", readbyte());
-	printf("N   = 0x%02x\n", readbyte());
+	printf("[CPP] ST0 = 0x%02x\n", readbyte());
+	printf("[CPP] ST1 = 0x%02x\n", readbyte());
+	printf("[CPP] ST2 = 0x%02x\n", readbyte());
+	printf("[CPP] C   = 0x%02x\n", readbyte());
+	printf("[CPP] H   = 0x%02x\n", readbyte());
+	printf("[CPP] R   = 0x%02x\n", readbyte());
+	printf("[CPP] N   = 0x%02x\n", readbyte());
 }
 
 void read_data() {
@@ -161,53 +164,53 @@ void read_data() {
 }
 
 void cmd_recalibrate() {
-	printf("[CPP] === RECALIBRATE ===\n");
-	sendbyte(0x07);
-	sendbyte(0x00);
+    printf("[CPP] === RECALIBRATE ===\n");
+    sendbyte(0x07);
+    sendbyte(0x00);
 }
 
 void cmd_seek(int ncn) {
-	printf("[CPP] === SEEK ===\n");
-	sendbyte(0x0f);
-	sendbyte(0x00);
-	sendbyte(ncn);
+    printf("[CPP] === SEEK ===\n");
+    sendbyte(0x0f);
+    sendbyte(0x00);
+    sendbyte(ncn);
 }
 
 void cmd_read_id(int head) {
-	printf("[CPP] === READ ID ===\n");
-	sendbyte(0x0a);
-	sendbyte(head << 2);
-	read_result();
+    printf("[CPP] === READ ID ===\n");
+    sendbyte(0x0a);
+    sendbyte(head << 2);
+    read_result();
 }
 
 void cmd_read(int c,int h,int r,int n,int eot,int gpl,int dtl) {
-	printf("[CPP] === READ ===\n");
-	sendbyte(0x06);
-	sendbyte(h << 2);
-	sendbyte(c);
-	sendbyte(h);
-	sendbyte(r);
-	sendbyte(n);
-	sendbyte(eot);
-	sendbyte(gpl);
-	sendbyte(dtl);
+    printf("[CPP] === READ ===\n");
+    sendbyte(0x06);
+    sendbyte(h << 2);
+    sendbyte(c);
+    sendbyte(h);
+    sendbyte(r);
+    sendbyte(n);
+    sendbyte(eot);
+    sendbyte(gpl);
+    sendbyte(dtl);
 
 	read_data();
-
-	read_result();
+    read_result();
 }
 
-void mount(FILE *edsk, int dno) {
+void mount_disk(FILE *edsk_file, int drive_number) {
 	int fsize;
 
-	fseek(edsk, 0, SEEK_END);
-	fsize = ftell(edsk);
-	tb->img_size = fsize;
-	tb->img_mounted = 1<<dno;
-	tick(1);
-	tick(0);
-	tb->img_mounted = 0;
-	wait(1000);
+    fseek(edsk_file, 0, SEEK_END);
+    fsize = ftell(edsk_file);
+    tb->img_size = fsize;
+    tb->img_mounted = 1 << drive_number;
+    tick(1);
+    tick(0);
+    tb->img_mounted = 0;
+    wait(1000);
+    printf("[CPP] Disk mounted in drive %d, size: %d bytes\n", drive_number, fsize);
 }
 
 
@@ -221,54 +224,67 @@ int main(int argc, char **argv) {
 
     // Initialize Verilator
     Verilated::commandArgs(argc, argv);
-    Verilated::traceEverOn(true);  // Включаем трассировку
-    
+    Verilated::traceEverOn(true);
+
     // Create trace object
     trace = new VerilatedVcdC;
-    
+
     // Create DUT
     tb = new Vu765_tb;
-    tb->trace(trace, 99);  // Подключаем трассировку
-    
+    tb->trace(trace, 99);
+
     // Open waveform file
     trace->open("u765_tb.vcd");
 
-    // Инициализация
+    // Initialize signals
     tb->reset = 1;
     tb->ce = 1;
     tb->nWR = 1;
     tb->nRD = 1;
     tick(1);
     tick(0);
-    // Сброс
-    tick(1);
-    tick(0);
-    tick(1);
-    tick(0);
+
+    // Reset sequence
+    printf("[CPP] Starting reset sequence...\n");
+    for (int i = 0; i < 10; i++) {
+        tick(1);
+        tick(0);
+    }
     tb->reset = 0;
+    printf("[CPP] Reset completed\n");
 
-    // Основная логика теста
+    // Mount disk image
     reading = 0;
-    mount(edsk, 0);
-
+    mount_disk(edsk, 0);
+	
+    // Initialize FDC control signals
     tb->motor = 1;
     tb->ready = 1;
     tb->available = 1;
 
     wait(100000);
 
-    // Команды тестирования
-    cmd_recalibrate();
-    wait(1000);
-    cmd_read(0,0,0x41,2,0xff,2,0xff);
+    printf("[CPP] Starting test commands...\n");
+
+    // Test commands - start with simple status read
+    printf("[CPP] Testing simple status read...\n");
+    int status = readstatus();
+    printf("[CPP] Initial status: 0x%02x\n", status);
+    // If status read works, try recalibrate
+    if (status != 0xFF) {
+        cmd_recalibrate();
+        wait(1000);
+    }
+    // Команды чтения как в оригинальном тесте
+    cmd_read(0, 0, 0x41, 2, 0xff, 2, 0xff);
     cmd_seek(1);
     wait(1000);
-    cmd_read(1,0,0,5,0xff,2,0xff);
-    cmd_read(1,0,0x1d,2,0xff,2,0xff);
-    cmd_read(1,0,0xff,0,0xff,2,1);
+    cmd_read(1, 0, 0, 5, 0xff, 2, 0xff);
+    cmd_read(1, 0, 0x1d, 2, 0xff, 2, 0xff);
+    cmd_read(1, 0, 0xff, 0, 0xff, 2, 1);
 
     // Многократное чтение ID
-    for (int i=0; i<10; i++) {
+    for (int i = 0; i < 10; i++) {
         cmd_read_id(0);
         wait(1000);
     }
@@ -278,7 +294,7 @@ int main(int argc, char **argv) {
     trace->close();
     delete trace;
     delete tb;
+    
+    printf("[CPP] Test completed.\n");
     return 0;
-
 }
-
