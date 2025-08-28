@@ -31,33 +31,26 @@
 `define TAG_MEM  2'b00
 `define TAG_IO   2'b01
 
-module tv80_wb (nrst_i, clk_i,
-                wbm_adr_o, wbm_tga_o, wbm_dat_i, wbm_dat_o, wbm_cyc_o,
-                wbm_stb_o, wbm_we_o, wbm_ack_i,
-                nmi_req_i,
-                int_req_i,
-                busrq_i,
-                busak_o);
-
-    input          nrst_i;
-    input          clk_i;
+module tv80_wb (
+    input          nrst_i,
+    input          clk_i,
 
     // WISHBONE master interface
-    output [15:0]  wbm_adr_o;
-    output [1:0]   wbm_tga_o;
-    input  [7:0]   wbm_dat_i;
-    output [7:0]   wbm_dat_o;
-    output         wbm_cyc_o;
-    output         wbm_stb_o;
-    output         wbm_we_o;
-    input          wbm_ack_i;
+    output [15:0]  wbm_adr_o,
+    output [1:0]   wbm_tga_o,
+    input  [7:0]   wbm_dat_i,
+    output [7:0]   wbm_dat_o,
+    output         wbm_cyc_o,
+    output         wbm_stb_o,
+    output         wbm_we_o,
+    input          wbm_ack_i,
     
     // Z80-specific interface
-    input          nmi_req_i;
-    input          int_req_i;
-    input          busrq_i;
-    output         busak_o;
-
+    input          nmi_req_i,
+    input          int_req_i,
+    input          busrq_i,
+    output         busak_o
+);
     // TV80 Interface
     wire           m1_n;
     wire           mreq_n;
