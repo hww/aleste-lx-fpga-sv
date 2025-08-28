@@ -1,0 +1,63 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Wed Aug 27 08:42:13 2025
+[*]
+[dumpfile] "/home/valery/asv/sim/tests/unit/fdc/u765/u765_wb_tb.vcd"
+[dumpfile_mtime] "Wed Aug 27 08:17:38 2025"
+[dumpfile_size] 712080
+[savefile] "/home/valery/asv/sim/tests/unit/fdc/u765/u765_wb_tb.gtkw"
+[timestart] 2416
+[size] 1920 1110
+[pos] -27 -24
+*-4.766778 2454 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.u765_wb_tb.
+[sst_width] 297
+[signals_width] 158
+[sst_expanded] 1
+[sst_vpaned_height] 334
+@200
+-CLOCK
+@28
+TOP.wb_rst_i
+TOP.wb_clk_i
+@200
+-WB INTERFCE
+@28
+TOP.wb_adr_i[2:0]
+@22
+TOP.wb_dat_i[7:0]
+TOP.wb_dat_o[7:0]
+@28
+TOP.wb_cyc_i
+TOP.wb_stb_i
+TOP.wb_we_i
+TOP.wb_ack_o
+@200
+-U765
+@28
+TOP.u765_wb_tb.u765_inst.clk_sys
+TOP.u765_wb_tb.u765_inst.reset
+TOP.u765_wb_tb.u765_inst.a0
+TOP.u765_wb_tb.u765_inst.ce
+TOP.u765_wb_tb.u765_inst.nRD
+TOP.u765_wb_tb.u765_inst.nWR
+@22
+TOP.u765_wb_tb.u765_inst.din[7:0]
+TOP.u765_wb_tb.u765_inst.dout[7:0]
+@200
+-DRIVE
+@28
+TOP.u765_wb_tb.u765_inst.available[1:0]
+@29
+TOP.u765_wb_tb.u765_inst.ready[1:0]
+@200
+-DISK
+@28
+TOP.u765_wb_tb.u765_inst.img_mounted[1:0]
+@22
+TOP.u765_wb_tb.u765_inst.m_status[7:0]
+@28
+TOP.u765_wb_tb.u765_inst.img_wp
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,6 +1,6 @@
 VERILATOR = verilator
 VERILATOR_FLAGS = \
-	-Wall --binary --trace --cc --bbox-unsup --exe --no-main --x-assign unique \
+	-Wall --binary --trace --cc --bbox-unsup --exe --no-main \
 	--Wno-UNOPTFLAT \
 	--Wno-UNUSEDSIGNAL \
 	--Wno-CASEX \

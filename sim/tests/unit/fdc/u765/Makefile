@@ -16,13 +16,15 @@ ifeq ($(wildcard $(VERILATOR_DIR)/verilated.cpp),)
 endif
 
 # Verilator flags
-VERILATOR_FLAGS = --trace --cc --bbox-unsup --x-assign unique
+VERILATOR_FLAGS = --trace --cc --bbox-unsup --x-assign unique -I$(RTL_DIR) --public --timing --timescale "1ns/1ps"
 
 # Source files
 U765_SOURCES = $(RTL_DIR)/u765.sv
-U765_TEST_SOURCES = $(TEST_DIR)/u765_tb.sv $(U765_SOURCES)
-U765_WB_TEST_SOURCES = $(TEST_DIR)/u765_wb_tb.sv $(U765_SOURCES)
 U765_WB_SOURCES = $(RTL_DIR)/u765_wb.sv $(U765_SOURCES)
+
+# Test source files
+U765_TEST_SOURCES = $(TEST_DIR)/u765_tb.sv $(U765_SOURCES)
+U765_WB_TEST_SOURCES = $(TEST_DIR)/u765_wb_tb.sv $(U765_WB_SOURCES)
 
 # Default target
 all: u765_tb u765_wb_tb
@@ -74,13 +76,6 @@ $(OBJ_DIR)/Vu765_wb_tb.cpp: $(U765_WB_TEST_SOURCES)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module u765_wb_tb -cc $^ --Mdir $(OBJ_DIR)/u765_wb_tb
 	@touch $@
 
-# Build u765_wb executable (if needed separately)
-$(OBJ_DIR)/Vu765_wb.cpp: $(U765_WB_SOURCES)
-	@mkdir -p $(OBJ_DIR)/u765_wb
-	@echo "[Makefile] Building u765_wb Verilated model..."
-	$(VERILATOR) $(VERILATOR_FLAGS) --top-module u765_wb -cc $^ --Mdir $(OBJ_DIR)/u765_wb
-	@touch $@
-
 # Build u765_wb_tb executable
 u765_wb_tb: $(OBJ_DIR)/Vu765_wb_tb.cpp $(TEST_DIR)/u765_wb_tb.cpp
 	@echo "[Makefile] Building u765_wb_tb executable..."
@@ -113,17 +108,17 @@ u765_wb_wave: u765_wb_run
 # Clean all build artifacts
 clean:
 	@echo "[Makefile] Cleaning build artifacts..."
-	rm -rf $(OBJ_DIR) u765_tb u765_wb_tb waveform.vcd
+	rm -rf $(OBJ_DIR) u765_tb u765_wb_tb *.vcd
 
 # Clean only u765_tb artifacts
 u765_clean:
 	@echo "[Makefile] Cleaning u765_tb artifacts..."
-	rm -rf $(OBJ_DIR)/u765_tb u765_tb
+	rm -rf $(OBJ_DIR)/u765_tb u765_tb u765_tb.vcd
 
 # Clean only u765_wb_tb artifacts
 u765_wb_clean:
 	@echo "[Makefile] Cleaning u765_wb_tb artifacts..."
-	rm -rf $(OBJ_DIR)/u765_wb_tb u765_wb_tb
+	rm -rf $(OBJ_DIR)/u765_wb_tb u765_wb_tb u765_wb_tb.vcd
 
 # Help target
 help:
@@ -143,6 +138,9 @@ help:
 	@echo "Source paths:"
 	@echo "  RTL files:    $(RTL_DIR)"
 	@echo "  Test files:   $(TEST_DIR)"
+	@echo ""
+	@echo "Files for u765_wb_tb:"
+	@echo "  $(U765_WB_TEST_SOURCES)"
 
 .PHONY: all clean u765_clean u765_wb_clean help \
         u765_run u765_wave u765_wb_run u765_wb_wave

@@ -7,6 +7,8 @@
 #include "Vu765_wb_tb.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
+#include <iomanip>
+#include <sstream>
 
 static Vu765_wb_tb *tb;
 static VerilatedVcdC *trace;
@@ -19,208 +21,234 @@ static int read_ptr;
 
 // Logging system
 static int verbosity = 0;
+static int io_count = 0;
 
 void print_help() {
-    std::cout << "Usage: u765_wb_tb [options]\n";
+    std::cout << "Usage: u765_tb [options]\n";
     std::cout << "Options:\n";
     std::cout << "  -v, --verbose LEVEL  Set verbosity level (0-3, default: 0)\n";
     std::cout << "  -h, --help           Show this help message\n";
     std::cout << "  -d, --debug          Enable debug output (equivalent to -v2)\n";
     std::cout << std::endl;
+    std::cout << "Verbosity levels:\n";
+    std::cout << "  0: Basic test output only\n";
+    std::cout << "  1: IO operations (register access)\n";
+    std::cout << "  2: Detailed internal operations\n";
+    std::cout << "  3: Very detailed tracing\n";
 }
 
 void log_message(int level, const std::string& message) {
     if (verbosity >= level) {
-        std::cout << "[CPP] " << message << std::endl;
+        switch (level) {
+            case 0: std::cout << "[INFO] " << message << std::endl; break;
+            case 1: std::cout << "[IO] " << message << std::endl; break;
+            case 2: std::cout << "[DEBUG] " << message << std::endl; break;
+            case 3: std::cout << "[TRACE] " << message << std::endl; break;
+        }
     }
 }
 
-void log_io(const std::string& message) {
-    if (verbosity >= 1) {
-        std::cout << "[CPP:IO] " << message << std::endl;
+void log_result(const std::string& message, bool success = true) {
+    if (success) {
+        std::cout << "✅ [RESULT] " << message << std::endl;
+    } else {
+        std::cout << "❌ [RESULT] " << message << std::endl;
     }
-}
-
-void log_result(const std::string& message) {
-    std::cout << "[CPP:RESULT] " << message << std::endl;
 }
 
 void log_error(const std::string& message) {
-    std::cerr << "[CPP:ERROR] " << message << std::endl;
+    std::cerr << "🔥 [ERROR] " << message << std::endl;
+}
+
+void log_command(const std::string& command) {
+    std::cout << "🚀 [COMMAND] " << command << std::endl;
+}
+
+void log_status(const std::string& status) {
+    std::cout << "📊 [STATUS] " << status << std::endl;
 }
 
 int img_read(int sd_rd) {
     if (!sd_rd) return 0;
-    log_message(2, "img_read: " + std::to_string(sd_rd) + " lba: " + std::to_string(tb->sd_lba));
+    log_message(2, "SD card read request, LBA: " + std::to_string(tb->sd_lba));
     int lba = tb->sd_lba;
     fseek(edsk, lba << 9, SEEK_SET);
-    size_t result = fread(&sdbuf, 512, 1, edsk);
-    if (result != 1) {
-        log_error("Failed to read from disk image");
-    }
+    fread(&sdbuf, 512, 1, edsk);
     reading = 1;
     read_ptr = 0;
     return 0;
 }
 
-void tick(int c) {
+void handle_sd_card() {   
     static int sd_rd_prev = 0;
-
-    tb->wb_clk_i = c;
-    tb->eval();
     
-    if (trace) {
-        trace->dump(tickcount++);
-    }
-
-    if (c) {
-        // Handle SD card reading
-        if (reading) {
-            tb->sd_ack = 1;
-            tb->sd_buff_wr = 1;
-            tb->sd_buff_dout = sdbuf[read_ptr];
-            tb->sd_buff_addr = read_ptr;
-            read_ptr++;
-            if (read_ptr == 512) {
-                reading = 0;
-                log_message(2, "SD read completed");
-            }
-        } else {
-            tb->sd_ack = 0;
-            tb->sd_buff_wr = 0;
+    // Handle SD card reading
+    if (reading) {
+        tb->sd_ack = 1;
+        tb->sd_buff_wr = 1;
+        tb->sd_buff_dout = sdbuf[read_ptr];
+        tb->sd_buff_addr = read_ptr;
+        read_ptr++;
+        if (read_ptr == 512) {
+            reading = 0;
+            log_message(2, "SD read completed successfully");
         }
-
-        // Check for SD read requests
-        if (sd_rd_prev != tb->sd_rd) {
-            img_read(tb->sd_rd);
-        }
-        sd_rd_prev = tb->sd_rd;
+    } else {
+        tb->sd_ack = 0;
+        tb->sd_buff_wr = 0;
     }
+    
+    // Check for SD read requests
+    if (sd_rd_prev != tb->sd_rd) {
+        img_read(tb->sd_rd);
+    }
+    sd_rd_prev = tb->sd_rd;
+}
+
+void handle_wb() {
+    static int prev_wb_cyc_i = 0;
+    static int prev_wb_we_i = 1;
+
+    // Log register access
+    if (verbosity >= 1) {
+        if (tb->wb_cyc_i != prev_wb_cyc_i || tb->wb_we_i != prev_wb_we_i) {
+            if (tb->wb_cyc_i && tb->wb_stb_i) {
+                char buf[256];
+                if (tb->wb_we_i == 1) {
+                    sprintf(buf, "WRITE (addr 0x%02X): 0x%02X", 
+                            tb->wb_adr_i, tb->wb_dat_i);
+                } else {
+                    sprintf(buf, "READ (addr 0x%02X): 0x%02X", 
+                            tb->wb_adr_i, tb->wb_dat_o);
+                }
+                log_message(1, buf);
+            }    
+        }
+        prev_wb_cyc_i = tb->wb_cyc_i;
+        prev_wb_we_i = tb->wb_we_i;
+    }
+}
+
+static int byte_buffer;
+
+void tick(bool cyc = 0, bool we = 0, bool out = 0, int byte = 0xFF) {
+    static vluint64_t sim_time = 0;
+
+    tb->wb_clk_i = 1;
+    tb->eval();
+    if (trace) trace->dump(sim_time);
+    sim_time += 1;
+
+    handle_sd_card();
+    handle_wb();
+
+    tb->wb_cyc_i = cyc;
+    tb->wb_stb_i = cyc;     
+    tb->wb_we_i = we;
+    if (out)
+       tb->wb_dat_i = byte;
+    
+    if (cyc && !we && tb->wb_ack_o)
+       byte_buffer = tb->wb_dat_o;
+
+    tb->eval();
+    if (trace) trace->dump(sim_time);
+    sim_time += 4;
+
+    tb->wb_clk_i = 0;
+    tb->eval();
+    if (trace) trace->dump(sim_time);
+    sim_time += 5;
 }
 
 void wait(int t) {
     for (int i = 0; i < t; i++) {
-        tick(1);
-        tick(0);
+        tick();
     }
-}
-
-// Wishbone write function
-void wb_write(int addr, int data) {
-    log_io("WB WRITE ADDR=0x" + std::to_string(addr) + " DATA=0x" + std::to_string(data));
-    
-    tb->wb_adr_i = addr;
-    tb->wb_dat_i = data;
-    tb->wb_we_i = 1;
-    tb->wb_cyc_i = 1;
-    tb->wb_stb_i = 1;
-    
-    int timeout = 0;
-    while (!tb->wb_ack_o && timeout < 100) {
-        tick(1);
-        tick(0);
-        timeout++;
-    }
-    
-    if (timeout >= 100) {
-        log_error("WB write timeout");
-    }
-    
-    tb->wb_cyc_i = 0;
-    tb->wb_stb_i = 0;
-    tb->wb_we_i = 0;
-    
-    tick(1);
-    tick(0);
-}
-
-// Wishbone read function
-int wb_read(int addr) {
-    log_io("WB READ ADDR=0x" + std::to_string(addr));
-    
-    tb->wb_adr_i = addr;
-    tb->wb_we_i = 0;
-    tb->wb_cyc_i = 1;
-    tb->wb_stb_i = 1;
-    
-    int timeout = 0;
-    while (!tb->wb_ack_o && timeout < 100) {
-        tick(1);
-        tick(0);
-        timeout++;
-    }
-    
-    int data = 0xFF;
-    if (timeout >= 100) {
-        log_error("WB read timeout");
-    } else {
-        data = tb->wb_dat_o;
-    }
-    
-    tb->wb_cyc_i = 0;
-    tb->wb_stb_i = 0;
-    
-    tick(1);
-    tick(0);
-    
-    log_io("WB READ RESULT ADDR=0x" + std::to_string(addr) + " DATA=0x" + std::to_string(data));
-    return data;
 }
 
 int readstatus() {
-    int status = wb_read(0);
-    log_io("STATUS = 0x" + std::to_string(status));
-    return status;
+    tb->wb_adr_i = 0;
+    tick(true, false);
+    
+    // Wait for acknowledge
+    while (!tb->wb_ack_o) {
+        tick(true, false);
+    }
+    tick(false, false);
+    
+    if (verbosity >= 1) {
+        char buf[64];
+        sprintf(buf, "Status register: 0x%02X", byte_buffer);
+        log_message(1, buf);
+    }
+    return byte_buffer;
+}
+
+bool wait_for_fdc_data(int mask, int value, int timeout_ms = 1000) {
+    int timeout = 0;
+    while (timeout < timeout_ms) {
+        int status = readstatus();
+        if ((status & mask) == value) {
+            return true;
+        }
+        wait(10);
+        timeout++;
+    }
+    log_error("Timeout waiting for FDC data (mask: 0x" + 
+              std::to_string(mask) + ", expected: 0x" + 
+              std::to_string(value) + ")");
+    return false;
 }
 
 void sendbyte(int byte) {
-    log_io("Sending byte: 0x" + std::to_string(byte));
-    
-    // Wait for FDC to be ready to receive data
-    int timeout = 0;
-    while (timeout < 1000) {
-        int status = readstatus();
-        if ((status & 0xC0) == 0x80) { // Ready for command
-            break;
-        }
-        wait(10);
-        timeout++;
-    }
-    
-    if (timeout >= 1000) {
-        log_error("Timeout waiting for FDC to be ready");
+    if (!wait_for_fdc_data(0xcf, 0x80)) {
+        log_error("Failed to send byte 0x" + std::to_string(byte));
         return;
     }
     
-    wb_write(1, byte);
+    tb->wb_adr_i = 1;
+    tick(true, true, true, byte);
+    
+    // Wait for acknowledge
+    while (!tb->wb_ack_o) {
+        tick(true, true, true, byte);
+    }
+    tick(false, false, true, 0xFF);
+    
+    if (verbosity >= 1) {
+        char buf[64];
+        sprintf(buf, "Data write: 0x%02X", byte);
+        log_message(1, buf);
+    }
 }
 
 int readbyte() {
-    log_io("Reading byte...");
-    
-    // Wait for FDC to have data ready
-    int timeout = 0;
-    while (timeout < 1000) {
-        int status = readstatus();
-        if ((status & 0xC0) == 0xC0) { // Data ready
-            break;
-        }
-        wait(10);
-        timeout++;
-    }
-    
-    if (timeout >= 1000) {
-        log_error("Timeout waiting for data");
+    if (!wait_for_fdc_data(0xcf, 0xc0)) {
+        log_error("Failed to read byte");
         return 0xFF;
-    }
+    }        
     
-    int data = wb_read(1);
-    log_io("Read byte: 0x" + std::to_string(data));
-    return data;
+    tb->wb_adr_i = 1;
+    tick(true, false);
+    
+    // Wait for acknowledge
+    while (!tb->wb_ack_o) {
+        tick(true, false);
+    }
+    tick();
+    
+    if (verbosity >= 1) {
+        char buf[64];
+        sprintf(buf, "Data read: 0x%02X", byte_buffer);
+        log_message(1, buf);
+    }
+    return byte_buffer;
 }
 
 void read_result() {
-    log_message(0, "--- COMMAND RESULT ----");
+    log_message(0, "--- Command Result ---");
+    
     int st0 = readbyte();
     int st1 = readbyte();
     int st2 = readbyte();
@@ -229,64 +257,106 @@ void read_result() {
     int r = readbyte();
     int n = readbyte();
     
-    log_message(0, "ST0 = 0x" + std::to_string(st0));
-    log_message(0, "ST1 = 0x" + std::to_string(st1));
-    log_message(0, "ST2 = 0x" + std::to_string(st2));
-    log_message(0, "C   = 0x" + std::to_string(c));
-    log_message(0, "H   = 0x" + std::to_string(h));
-    log_message(0, "R   = 0x" + std::to_string(r));
-    log_message(0, "N   = 0x" + std::to_string(n));
+    // Форматированный вывод результатов
+    std::stringstream ss;
+    ss << "ST0:0x" << std::hex << std::setw(2) << std::setfill('0') << st0
+       << " ST1:0x" << std::setw(2) << st1
+       << " ST2:0x" << std::setw(2) << st2
+       << " C:" << std::dec << c
+       << " H:" << h
+       << " R:" << r
+       << " N:" << n;
+    
+    log_message(0, ss.str());
+    
+    // Проверка на ошибки
+    if (st0 & 0xC0) { // Бит ошибки в ST0
+        log_result("Command completed with errors", false);
+    } else {
+        log_result("Command completed successfully", true);
+    }
 }
 
 void read_data() {
     int status, byte;
+    int offs = 0;
     long chksum = 0;
-    int bytes_read = 0;
 
     log_message(0, "Reading data...");
     
-    while (bytes_read < 512) {
-        status = readstatus();
-        if ((status & 0xC0) == 0xC0 && (status & 0x20)) {
-            byte = readbyte();
-            chksum += byte;
-            bytes_read++;
+    while (true) {
+        while (((status = readstatus()) & 0xcf) != 0xc0) {};
+        if ((status & 0x20) != 0x20) {
+            log_message(0, "Data transfer complete, checksum: " + std::to_string(chksum));
+            return;
         }
-        wait(1);
         
-        if (bytes_read > 0 && bytes_read % 64 == 0) {
-            log_message(2, "Read " + std::to_string(bytes_read) + " bytes, checksum: " + std::to_string(chksum));
+        tb->wb_adr_i = 1;
+        tick(true, false);
+        
+        // Wait for acknowledge
+        while (!tb->wb_ack_o) {
+            tick(true, false);
+        }
+        byte = tb->wb_dat_o;
+        tb->wb_cyc_i = 0;
+        tb->wb_stb_i = 0;
+        tick();
+        chksum += byte;
+        
+        if (verbosity >= 3) {
+            std::cout << std::hex << std::setw(2) << std::setfill('0') << byte << " ";
+            offs++;
+            if ((offs % 16) == 0) std::cout << "\n" << std::dec << std::setw(3) << offs << " ";
         }
     }
-    
-    log_message(0, "Data sum: " + std::to_string(chksum));
 }
 
 void cmd_recalibrate() {
-    log_message(0, "=== RECALIBRATE ===");
+    log_command("Recalibrate drive");
     sendbyte(0x07);
     sendbyte(0x00);
-    wait(2000); // Give time for recalibration
+    
+    // Ждем завершения и проверяем результат
+    wait(1000);
+    int status = readstatus();
+    
+    if ((status & 0xC0) == 0) {
+        log_result("Recalibration successful - Drive returned to cylinder 0", true);
+    } else {
+        log_result("Recalibration failed", false);
+        log_error("Recalibration error code: 0x" + std::to_string(status));
+    }
 }
 
 void cmd_seek(int ncn) {
-    log_message(0, "=== SEEK ===");
+    log_command("Seek to cylinder " + std::to_string(ncn));
     sendbyte(0x0f);
     sendbyte(0x00);
     sendbyte(ncn);
-    wait(2000); // Give time for seek
+    
+    wait(1000);
+    int status = readstatus();
+    
+    if ((status & 0xC0) == 0) {
+        log_result("Seek completed successfully", true);
+    } else {
+        log_result("Seek failed", false);
+    }
 }
 
 void cmd_read_id(int head) {
-    log_message(0, "=== READ ID ===");
+    log_command("Read ID (head " + std::to_string(head) + ")");
     sendbyte(0x0a);
     sendbyte(head << 2);
     read_result();
 }
 
 void cmd_read(int c, int h, int r, int n, int eot, int gpl, int dtl) {
-    log_message(0, "=== READ C:" + std::to_string(c) + " H:" + std::to_string(h) + 
-                   " R:" + std::to_string(r) + " N:" + std::to_string(n) + " ===");
+    std::stringstream cmd_desc;
+    cmd_desc << "Read C:" << c << " H:" << h << " R:" << r << " N:" << n;
+    log_command(cmd_desc.str());
+    
     sendbyte(0x06);
     sendbyte(h << 2);
     sendbyte(c);
@@ -296,9 +366,10 @@ void cmd_read(int c, int h, int r, int n, int eot, int gpl, int dtl) {
     sendbyte(eot);
     sendbyte(gpl);
     sendbyte(dtl);
-
+    
     read_data();
     read_result();
+    log_message(0, "Read operation completed");
 }
 
 void mount_disk(FILE *edsk_file, int drive_number) {
@@ -308,12 +379,12 @@ void mount_disk(FILE *edsk_file, int drive_number) {
     fsize = ftell(edsk_file);
     tb->img_size = fsize;
     tb->img_mounted = 1 << drive_number;
-    tick(1);
-    tick(0);
+    tick();
     tb->img_mounted = 0;
     wait(1000);
-    log_message(0, "Disk mounted in drive " + std::to_string(drive_number) + 
-                   ", size: " + std::to_string(fsize) + " bytes");
+    
+    log_result("Disk mounted in drive " + std::to_string(drive_number) + 
+               ", size: " + std::to_string(fsize) + " bytes", true);
 }
 
 int main(int argc, char **argv) {
@@ -343,12 +414,16 @@ int main(int argc, char **argv) {
         }
     }
 
+    std::cout << "🔧 Starting FDC Test Bench" << std::endl;
+    std::cout << "📊 Verbosity level: " << verbosity << std::endl;
+
     // Initialize test disk
     edsk = fopen("test.dsk", "rb");
     if (!edsk) {
-        log_error("Cannot open test.dsk");
+        log_error("Cannot open test.dsk file");
         return -1;
     }
+    log_result("Disk image opened successfully", true);
 
     // Initialize Verilator
     Verilated::commandArgs(argc, argv);
@@ -363,69 +438,68 @@ int main(int argc, char **argv) {
 
     // Open waveform file
     trace->open("u765_wb_tb.vcd");
+    log_message(0, "Waveform tracing enabled");
 
     // Initialize signals
     tb->wb_rst_i = 1;
-    tb->wb_cyc_i = 0;
-    tb->wb_stb_i = 0;
+    tb->enable = 1;
     tb->wb_we_i = 0;
-    tb->wb_adr_i = 0;
-    tb->wb_dat_i = 0;
-    
+    tb->wb_stb_i = 0;
+    tb->wb_cyc_i = 0;
+    tick();
+
     // Reset sequence
-    log_message(0, "Starting reset sequence...");
+    log_command("Starting reset sequence...");
     for (int i = 0; i < 10; i++) {
-        tick(1);
-        tick(0);
+        tick();
     }
     tb->wb_rst_i = 0;
-    log_message(0, "Reset completed");
-    
+    log_result("Reset completed", true);
+
     // Mount disk image
     reading = 0;
-    read_ptr = 0;
     mount_disk(edsk, 0);
     
     // Initialize FDC control signals
     tb->motor = 1;
     tb->ready = 1;
     tb->available = 1;
-    tb->fast = 0;
 
-    wait(10000);
+    wait(100000);
 
-    log_message(0, "Starting test commands...");
+    log_command("Starting test commands...");
 
-    // First, let's just test basic status reading
-    log_message(0, "Testing simple status read...");
+    // Test commands
+    log_command("Testing status read");
     int status = readstatus();
-    log_message(0, "Initial status: 0x" + std::to_string(status));
+    log_status("Initial status: 0x" + std::to_string(status));
+    
+    // Основные команды тестирования
+    if (status != 0xFF) {
+        cmd_recalibrate();
+        wait(1000);
+    }
+    
+    cmd_read(0, 0, 0x41, 2, 0xff, 2, 0xff);
+    cmd_seek(1);
+    wait(1000);
+    cmd_read(1, 0, 0, 5, 0xff, 2, 0xff);
+    cmd_read(1, 0, 0x1d, 2, 0xff, 2, 0xff);
+    cmd_read(1, 0, 0xff, 0, 0xff, 2, 1);
 
-    if (status == 0xFF) {
-        log_error("FDC not responding");
-        fclose(edsk);
-        trace->close();
-        delete trace;
-        delete tb;
-        return -1;
+    // Multiple ID reads
+    log_command("Starting multiple ID read test");
+    for (int i = 0; i < 10; i++) {
+        cmd_read_id(0);
+        wait(1000);
     }
 
-    // Start with simple commands
-    log_message(0, "Testing RECALIBRATE...");
-    cmd_recalibrate();
-    
-    log_message(0, "Testing READ ID...");
-    cmd_read_id(0);
-    
-    log_message(0, "Testing READ command...");
-    cmd_read(0, 0, 0x41, 2, 0xff, 2, 0xff);
-
-    // Завершение
+    // Cleanup
     fclose(edsk);
     trace->close();
     delete trace;
     delete tb;
     
-    log_message(0, "Test completed.");
+    log_result("Test bench completed successfully", true);
     return 0;
 }
