@@ -16,7 +16,14 @@ module format_converter (
     // Control
     input  logic [15:0] bit_mask_i,
     input  logic [3:0]  bit_shift_i,
-    input  logic [7:0]  pixels_per_word_i
+    input  logic [7:0]  pixels_per_word_i,
+    
+    // Character mode
+    input  logic        char_mode_i,
+    input  logic [7:0]  char_data_i,
+    input  logic [15:0] fg_color_i,
+    input  logic [15:0] bg_color_i,
+    input  logic        bg_transparent_i
 );
 
 // Internal signals
@@ -28,14 +35,29 @@ always_comb begin
     converted_data = 32'h0;
     conversion_valid = valid_i;
     
-    if (valid_i) begin
+    if (char_mode_i && valid_i) begin
+        // Character mode - convert 8-bit row to 32-bit word (4 pixels)
+        for (int i = 0; i < 4; i++) begin
+            if (i < 4) begin // Process 4 pixels at a time
+                if (char_data_i[7-i]) begin
+                    // Pixel set - use foreground color
+                    converted_data[i*8+:8] = {fg_color_i[15:11], fg_color_i[10:5], fg_color_i[4:0]};
+                end else if (!bg_transparent_i) begin
+                    // Pixel not set and background not transparent
+                    converted_data[i*8+:8] = {bg_color_i[15:11], bg_color_i[10:5], bg_color_i[4:0]};
+                end
+                // Else: transparent pixel, leave as 0
+            end
+        end
+    end else if (valid_i) begin
+        // Original format conversion logic
         case ({src_format_i, dst_format_i})
             // Same format - no conversion needed
             4'b0000, 4'b0101, 4'b1010: converted_data = data_i;
             
             // 8bpp to 16bpp
             4'b0001: begin
-                converted_data[15:0] = {data_i[7:0], data_i[7:3]}; // Replicate bits
+                converted_data[15:0] = {data_i[7:0], data_i[7:3]};
                 converted_data[31:16] = {data_i[15:8], data_i[15:11]};
             end
             
@@ -44,26 +66,25 @@ always_comb begin
                 converted_data[7:0] = data_i[7:0];
                 converted_data[15:8] = data_i[7:0];
                 converted_data[23:16] = data_i[7:0];
-                converted_data[31:24] = 8'hFF; // Alpha
+                converted_data[31:24] = 8'hFF;
             end
             
             // 16bpp to 8bpp
             4'b0100: begin
-                converted_data[7:0] = data_i[15:8]; // Take upper byte
+                converted_data[7:0] = data_i[15:8];
                 converted_data[15:8] = data_i[31:24];
             end
             
             // 16bpp to 32bpp
             4'b0110: begin
-                converted_data[7:0] = data_i[7:0];   // Blue
-                converted_data[15:8] = data_i[15:8];  // Green
-                converted_data[23:16] = data_i[23:16]; // Red
-                converted_data[31:24] = 8'hFF;        // Alpha
+                converted_data[7:0] = data_i[7:0];
+                converted_data[15:8] = data_i[15:8];
+                converted_data[23:16] = data_i[23:16];
+                converted_data[31:24] = 8'hFF;
             end
             
             // 32bpp to 8bpp
             4'b1000: begin
-                // Convert to grayscale: Y = 0.299R + 0.587G + 0.114B
                 logic [15:0] gray_value;
                 gray_value = (data_i[23:16] * 76 + data_i[15:8] * 150 + data_i[7:0] * 29) >> 8;
                 converted_data[7:0] = gray_value[7:0];
@@ -72,7 +93,6 @@ always_comb begin
             
             // 32bpp to 16bpp
             4'b1001: begin
-                // Convert 32bpp ARGB to 16bpp RGB565
                 converted_data[15:0] = {data_i[23:19], data_i[15:10], data_i[7:3]};
                 converted_data[31:16] = {data_i[55:51], data_i[47:42], data_i[39:35]};
             end

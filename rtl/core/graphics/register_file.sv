@@ -23,6 +23,14 @@ module register_file (
     output logic [7:0]  operation_mode_reg,
     output logic [7:0]  status_reg,
     
+    // New registers for fast operations
+    output logic [15:0] char_fg_color_reg,
+    output logic [15:0] char_bg_color_reg,
+    output logic        char_bg_transparent_reg,
+    output logic [63:0] char_pattern_reg,
+    output logic        fast_point_enable_reg,
+    output logic [15:0] fast_point_data_reg,
+    
     // Control signals
     output logic        start_op_reg,
     output logic        auto_clip_reg,
@@ -34,7 +42,7 @@ module register_file (
 logic [31:0] registers [0:31];
 logic [31:0] read_data;
 
-// Register addresses (byte aligned, but we use word addressing)
+// Register addresses
 localparam REG_SRC_BASE_ADDR  = 8'h00;
 localparam REG_DST_BASE_ADDR  = 8'h04;
 localparam REG_SRC_XY         = 8'h08;
@@ -49,11 +57,20 @@ localparam REG_OP_MODE        = 8'h28;
 localparam REG_STATUS         = 8'h2C;
 localparam REG_CONTROL        = 8'h30;
 
+// New registers for fast operations
+localparam REG_CHAR_FG_COLOR  = 8'h34;
+localparam REG_CHAR_BG_COLOR  = 8'h38;
+localparam REG_CHAR_CTRL      = 8'h3C;
+localparam REG_CHAR_PATTERN_0 = 8'h40;
+localparam REG_CHAR_PATTERN_1 = 8'h44;
+localparam REG_FAST_POINT     = 8'h48;
+
 // Write operation
 always_ff @(posedge clk_i or posedge rst_i) begin
     if (rst_i) begin
         foreach (registers[i]) registers[i] <= '0;
         start_op_reg <= 1'b0;
+        fast_point_enable_reg <= 1'b0;
     end else if (cke_i && reg_write_i) begin
         case (reg_addr_i)
             REG_SRC_BASE_ADDR:  registers[0] <= reg_data_i;
@@ -67,15 +84,28 @@ always_ff @(posedge clk_i or posedge rst_i) begin
             REG_BIT_MASK:       registers[8] <= reg_data_i;
             REG_BIT_SHIFT:      registers[9] <= reg_data_i;
             REG_OP_MODE:        registers[10] <= reg_data_i;
-            REG_STATUS:         registers[11] <= reg_data_i; // Read-only mostly
+            REG_STATUS:         registers[11] <= reg_data_i;
             REG_CONTROL:        begin
                 registers[12] <= reg_data_i;
-                start_op_reg <= reg_data_i[0]; // Auto-clear on write
+                start_op_reg <= reg_data_i[0];
             end
+            
+            // New fast operation registers
+            REG_CHAR_FG_COLOR:  registers[13] <= reg_data_i;
+            REG_CHAR_BG_COLOR:  registers[14] <= reg_data_i;
+            REG_CHAR_CTRL:      registers[15] <= reg_data_i;
+            REG_CHAR_PATTERN_0: registers[16] <= reg_data_i;
+            REG_CHAR_PATTERN_1: registers[17] <= reg_data_i;
+            REG_FAST_POINT:     begin
+                registers[18] <= reg_data_i;
+                fast_point_enable_reg <= reg_data_i[16];
+            end
+            
             default: ; // Ignore invalid addresses
         endcase
     end else begin
-        start_op_reg <= 1'b0; // Auto-clear after one cycle
+        start_op_reg <= 1'b0;
+        fast_point_enable_reg <= 1'b0;
     end
 end
 
@@ -95,6 +125,15 @@ always_comb begin
         REG_OP_MODE:        read_data = registers[10];
         REG_STATUS:         read_data = registers[11];
         REG_CONTROL:        read_data = registers[12];
+        
+        // New fast operation registers
+        REG_CHAR_FG_COLOR:  read_data = registers[13];
+        REG_CHAR_BG_COLOR:  read_data = registers[14];
+        REG_CHAR_CTRL:      read_data = registers[15];
+        REG_CHAR_PATTERN_0: read_data = registers[16];
+        REG_CHAR_PATTERN_1: read_data = registers[17];
+        REG_FAST_POINT:     read_data = registers[18];
+        
         default:            read_data = 32'h0;
     endcase
 end
@@ -117,6 +156,13 @@ assign bit_mask_pattern_reg = registers[8][15:0];
 assign bit_shift_offset_reg = registers[9][7:0];
 assign operation_mode_reg = registers[10][7:0];
 assign status_reg = registers[11][7:0];
+
+// New fast operation outputs
+assign char_fg_color_reg = registers[13][15:0];
+assign char_bg_color_reg = registers[14][15:0];
+assign char_bg_transparent_reg = registers[15][0];
+assign char_pattern_reg = {registers[17], registers[16]};
+assign fast_point_data_reg = registers[18][15:0];
 
 // Control signals from operation mode register
 assign auto_clip_reg = operation_mode_reg[0];

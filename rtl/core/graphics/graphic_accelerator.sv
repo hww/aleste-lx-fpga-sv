@@ -64,6 +64,14 @@ logic auto_clip;
 logic use_transparency;
 logic enable_alpha;
 
+// New registers for fast operations
+logic [15:0] char_fg_color;
+logic [15:0] char_bg_color;
+logic char_bg_transparent;
+logic [63:0] char_pattern;
+logic fast_point_enable;
+logic [15:0] fast_point_data;
+
 // Core status
 logic core_busy;
 logic core_done;
@@ -116,7 +124,13 @@ register_file reg_file (
     .start_op_reg(start_op),
     .auto_clip_reg(auto_clip),
     .use_transparency_reg(use_transparency),
-    .enable_alpha_reg(enable_alpha)
+    .enable_alpha_reg(enable_alpha),
+    .char_fg_color_reg(char_fg_color),
+    .char_bg_color_reg(char_bg_color),
+    .char_bg_transparent_reg(char_bg_transparent),
+    .char_pattern_reg(char_pattern),
+    .fast_point_enable_reg(fast_point_enable),
+    .fast_point_data_reg(fast_point_data)
 );
 
 memory_controller mem_ctrl (
@@ -156,8 +170,15 @@ accelerator_core core (
     .width_i(width),
     .height_i(height),
     .fill_color_i(fill_color),
+    .transparent_color_i(transparent_color),
     .start_i(start_op),
     .operation_mode_i(operation_mode),
+    .char_fg_color_i(char_fg_color),
+    .char_bg_color_i(char_bg_color),
+    .char_bg_transparent_i(char_bg_transparent),
+    .char_pattern_i(char_pattern),
+    .fast_point_enable_i(fast_point_enable),
+    .fast_point_data_i(fast_point_data),
     .mem_read_req_o(mem_read_req),
     .mem_write_req_o(mem_write_req),
     .mem_addr_o(mem_addr),
