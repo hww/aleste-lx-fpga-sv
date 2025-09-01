@@ -24,6 +24,15 @@ Of course. The translation captures the technical details and the spirit of the 
 
 ---
 
+# LICENSING
+
+This is a project I work on in my free time. If you use it commercially and would like to support its development, please contact me.
+
+For a commercial license (allowing proprietary use without open-source obligations), please contact me directly.
+
+
+---
+
 ## The Cornerstone
 
 ### 1. Philosophical and Marketing Goal (The Heart of the Project)
@@ -131,10 +140,3 @@ project_root/
 ```
 
 ---
-
-# LICENSING
-
-This is a project I work on in my free time. If you use it commercially and would like to support its development, please contact me.
-
-For a commercial license (allowing proprietary use without open-source obligations), please contact me directly.
-
