@@ -1,0 +1,47 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Aug 31 17:51:17 2025
+[*]
+[dumpfile] "/home/valery/asv/sim/tests/unit/dma/simple.vcd"
+[dumpfile_mtime] "Sun Aug 31 17:48:46 2025"
+[dumpfile_size] 9479
+[savefile] "/home/valery/asv/sim/tests/unit/dma/simple.gtkw"
+[timestart] 0
+[size] 1920 1110
+[pos] -27 -24
+*0.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 297
+[signals_width] 150
+[sst_expanded] 1
+[sst_vpaned_height] 334
+@28
+TOP.rst_i
+TOP.clk_i
+@200
+-WISHBONE MASTER
+@22
+TOP.wbm_adr_o[23:0]
+TOP.wbm_dat_i[15:0]
+TOP.wbm_dat_o[15:0]
+@28
+TOP.wbm_cyc_o
+TOP.wbm_stb_o
+TOP.wbm_we_o
+TOP.wbm_ack_i
+TOP.wbm_err_i
+@200
+-WISBONE SLAVE
+@22
+TOP.wbs_adr_i[23:0]
+TOP.wbs_dat_i[15:0]
+TOP.wbs_dat_o[15:0]
+@28
+TOP.wbs_cyc_i
+TOP.wbs_stb_i
+@29
+TOP.wbs_we_i
+@28
+TOP.wbs_ack_o
+TOP.wbs_sel_o
+[pattern_trace] 1
+[pattern_trace] 0

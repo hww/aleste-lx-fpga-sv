@@ -12,7 +12,7 @@ VERILATOR_FLAGS = \
 	--timescale "1ns/1ps"
 
 # Source files
-I8255_WB_SOURCES = tb_i8255_wb.sv ../../../../../rtl/third_party/io/i8255_wb.sv
+I8255_WB_SOURCES = tb_i8255_wb.sv ../../../../../rtl/core/io/i8255_wb.sv
 CPP_I8255_WB_SOURCES = i8255_wb_test.cpp
 
 I8255_SOURCES = tb_i8255.sv ../../../../../rtl/third_party/io/i8255.v

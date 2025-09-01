@@ -1,7 +1,7 @@
 module wb_dma_tb (
     // Clock and reset (now inputs!)
-    input  logic clk,
-    input  logic rst,
+    input  logic clk_i,
+    input  logic rst_i,
 
     // Wishbone Slave
     input  logic [ADDR_WIDTH-1:0] wbs_adr_i,

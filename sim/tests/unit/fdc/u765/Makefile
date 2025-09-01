@@ -4,6 +4,7 @@ VERILATOR = verilator
 
 # Paths to source files
 RTL_DIR = ../../../../../rtl/third_party/fdc/u765
+RTL_WB_DIR = ../../../../../rtl/core/fdc
 TEST_DIR = .
 
 # Automatic path detection
@@ -20,7 +21,7 @@ VERILATOR_FLAGS = --trace --cc --bbox-unsup --x-assign unique -I$(RTL_DIR) --pub
 
 # Source files
 U765_SOURCES = $(RTL_DIR)/u765.sv
-U765_WB_SOURCES = $(RTL_DIR)/u765_wb.sv $(U765_SOURCES)
+U765_WB_SOURCES = $(RTL_WB_DIR)/u765_wb.sv $(U765_SOURCES)
 
 # Test source files
 U765_TEST_SOURCES = $(TEST_DIR)/u765_tb.sv $(U765_SOURCES)

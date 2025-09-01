@@ -88,6 +88,7 @@ end
 // -----------------------------------------------------------------------------
 // Wishbone Slave Interface - Register File
 // -----------------------------------------------------------------------------
+// Wishbone Slave Interface - Register File
 always_ff @(posedge clk_i or posedge rst_i) begin
     if (rst_i) begin
         // Reset all registers
@@ -96,7 +97,7 @@ always_ff @(posedge clk_i or posedge rst_i) begin
         imask       <= '0;
         stat_done   <= '0;
         stat_error  <= '0;
-        foreach (src_addr[i]) begin
+        for (integer i = 0; i < CHANNELS; i = i + 1) begin
             src_addr[i] <= '0;
             dst_addr[i] <= '0;
             count[i]    <= '0;
@@ -117,7 +118,7 @@ always_ff @(posedge clk_i or posedge rst_i) begin
 
             if (wbs_we_i) begin
                 // Write operations
-                case (wbs_adr_i[7:0]) // Младшие биты адреса для выбора регистра
+                case (wbs_adr_i[7:0])
                     // Channel 0 Registers
                     8'h00: src_addr[0][15:0]  <= wbs_dat_i;
                     8'h02: src_addr[0][23:16] <= wbs_dat_i[7:0];
@@ -125,16 +126,17 @@ always_ff @(posedge clk_i or posedge rst_i) begin
                     8'h06: dst_addr[0][23:16] <= wbs_dat_i[7:0];
                     8'h08: count[0][15:0]     <= wbs_dat_i;
                     8'h0A: count[0][23:16]    <= wbs_dat_i[7:0];
-                    8'h0C: {ctrl_mode[0], ctrl_enable[0], dst_ctrl[0], src_ctrl[0]} <= wbs_dat_i[7:0];
+                    8'h0C: {ctrl_mode[0], ctrl_enable[0], dst_ctrl[0], src_ctrl[0]} <= wbs_dat_i[5:0];
 
                     // Channel 1-3 Registers (pattern continues)
                     8'h10: src_addr[1][15:0]  <= wbs_dat_i;
                     // ... additional registers for channels 1-3 ...
 
                     // Common Registers
-                    8'hF0: imask <= wbs_dat_i[CHANNELS-1:0]; // Interrupt mask
-                    8'hF2: stat_done  <= stat_done & ~wbs_dat_i[CHANNELS-1:0]; // Clear done flags
-                    8'hF4: stat_error <= stat_error & ~wbs_dat_i[CHANNELS-1:0]; // Clear error flags
+                    8'hF0: imask <= wbs_dat_i[CHANNELS-1:0];
+                    8'hF2: stat_done  <= stat_done & ~wbs_dat_i[CHANNELS-1:0];
+                    8'hF4: stat_error <= stat_error & ~wbs_dat_i[CHANNELS-1:0];
+                    default: ; // Do nothing for undefined addresses
                 endcase
             end
             else begin
@@ -146,7 +148,7 @@ always_ff @(posedge clk_i or posedge rst_i) begin
                     8'h06: wbs_dat_o <= {8'b0, dst_addr[0][23:16]};
                     8'h08: wbs_dat_o <= count[0][15:0];
                     8'h0A: wbs_dat_o <= {8'b0, count[0][23:16]};
-                    8'h0C: wbs_dat_o <= {8'b0, ctrl_mode[0], ctrl_enable[0], dst_ctrl[0], src_ctrl[0]};
+                    8'h0C: wbs_dat_o <= {10'b0, ctrl_mode[0], ctrl_enable[0], dst_ctrl[0], src_ctrl[0]};
                     8'h0E: wbs_dat_o <= {14'b0, stat_error[0], stat_done[0]};
 
                     // Channel 1-3 Registers (pattern continues)
@@ -154,8 +156,9 @@ always_ff @(posedge clk_i or posedge rst_i) begin
                     // ... additional registers for channels 1-3 ...
 
                     // Common Registers
-                    8'hF0: wbs_dat_o <= {16'b0, imask};
-                    8'hFE: wbs_dat_o <= {16'b0, CHANNELS}; // Version/feature register
+                    8'hF0: wbs_dat_o <= {{(16-CHANNELS){1'b0}}, imask};
+                    8'hFE: wbs_dat_o <= {{(16-4){1'b0}}, CHANNELS[3:0]}; // Assuming CHANNELS <= 16
+                    default: wbs_dat_o <= 16'b0;
                 endcase
             end
         end
@@ -180,11 +183,11 @@ always_ff @(posedge clk_i or posedge rst_i) begin
 
         if (!dma_busy) begin
             // Find next channel to service (fixed priority)
-            for (int i = 0; i < CHANNELS; i++) begin
+            for (integer i = 0; i < CHANNELS; i = i + 1) begin
                 if (ctrl_enable[i] && !stat_done[i] && !stat_error[i] && 
                     (drq_i[i] || ctrl_mode[i])) begin
                     dma_busy     <= 1'b1;
-                    active_ch    <= i;
+                    active_ch    <= i[$clog2(CHANNELS)-1:0];
                     active_mode  <= ctrl_mode[i];
                     wbm_cyc_o    <= 1'b1;
                     wbm_stb_o    <= 1'b1;
