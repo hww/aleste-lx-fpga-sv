@@ -1,5 +1,6 @@
 VERILATOR = verilator
-VERILATOR_FLAGS = -Wall --cc --exe --build --trace
+VERILATOR_FLAGS = -Wall --cc --exe --build --trace --debug 
+#--gdb
 INCLUDE_DIR = include
 SRC_DIR = ../../../../rtl/core/dma
 CURRENT_DIR = $(shell pwd)

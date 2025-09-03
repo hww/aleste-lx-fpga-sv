@@ -68,28 +68,6 @@ module tv80_wb (
     wire           busrq_n;
     wire  [7:0]    tv80_dat_i;
 
-//assign wbm_adr_o = tv80_adr;
-//assign wbm_dat_o = tv80_dat_o;
-//assign wbm_we_o  = ~wr_n & (~mreq_n | ~iorq_n);
-//
-//// ИСПРАВЛЕННАЯ логика STB/CYC
-//assign wbm_stb_o = (~mreq_n | ~iorq_n) & (~rd_n | ~wr_n);
-//assign wbm_cyc_o = (~mreq_n | ~iorq_n) & (~rd_n | ~wr_n);
-//
-//assign wbm_tga_o = (~iorq_n ? `TAG_IO : `TAG_MEM);
-//
-//// УПРОЩЕННЫЙ wait_n
-//assign wait_n = (wbm_stb_o & !wbm_ack_i) ? 1'b0 : 1'b1;
-//
-//assign tv80_dat_i = wbm_dat_i;   
-//assign int_n   = ~int_req_i;
-//assign nmi_n   = ~nmi_req_i;
-//assign busrq_n = ~busrq_i;
-//assign busak_o = ~busak_n;
-
-
-
-
     assign wbm_adr_o = tv80_adr;
     assign wbm_dat_o = tv80_dat_o;
     assign wbm_we_o  = ~wr_n & (~mreq_n | ~iorq_n);
