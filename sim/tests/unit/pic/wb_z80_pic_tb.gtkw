@@ -1,0 +1,40 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Sep  4 19:00:56 2025
+[*]
+[dumpfile] "/home/valery/asv/sim/tests/unit/pic/wb_z80_pic_tb.vcd"
+[dumpfile_mtime] "Thu Sep  4 18:59:10 2025"
+[dumpfile_size] 3013
+[savefile] "/home/valery/asv/sim/tests/unit/pic/wb_z80_pic_tb.gtkw"
+[timestart] 0
+[size] 1920 1110
+[pos] -27 -24
+*-6.665443 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 297
+[signals_width] 174
+[sst_expanded] 1
+[sst_vpaned_height] 334
+@28
+TOP.wb_rst_i
+TOP.wb_clk_i
+@22
+TOP.wb_adr_i[7:0]
+TOP.wb_dat_i[7:0]
+TOP.wb_dat_o[7:0]
+@28
+TOP.wb_cyc_i
+TOP.wb_stb_i
+TOP.wb_ack_o
+TOP.wb_sel_o
+TOP.wb_we_i
+@201
+-PIC
+@28
+TOP.int_req_o
+TOP.int_ack_i
+@22
+TOP.irq_i[7:0]
+@28
+TOP.highest_irq_o[2:0]
+[pattern_trace] 1
+[pattern_trace] 0

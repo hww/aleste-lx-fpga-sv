@@ -1,7 +1,7 @@
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 #include "Vwb_z80_pic_tb.h"
-#include "wb_pic_test_utils.h"
+#include "wb_pic_utils.h"
 #include <iostream>
 #include <cassert>
 
@@ -28,11 +28,11 @@ int main(int argc, char** argv) {
     top->int_ack_i = 0;
     
     // Create test utils
-    PicTestUtils utils(top, main_time, tfp);
+    WbPicTestUtils utils(top, main_time, tfp);
     
     // Start tracing
     top->trace(tfp, 99);
-    tfp->open("wb_z80_pic.vcd");
+    tfp->open("wb_z80_pic_tb.vcd");
     
     std::cout << "=== Starting Z80 PIC Test ===" << std::endl;
     
@@ -52,9 +52,9 @@ int main(int argc, char** argv) {
     try {
         // Test 1: Reset and basic register access
         std::cout << "Test 1: Reset and register access" << std::endl;
-        utils.set_reset(1);
+        utils.reset_assert();
         utils.wait_cycles(2);
-        utils.set_reset(0);
+        utils.reset_deassert();
         utils.wait_cycles(2);
         
         // Check default values after reset
