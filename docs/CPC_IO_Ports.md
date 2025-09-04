@@ -261,12 +261,12 @@ This is the ideal architecture for protected mode.
 
 **CPU Address Space View:**
 
-| CPU Address Range | Size  | Purpose (from CPU/Programmer perspective)                                  |
-| :---------------- | :---- | :------------------------------------------------------------------------- |
-| `0x0000`     | 16KB  | **Hypervisor/BIOS Code**. Executable code. Entry point at `M1` @ `0x0000`. |
-| `0x4000`     | 16KB  | **Memory-Mapped I/O Window**. Unified space for system management.         |
-| `0x8000`     | 16KB  | **Video Memory**. Linear framebuffer, accessible to the CPU.               |
-| `0xC000`     | 16KB  | **Working Memory**. Data and code for the current task.                    |
+| CPU Address Range | Size | Purpose (from CPU/Programmer perspective)                                  |
+|:------------------|:-----|:---------------------------------------------------------------------------|
+| `0x0000`          | 16KB | **Hypervisor/BIOS Code**. Executable code. Entry point at `M1` @ `0x0000`. |
+| `0x4000`          | 31KB | **Video Memory**. Linear framebuffer, accessible to the CPU.               |
+| `0x8000`          | 1KB  | **Working Memory**. Data and code for the current task.                    |
+| `0xC000`          | 16KB | **Memory-Mapped I/O Window**. Unified space for system management.         |
 
 **Key idea:** The `0x4000-0x7FFF` block is not "data" but a control window. Writing to address `0x4000` could be a command to change the bank in slot 0, and reading from `0x4003` could read the mouse status.
 
@@ -296,16 +296,16 @@ The MMU makes a decision based on two input parameters:
 1.  **Mapper output (22 bits)** - what the program selected via the bank registers.
 2.  **Current slot number (2 bits)** - which is set either by the hypervisor or by a separate register.
 
-**Proposed control register map (still in MMIO, say at CPU address `0x4000`):**
+**Proposed control register map (still in MMIO, say at CPU address `0xC000`):**
 
 | CPU Address | Register Name       | Size | Purpose                                                                                |
 | :---------- | :------------------ | :--- | :------------------------------------------------------------------------------------- |
-| `0x4000`    | `BANK_0`            | 1B   | Bank for page 0 (0000-3FFF) in the current slot.                                       |
-| `0x4001`    | `BANK_1`            | 1B   | Bank for page 1 (4000-7FFF) in the current slot.                                       |
-| `0x4002`    | `BANK_2`            | 1B   | Bank for page 2 (8000-BFFF) in the current slot.                                       |
-| `0x4003`    | `BANK_3`            | 1B   | Bank for page 3 (C000-FFFF) in the current slot.                                       |
-| `0x4004`    | `CURRENT_SLOT`      | 1B   | **For Hypervisor only!** Sets which slot's data is currently on the bus (0-3). For user code - read-only, returns its number. |
-| `0x4005`    | `GLOBAL_CTRL`       | 1B   | Bit 0: Mode (0=Legacy, 1=Native). Bit 1: Write protection for user slots.              |
+| `0xC000`    | `BANK_0`            | 1B   | Bank for page 0 (0000-3FFF) in the current slot.                                       |
+| `0xC001`    | `BANK_1`            | 1B   | Bank for page 1 (4000-7FFF) in the current slot.                                       |
+| `0xC002`    | `BANK_2`            | 1B   | Bank for page 2 (8000-BFFF) in the current slot.                                       |
+| `0xC003`    | `BANK_3`            | 1B   | Bank for page 3 (C000-FFFF) in the current slot.                                       |
+| `0xC004`    | `CURRENT_SLOT`      | 1B   | **For Hypervisor only!** Sets which slot's data is currently on the bus (0-3). For user code - read-only, returns its number. |
+| `0xC005`    | `GLOBAL_CTRL`       | 1B   | Bit 0: Mode (0=Legacy, 1=Native). Bit 1: Write protection for user slots.              |
 
 **Code example:**
 
@@ -401,7 +401,60 @@ Of course. Here is the translation and integration of the requested sections int
 
 ---
 
-### 9. What Happens When Writing 0 to Bit 7 of Port `#7F00`?
+Of course. Here is the translation of the key concepts and a detailed explanation of what happens when you write 0 to bit 7 of port `#7F00`.
+
+### Memory Management in the Amstrad CPC 6128 (English Summary)
+
+**Focus on RAM and ROM.** The architecture is designed for a maximum configuration of **512 KB of RAM** and **up to 1024 KB of ROM** (64 banks) via external cartridges.
+
+---
+
+### CPC Memory Management Registers
+
+Control is achieved through two key I/O ports:
+
+#### **RAM Bank Configuration Register**
+
+*   **Port:** `#7F00` (write)
+*   **Byte Format:** `%1M2M1M0` (Bit 7 is always 1)
+*   **Purpose:** Connects 16KB physical RAM banks to the three upper logical segments of the Z80's address space. **Segment 0 (ROM) is not controlled by this register.**
+
+| Bits | Purpose                                    |
+|:-----|:-------------------------------------------|
+| 7    | **Memory Operation Flag (1)**              |
+| 6-5  | **M2:** Bank for segment 3 (`#C000-#FFFF`) |
+| 4-3  | **M1:** Bank for segment 2 (`#8000-#BFFF`) |
+| 2-1  | **M0:** Bank for segment 1 (`#4000-#7FFF`) |
+| 0    | Unused                                     |
+
+**Interpretation of M0, M1, M2:**
+
+*   `00` -> Bank 0
+*   `01` -> Bank 1
+*   `10` -> Bank 2
+*   `11` -> **Extended Bank.** The actual bank number is selected via the `#DF00` port.
+
+#### **Extended Memory & ROM Control Register**
+
+*   **Port:** `#DF00` (write)
+*   **Purpose:** This is a **multifunction register**. Its meaning depends on the context.
+*   **Format on Write:** `%R-BBBBBB`
+
+| Bits | Name  | Purpose on WRITE                                                                      |
+|:-----|:------|:--------------------------------------------------------------------------------------|
+| 7    | **R** | **ROM Mode Selector.** `0` = Internal ROMs (BASIC/OS), `1` = External ROM cartridges. |
+| 6    | **-** | Unused.                                                                               |
+| 5-0  | **B** | **Universal Bank Number.** Specifies the number for the **extended RAM bank** (0-63)  |
+|      |       | OR the **external ROM bank** (0-63) – depending on the R bit.                         |
+
+**Crucial Rule:**
+
+*   If `11` is set for M0, M1, or M2 in `#7F00`, the **B** value in `#DF00` is interpreted as the **physical RAM bank number** (4-35 for 512KB) to be mapped into the corresponding segment.
+*   If the **R** bit in `#DF00` is set to `1`, the **B** value is interpreted as the **external ROM cartridge bank number** (0-63) to be mapped into segment 0.
+
+---
+
+#### What Happens When Writing 0 to Bit 7 of Port `#7F00`?
 
 As you correctly pointed out, this action **does not control the cassette motor, the disk drive, or reset the FDC**. Those functions have their own dedicated ports and are managed separately by the system's PPI (i8255).
 
@@ -417,7 +470,7 @@ As you correctly pointed out, this action **does not control the cassette motor,
 
 ---
 
-### 10. Internal GAL Logic (Simplified)
+#### Internal GAL Logic (Simplified)
 
 The heart of the CPC's memory management is a programmable logic device (GAL or CPLD). This chip continuously monitors the system's address bus and the state of the I/O ports. Its primary job is to generate the correct **Column Address Strobe (CAS)** signals and control the higher address lines (**A14, A15**) going to the DRAM chips based on the desired configuration.
 
@@ -436,3 +489,8 @@ Here’s a simplified view of its operation:
 3.  **Bank Selection for Segment 0:** The logic for this segment also involves the R bit from the `#DF00` register. The GAL uses this bit to decide whether to assert signals that enable the ROM chip or allow access to the RAM (Bank 0).
 
 In essence, the entire sophisticated banking mechanism is encapsulated within this single piece of programmable logic. The I/O ports `#7F00` and `#DF00` simply serve as the interface for the CPU to load values into the GAL's internal configuration registers. This elegant design explains the system's flexibility and efficiency in managing memory far beyond its original 64KB specification.
+
+## The MMU Model (Skitch)
+
+В папке CPC_IO_Code реализация MMU на C++ с учетом discussed архитектуры.
+

@@ -1,38 +1,55 @@
 VERILATOR = verilator
 VERILATOR_FLAGS = -Wall --cc --exe --build --trace --debug 
-#--gdb
-INCLUDE_DIR = include
-SRC_DIR = ../../../../rtl/core/dma
-CURRENT_DIR = $(shell pwd)
-BUILD_DIR = $(CURRENT_DIR)/obj_dir
-SIM = $(BUILD_DIR)/wb_dma_simple
 
-all: simple_build
+# Директории
+PROJECT_ROOT = ../../../..
+RTL_DIR = $(PROJECT_ROOT)/rtl/core/dma
+SIM_TEST_DIR = $(PROJECT_ROOT)/sim/tests/unit/dma
+COMMON_UTILS_DIR = $(PROJECT_ROOT)/verilator/common/utils
+BUILD_DIR = obj_dir
+SIM = $(BUILD_DIR)/Vwb_dma_tb
+
+# Флаги компиляции - ВАЖНО: правильные пути
+CFLAGS += -I$(COMMON_UTILS_DIR) -I$(SIM_TEST_DIR)
+VERILATOR_FLAGS += -CFLAGS "$(CFLAGS)" -I$(RTL_DIR)
+
+# Исходные файлы
+VERILOG_SOURCES = \
+    $(RTL_DIR)/wb_dma.sv \
+    $(SIM_TEST_DIR)/wb_dma_tb.sv
+
+CPP_SOURCES = \
+    $(SIM_TEST_DIR)/wb_dma_simple.cpp
+
+all: $(SIM)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-simple: $(BUILD_DIR)
-	$(VERILATOR) $(VERILATOR_FLAGS) wb_dma_tb.sv wb_dma_simple.cpp wb_dma_utils.cpp $(SRC_DIR)/wb_dma.sv \
-	-CFLAGS "-I$(INCLUDE_DIR)" -o $(SIM)
+$(SIM): $(VERILOG_SOURCES) $(CPP_SOURCES) | $(BUILD_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) \
+		--top-module wb_dma_tb \
+		--Mdir $(BUILD_DIR) \
+		$(VERILOG_SOURCES) \
+		$(CPP_SOURCES)
 
-simple_build: simple
+build: $(SIM)
 
-simple_run: simple_build
+run: $(SIM)
 	@echo "=== Запуск симуляции ==="
 	$(SIM)
 	@echo "=== Симуляция завершена ==="
 
-simple_run_vcd: simple_build
+run_vcd: $(SIM)
 	@echo "=== Запуск симуляции с генерацией VCD ==="
 	$(SIM) +vcd
-	@echo "=== Симуляция завершена, VCD файл создан: $(BUILD_DIR)/wave.vcd ==="
+	@echo "=== Симуляция завершена, VCD файл создан ==="
 
-simple_wave: simple_run_vcd
+wave: run_vcd
 	@echo "=== Запуск GTKWave для просмотра волн ==="
-	gtkwave simple.vcd || echo "GTKWave не установлен"
+	gtkwave wave.vcd || echo "GTKWave не установлен"
 
 clean:
-	rm -rf obj_dir $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) wave.vcd
 
-.PHONY: all simple simple_build simple_run simple_run_vcd simple_wave clean
+.PHONY: all build run run_vcd wave clean
