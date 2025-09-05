@@ -5,7 +5,7 @@ TARGET = aleste_mmu
 SRC = mmu_emulator.cpp
 
 # Default target
-all: build
+all: run
 
 # Build the executable
 build: $(SRC)
