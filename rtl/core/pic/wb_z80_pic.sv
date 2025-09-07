@@ -6,13 +6,15 @@
 // Supports: IM 0, IM 1, IM 2 (via vector register)
 // =============================================================================
 
-module wb_z80_pic_16bit (
+module wb_z80_pic #(
+    parameter BASE_ADDR = 24'hFC_00_20  // Base address in Wishbone space
+)(
     // Clock and Reset
     input wire         wb_clk_i,
     input wire         wb_rst_i,
     
     // Wishbone Slave Interface
-    input  wire [7:0]  wb_adr_i,     // Address bus
+    input  wire [23:0]  wb_adr_i,     // Address bus
     input  wire [7:0]  wb_dat_i,     // Data input
     output reg  [7:0]  wb_dat_o,     // Data output
     input  wire        wb_we_i,      // Write enable
@@ -48,8 +50,8 @@ module wb_z80_pic_16bit (
     // Address Decoding Logic
     // =========================================================================
     // PIC registers are mapped to I/O addresses 0xD0-0xDF
-    assign wb_sel_o = wb_cyc_i && wb_stb_i && (wb_adr_i[7:4] == 4'hD);
-    
+    assign wb_sel_o = (wb_adr_i[23:5] == BASE_ADDR[23:5]) && wb_stb_i && wb_cyc_i;
+
     // Internal register select
     wire reg_sel_mask     = (wb_adr_i[3:0] == 4'h0); // Mask register (low)
     wire reg_sel_mask_hi  = (wb_adr_i[3:0] == 4'h1); // Mask register (high)
@@ -62,7 +64,7 @@ module wb_z80_pic_16bit (
     wire reg_sel_clear_hi = (wb_adr_i[3:0] == 4'h8); // Clear pending (high)
 
     // =========================================================================
-    // IRQ Detection and Latching
+    // IRQ Detection and Edge Detection
     // =========================================================================
     reg [15:0] irq_i_prev;
     wire [15:0] irq_edge;
@@ -78,33 +80,33 @@ module wb_z80_pic_16bit (
     // Detect rising edges on IRQ lines
     assign irq_edge = irq_i & ~irq_i_prev;
     
-    // Latch pending interrupts on rising edges
+    // =========================================================================
+    // IRQ State Management (Status, Pending, Clearing)
+    // =========================================================================
     always @(posedge wb_clk_i or posedge wb_rst_i) begin
         if (wb_rst_i) begin
             irq_pending <= 16'h0000;
             irq_status  <= 16'h0000;
         end else begin
-            // Set pending bits on rising edges
-            irq_pending <= irq_pending | irq_edge;
+            // Calculate next pending value
+            reg [15:0] next_pending = irq_pending;
             
-            // Update status register (level-sensitive)
+            // First: apply clearing from Wishbone
+            if (wb_sel_o && wb_we_i) begin
+                if (reg_sel_clear) begin
+                    next_pending[7:0] = next_pending[7:0] & ~wb_dat_i;
+                end
+                if (reg_sel_clear_hi) begin
+                    next_pending[15:8] = next_pending[15:8] & ~wb_dat_i;
+                end
+            end
+            
+            // Then: add new edge-detected interrupts
+            next_pending = next_pending | irq_edge;
+            
+            // Update registers
+            irq_pending <= next_pending;
             irq_status <= irq_i;
-        end
-    end
-    
-    // =========================================================================
-    // Clear Pending Interrupts Logic
-    // =========================================================================
-    always @(posedge wb_clk_i or posedge wb_rst_i) begin
-        if (wb_rst_i) begin
-            // Reset handled in main block
-        end else if (wb_sel_o && wb_we_i) begin
-            if (reg_sel_clear) begin
-                irq_pending[7:0] <= irq_pending[7:0] & ~wb_dat_i;
-            end
-            if (reg_sel_clear_hi) begin
-                irq_pending[15:8] <= irq_pending[15:8] & ~wb_dat_i;
-            end
         end
     end
     
@@ -144,14 +146,17 @@ module wb_z80_pic_16bit (
         if (wb_rst_i) begin
             int_req_o <= 1'b0;
         end else begin
-            if (any_irq) begin
-                int_req_o <= 1'b1;
-            end else if (int_ack_i) begin
+            if (int_ack_i) begin
+                // Снимаем INT при подтверждении
                 int_req_o <= 1'b0;
+            end else if (any_irq) begin
+                // Устанавливаем INT если есть активные прерывания
+                int_req_o <= 1'b1;
             end
+            // Если нет ни подтверждения, ни новых прерываний - сохраняем состояние
         end
     end
-    
+        
     // =========================================================================
     // Wishbone Register Interface
     // =========================================================================
@@ -162,11 +167,12 @@ module wb_z80_pic_16bit (
             irq_mask    <= 16'h0000;  // All interrupts masked by default
             irq_vector  <= 8'hFF;     // Default vector for RST 38h
         end else begin
+            // Default values
             wb_ack_o <= 1'b0;
             wb_dat_o <= 8'h00;
             
-            if (wb_sel_o && !wb_ack_o) begin
-                wb_ack_o <= 1'b1;
+            if (wb_sel_o) begin
+                wb_ack_o <= 1'b1;  // Acknowledge valid transaction
                 
                 if (wb_we_i) begin
                     // Write operations
@@ -174,7 +180,7 @@ module wb_z80_pic_16bit (
                         reg_sel_mask:     irq_mask[7:0]   <= wb_dat_i;
                         reg_sel_mask_hi:  irq_mask[15:8]  <= wb_dat_i;
                         reg_sel_vector:   irq_vector      <= wb_dat_i;
-                        default: ; // Clear handled separately
+                        default: ; // Clear handled in other logic
                     endcase
                 end else begin
                     // Read operations

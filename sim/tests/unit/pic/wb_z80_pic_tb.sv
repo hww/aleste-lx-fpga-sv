@@ -6,7 +6,7 @@ module wb_z80_pic_tb (
     input        wb_rst_i,
     
     // Wishbone Slave Interface
-    input  [7:0] wb_adr_i,
+    input  [23:0] wb_adr_i,
     input  [7:0] wb_dat_i,
     output [7:0] wb_dat_o,
     input        wb_we_i,
@@ -27,7 +27,7 @@ module wb_z80_pic_tb (
 );
 
     // Instantiate DUT
-    wb_z80_pic_16bit dut (
+    wb_z80_pic dut (
         .wb_clk_i(wb_clk_i),
         .wb_rst_i(wb_rst_i),
         .wb_adr_i(wb_adr_i),

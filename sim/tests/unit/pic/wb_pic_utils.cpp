@@ -80,7 +80,7 @@ void WbPicTestUtils::write_reg(uint32_t addr, uint8_t data) {
     clock_low(CLK_HALF_PERIOD);
     
     // Ждем ACK (на следующем такте)
-    int timeout = 10;
+    int timeout = 15;
     while (!top->wb_ack_o && timeout-- > 0) {
         // Rising edge
         clock_high(SETUP_TIME);
@@ -116,7 +116,7 @@ uint8_t WbPicTestUtils::read_reg(uint32_t addr) {
     clock_low(CLK_HALF_PERIOD);
     
     // Ждем ACK
-    int timeout = 10;
+    int timeout = 16;
     while (!top->wb_ack_o && timeout-- > 0) {
         clock_high(SETUP_TIME);
         eval(CLK_REST_TIME);
@@ -124,7 +124,11 @@ uint8_t WbPicTestUtils::read_reg(uint32_t addr) {
     }
     
     uint8_t data = top->wb_dat_o;
-    
+
+    if (timeout <= 0) {
+        std::cout << "WISHBONE read timeout" << std::endl;
+    }
+
     // Завершение
     clock_high(SETUP_TIME);
     wb_idle();
@@ -135,7 +139,7 @@ uint8_t WbPicTestUtils::read_reg(uint32_t addr) {
 }
 
 // IRQ operations
-void WbPicTestUtils::set_irq(uint8_t irq_mask) {
+void WbPicTestUtils::set_irq(uint16_t irq_mask) {
     top->irq_i = irq_mask;
     eval(SETUP_TIME);
 }
@@ -146,10 +150,11 @@ void WbPicTestUtils::clear_irq(uint8_t irq_mask) {
 }
 
 void WbPicTestUtils::int_ack() {
+    // Установить int_ack_i на один такт
     top->int_ack_i = 1;
-    eval(SETUP_TIME);
+    clock_tick();  // Полный тактовый импульс
     top->int_ack_i = 0;
-    eval(SETUP_TIME);
+    clock_tick();  // Еще один такт для стабилизации
 }
 
 // Status functions
@@ -166,4 +171,10 @@ void WbPicTestUtils::wait_cycles(int cycles) {
     for (int i = 0; i < cycles; i++) {
         clock_tick();
     }
+}
+
+uint8_t WbPicTestUtils::get_highest_irq() {
+    // Предполагая, что в вашем дизайне есть выход для определения highest IRQ
+    // Если такого выхода нет, вам нужно будет реализовать логику определения
+    return top->highest_irq_o; // или другая логика в зависимости от вашего дизайна
 }

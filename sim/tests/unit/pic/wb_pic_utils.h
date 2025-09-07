@@ -31,14 +31,15 @@ public:
     uint8_t read_reg(uint32_t addr);
     
     // IRQ operations
-    void set_irq(uint8_t irq_mask);
+    void set_irq(uint16_t irq_mask);
     void clear_irq(uint8_t irq_mask);
     void int_ack();
     
     // Status functions
     bool int_requested();
     bool wb_selected();
-    
+    uint8_t get_highest_irq();
+
     // Utility functions
     void wait_cycles(int cycles);
 };
