@@ -242,40 +242,43 @@ public:
     {
     }
 
+    // Методы для переключения режимов (через прерывания)
+    void switch_to_lx_mode() {
+        lx_mmu.write_port(0xD7, 0x01); // Включаем LX режим
+    }
+
+    void switch_to_cpc_mode() {
+        lx_mmu.write_port(0xD7, 0x00); // Выключаем LX режим
+    }
+
     void cpu_iorq_wr(uint16_t port, uint8_t data)
     {
+        if (debug_enabled)
+        {
+            std::cout << "CPU IO WR: 0x" << std::hex << port << " = 0x" << static_cast<int>(data) << std::endl;
+        }
+
         uint8_t port_low = port & 0xFF;
         uint16_t port_high = port & 0xFF00;
-
+        
         if (lx_mmu.get_native_mode())
         {
             // LX режим - преобразуем 16-битные порты в 8-битные
-            uint8_t lx_port = (port_high >> 8) & 0xFF; // Берем старший байт
-            std::cout << "LX MODE WR: 0x" << std::hex << static_cast<int>(lx_port)
+            uint8_t lx_port = (port_high >> 8) & 0xFF;
+            std::cout << "LX MODE WR: 0x" << std::hex << static_cast<int>(lx_port) 
                       << " = 0x" << static_cast<int>(data) << std::endl;
             lx_mmu.write_port(lx_port, data);
         }
         else
         {
-            // CPC режим
+            // CPC режим - ТОЛЬКО 2 порта!
             if (port_high == 0xD300)
             {
-                lx_mmu.write_port(0xD3, data);
-            }
-            else if (port_high == 0xD700)
-            {
-                lx_mmu.write_port(0xD7, data);
-            }
-            else if (port_high == 0xDB00)
-            {
-                lx_mmu.write_port(0xDB, data);
-            }
-            else if (port_high == 0xD900)
-            {
-                lx_mmu.write_port(0xD9, data);
+                lx_mmu.write_port(0xD3, data); // Page register
             }
             else if (port_high == 0xD000)
             {
+                // Data window
                 uint32_t mmio_addr = lx_mmu.translate_io(port_low);
                 wishbone_wr(mmio_addr, data);
             }
@@ -475,24 +478,6 @@ private:
         test_register_value(value, 0x55, "CPC MMIO read through D010");
     }
 
-    void test_slot_register_access()
-    {
-        log_test("Testing Slot Register access in LX mode");
-
-        // Включаем LX режим - используем 16-битный порт
-        mmu.cpu_iorq_wr(0xD700, 0x01);
-
-        // В LX режиме используем 16-битные порты!
-        mmu.cpu_iorq_wr(0xDB00, 0x01); // User slot
-        mmu.cpu_iorq_wr(0xD900, 0x02); // Super slot
-
-        test_register_value(mmu.test_get_lx_slot_select_user(0), 0x01, "User slot select page 0");
-        test_register_value(mmu.test_get_lx_slot_select_super(0), 0x02, "Super slot select page 0");
-
-        // Возвращаем в CPC режим
-        mmu.cpu_iorq_wr(0xD700, 0x00);
-    }
-
     void test_classic_space_access()
     {
         log_test("Testing Classic space IO access");
@@ -501,14 +486,6 @@ private:
         test_io_translation(0x0040, 0xFF5540, "8-bit IO window translation");
     }
 
-    void test_direct_mmio_memory_access()
-    {
-        log_test("Testing direct MMIO memory access");
-        mmu.cpu_iorq_wr(0xD700, 0x01);
-        test_address_translation(0xC000, 0xFF0000, "MMIO memory access start");
-        test_address_translation(0xFFFF, 0xFF3FFF, "MMIO memory access end");
-        mmu.cpu_iorq_wr(0xD700, 0x00);
-    }
 
     void test_direct_mmio_io_access()
     {
@@ -517,18 +494,6 @@ private:
         test_io_translation(0xDB, 0xFFF000DB, "SLOT_SEL_USER register address");
     }
 
-    void test_cpc_via_mmio()
-    {
-        log_test("Testing CPC via MMIO space");
-
-        // Включаем LX режим для доступа к MMIO
-        mmu.cpu_iorq_wr(0xD700, 0x01);
-
-        test_address_translation(0xC000, 0xFF0000, "CPC memory via MMIO");
-
-        // Возвращаем в CPC режим
-        mmu.cpu_iorq_wr(0xD700, 0x00);
-    }
 
     void test_rom_write_behavior()
     {
@@ -539,50 +504,6 @@ private:
         test_address_translation(0x0000, 0x00200000, "ROM write to different RAM bank");
     }
 
-    void test_supervisor_mode()
-    {
-        log_test("Testing Supervisor Mode");
-
-        // В CPC режиме используем 16-битные порты для переключения в LX
-        mmu.cpu_iorq_wr(0xD700, 0x01); // Включаем LX режим
-
-        // Теперь в LX режиме используем 8-битные порты
-        mmu.cpu_iorq_wr(0xDB00, 0x00); // User slot - 16-битный порт!
-        mmu.cpu_iorq_wr(0xD900, 0x01); // Super slot - 16-битный порт!
-        mmu.cpu_iorq_wr(0xD700, 0x03); // Control - 16-битный порт!
-
-        test_register_value(mmu.test_get_supervisor_mode(), true, "Supervisor mode enabled");
-        test_address_translation(0x1000, 0x03001000, "Supervisor mode uses super slot");
-
-        // Возвращаем в CPC режим
-        mmu.cpu_iorq_wr(0xD700, 0x00);
-    }
-
-    void test_new_mmu_port_addressing()
-    {
-        log_test("Testing new MMU port addressing (DC-DF, DB, D9, D7, D3)");
-
-        // Включаем LX режим
-        mmu.cpu_iorq_wr(0xD700, 0x01);
-
-        // В LX режиме используем 16-битные порты
-        mmu.cpu_iorq_wr(0xDC00, 0x10); // BANK0
-        mmu.cpu_iorq_wr(0xDD00, 0x20); // BANK1
-        mmu.cpu_iorq_wr(0xDE00, 0x30); // BANK2
-        mmu.cpu_iorq_wr(0xDF00, 0x40); // BANK3
-        mmu.cpu_iorq_wr(0xDB00, 0x55); // User slot
-        mmu.cpu_iorq_wr(0xD900, 0xAA); // Super slot
-        mmu.cpu_iorq_wr(0xD700, 0x03); // Control
-        mmu.cpu_iorq_wr(0xD300, 0x77); // MMIO Page
-
-        test_register_value(mmu.test_get_lx_slot_select_user(0), 0x55, "User slot via DB");
-        test_register_value(mmu.test_get_lx_slot_select_super(0), 0xAA, "Super slot via D9");
-        test_register_value(mmu.test_get_lx_control_reg(), 0x03, "Control via D7");
-        test_register_value(mmu.test_get_lx_io_page_select(), 0x77, "MMIO Page via D3");
-
-        // Возвращаем в CPC режим
-        mmu.cpu_iorq_wr(0xD700, 0x00);
-    }
 
     void test_mmio_window_access()
     {
@@ -673,6 +594,71 @@ private:
         }
     }
 
+    void test_slot_register_access()
+    {
+        log_test("Testing Slot Register access in LX mode");
+        
+        // Включаем LX режим через метод переключения
+        mmu.switch_to_lx_mode();
+        
+        // В LX режиме используем 16-битные порты
+        mmu.cpu_iorq_wr(0xDB00, 0x01); // User slot
+        mmu.cpu_iorq_wr(0xD900, 0x02); // Super slot
+        
+        test_register_value(mmu.test_get_lx_slot_select_user(0), 0x01, "User slot select page 0");
+        test_register_value(mmu.test_get_lx_slot_select_super(0), 0x02, "Super slot select page 0");
+        
+        // Возвращаем в CPC режим
+        mmu.switch_to_cpc_mode();
+    }
+
+    void test_direct_mmio_memory_access()
+    {
+        log_test("Testing direct MMIO memory access");
+        mmu.switch_to_lx_mode();
+        test_address_translation(0xC000, 0xFF0000, "MMIO memory access start");
+        test_address_translation(0xFFFF, 0xFF3FFF, "MMIO memory access end");
+        mmu.switch_to_cpc_mode();
+    }
+
+    void test_cpc_via_mmio()
+    {
+        log_test("Testing CPC via MMIO space");
+        mmu.switch_to_lx_mode();
+        test_address_translation(0xC000, 0xFF0000, "CPC memory via MMIO");
+        mmu.switch_to_cpc_mode();
+    }
+
+    void test_supervisor_mode()
+    {
+        log_test("Testing Supervisor Mode");
+        mmu.switch_to_lx_mode();
+        mmu.cpu_iorq_wr(0xDB00, 0x00); // User slot
+        mmu.cpu_iorq_wr(0xD900, 0x01); // Super slot
+        mmu.cpu_iorq_wr(0xD700, 0x03); // Control
+        test_register_value(mmu.test_get_supervisor_mode(), true, "Supervisor mode enabled");
+        test_address_translation(0x1000, 0x03001000, "Supervisor mode uses super slot");
+        mmu.switch_to_cpc_mode();
+    }
+
+    void test_new_mmu_port_addressing()
+    {
+        log_test("Testing new MMU port addressing (DC-DF, DB, D9, D7, D3)");
+        mmu.switch_to_lx_mode();
+        mmu.cpu_iorq_wr(0xDC00, 0x10); // BANK0
+        mmu.cpu_iorq_wr(0xDD00, 0x20); // BANK1
+        mmu.cpu_iorq_wr(0xDE00, 0x30); // BANK2
+        mmu.cpu_iorq_wr(0xDF00, 0x40); // BANK3
+        mmu.cpu_iorq_wr(0xDB00, 0x55); // User slot
+        mmu.cpu_iorq_wr(0xD900, 0xAA); // Super slot
+        mmu.cpu_iorq_wr(0xD700, 0x03); // Control
+        mmu.cpu_iorq_wr(0xD300, 0x77); // MMIO Page
+        test_register_value(mmu.test_get_lx_slot_select_user(0), 0x55, "User slot via DB");
+        test_register_value(mmu.test_get_lx_slot_select_super(0), 0xAA, "Super slot via D9");
+        test_register_value(mmu.test_get_lx_control_reg(), 0x03, "Control via D7");
+        test_register_value(mmu.test_get_lx_io_page_select(), 0x77, "MMIO Page via D3");
+        mmu.switch_to_cpc_mode();
+    }
     void log_test(const std::string &message)
     {
         std::cout << "\n--- " << message << " ---" << std::endl;

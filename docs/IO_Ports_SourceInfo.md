@@ -336,16 +336,16 @@ The principle `MMIO_ADDRESS = 0xC000 | (ORIGINAL_PORT & 0xFF00) | ((ORIGINAL_POR
 
 That is, we manually assign addresses, but **keep the high byte in the MMIO address** for maximum clarity.
 
-| Original Port | Device            | MMIO Address (Aleste LX) | Assignment Principle                                                    |
-|:--------------|:------------------|:-------------------------|:------------------------------------------------------------------------|
-| `0xBCXX`      | **CRTC Index**    | `0xCBCXX`                | `0xC000 + 0xBC00` + offset (if needed)                                  |
-| `0xBDXX`      | **CRTC Data**     | `0xCBDXX`                | ...                                                                     |
-| `0xDFXX`      | **ROM Select**    | `0xCDFXX`                | `0xC000 + 0xDF00`                                                       |
-| `0xF4XX`      | **PPI Port A**    | `0xCF4XX`                | `0xC000 + 0xF400`                                                       |
-| `0xFB7E`      | **FDC Status**    | `0xCFB0E`                | `0xC000 + 0xFB00 + 0x0E`**. Manually assign offset `0x0E` for Status. |
-| `0xFB7F`      | **FDC Data**      | `0xCFB0F`                | `0xC000 + 0xFB00 + 0x0F`**. Manually assign offset `0x0F` for Data.   |
-| `0xFADC`      | **SIO Ch.A Data** | `0xCFAD0`                | `0xC000 + 0xFA00 + 0xD0`**. Use part of the low byte as an offset.    |
-| `0xFADD`      | **SIO Ch.A Ctrl** | `0xCFAD1`                | `0xC000 + 0xFA00 + 0xD1`**.                                           |
+| Original Port | Device            |  | MMIO Address (Aleste LX) | Assignment Principle                                                  |
+|:--------------|:------------------|:-|:-------------------------|:----------------------------------------------------------------------|
+| `0xBCXX`      | **CRTC Index**    |  | `0xCBCXX`                | `0xC000 + 0xBC00` + offset (if needed)                                |
+| `0xBDXX`      | **CRTC Data**     |  | `0xCBDXX`                | ...                                                                   |
+| `0xDFXX`      | **ROM Select**    |  | `0xCDFXX`                | `0xC000 + 0xDF00`                                                     |
+| `0xF4XX`      | **PPI Port A**    |  | `0xCF4XX`                | `0xC000 + 0xF400`                                                     |
+| `0xFB7E`      | **FDC Status**    |  | `0xCFB0E`                | `0xC000 + 0xFB00 + 0x0E`**. Manually assign offset `0x0E` for Status. |
+| `0xFB7F`      | **FDC Data**      |  | `0xCFB0F`                | `0xC000 + 0xFB00 + 0x0F`**. Manually assign offset `0x0F` for Data.   |
+| `0xFADC`      | **SIO Ch.A Data** |  | `0xCFAD0`                | `0xC000 + 0xFA00 + 0xD0`**. Use part of the low byte as an offset.    |
+| `0xFADD`      | **SIO Ch.A Ctrl** |  | `0xCFAD1`                | `0xC000 + 0xFA00 + 0xD1`**.                                           |
 
 **Advantage of this approach:**
 
