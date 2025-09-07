@@ -15,19 +15,19 @@ module wb_z80_pic_tb (
     output       wb_ack_o,
     output       wb_sel_o,
     
-    // IRQ Input Lines
-    input  [7:0] irq_i,
+    // IRQ Input Lines (16-bit)
+    input  [15:0] irq_i,
     
     // CPU Interface
     output       int_req_o,
     input        int_ack_i,
 
-    // Debug/Status outputs (optional)
-    output wire [2:0] highest_irq_o // Highest priority IRQ for debugging    
+    // Debug/Status outputs
+    output [3:0] highest_irq_o // Highest priority IRQ for debugging    
 );
 
     // Instantiate DUT
-    wb_z80_pic dut (
+    wb_z80_pic_16bit dut (
         .wb_clk_i(wb_clk_i),
         .wb_rst_i(wb_rst_i),
         .wb_adr_i(wb_adr_i),

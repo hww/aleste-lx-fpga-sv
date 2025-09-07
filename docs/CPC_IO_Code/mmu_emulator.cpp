@@ -3,13 +3,13 @@
 #include <stdexcept>
 #include <array>
 #include <iomanip>
-#include <vector> // Добавить эту строку
+#include <vector>
 
 class CpcMmu
 {
 private:
-    uint8_t rom_bank = 0;   // Порт 0xDF00 - ROM Select
-    uint8_t gate_array = 0; // Порт 0x7F00 - Gate Array
+    uint8_t rom_bank = 0;
+    uint8_t gate_array = 0;
 
 public:
     void write_port(uint16_t port, uint8_t data)
@@ -156,7 +156,7 @@ public:
     {
         if (virt_addr >= 0xC000)
         {
-            return 0xFF0000 | (virt_addr - 0xC000);
+            return 0xFC0000 | (virt_addr - 0xC000); // Исправлено: FC вместо FF
         }
 
         uint8_t slot = 0;
@@ -190,17 +190,10 @@ public:
     {
         uint8_t port_low = port & 0xFF;
 
-        if (port_low <= 0x7F)
-        {
-            return 0xFF0000 | (mmio_page_register << 7) | port_low;
-        }
-
-        if (port_low >= 0xD3 && port_low <= 0xDF)
-        {
-            return 0xFFF00000 | port_low;
-        }
-
-        return 0xFF0000 | port;
+        // Все порты, включая регистры MMU, маппятся в пространство 0xFCxxxx
+        // Аппаратный декодер на стороне Wishbone уже будет решать, это регистр или память.
+        // Исправлено: базовый адрес FC, страница 256 байт (<< 8)
+        return 0xFC0000 | (mmio_page_register << 8) | port_low;
     }
 
     uint8_t get_slot_select_user(uint8_t page) const
@@ -232,6 +225,7 @@ private:
     bool debug_enabled = true;
 
     uint8_t crtc_index = 0;
+    std::array<uint8_t, 32> crtc_registers = {}; // Регистры CRTC
     uint8_t ppi_port_a = 0;
     uint8_t ppi_control = 0;
 
@@ -242,13 +236,15 @@ public:
     {
     }
 
-    // Методы для переключения режимов (через прерывания)
-    void switch_to_lx_mode() {
-        lx_mmu.write_port(0xD7, 0x01); // Включаем LX режим
+    void enter_supervisor_mode() {
+        // Имитация аппаратного перехода в режим супервизора (например, по прерыванию)
+        // Устанавливаем флаг супервизора и включаем нативный режим
+        lx_mmu.write_port(0xD7, 0x03); // Supervisor=1, Native=1
     }
 
-    void switch_to_cpc_mode() {
-        lx_mmu.write_port(0xD7, 0x00); // Выключаем LX режим
+    void exit_supervisor_mode() {
+        // Имитация возврата из режима супервизора (команда RETI)
+        lx_mmu.write_port(0xD7, 0x00); // Supervisor=0, Native=0
     }
 
     void cpu_iorq_wr(uint16_t port, uint8_t data)
@@ -260,43 +256,39 @@ public:
 
         uint8_t port_low = port & 0xFF;
         uint16_t port_high = port & 0xFF00;
-        
+
         if (lx_mmu.get_native_mode())
         {
             // LX режим - преобразуем 16-битные порты в 8-битные
             uint8_t lx_port = (port_high >> 8) & 0xFF;
-            std::cout << "LX MODE WR: 0x" << std::hex << static_cast<int>(lx_port) 
+            std::cout << "LX MODE WR: 0x" << std::hex << static_cast<int>(lx_port)
                       << " = 0x" << static_cast<int>(data) << std::endl;
             lx_mmu.write_port(lx_port, data);
         }
         else
         {
-            // CPC режим - ТОЛЬКО 2 порта!
-            if (port_high == 0xD300)
-            {
+            // CPC режим - Разрешены только конкретные порты
+            if (port_high == 0xD300) {
                 lx_mmu.write_port(0xD3, data); // Page register
             }
-            else if (port_high == 0xD000)
-            {
-                // Data window
+            else if (port_high == 0xD000 && port_low <= 0xBF) {
+                // Data window - только первые 192 байта
                 uint32_t mmio_addr = lx_mmu.translate_io(port_low);
                 wishbone_wr(mmio_addr, data);
             }
-            else if (port_high == 0x7F00 || port_high == 0xDF00)
-            {
+            else if (port_high == 0x7F00 || port_high == 0xDF00) {
                 cpc_mmu.write_port(port, data);
             }
-            else if (is_cpc_virtual_port(port))
-            {
+            else if (is_cpc_virtual_port(port)) {
                 handle_cpc_virtual_port_write(port, data);
             }
-            else
-            {
-                uint32_t wb_addr = translate_io_access(port);
-                wishbone_wr(wb_addr, data);
+            else {
+                // В CPC-режиме все остальные порты игнорируем или возвращаем 0xFF
+                std::cout << "CPC MODE: Ignoring write to port 0x" << std::hex << port << std::endl;
             }
         }
     }
+
     uint8_t cpu_iorq_rd(uint16_t port)
     {
         if (debug_enabled)
@@ -314,22 +306,19 @@ public:
         }
         else
         {
-            if (port_high == 0xD000)
-            {
+            if (port_high == 0xD000 && port_low <= 0xBF) {
                 uint32_t mmio_addr = lx_mmu.translate_io(port_low);
                 return wishbone_rd(mmio_addr);
             }
-            else if (is_cpc_virtual_port(port))
-            {
+            else if (is_cpc_virtual_port(port)) {
                 return handle_cpc_virtual_port_read(port);
             }
-            else
-            {
-                uint32_t wb_addr = translate_io_access(port);
-                return wishbone_rd(wb_addr);
+            else {
+                // В CPC-режиме все остальные порты игнорируем
+                std::cout << "CPC MODE: Ignoring read from port 0x" << std::hex << port << std::endl;
+                return 0xFF;
             }
         }
-        return 0xFF;
     }
 
     uint32_t translate_memory_access(uint16_t addr)
@@ -352,7 +341,6 @@ public:
     bool test_get_native_mode() const { return lx_mmu.get_native_mode(); }
     bool test_get_supervisor_mode() const { return lx_mmu.get_supervisor_flag(); }
 
-    // Для тестирования Wishbone
     void test_set_wishbone(uint32_t addr, uint8_t data) { wishbone_memory[addr & 0xFFFFFF] = data; }
     uint8_t test_get_wishbone(uint32_t addr) const { return wishbone_memory[addr & 0xFFFFFF]; }
 
@@ -369,10 +357,12 @@ private:
         switch (base)
         {
         case 0xBC00:
-            crtc_index = data;
+            crtc_index = data & 0x1F; // CRTC 6845 имеет только 32 регистра
             break;
         case 0xBD00:
-            handle_crtc_write(data);
+            if (crtc_index < crtc_registers.size()) {
+                crtc_registers[crtc_index] = data;
+            }
             break;
         case 0xF400:
             ppi_port_a = data;
@@ -391,7 +381,7 @@ private:
         case 0xBC00:
             return crtc_index;
         case 0xBD00:
-            return read_crtc_data();
+            return (crtc_index < crtc_registers.size()) ? crtc_registers[crtc_index] : 0xFF;
         case 0xF400:
             return ppi_port_a;
         default:
@@ -399,10 +389,6 @@ private:
         }
     }
 
-    void handle_crtc_write(uint8_t data) { (void)data; }
-    uint8_t read_crtc_data() { return 0x00; }
-
-    // В методах wishbone_wr и wishbone_rd обращайся так:
     void wishbone_wr(uint32_t phys_addr, uint8_t data)
     {
         wishbone_memory[phys_addr & 0xFFFFFF] = data;
@@ -470,8 +456,8 @@ private:
         mmu.cpu_iorq_wr(0xD010, 0x55);
 
         // Проверяем, что записалось по правильному адресу
-        // 0xFF0000 | (0xC0 << 7) | 0x10 = 0xFF6010
-        test_wishbone_value(0xFF6010, 0x55, "CPC MMIO write through D010");
+        // 0xFC0000 | (0xC0 << 8) | 0x10 = 0xFCC010
+        test_wishbone_value(0xFCC010, 0x55, "CPC MMIO write through D010");
 
         // Читаем обратно
         uint8_t value = mmu.cpu_iorq_rd(0xD010);
@@ -483,15 +469,17 @@ private:
         log_test("Testing Classic space IO access");
         mmu.cpu_iorq_wr(0xD300, 0xAA);
         test_register_value(mmu.test_get_lx_io_page_select(), 0xAA, "IO page select");
-        test_io_translation(0x0040, 0xFF5540, "8-bit IO window translation");
+        test_io_translation(0x0040, 0xFCAA40, "8-bit IO window translation"); // Исправлено ожидание
     }
 
 
     void test_direct_mmio_io_access()
     {
         log_test("Testing direct MMIO IO access");
-        test_io_translation(0xD7, 0xFFF000D7, "SYS_CTRL register address");
-        test_io_translation(0xDB, 0xFFF000DB, "SLOT_SEL_USER register address");
+        // ЯВНО УСТАНАВЛИВАЕМ СТРАНИЦУ, КОТОРУЮ ОЖИДАЕМ В ТЕСТЕ
+        mmu.cpu_iorq_wr(0xD300, 0xC0); // <-- Добавляем эту строку
+        test_io_translation(0xD7, 0xFCC0D7, "SYS_CTRL register address");
+        test_io_translation(0xDB, 0xFCC0DB, "SLOT_SEL_USER register address");
     }
 
 
@@ -509,19 +497,21 @@ private:
     {
         log_test("Testing MMIO window access through port D3");
         mmu.cpu_iorq_wr(0xD300, 0xC0);
-        test_io_translation(0x002F, 0xFF602F, "MMIO window translation 0x002F -> 0xC02F");
-        test_io_translation(0x007F, 0xFF607F, "MMIO window translation 0x007F -> 0xC07F");
+        test_io_translation(0x002F, 0xFCC02F, "MMIO window translation 0x002F -> 0xC02F"); // Исправлено
+        test_io_translation(0x007F, 0xFCC07F, "MMIO window translation 0x007F -> 0xC07F"); // Исправлено
         mmu.cpu_iorq_wr(0xD300, 0x80);
-        test_io_translation(0x0010, 0xFF4010, "MMIO window translation 0x0010 -> 0x8010"); // Исправлено ожидание
+        test_io_translation(0x0010, 0xFC8010, "MMIO window translation 0x0010 -> 0x8010"); // Исправлено
     }
 
     void test_mmu_register_access()
     {
         log_test("Testing MMU register access through dedicated addresses");
-        test_io_translation(0xDC, 0xFFF000DC, "BANK_0 register address");
-        test_io_translation(0xDF, 0xFFF000DF, "BANK_3 register address");
-        test_io_translation(0xDB, 0xFFF000DB, "SLOT_SEL_USER register address");
-        test_io_translation(0xD7, 0xFFF000D7, "SYS_CTRL register address");
+        // ЯВНО УСТАНАВЛИВАЕМ СТРАНИЦУ, КОТОРУЮ ОЖИДАЕМ В ТЕСТЕ
+        mmu.cpu_iorq_wr(0xD300, 0xC0); // <-- Добавляем эту строку
+        test_io_translation(0xDC, 0xFCC0DC, "BANK_0 register address");
+        test_io_translation(0xDF, 0xFCC0DF, "BANK_3 register address");
+        test_io_translation(0xDB, 0xFCC0DB, "SLOT_SEL_USER register address");
+        test_io_translation(0xD7, 0xFCC0D7, "SYS_CTRL register address");
     }
 
     void test_address_translation(uint16_t virt_addr, uint32_t expected_phys, const std::string &description)
@@ -597,54 +587,51 @@ private:
     void test_slot_register_access()
     {
         log_test("Testing Slot Register access in LX mode");
-        
-        // Включаем LX режим через метод переключения
-        mmu.switch_to_lx_mode();
-        
-        // В LX режиме используем 16-битные порты
+
+        mmu.enter_supervisor_mode(); // Используем новые методы
+
         mmu.cpu_iorq_wr(0xDB00, 0x01); // User slot
         mmu.cpu_iorq_wr(0xD900, 0x02); // Super slot
-        
+
         test_register_value(mmu.test_get_lx_slot_select_user(0), 0x01, "User slot select page 0");
         test_register_value(mmu.test_get_lx_slot_select_super(0), 0x02, "Super slot select page 0");
-        
-        // Возвращаем в CPC режим
-        mmu.switch_to_cpc_mode();
+
+        mmu.exit_supervisor_mode();
     }
 
     void test_direct_mmio_memory_access()
     {
         log_test("Testing direct MMIO memory access");
-        mmu.switch_to_lx_mode();
-        test_address_translation(0xC000, 0xFF0000, "MMIO memory access start");
-        test_address_translation(0xFFFF, 0xFF3FFF, "MMIO memory access end");
-        mmu.switch_to_cpc_mode();
+        mmu.enter_supervisor_mode();
+        test_address_translation(0xC000, 0xFC0000, "MMIO memory access start"); // Исправлено ожидание
+        test_address_translation(0xFFFF, 0xFC3FFF, "MMIO memory access end");   // Исправлено ожидание
+        mmu.exit_supervisor_mode();
     }
 
     void test_cpc_via_mmio()
     {
         log_test("Testing CPC via MMIO space");
-        mmu.switch_to_lx_mode();
-        test_address_translation(0xC000, 0xFF0000, "CPC memory via MMIO");
-        mmu.switch_to_cpc_mode();
+        mmu.enter_supervisor_mode();
+        test_address_translation(0xC000, 0xFC0000, "CPC memory via MMIO"); // Исправлено ожидание
+        mmu.exit_supervisor_mode();
     }
 
     void test_supervisor_mode()
     {
         log_test("Testing Supervisor Mode");
-        mmu.switch_to_lx_mode();
+        mmu.enter_supervisor_mode();
         mmu.cpu_iorq_wr(0xDB00, 0x00); // User slot
         mmu.cpu_iorq_wr(0xD900, 0x01); // Super slot
         mmu.cpu_iorq_wr(0xD700, 0x03); // Control
         test_register_value(mmu.test_get_supervisor_mode(), true, "Supervisor mode enabled");
         test_address_translation(0x1000, 0x03001000, "Supervisor mode uses super slot");
-        mmu.switch_to_cpc_mode();
+        mmu.exit_supervisor_mode();
     }
 
     void test_new_mmu_port_addressing()
     {
         log_test("Testing new MMU port addressing (DC-DF, DB, D9, D7, D3)");
-        mmu.switch_to_lx_mode();
+        mmu.enter_supervisor_mode();
         mmu.cpu_iorq_wr(0xDC00, 0x10); // BANK0
         mmu.cpu_iorq_wr(0xDD00, 0x20); // BANK1
         mmu.cpu_iorq_wr(0xDE00, 0x30); // BANK2
@@ -657,7 +644,7 @@ private:
         test_register_value(mmu.test_get_lx_slot_select_super(0), 0xAA, "Super slot via D9");
         test_register_value(mmu.test_get_lx_control_reg(), 0x03, "Control via D7");
         test_register_value(mmu.test_get_lx_io_page_select(), 0x77, "MMIO Page via D3");
-        mmu.switch_to_cpc_mode();
+        mmu.exit_supervisor_mode();
     }
     void log_test(const std::string &message)
     {

@@ -58,39 +58,49 @@ int main(int argc, char** argv) {
         utils.wait_cycles(2);
         
         // Check default values after reset
-        assert_with_vcd(utils.read_reg(0x00) == 0x00, "Mask register should be 0");
-        assert_with_vcd(utils.read_reg(0x01) == 0xFF, "Vector register should be 0xFF");
-        assert_with_vcd(utils.read_reg(0x02) == 0x00, "Status register should be 0");
-        assert_with_vcd(utils.read_reg(0x03) == 0x00, "Pending register should be 0");
+        assert_with_vcd(utils.read_reg(0x00) == 0x00, "Mask register low should be 0");
+        assert_with_vcd(utils.read_reg(0x01) == 0x00, "Mask register high should be 0");
+        assert_with_vcd(utils.read_reg(0x02) == 0xFF, "Vector register should be 0xFF");
+        assert_with_vcd(utils.read_reg(0x03) == 0x00, "Status register low should be 0");
+        assert_with_vcd(utils.read_reg(0x04) == 0x00, "Status register high should be 0");
+        assert_with_vcd(utils.read_reg(0x05) == 0x00, "Pending register low should be 0");
+        assert_with_vcd(utils.read_reg(0x06) == 0x00, "Pending register high should be 0");
         
         std::cout << "Reset test passed!" << std::endl;
         
         // Test 2: Mask register write/read
         std::cout << "Test 2: Mask register operations" << std::endl;
         utils.write_reg(0x00, 0x55);
-        assert_with_vcd(utils.read_reg(0x00) == 0x55, "Mask write/read failed");
+        utils.write_reg(0x01, 0xAA);
+        assert_with_vcd(utils.read_reg(0x00) == 0x55, "Mask low write/read failed");
+        assert_with_vcd(utils.read_reg(0x01) == 0xAA, "Mask high write/read failed");
         
-        utils.write_reg(0x00, 0xAA);
-        assert_with_vcd(utils.read_reg(0x00) == 0xAA, "Mask write/read failed");
+        utils.write_reg(0x00, 0x11);
+        utils.write_reg(0x01, 0x22);
+        assert_with_vcd(utils.read_reg(0x00) == 0x11, "Mask low write/read failed");
+        assert_with_vcd(utils.read_reg(0x01) == 0x22, "Mask high write/read failed");
         
         std::cout << "Mask register test passed!" << std::endl;
         
         // Test 3: IRQ detection
         std::cout << "Test 3: IRQ detection" << std::endl;
-        utils.set_irq(0x01);
+        utils.set_irq(0x0001);
         utils.wait_cycles(2);
-        assert_with_vcd(utils.read_reg(0x02) == 0x01, "Status should show IRQ0");
+        assert_with_vcd(utils.read_reg(0x03) == 0x01, "Status low should show IRQ0");
+        assert_with_vcd(utils.read_reg(0x04) == 0x00, "Status high should be 0");
         
-        utils.set_irq(0x03);
+        utils.set_irq(0x0301);
         utils.wait_cycles(2);
-        assert_with_vcd(utils.read_reg(0x02) == 0x03, "Status should show both IRQs");
+        assert_with_vcd(utils.read_reg(0x03) == 0x01, "Status low should show IRQ0");
+        assert_with_vcd(utils.read_reg(0x04) == 0x03, "Status high should show IRQ8-9");
         
         std::cout << "IRQ detection test passed!" << std::endl;
         
         // Test 4: INT request generation
         std::cout << "Test 4: INT request generation" << std::endl;
         utils.write_reg(0x00, 0xFF);
-        utils.set_irq(0x01);
+        utils.write_reg(0x01, 0xFF);
+        utils.set_irq(0x0001);
         utils.wait_cycles(3);
         
         assert_with_vcd(utils.int_requested(), "INT should be asserted");
@@ -101,11 +111,27 @@ int main(int argc, char** argv) {
         
         std::cout << "INT request test passed!" << std::endl;
         
+        // Test 5: High IRQ priority
+        std::cout << "Test 5: High IRQ priority" << std::endl;
+        utils.write_reg(0x00, 0xFF);
+        utils.write_reg(0x01, 0xFF);
+        utils.set_irq(0x8001);
+        utils.wait_cycles(3);
+        
+        assert_with_vcd(utils.int_requested(), "INT should be asserted");
+        // Check that highest IRQ is bit 15
+        assert_with_vcd(utils.get_highest_irq() == 15, "Highest IRQ should be 15");
+        
+        utils.int_ack();
+        utils.wait_cycles(2);
+        
+        std::cout << "High IRQ priority test passed!" << std::endl;
+        
         // Final cleanup
         std::cout << "=== All tests passed! ===" << std::endl;
         
-    } catch (const std::exception& e) {
-        std::cout << "Exception caught: " << e.what() << std::endl;
+    } catch (const std::string& e) {
+        std::cout << "Exception caught: " << e << std::endl;
         tfp->dump(main_time);
         tfp->close();
         delete top;
