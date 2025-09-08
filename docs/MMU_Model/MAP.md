@@ -1,10 +1,9 @@
-Отлично! Сделаю полную иерархическую карту в едином стиле.
-
 # 🗺️ Complete Memory Map - Aleste LX
 
 ## 1. 🧠 CPU Memory - CPC Mode
 
 ### Banked Memory Regions
+
 ```
 0000-3FFF → ROM Bank [ROM_SEL] + offset
 4000-7FFF → Fixed Bank 1 + offset
