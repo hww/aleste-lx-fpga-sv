@@ -158,7 +158,6 @@ Syscall_WriteFile:
 5.  **Переключение**: При активации `M1` и поднятом флаге `EXIT_SUPERVISOR_PENDING` аппаратура сбрасывает режим `supervisor_mode` и переключает банки памяти на пользовательские.
 6.  **Выборка в User Mode**: Выборка команды по адресу возврата происходит уже из пользовательской памяти.
 
-**Альтернативный выход:** Аппаратура также может выключить `supervisor_mode` при попытке выборки команды по адресам `0000h` или `0038h`, если активен `supervisor_hook`.
 
 **Итог:** Команда `RETN` выполняется в супервизоре, а следующая за ней команда — уже в пользовательском режиме.
 
@@ -177,7 +176,7 @@ void write_to_bank_register(uint8_t address_low_bits, uint8_t data) {
 
 ### 5.7. Политика безопасности доступа
 - User Native Mode: При `mmio_userlock=1` запрещен доступ к портам 00-BF и D3, D7, D9, DB-DF. Разрешен только D4 (SysCall).
-- User Legacy Mode: При `mmio_userlock=1` запрещен доступ к портам D0XX, D300. Разрешен только D400 (SysCall) и все стандартные CPC-порты.
+- User Legacy Mode: При `mmio_userlock=1` Разрешен D400 (SysCall) и все стандартные CPC-порты.
 - Supervisor Mode: Доступ разрешен всегда.
 
 ### 5.8. Системный вызов для снятия блокировки доступа к MMIO
@@ -286,8 +285,8 @@ S(t+1) =
 | 80-SIO / DART port                         | RW |    |    | FADC-FADF         | FFFADC-FFFADF           | -                 | FС0150 (16 байт)        |
 | 8253 Timer                                 | RW |    |    | FBDC-FBDF         | FFFBDC-FFFBDF           | -                 | FС0160 (16 байт)        |
 | **LX MMU РЕГИСТРЫ (CLASSIC 8-bit)**        |    |    |    |                   |                         |                   |                         |
-| MMIO Data Window                           | RW |    |    | D0XX              | FC0000 + {PAGE, ADDR}   | 00-BF             | FC0000 + {PAGE, ADDR}   |
-| MMIO Page Register                         | RW |    |    | D300              | FC0003                  | D3                | FC0003                  |
+| MMIO Data Window                           | RW |    |    | -                 | FC0000 + {PAGE, ADDR}   | 00-BF             | FC0000 + {PAGE, ADDR}   |
+| MMIO Page Register                         | RW |    |    | -                 | FC0003                  | D3                | FC0003                  |
 | MMIO SYSCALL                               | RW |    |    | D400              | FC0004                  | D4                | FC0004                  |
 | Control Register                           | RW |    |    | -                 | FC0007                  | D7                | FC0007                  |
 | Super Slot Select                          | RW |    |    | -                 | FC0009                  | D9                | FC0009                  |
@@ -367,15 +366,3 @@ his is a general purpose register responsible for the graphics mode and the ROM 
 | C000-FFFF | 3     | bbb*4 + 3 | bbb*4 + 3 | bbb*4 + 3 | 3         | 3         | 3         | 3         |
 
 ---
-```
-
-**Основные изменения и дополнения:**
-1.  Добавлен **раздел 3.2** с подробным объяснением концепции MMIO_HI и MMIO_LO.
-2.  Добавлен **новый раздел 3.3** со структурой Page 0 MMIO_LO.
-3.  В **разделе 4.2** явно указаны порты `D300h` и `D0XXh` для Legacy-режима, а также уточнено, что `SYSCALL` для Legacy — это порт `D400h`.
-4.  В **разделе 5.3** добавлен пример кода для Syscall в Legacy-режиме.
-5.  В **разделе 3.2** и **таблице раздела 9** подчеркнута возможность доступа DMA к устройствам по Wishbone.
-6.  Исправлены опечатки (например, `SYSCAL` -> `SYSCALL` в таблице).
-7.  В таблице добавлена строка для IPC Mailbox.
-
-Информативность значительно повышена, архитектурная модель стала более целостной и понятной.
