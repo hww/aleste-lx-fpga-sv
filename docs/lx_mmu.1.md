@@ -41,24 +41,25 @@
 
 ### MMU Registers LX
 
-| Device / Description            | RW | D7 | D6 | Legacy IO Address | Legacy Wishbone Address | Native IO Address | Native Wishbone Address |
-|---------------------------------|----|----|----|-------------------|-------------------------|-------------------|-------------------------|
-| **CPC Registers**               |    |    |    |                   | FF7FXX                  | -                 | FC0100                  |
-| Gate Array Rom enable           | W  | 1  | 0  | 7FXX              | FF7FXX                  | -                 | FC0100                  |
-| Gate Array RAM banking          | W  | 1  | 1  | 7FXX              | FF7FXX                  | -                 | FC0100                  |
-| Upper ROM Select                | W  |    |    | DFXX              | FFDFXX                  | -                 | FС0140                  |
-| **LX Registers**                |    |    |    |                   |                         |                   |                         |
-| MMIO Data Window                | RW |    |    | D0XX              | FC0000 + {PAGE, ADDR}   | 00-BF             | FC0000 + {PAGE, ADDR}   |
-| MMIO Page Register              | RW |    |    | D300              | FC0003                  | D3                | FC0003                  |
-| Control Register                | RW |    |    | -                 | FC0007                  | D7                | FC0007                  |
-| Super Slot Select               | RW |    |    | -                 | FC0009                  | D9                | FC0009                  |
-| User Slot Select                | RW |    |    | -                 | FC000B                  | DB                | FC000B                  |
-| Bank 0 Register                 | RW |    |    | -                 | FC000C                  | DC                | FC000C                  |
-| Bank 1 Register                 | RW |    |    | -                 | FC000D                  | DD                | FC000D                  |
-| Bank 2 Register                 | RW |    |    | -                 | FC000E                  | DE                | FC000E                  |
-| Bank 3 Register                 | RW |    |    | -                 | FC000F                  | DF                | FC000F                  |
-| **Расширеный доступ к мапперу** |    |    |    |                   |                         |                   |                         |
-| Bank 0-3 Registers              | RW |    |    | -                 | FC0010-FC001F           | -                 | FC0010-FC001F           |
+| Device / Description                | RW | D7 | D6 | Legacy IO Address | Legacy Wishbone Address | Native IO Address | Native Wishbone Address |
+|-------------------------------------|----|----|----|-------------------|-------------------------|-------------------|-------------------------|
+| **CPC Registers**                   |    |    |    |                   | FF7FXX                  | -                 | FC0100                  |
+| Gate Array RMR (ROM mapping)        | W  | 1  | 0  | 7FXX              | FF7FXX                  | -                 | FC0100                  |
+| Gate Array MMR (RAM memory mapping) | W  | 1  | 1  | 7FXX              | FF7FXX                  | -                 | FC0100                  |
+| Upper ROM Select                    | W  |    |    | DFXX              | FFDFXX                  | -                 | FС0140                  |
+| **LX Registers**                    |    |    |    |                   |                         |                   |                         |
+| MMIO Data Window                    | RW |    |    | -                 | FC0000 + {PAGE, ADDR}   | 00-BF             | FC0000 + {PAGE, ADDR}   |
+| MMIO Page Register                  | RW |    |    | -                 | FC0003                  | D3                | FC0003                  |
+| SYSCALL                             | RW |    |    | D400              | FC0003                  | D3                | FC0003                  |
+| Control Register                    | RW |    |    | -                 | FC0007                  | D7                | FC0007                  |
+| Super Slot Select                   | RW |    |    | -                 | FC0009                  | D9                | FC0009                  |
+| User Slot Select                    | RW |    |    | -                 | FC000B                  | DB                | FC000B                  |
+| Bank 0 Register                     | RW |    |    | -                 | FC000C                  | DC                | FC000C                  |
+| Bank 1 Register                     | RW |    |    | -                 | FC000D                  | DD                | FC000D                  |
+| Bank 2 Register                     | RW |    |    | -                 | FC000E                  | DE                | FC000E                  |
+| Bank 3 Register                     | RW |    |    | -                 | FC000F                  | DF                | FC000F                  |
+| **Расширеный доступ к мапперу**     |    |    |    |                   |                         |                   |                         |
+| Bank 0-3 Registers                  | RW |    |    | -                 | FC0010-FC001F           | -                 | FC0010-FC001F           |
 
 ## Legacy MMU регистры
 
@@ -128,20 +129,22 @@ his is a general purpose register responsible for the graphics mode and the ROM 
 - `native_mode` нативный режим исполнения нового ПО
 - `supervisor_mode` режим супервизора. Который включается и отключается не только программно но и автоматически аппаратным устройством;
 - `supervisor_hook` включает аппаратную схему слежения за адресом 0000 и 0038 при выборки комманды из которых немедленно включается supervisor_mode. А выключается после выборки reti. Альтернативно, он выключается пои выбоке комманды  0000 и 0038;
+- `mmio_userlock` разрешает доступ к mmio через `window` для пользовательского окружения. 
 
-
-| Бит | Название        | Назнчение           |
-|-----|-----------------|---------------------|
-| 0   | native_mode     | 1-Нативный режим    |
-| 1   | supervisor_mode | 1-Режим супервизора |
-| 1   | supervisor_hook | 1-Hook активный     |
-| 2-6 | reserved        | Резерв              |
+| Бит | Группа     | Назначение      |                                                                                     |
+|-----|------------|-----------------|-------------------------------------------------------------------------------------|
+| 0   | Functional | native_mode     | (0=Legacy, 1=Native)                                                                |
+| 1   | Functional | supervisor_mode | (0=User, 1=Supervisor)                                                              |
+| 2   | Functional | supervisor_hook | (0=Disable Trap, 1=Enable Trap on 0038/0066)                                        |
+| 3   | Reserved   | -               | Для будущего расширения функциональности                                            |
+| 4   | Security   | mmio_userlock   | (0=Allow direct MMIO access, 1=Lock MMIO access -> SysCall only) <- По умолчанию 1! |
+| 5   | Reserved   | -               | Для будущих битов безопасности (например, lock_legacy_io)                           |
+| 6   | Reserved   | -               | Для будущих битов безопасности                                                      |
+| 7   | Reserved   | -               | Для будущих битов безопасности                                                      |
 
 Это позволяет выполнить три сценария выхода.
 
 - Выход записью в регистр мгновенно переключит на user mode, что может переключить либо в native либо в legacy в зависимости от native_mode. Что приведет к переключению банков и сдледующая команда будет выбираться от туда;
-- Выход RETI используется для для возврата из прерывания которое целиком принадлежало супервизору;
-- Доступ M1 к 0038 пердназначен для передачи управления обработчику прерываний CPC. Для этого используется команда JUMP 0038
 
 
 ## Slot Select
@@ -183,14 +186,6 @@ LD (0x00DD), A   ; BANK_1_SEL = 5
 ; Теперь обращение CPU к 0x4000-7FFF будет идти в банк 5 слота 1
 ```
 
-## Примерная карта памяти супервизора SL3
-
-| Page | Slot | Для входа в супервизор |
-|:----:|------|------------------------|
-| C000 | 3    | mmio                   |
-| 8000 | 3    | video page upper 16KB  |
-| 4000 | 3    | video page lower 16KB  |
-| 0000 | 3    | Supervisor ROM         |
 
 
 ## Расширеный доступ к мапперу

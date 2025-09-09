@@ -1,0 +1,97 @@
+module mmu_lx (
+    input logic clk, reset, enable,
+    input logic [15:0] cpu_a, input logic cpu_mreq_n, cpu_iorq_n, cpu_rd_n, cpu_wr_n, m1_n,
+    input logic [7:0] cpu_din, output logic [7:0] cpu_dout,
+    output logic m_wb_cyc_o, m_wb_stb_o, m_wb_we_o, output logic [23:0] m_wb_adr_o, output logic [7:0] m_wb_dat_o, input logic [7:0] m_wb_dat_i,
+    output logic [1:0] graphic_mode, output logic irq_control // Outputs from Legacy part
+);
+
+    // -- ВНУТРЕННИЕ РЕГИСТРЫ LX NATIVE --
+    logic [7:0] reg_global_ctrl;   // GLOBAL_CTRL (D7)
+    logic [7:0] reg_mmio_page;     // (D3)
+    logic [7:0] reg_super_slot;    // (D9)
+    logic [7:0] reg_user_slot;     // (DB)
+    logic [7:0] reg_bank[0:15];    // Bank regs (DC-DF)
+
+    // -- ВНУТРЕННИЕ РЕГИСТРЫ LEGACY CPC --
+    logic [7:0] reg_rmr;           // RMR
+    logic [7:0] reg_mmr;           // MMR
+    logic [7:0] reg_upper_rom;     // Upper ROM Select
+
+    // -- ВНУТРЕННЯЯ ЛОГИКА УПРАВЛЕНИЯ РЕЖИМАМИ --
+    logic current_native_mode;
+    logic current_supervisor_mode;
+    logic internal_superuser_flag; // Вычисленный внутри сигнал "superuser"
+
+    // 1. ВЫЧИСЛЕНИЕ АКТИВНОГО РЕЖИМА
+    // Источником supervisor_mode является либо бит из регистра, либо аппаратный hook
+    assign current_native_mode = reg_global_ctrl[0];
+    // Аппаратный hook: если бит включен и M1 и адрес 0000 или 0038, взводим флаг.
+    // Флаг сбрасывается по RETI (логика детектирования команд опущена для краткости).
+    always_ff @(posedge clk) begin
+        if (reset) internal_superuser_flag <= 1'b1; // По сбросу в supervisor mode
+        else if (reg_global_ctrl[2] & ~m1_n & (cpu_a == 16'h0000 || cpu_a == 16'h0038))
+            internal_superuser_flag <= 1'b1;
+        // ... (логика сброса по RETI или записи в регистр)
+    end
+    // Финальный режим супервизора - либо от бита, либо от аппаратного флага
+    assign current_supervisor_mode = reg_global_ctrl[1] | internal_superuser_flag;
+
+    // 2. ВЫБОР АКТИВНОГО СЛОТА
+    logic [1:0] current_slot;
+    always_comb begin
+        if (current_supervisor_mode) begin
+            current_slot = reg_super_slot[1:0];
+        end else if (current_native_mode) begin
+            current_slot = reg_user_slot[1:0];
+        end else begin
+            // LEGACY USER MODE: Слот определяется состоянием ROM из регистра RMR
+            if (cpu_a[15:14] == 2'b11 && ~reg_rmr[3]) current_slot = 2'd1; // Upper ROM enabled -> Slot 1
+            else if (cpu_a[15:14] == 2'b00 && ~reg_rmr[2]) current_slot = 2'd1; // Lower ROM enabled -> Slot 1
+            else current_slot = 2'd0; // Otherwise -> Slot 0 (RAM)
+        end
+    end
+
+    // 3. ВЫБОР АКТИВНОГО БАНКА ДЛЯ ПАМЯТИ
+    // (Логика выбора selected_bank из массива reg_bank на основе current_slot и cpu_page остается прежней)
+
+    // 4. ГЕНЕРАЦИЯ WB-АДРЕСА ДЛЯ ЦИКЛОВ ПАМЯТИ (MREQ)
+    logic [23:0] legacy_ram_address;
+    logic [23:0] native_mem_address;
+    logic [23:0] final_mem_address;
+
+    // -- Legacy CPC Address Calculation --
+    // (Полная логика из mmu_cpc_legacy для вычисления legacy_ram_address и legacy_rom_address
+    //  на основе reg_mmr, reg_rmr, reg_upper_rom, cpu_a)
+
+    // -- Native LX Address Calculation --
+    assign native_mem_address = {selected_bank, cpu_a[13:0]};
+
+    // -- Final Memory Address Mux --
+    always_comb begin
+        if (current_supervisor_mode) begin
+            final_mem_address = native_mem_address; // Supervisor всегда использует Native MMU
+        end else begin
+            // User mode: выбираем между Legacy и Native MMU
+            if (current_native_mode)
+                final_mem_address = native_mem_address;
+            else
+                // В Legacy mode финальный адрес зависит от чтения/записи и включения ROM
+                // (используется логика из mmu_cpc_legacy: запись -> RAM, чтение -> ROM или RAM)
+                final_mem_address = ...; // calculated_legacy_address;
+        end
+    end
+    assign m_wb_adr_o = final_mem_address;
+
+    // 5. КОНФИГУРАЦИЯ РЕГИСТРОВ ЧЕРЕЗ IO ПОРТЫ
+    // Обработка должна учитывать, что в Native режиме регистры конфигурятся через порты Dx,
+    // а в Legacy режиме регистры CPC конфигурятся через порты 7FXX/DFXX.
+    // Также регистры CPC имеют альтернативный доступ через WB-адреса FC01xx.
+
+    // 6. ДОСТУП К MMIO
+    // Логика также должна зависеть от режима.
+    // if (current_native_mode & io_access & cpu_a[7:0] <= 8'hBF) -> MMIO_LOW
+    // if (~current_native_mode & io_access & cpu_a[15:0] == 16'hD0XX) -> MMIO_LOW
+    // if (io_access & cpu_a[15:0] == 16'hD300) -> MMIO Page Register (общий для режимов)
+
+endmodule

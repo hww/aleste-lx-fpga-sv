@@ -1,52 +1,52 @@
-#include "wb_pic_utils.h"
+#include "wb_nmi_utils.h"
 #include <iostream>
 
-// Константы timing
-constexpr vluint64_t SETUP_TIME = 1;
-constexpr vluint64_t HOLD_TIME = 1;
-constexpr vluint64_t CLK_HALF_PERIOD = 5;
-constexpr vluint64_t CLK_REST_TIME = CLK_HALF_PERIOD - SETUP_TIME;
-
-WbPicTestUtils::WbPicTestUtils(Vwb_z80_pic_tb* top_ptr, vluint64_t& time_var, VerilatedVcdC* trace_ptr)
+WbNmiTestUtils::WbNmiTestUtils(Vwb_z80_nmi_tb* top_ptr, vluint64_t& time_var, VerilatedVcdC* trace_ptr)
     : top(top_ptr), main_time(time_var), tfp(trace_ptr) {}
 
-void WbPicTestUtils::eval(int delta) {
+void WbNmiTestUtils::eval(int delta) {
     top->eval();
     if (tfp) tfp->dump(main_time);
     main_time += delta;
 }
 
-void WbPicTestUtils::clock_low(int delay) {
+void WbNmiTestUtils::clock_low(int delay) {
     top->wb_clk_i = 0;
     eval(delay);
 }
 
-void WbPicTestUtils::clock_high(int delay) {
+void WbNmiTestUtils::clock_high(int delay) {
     top->wb_clk_i = 1;
     eval(delay);
 }
 
-void WbPicTestUtils::clock_tick() {
+void WbNmiTestUtils::clock_tick() {
     clock_high(CLK_HALF_PERIOD);
     clock_low(CLK_HALF_PERIOD);
 }
 
+void WbNmiTestUtils::wait_cycles(int cycles) {
+    for (int i = 0; i < cycles; i++) {
+        clock_tick();
+    }
+}
+
 // Reset management
-void WbPicTestUtils::reset_assert() {
+void WbNmiTestUtils::reset_assert() {
     clock_high(SETUP_TIME);
     top->wb_rst_i = 1;
     eval(CLK_REST_TIME);
     clock_low(CLK_HALF_PERIOD);
 }
 
-void WbPicTestUtils::reset_deassert() {
+void WbNmiTestUtils::reset_deassert() {
     clock_high(SETUP_TIME);    
     top->wb_rst_i = 0;
     eval(CLK_REST_TIME);
     clock_low(CLK_HALF_PERIOD);
 }
 
-void WbPicTestUtils::reset_pulse(int cycles) {
+void WbNmiTestUtils::reset_pulse(int cycles) {
     reset_assert();
     for (int i = 0; i < cycles; i++) {
         clock_tick();
@@ -55,7 +55,7 @@ void WbPicTestUtils::reset_pulse(int cycles) {
 }
 
 // Wishbone operations
-void WbPicTestUtils::wb_idle() {
+void WbNmiTestUtils::wb_idle() {
     top->wb_cyc_i = 0;
     top->wb_stb_i = 0;
     top->wb_we_i = 0;
@@ -101,7 +101,7 @@ void WbNmiTestUtils::write_reg(uint32_t addr, uint8_t data) {
     clock_low(CLK_HALF_PERIOD);
 }
 
-uint8_t WbPicTestUtils::read_reg(uint32_t addr) {
+uint8_t WbNmiTestUtils::read_reg(uint32_t addr) {
     // Rising edge
     clock_high(SETUP_TIME);
     
@@ -115,7 +115,7 @@ uint8_t WbPicTestUtils::read_reg(uint32_t addr) {
     // Falling edge
     clock_low(CLK_HALF_PERIOD);
     
-    // Ждем ACK
+    // Wait for ACK
     int timeout = 16;
     while (!top->wb_ack_o && timeout-- > 0) {
         clock_high(SETUP_TIME);
@@ -138,43 +138,43 @@ uint8_t WbPicTestUtils::read_reg(uint32_t addr) {
     return data;
 }
 
-// IRQ operations
-void WbPicTestUtils::set_irq(uint16_t irq_mask) {
-    top->irq_i = irq_mask;
+// NMI source control
+void WbNmiTestUtils::set_nmi_sources(uint8_t sources) {
+    // sources bits: [0]=wishbone_error, [1]=panic_button, [2]=ext_board_error, [3]=debug_trigger
+    top->nmi_wishbone_error_i = sources & 0x1;
+    top->nmi_panic_button_i = (sources >> 1) & 0x1;
+    top->nmi_ext_board_error_i = (sources >> 2) & 0x1;
+    top->nmi_debug_trigger_i = (sources >> 3) & 0x1;
     eval(SETUP_TIME);
 }
 
-void WbPicTestUtils::clear_irq(uint8_t irq_mask) {
-    top->irq_i &= ~irq_mask;
+void WbNmiTestUtils::clear_nmi_sources(uint8_t sources) {
+    top->nmi_wishbone_error_i &= ~(sources & 0x1);
+    top->nmi_panic_button_i &= ~((sources >> 1) & 0x1);
+    top->nmi_ext_board_error_i &= ~((sources >> 2) & 0x1);
+    top->nmi_debug_trigger_i &= ~((sources >> 3) & 0x1);
     eval(SETUP_TIME);
-}
-
-void WbPicTestUtils::int_ack() {
-    // Установить int_ack_i на один такт
-    top->int_ack_i = 1;
-    clock_tick();  // Полный тактовый импульс
-    top->int_ack_i = 0;
-    clock_tick();  // Еще один такт для стабилизации
 }
 
 // Status functions
-bool WbPicTestUtils::int_requested() {
-    return top->int_req_o;
+bool WbNmiTestUtils::nmi_requested() {
+    return top->nmi_req_o;
 }
 
-bool WbPicTestUtils::wb_selected() {
+bool WbNmiTestUtils::system_halted() {
+    return top->system_halt_o;
+}
+
+bool WbNmiTestUtils::wb_selected() {
     return top->wb_sel_o;
 }
 
-// Utility functions
-void WbPicTestUtils::wait_cycles(int cycles) {
-    for (int i = 0; i < cycles; i++) {
-        clock_tick();
-    }
+uint8_t WbNmiTestUtils::get_nmi_status() {
+    return read_reg(0xFC0030); // STATUS register
 }
 
-uint8_t WbPicTestUtils::get_highest_irq() {
-    // Предполагая, что в вашем дизайне есть выход для определения highest IRQ
-    // Если такого выхода нет, вам нужно будет реализовать логику определения
-    return top->highest_irq_o; // или другая логика в зависимости от вашего дизайна
+
+void  WbNmiTestUtils::print_debug_info() {
+    printf("Debug: active_sources=0x%X, masked_sources=0x%X, any_masked=%d\n",
+           top->debug_active_sources, top->debug_masked_sources, top->debug_any_masked);
 }
