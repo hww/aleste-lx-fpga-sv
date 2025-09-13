@@ -49,6 +49,8 @@ module mmu_legacy (
     input  logic        cpu_rd_n,                 // Read strobe
     input  logic        cpu_wr_n,                 // Write strobe
     input  logic [7:0]  cpu_dout,                 // Z80 data out
+    output logic [7:0]  cpu_din,                  // Z80 data in  
+    output logic        cpu_wait,                 // CPU wait signal
 
     // -------------------------------------------------------------------------
     // CPC Control Outputs
@@ -295,4 +297,28 @@ module mmu_legacy (
         end
     end
 
+    // =========================================================================
+    // CPU DATA READING - ПРОСТОЕ ЧТЕНИЕ ДЛЯ ПРОЦЕССОРА
+    // =========================================================================
+    always_comb begin
+        if (reset) begin
+            cpu_din = 8'hFF;  // Значение по умолчанию
+        end else begin
+            // По умолчанию - данные от Wishbone
+            cpu_din = m_wb_dat_i;
+            
+            // Если это внутренний I/O доступ (чтение регистров CPC)
+            if (is_internal_io && ~cpu_rd_n) begin
+                case (cpu_a[15:8])
+                    // Нельзя прочесть регистры GateAray ибо они выбираются данным a[7:6]
+                    // 8'h7F: cpu_din <= {6'b000000, gate_array_reg};  // Статус Gate Array
+                    8'hDF: cpu_din = reg_upper_rom;                // Верхний ROM банк
+                    default: ;
+                endcase
+            end
+        end
+    end
+
+    // Wait state generation for Wishbone transactions
+    assign cpu_wait = (m_wb_cyc_o && !m_wb_ack_i);
 endmodule

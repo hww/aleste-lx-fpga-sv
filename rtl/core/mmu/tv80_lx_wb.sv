@@ -38,11 +38,18 @@ module tv80_lx_wb (
     output [1:0]   graphic_mode,                 // CPC graphics mode
     output         irq_control,                  // Interrupt control
     output         supervisor_mode_o,            // Current supervisor mode
-    
+    output         legacy_mode_o,
+    output         native_mode_o,
+
     // -------------------------------------------------------------------------
     // Debug Outputs
     // -------------------------------------------------------------------------
-    output [7:0]   debug_control_o               // Control register for debug
+    output [7:0]   debug_control_o,              // Control register for debug
+    output debug_m1_n_o,
+    output debug_mreq_n_o,
+    output debug_iorq_n_o,
+    output debug_rd_n_o,
+    output debug_wr_n_o
 );
 
     // =========================================================================
@@ -60,6 +67,8 @@ module tv80_lx_wb (
     wire [7:0]     tv80_dat_o;                   // Z80 data output
     wire [7:0]     tv80_dat_i;                   // Z80 data input
     wire           wait_n;                       // Wait state control
+    wire [7:0]     tv80_native_dat_i;            // Z80 data input from native MMU
+    wire [7:0]     tv80_legacy_dat_i;            // Z80 data input from legacy MMU
 
     // =========================================================================
     // Interrupt Control
@@ -84,7 +93,8 @@ module tv80_lx_wb (
     wire           legacy_mmu_we;
     wire [23:0]    legacy_mmu_adr;
     wire [7:0]     legacy_mmu_dat_o;
-    
+    wire           legacy_mmu_wait;
+
     // Native MMU interfaces
     wire           native_mmu_cyc;
     wire           native_mmu_stb;
@@ -92,6 +102,14 @@ module tv80_lx_wb (
     wire [23:0]    native_mmu_adr;
     wire [7:0]     native_mmu_dat_o;
     wire           native_mmu_wait;
+
+    assign tv80_dat_i = native_mode ? tv80_native_dat_i : tv80_legacy_dat_i;
+
+    assign debug_m1_n_o = mreq_n;
+    assign debug_mreq_n_o = mreq_n;
+    assign debug_iorq_n_o = iorq_n;
+    assign debug_rd_n_o = rd_n;
+    assign debug_wr_n_o = wr_n;
 
     // =========================================================================
     // TV80 CORE INSTANTIATION
@@ -145,7 +163,7 @@ module tv80_lx_wb (
         .m_wb_dat_o(legacy_mmu_dat_o),
         .m_wb_dat_i(wbm_dat_i),
         .m_wb_ack_i(),
-        
+
         // Z80 Bus Interface
         .cpu_a(tv80_adr),
         .cpu_mreq_n(mreq_n),
@@ -153,7 +171,9 @@ module tv80_lx_wb (
         .cpu_rd_n(rd_n),
         .cpu_wr_n(wr_n),
         .cpu_dout(tv80_dat_o),
-        
+        .cpu_din(tv80_legacy_dat_i),
+        .cpu_wait(legacy_mmu_wait),
+
         // CPC Control Outputs
         .graphic_mode(graphic_mode),
         .irq_control(irq_control)
@@ -181,7 +201,7 @@ module tv80_lx_wb (
         .cpu_wr_n(wr_n),
         .cpu_m1_n(m1_n),
         .cpu_din(tv80_dat_o),
-        .cpu_dout(tv80_dat_i),                   // Data to CPU
+        .cpu_dout(tv80_native_dat_i),             // Data to CPU
         .cpu_wait(native_mmu_wait),
         
         // Master Wishbone Interface
@@ -239,7 +259,7 @@ module tv80_lx_wb (
     // =========================================================================
     // WAIT STATE LOGIC
     // =========================================================================
-    assign wait_n = legacy_mode ? wbm_ack_i : ~native_mmu_wait;
+    assign wait_n = legacy_mode ? ~legacy_mmu_wait : ~native_mmu_wait;
 
     // =========================================================================
     // INTERRUPT HANDLING
@@ -259,5 +279,6 @@ module tv80_lx_wb (
     // SUPERVISOR MODE OUTPUT
     // =========================================================================
     assign supervisor_mode_o = current_supervisor;
-
+    assign legacy_mode_o = legacy_mode;
+    assign native_mode_o = native_mode;
 endmodule

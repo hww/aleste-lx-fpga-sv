@@ -1,0 +1,70 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Sep 13 20:07:24 2025
+[*]
+[dumpfile] "/home/valery/asv/sim/tests/unit/mmu_tv80/tv80_lx_wb_test.vcd"
+[dumpfile_mtime] "Sat Sep 13 20:06:28 2025"
+[dumpfile_size] 211323
+[savefile] "/home/valery/asv/sim/tests/unit/mmu_tv80/tv80_lx_wb_test.gtkw"
+[timestart] 0
+[size] 1920 1110
+[pos] -1 -1
+*-4.379953 50 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.tv80_lx_wb.
+[sst_width] 297
+[signals_width] 190
+[sst_expanded] 1
+[sst_vpaned_height] 334
+@200
+-CLOCK/RESET
+@28
+TOP.nrst_i
+TOP.clk_i
+@200
+-Z80
+@28
+TOP.busak_o
+TOP.busrq_i
+TOP.int_req_i
+TOP.irq_control
+TOP.nmi_req_i
+@200
+-WISHBONE
+@22
+TOP.wbm_adr_o[23:0]
+@28
+TOP.wbm_tga_o[1:0]
+@22
+TOP.wbm_dat_o[7:0]
+TOP.wbm_dat_i[7:0]
+@28
+TOP.wbm_cyc_o
+TOP.wbm_ack_i
+TOP.wbm_stb_o
+TOP.wbm_we_o
+@200
+-MMU
+@28
+TOP.supervisor_mode_o
+TOP.legacy_mode_o
+TOP.native_mode_o
+TOP.graphic_mode[1:0]
+@22
+TOP.debug_control_o[7:0]
+@29
+TOP.tv80_lx_wb.wait_n
+@200
+-TV80
+@22
+TOP.tv80_lx_wb.z80_core.A[15:0]
+TOP.tv80_lx_wb.z80_core.di[7:0]
+TOP.tv80_lx_wb.z80_core.dout[7:0]
+@28
+TOP.tv80_lx_wb.z80_core.m1_n
+TOP.tv80_lx_wb.z80_core.mreq_n
+TOP.tv80_lx_wb.z80_core.iorq_n
+TOP.tv80_lx_wb.z80_core.rd_n
+TOP.tv80_lx_wb.z80_core.wr_n
+[pattern_trace] 1
+[pattern_trace] 0
