@@ -2,7 +2,7 @@ module mmu_legacy
 (
     input  logic        clk,
     input  logic        reset,
-    input  logic        enable,    // Legacy mode active
+    input  logic        legacy_mode_i,    // Legacy mode active
 
     // Slave Wishbone Interface (для конфигурации)
     input  logic        s_wb_cyc_i,
@@ -77,7 +77,7 @@ module mmu_legacy
     // Internal IO регистры (7F, DF) - обрабатываются внутри, не идут в Wishbone
     assign is_internal_io = is_7fxx_write | is_dfxx_write;
 
-    assign gate_array_select = is_7fxx_write & enable;
+    assign gate_array_select = is_7fxx_write & legacy_mode_i;
     assign gate_array_reg = cpu_dout[7:6];
 
     // Update registers from Z80
@@ -86,7 +86,7 @@ module mmu_legacy
             reg_rmr <= 8'b10000000;
             reg_mmr <= 8'b11000000;
             reg_upper_rom <= 8'h00;
-        end else if (enable) begin
+        end else if (legacy_mode_i) begin
             if (gate_array_select) begin
                 case (gate_array_reg)
                     2'b10: reg_rmr <= cpu_dout;      // RMR write

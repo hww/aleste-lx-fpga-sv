@@ -93,8 +93,8 @@ public:
         wait_cycles(2);
     }
 
-    void set_enable(bool state) {
-        top->enable = state;
+    void set_legacy_mode_i(bool state) {
+        top->legacy_mode_i = state;
         eval(SETUP_TIME);
     }
 
@@ -186,11 +186,11 @@ void test_memory_access(MMULegacyTestUtils& utils) {
     utils.assert_true(true, "Second memory write should complete");
 }
 
-void test_enable_functionality(MMULegacyTestUtils& utils) {
-    std::cout << "\n=== TESTING ENABLE FUNCTIONALITY ===" << std::endl;
+void test_legacy_mode_i_functionality(MMULegacyTestUtils& utils) {
+    std::cout << "\n=== TESTING legacy_mode_i FUNCTIONALITY ===" << std::endl;
     
-    // Test with enable=0 - should ignore internal register writes
-    utils.set_enable(false);
+    // Test with legacy_mode_i=0 - should ignore internal register writes
+    utils.set_legacy_mode_i(false);
     utils.z80_io_write(0x7F00, 0b10000100);
     utils.assert_true(true, "RMR write should be ignored when disabled");
     
@@ -198,10 +198,10 @@ void test_enable_functionality(MMULegacyTestUtils& utils) {
     utils.z80_io_write(0xD400, 0x66);
     utils.assert_true(true, "External IO should work even when disabled");
     
-    // Re-enable and verify internal registers work again
-    utils.set_enable(true);
+    // Re-legacy_mode_i and verify internal registers work again
+    utils.set_legacy_mode_i(true);
     utils.z80_io_write(0x7F00, 0b10000001);
-    utils.assert_equal(utils.get_graphic_mode(), 1, "Graphic mode should work after re-enable");
+    utils.assert_equal(utils.get_graphic_mode(), 1, "Graphic mode should work after re-legacy_mode_i");
 }
 
 int main(int argc, char** argv) {
@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
     top->cpu_wr_n = 1;
     top->cpu_a = 0;
     top->cpu_dout = 0;
-    utils.set_enable(true);
+    utils.set_legacy_mode_i(true);
     
     // Reset
     utils.reset_pulse();
@@ -235,7 +235,7 @@ int main(int argc, char** argv) {
     test_upper_rom_register(utils);
     test_external_io_access(utils);
     test_memory_access(utils);
-    test_enable_functionality(utils);
+    test_legacy_mode_i_functionality(utils);
     
     // Print final results
     utils.print_test_results();
