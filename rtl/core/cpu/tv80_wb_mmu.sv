@@ -179,3 +179,4 @@ module tv80_lx_wb (
     assign wbm_tga_o = (~iorq_n ? 2'b01 : 2'b00); // IO=01, MEM=00
 
 endmodule
+

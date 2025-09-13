@@ -5,9 +5,11 @@ VERILATOR_FLAGS = \
 	--Wno-UNUSEDSIGNAL \
 	--Wno-CASEINCOMPLETE \
 	--Wno-WIDTHTRUNC \
+	--Wno-CMPCONST \
 	--Wno-CASEX \
 	--Wno-UNDRIVEN \
 	--Wno-WIDTHEXPAND \
+	--Wno-UNSIGNED \
 	--x-assign unique \
 	--x-initial unique \
 	--timing \

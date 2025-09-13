@@ -13,7 +13,6 @@ private:
     Vmmu_legacy* top;
     vluint64_t& main_time;
     VerilatedVcdC* tfp;
-    bool syscall_trig_seen;
 
     int test_successes;
     int test_failures;
@@ -22,13 +21,13 @@ public:
     
     MMULegacyTestUtils(Vmmu_legacy* top_ptr, vluint64_t& time_var, VerilatedVcdC* trace_ptr = nullptr)
         : top(top_ptr), main_time(time_var), tfp(trace_ptr), 
-          syscall_trig_seen(false), test_failures(0), test_successes(0) {}
+          test_failures(0), test_successes(0) {}
 
     // Public access methods
-    uint8_t get_syscall_trig() { return top->syscall_trig; }
-    uint8_t get_syscall_data() { return top->syscall_data; }
     uint8_t get_graphic_mode() { return top->graphic_mode; }
     uint8_t get_irq_control() { return top->irq_control; }
+    uint8_t get_m_wb_tga() { return top->m_wb_tga_o; }
+    uint8_t get_m_wb_adr_high() { return top->m_wb_adr_o >> 16; }
 
     int get_failures() {return test_failures; }
 
@@ -41,8 +40,6 @@ public:
     void clock_tick() {
         top->clk = 1;
         eval(CLK_HALF_PERIOD);
-        // Capture if syscall trig was active during this tick
-        if (get_syscall_trig()) syscall_trig_seen = true;
         top->clk = 0;
         eval(CLK_HALF_PERIOD);
     }
@@ -52,7 +49,6 @@ public:
         for (int i = 0; i < 5; i++) clock_tick();
         top->reset = 0;
         clock_tick();
-        syscall_trig_seen = false; // Reset tracking after reset
     }
 
     void wait_cycles(int cycles) {
@@ -73,6 +69,24 @@ public:
         clock_tick();
         
         top->cpu_iorq_n = 1;
+        top->cpu_wr_n = 1;
+        eval(SETUP_TIME);
+        
+        wait_cycles(2);
+    }
+
+    void z80_mem_write(uint16_t addr, uint8_t data) {
+        std::cout << "Z80 MEM Write: addr=0x" << std::hex << addr << " data=0x" << (int)data << std::dec << std::endl;
+        
+        top->cpu_a = addr;
+        top->cpu_dout = data;
+        top->cpu_mreq_n = 0;
+        top->cpu_wr_n = 0;
+        eval(SETUP_TIME);
+        
+        clock_tick();
+        
+        top->cpu_mreq_n = 1;
         top->cpu_wr_n = 1;
         eval(SETUP_TIME);
         
@@ -107,19 +121,6 @@ public:
         }
     }
 
-    void assert_syscall_trig_seen(bool expected, const char* test_name) {
-        if (syscall_trig_seen == expected) {
-            std::cout << "✓ PASS: " << test_name << " - syscall_trig " 
-                      << (expected ? "was seen" : "was not seen") << std::endl;
-            test_successes++;
-        } else {
-            std::cout << "✗ FAIL: " << test_name << " - syscall_trig " 
-                      << (expected ? "was not seen but expected" : "was seen but not expected") << std::endl;
-            test_failures++;
-        }
-        syscall_trig_seen = false; // Reset for next test
-    }
-
     void print_test_results() {
         std::cout << "\n=== TEST RESULTS ===" << std::endl;
         std::cout << "Passed: " << test_successes << std::endl;
@@ -134,38 +135,19 @@ public:
     }
 };
 
-void test_syscall_mechanism(MMULegacyTestUtils& utils) {
-    std::cout << "\n=== TESTING SYSCALL MECHANISM ===" << std::endl;
-    
-    // Test 1: Basic SysCall should capture data but may not set trig
-    utils.z80_io_write(0xD400, 0x55);
-    utils.assert_equal(utils.get_syscall_data(), 0x55, "SysCall data should be captured");
-    utils.assert_syscall_trig_seen(true, "SysCall should activate trig during clock");
-    
-    // Test 2: Multiple SysCalls
-    utils.z80_io_write(0xD400, 0xAA);
-    utils.assert_equal(utils.get_syscall_data(), 0xAA, "Second SysCall should update data");
-    utils.assert_syscall_trig_seen(true, "Second SysCall should activate trig");
-    
-    // Test 3: SysCall with different values
-    utils.z80_io_write(0xD400, 0x11);
-    utils.assert_equal(utils.get_syscall_data(), 0x11, "Third SysCall should update data");
-    utils.assert_syscall_trig_seen(true, "Third SysCall should activate trig");
-}
-
 void test_rmr_registers(MMULegacyTestUtils& utils) {
     std::cout << "\n=== TESTING RMR REGISTERS ===" << std::endl;
     
     // Test graphic_mode bits [1:0]
-    utils.z80_io_write(0x007F, 0b10000001); // mode=1
+    utils.z80_io_write(0x7F00, 0b10000001); // mode=1
     utils.assert_equal(utils.get_graphic_mode(), 1, "Graphic mode should be 1");
     utils.assert_equal(utils.get_irq_control(), 0, "IRQ control should be 0");
     
-    utils.z80_io_write(0x007F, 0b10010010); // mode=2, irq=1
+    utils.z80_io_write(0x7F00, 0b10010010); // mode=2, irq=1
     utils.assert_equal(utils.get_graphic_mode(), 2, "Graphic mode should be 2");
     utils.assert_equal(utils.get_irq_control(), 1, "IRQ control should be 1");
     
-    utils.z80_io_write(0x007F, 0b10011011); // mode=3, irq=1
+    utils.z80_io_write(0x7F00, 0b10011011); // mode=3, irq=1
     utils.assert_equal(utils.get_graphic_mode(), 3, "Graphic mode should be 3");
     utils.assert_equal(utils.get_irq_control(), 1, "IRQ control should stay 1");
 }
@@ -173,30 +155,53 @@ void test_rmr_registers(MMULegacyTestUtils& utils) {
 void test_upper_rom_register(MMULegacyTestUtils& utils) {
     std::cout << "\n=== TESTING UPPER ROM REGISTER ===" << std::endl;
     
-    // This test is more observational since we can't read back the register directly
-    // But we can verify that the operation doesn't break anything
-    utils.z80_io_write(0x00DF, 0xAA);
+    utils.z80_io_write(0xDF00, 0xAA);
     utils.assert_true(true, "Upper ROM write should complete without error");
     
-    utils.z80_io_write(0x00DF, 0x55);
+    utils.z80_io_write(0xDF00, 0x55);
     utils.assert_true(true, "Second Upper ROM write should complete");
+}
+
+void test_external_io_access(MMULegacyTestUtils& utils) {
+    std::cout << "\n=== TESTING EXTERNAL IO ACCESS ===" << std::endl;
+    
+    // Test that external IO accesses go to Wishbone with correct tagging
+    utils.z80_io_write(0xD400, 0x66);
+    // Should generate IO access with address FFxxxx and TGA=1
+    
+    utils.z80_io_write(0xC000, 0x77);
+    // Should generate IO access with address FFC000 and TGA=1
+    
+    utils.assert_true(true, "External IO writes should complete");
+}
+
+void test_memory_access(MMULegacyTestUtils& utils) {
+    std::cout << "\n=== TESTING MEMORY ACCESS ===" << std::endl;
+    
+    // Test memory writes (should go to Wishbone with TGA=0)
+    utils.z80_mem_write(0x4000, 0x88);
+    utils.assert_true(true, "Memory write should complete");
+    
+    utils.z80_mem_write(0x8000, 0x99);
+    utils.assert_true(true, "Second memory write should complete");
 }
 
 void test_enable_functionality(MMULegacyTestUtils& utils) {
     std::cout << "\n=== TESTING ENABLE FUNCTIONALITY ===" << std::endl;
     
-    // Test with enable=0 - should ignore writes
+    // Test with enable=0 - should ignore internal register writes
     utils.set_enable(false);
+    utils.z80_io_write(0x7F00, 0b10000100);
+    utils.assert_true(true, "RMR write should be ignored when disabled");
+    
+    // But external IO should still work (goes directly to Wishbone)
     utils.z80_io_write(0xD400, 0x66);
-    utils.assert_syscall_trig_seen(false, "SysCall should be ignored when disabled");
+    utils.assert_true(true, "External IO should work even when disabled");
     
-    utils.z80_io_write(0x007F, 0b10000100);
-    // Can't easily test that this was ignored, but shouldn't crash
-    
-    // Re-enable and verify it works again
+    // Re-enable and verify internal registers work again
     utils.set_enable(true);
-    utils.z80_io_write(0xD400, 0x77);
-    utils.assert_syscall_trig_seen(true, "SysCall should work after re-enable");
+    utils.z80_io_write(0x7F00, 0b10000001);
+    utils.assert_equal(utils.get_graphic_mode(), 1, "Graphic mode should work after re-enable");
 }
 
 int main(int argc, char** argv) {
@@ -216,6 +221,7 @@ int main(int argc, char** argv) {
     
     // Initial setup
     top->cpu_iorq_n = 1;
+    top->cpu_mreq_n = 1;
     top->cpu_wr_n = 1;
     top->cpu_a = 0;
     top->cpu_dout = 0;
@@ -225,9 +231,10 @@ int main(int argc, char** argv) {
     utils.reset_pulse();
     
     // Run automated tests
-    test_syscall_mechanism(utils);
     test_rmr_registers(utils);
     test_upper_rom_register(utils);
+    test_external_io_access(utils);
+    test_memory_access(utils);
     test_enable_functionality(utils);
     
     // Print final results

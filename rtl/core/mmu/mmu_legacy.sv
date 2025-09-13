@@ -1,4 +1,5 @@
-module mmu_legacy (
+module mmu_legacy 
+(
     input  logic        clk,
     input  logic        reset,
     input  logic        enable,    // Legacy mode active
@@ -12,15 +13,16 @@ module mmu_legacy (
     output logic [7:0]  s_wb_dat_o,
     output logic        s_wb_ack_o,
 
-    // Master Wishbone Interface (для доступа к памяти)
+    // Master Wishbone Interface (для доступа к памяти и IO)
     output logic        m_wb_cyc_o,
     output logic        m_wb_stb_o,
     output logic        m_wb_we_o,
+    output logic        m_wb_tga_o,  // 0=MEM, 1=IO
     output logic [23:0] m_wb_adr_o,
     output logic [7:0]  m_wb_dat_o,
     input  logic [7:0]  m_wb_dat_i,
     input  logic        m_wb_ack_i,
-
+    
     // Z80 Bus Interface
     input  logic [15:0] cpu_a,
     input  logic        cpu_mreq_n,
@@ -31,9 +33,7 @@ module mmu_legacy (
 
     // Control outputs
     output logic [1:0]  graphic_mode,
-    output logic        irq_control,
-    output logic        syscall_trig,
-    output logic [7:0]  syscall_data
+    output logic        irq_control
 );
 
     // Internal registers
@@ -44,10 +44,11 @@ module mmu_legacy (
     // Decoding
     logic is_7fxx_write;
     logic is_dfxx_write;
-    logic is_d400_write;
     logic is_mem_access;
     logic is_mem_write;
     logic is_mem_read;
+    logic is_io_access;
+    logic is_internal_io;
 
     // Gate Array decoding
     logic gate_array_select;
@@ -66,12 +67,15 @@ module mmu_legacy (
     logic wb_busy;
 
     // Decode control signals
-    assign is_7fxx_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a[7:0] == 8'h7F);
-    assign is_dfxx_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a[7:0] == 8'hDF);
-    assign is_d400_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a == 16'hD400);
+    assign is_7fxx_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a[15:8] == 8'h7F);
+    assign is_dfxx_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a[15:8] == 8'hDF);
     assign is_mem_access = ~cpu_mreq_n;
+    assign is_io_access = ~cpu_iorq_n;
     assign is_mem_write = is_mem_access & ~cpu_wr_n;
     assign is_mem_read = is_mem_access & ~cpu_rd_n;
+
+    // Internal IO регистры (7F, DF) - обрабатываются внутри, не идут в Wishbone
+    assign is_internal_io = is_7fxx_write | is_dfxx_write;
 
     assign gate_array_select = is_7fxx_write & enable;
     assign gate_array_reg = cpu_dout[7:6];
@@ -82,11 +86,7 @@ module mmu_legacy (
             reg_rmr <= 8'b10000000;
             reg_mmr <= 8'b11000000;
             reg_upper_rom <= 8'h00;
-            syscall_trig <= 1'b0;
-            syscall_data <= 0;
-        end else begin
-            syscall_trig <= 1'b0;
-
+        end else if (enable) begin
             if (gate_array_select) begin
                 case (gate_array_reg)
                     2'b10: reg_rmr <= cpu_dout;      // RMR write
@@ -94,13 +94,8 @@ module mmu_legacy (
                 endcase
             end
 
-            if (is_dfxx_write & enable) begin
+            if (is_dfxx_write) begin
                 reg_upper_rom <= cpu_dout;           // Upper ROM select
-            end
-
-            if (is_d400_write & enable) begin
-                syscall_trig <= 1'b1;
-                syscall_data <= cpu_dout;
             end
         end
     end
@@ -187,6 +182,11 @@ module mmu_legacy (
                 ram_access = 1'b0;
             end
         end
+        else if (is_io_access & ~is_internal_io) begin
+            // Все внешние IO доступы транслируются в Wishbone
+            // Адрес расширяется до 24 бит (FFxxxx для IO пространства)
+            physical_address = {8'hFF, cpu_a};
+        end
     end
 
     // Control outputs
@@ -198,6 +198,8 @@ module mmu_legacy (
         if (reset) begin
             m_wb_cyc_o <= 1'b0;
             m_wb_stb_o <= 1'b0;
+            m_wb_we_o <= 1'b0;
+            m_wb_tga_o <= 1'b0;
             wb_busy <= 1'b0;
         end else begin
             if (m_wb_ack_i) begin
@@ -205,15 +207,17 @@ module mmu_legacy (
                 wb_busy <= 1'b0;
             end
             
-            if (is_mem_access && ~wb_busy) begin
+            if ((is_mem_access | (is_io_access & ~is_internal_io)) && ~wb_busy) begin
                 m_wb_cyc_o <= 1'b1;
                 m_wb_stb_o <= 1'b1;
-                m_wb_we_o <= is_mem_write;
+                m_wb_we_o <= ~cpu_wr_n;  // Write для IO или memory
+                m_wb_tga_o <= is_io_access; // 1 для IO, 0 для memory
                 m_wb_adr_o <= physical_address;
                 m_wb_dat_o <= cpu_dout;
                 wb_busy <= 1'b1;
-            end else if (~is_mem_access && ~wb_busy) begin
+            end else if (~is_mem_access && ~is_io_access && ~wb_busy) begin
                 m_wb_cyc_o <= 1'b0;
+                m_wb_tga_o <= 1'b0;
             end
         end
     end

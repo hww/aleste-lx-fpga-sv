@@ -1,0 +1,91 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Sep 13 05:41:00 2025
+[*]
+[dumpfile] "/home/valery/asv/sim/tests/unit/mmu_native/mmu_native_test.vcd"
+[dumpfile_mtime] "Fri Sep 12 19:50:14 2025"
+[dumpfile_size] 15776
+[savefile] "/home/valery/asv/sim/tests/unit/mmu_native/mmu_native_test.gtkw"
+[timestart] 352
+[size] 1920 1110
+[pos] -1 -1
+*-6.185236 540 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[sst_width] 297
+[signals_width] 262
+[sst_expanded] 1
+[sst_vpaned_height] 334
+@28
+TOP.reset
+TOP.clk
+@200
+-Z80
+@22
+TOP.cpu_a[15:0]
+TOP.cpu_din[7:0]
+TOP.cpu_dout[7:0]
+@28
+TOP.cpu_m1_n
+TOP.cpu_mreq_n
+TOP.cpu_iorq_n
+[color] 1
+TOP.cpu_wr_n
+[color] 5
+TOP.cpu_rd_n
+[color] 3
+TOP.cpu_wait
+@200
+-MASTER
+@22
+TOP.m_wb_adr_o[23:0]
+TOP.m_wb_dat_i[7:0]
+TOP.m_wb_dat_o[7:0]
+@28
+TOP.m_wb_cyc_o
+TOP.m_wb_stb_o
+[color] 1
+TOP.m_wb_we_o
+TOP.m_wb_ack_i
+@200
+-SLAVE
+@22
+TOP.s_wb_adr_i[23:0]
+TOP.s_wb_dat_i[7:0]
+TOP.s_wb_dat_o[7:0]
+@28
+TOP.s_wb_cyc_i
+TOP.s_wb_stb_i
+[color] 1
+TOP.s_wb_we_i
+TOP.s_wb_sel_o
+[color] 3
+TOP.s_wb_ack_o
+@200
+-MMU
+@28
+TOP.supervisor_mode_i
+TOP.supervisor_mode_o
+TOP.native_mode_o
+TOP.legacy_mode_o
+TOP.mmio_userlock_o
+TOP.syscall_trigger_o
+@22
+TOP.syscall_function_o[7:0]
+@200
+-DEBUG
+@22
+[color] 3
+TOP.debug_control_o[7:0]
+@200
+--slot-
+@22
+TOP.debug_user_slot_o[7:0]
+TOP.debug_super_slot_o[7:0]
+TOP.debug_current_slot_o[7:0]
+[color] 1
+TOP.debug_bank_index_o[7:0]
+TOP.debug_mmio_page_o[7:0]
+TOP.debug_selected_bank_o[7:0]
+TOP.debug_syscall_function_o[7:0]
+[pattern_trace] 1
+[pattern_trace] 0
