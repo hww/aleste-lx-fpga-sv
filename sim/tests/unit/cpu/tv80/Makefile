@@ -8,6 +8,7 @@ VERILATOR_FLAGS = \
 	--Wno-VARHIDDEN \
 	--Wno-UNUSEDPARAM \
 	--Wno-PINCONNECTEMPTY \
+	--Wno-CASEINCOMPLETE \
 	--x-assign unique \
 	--x-initial unique \
 	--public \

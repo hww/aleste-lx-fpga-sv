@@ -1,11 +1,7 @@
 VERILATOR = verilator
 VERILATOR_FLAGS = \
 	-Wall --cc --exe --build --trace \
-	--Wno-UNOPTFLAT \
 	--Wno-UNUSEDSIGNAL \
-	--Wno-CASEINCOMPLETE \
-	--Wno-WIDTHTRUNC \
-	--Wno-CASEX \
 	--Wno-WIDTHEXPAND \
 	--x-assign unique \
 	--x-initial unique \
