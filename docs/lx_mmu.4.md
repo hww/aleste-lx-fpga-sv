@@ -34,31 +34,32 @@
 
 ### 3.2. MMIO Пространство: Концепция HI и LO
 
-Последние 64 КБ физического адресного пространства (адреса `FC0000h - FFFFFFh`) зарезервированы для памяти устройств ввода/вывода (MMIO). Это пространство логически разделено на две части, что является фундаментальным принципом архитектуры:
+Последние 64 КБ физического адресного пространства (адреса `FF0000h - FFFFFFh`) зарезервированы для памяти устройств ввода/вывода (MMIO). Это пространство логически разделено на две части, что является фундаментальным принципом архитектуры:
 
-*   **`MMIO_HI` (Адреса `FC0000h - FFFFFFh`, условно)**: Эта область предназначена для **эмуляции Legacy-устройств** Amstrad CPC в нативной системе. Устройства в этой области **жёстко привязаны** к своим физическим адресам (например, `Gate Array` на `FC0100h`, `CRTC` на `FC0110h`). В Legacy-режиме обращение к портам CPC (7FXXh, BCXXh и т.д.) транслируется в прямые обращения к этим фиксированным адресам в MMIO_HI через механизм полного отображения адреса шины Z80 `A[15:0]`.
+*   **`MMIO_HI` (Адреса `FF8000h - FFFFFFh`, условно)**: Эта область предназначена для **эмуляции Legacy-устройств** Amstrad CPC в нативной системе. Устройства в этой области **жёстко привязаны** к своим физическим адресам (например, `Gate Array` на `FF0100h`, `CRTC` на `FF0110h`). В Legacy-режиме обращение к портам CPC (7FXXh, BCXXh и т.д.) транслируется в прямые обращения к этим фиксированным адресам в MMIO_HI через механизм полного отображения адреса шины Z80 `A[15:0]`.
 
-*   **`MMIO_LO` (Адреса `FC0000h - FCFFFFh`, основная)**: Эта область предназначена для **новых устройств** системы Aleste LX (PIC, DMA, современный звук, графика) и доступна через механизм банкового переключения (окно). Доступ к этому пространству осуществляется через специальное 256-байтное "окно" в адресном пространстве Z80.
+*   **`MMIO_LO` (Адреса `FF0000h - FF7FFFh`, основная)**: Эта область предназначена для **новых устройств** системы Aleste LX (PIC, DMA, современный звук, графика) и доступна через механизм банкового переключения (окно). Доступ к этому пространству осуществляется через специальное 256-байтное "окно" в адресном пространстве Z80.
 
 **Важно:** Адрес устройства в MMIO-пространстве является частью его архитектурного контракта. Это позволяет не только CPU, но и другим мастерам шины (например, **DMA-контроллеру**) напрямую обращаться к периферийным устройствам по их фиксированным адресам на быстрой шине Wishbone, что критично для производительности.
 
 ### 3.3. Структура MMIO_LO (Page 0)
 
-Первая страница MMIO_LO (Page 0, адреса `FC0000h - FC00FFh`) содержит самые необходимые системные устройства, размещенные с шагом в 32 байта для выравнивания и простоты декодирования адресов:
+Первая страница MMIO_LO (Page 0, адреса `FF0000h - FF00FFh`) содержит самые необходимые системные устройства, размещенные с шагом в 32 байта для выравнивания и простоты декодирования адресов:
 
-*   **`FC0000h`**: PIC Controller (контроллер прерываний).
-*   **`FC0020h`**: NMI Controller (контроллер прерываний).
-*   **`FC0040h`**: IPC Mailbox (системный почтовый ящик).
-*   **`FC0060h`**: System Timer (системный таймер).
-*   **`FC0080h`**: RTC Controller (часы реального времени).
-*   **`FC00A0h - FC00CFh`**: Зарезервировано для будущих системных устройств.
-*   **`FC00D0h`**: Блок регистров MMU (менеджер памяти).
+*   **`FF0000h`**: PIC Controller (контроллер прерываний).
+*   **`FF0020h`**: NMI Controller (контроллер прерываний).
+*   **`FF0040h`**: IPC Mailbox (системный почтовый ящик).
+*   **`FF0060h`**: System Timer (системный таймер).
+*   **`FF0080h`**: RTC Controller (часы реального времени).
+*   **`FF00A0h - FF00BFh`**: Зарезервировано для будущих системных устройств.
+*   **`FF00C0h` - `FF00FFh`**: Зарезервировано для MMU (менеджер памяти).
+    *   **`FF00D0h` - `FF00EFh`**: Блок регистров MMU (менеджер памяти).
 
 Последующие страницы MMIO_LO содержат более сложные и объемные устройства:
-*   **`FC0100h`**: Пространство для Legacy-устройств CPC (Gate Array, CRTC и т.д.).
-*   **`FC0200h`**: DMA Controller.
-*   **`FC0300h`**: Graphics Chip.
-*   **`FC0400h`**: Sound Chip.
+*   **`FF0100h`**: Пространство для Legacy-устройств CPC (Gate Array, CRTC и т.д.).
+*   **`FF0200h`**: DMA Controller.
+*   **`FF0300h`**: Graphics Chip.
+*   **`FF0400h`**: Sound Chip.
 
 ## 4. Система регистров управления
 
@@ -81,7 +82,7 @@
 *   **`SYS_CALL_CMD_PORT` (Port `D4`)**: Порт для вызова команд операционной системы (**Нативный режим**).
 *   **`MMIO_PAGE` (Port `D3`)**: Номер 256-байтной страницы в пространстве MMIO_LO.
 *   **`MMIO_WINDOW` (Ports `00h-СFh`)**: Окно для чтения/записи данных по выбранной странице MMIO_LO.
-    `mmio_physical_address = FC0000h + {MMIO_PAGE, cpu_a[6:0]}`
+    `mmio_physical_address = FF0000h + {MMIO_PAGE, cpu_a[6:0]}`
 
 ### 4.2. Регистры совместимости (Legacy Mode)
 Предназначены для эмуляции окружения Amstrad CPC. Доступны через порты вида `XXYYh`.
@@ -197,28 +198,28 @@ void write_to_bank_register(uint8_t address_low_bits, uint8_t data) {
 
 | Wishbone Adress | Slot | CPU Page |
 |:---------------:|:----:|----------|
-|     FC00E0      |  0   | 0000     |
-|     FC00E1      |  0   | 4000     |
-|     FC00E2      |  0   | 8000     |
-|     FC00E3      |  0   | C000     |
-|     FC00E4      |  1   | 0000     |
-|     FC00E5      |  1   | 4000     |
-|     FC00E6      |  1   | 8000     |
-|     FC00E7      |  1   | C000     |
-|     FC00E8      |  2   | 0000     |
-|     FC00E9      |  2   | 4000     |
-|     FC00EA      |  2   | 8000     |
-|     FC00EB      |  2   | C000     |
-|     FC00EC      |  3   | 0000     |
-|     FC00ED      |  3   | 4000     |
-|     FC00EE      |  3   | 8000     |
-|     FC00EF      |  3   | C000     |
+|     FF00E0      |  0   | 0000     |
+|     FF00E1      |  0   | 4000     |
+|     FF00E2      |  0   | 8000     |
+|     FF00E3      |  0   | C000     |
+|     FF00E4      |  1   | 0000     |
+|     FF00E5      |  1   | 4000     |
+|     FF00E6      |  1   | 8000     |
+|     FF00E7      |  1   | C000     |
+|     FF00E8      |  2   | 0000     |
+|     FF00E9      |  2   | 4000     |
+|     FF00EA      |  2   | 8000     |
+|     FF00EB      |  2   | C000     |
+|     FF00EC      |  3   | 0000     |
+|     FF00ED      |  3   | 4000     |
+|     FF00EE      |  3   | 8000     |
+|     FF00EF      |  3   | C000     |
 
 ## 7. IPC Mailbox (Системный почтовый ящик)
 
 **Назначение:** Обеспечить сверхбыстрый, детерминированный и безопасный обмен служебными командами и уведомлениями между **Супервизором (Ядром)** и **Драйверами**, работающими в пространстве ядра.
 
-**Местоположение:** Выделенная область в MMIO пространстве (например, `FC0040h - FC005Fh`).
+**Местоположение:** Выделенная область в MMIO пространстве (например, `FF0040h - FF005Fh`).
 
 **Аппаратная Реализация:** Состоит из набора регистров:
 *   **`MAILBOX_CMD`**: Драйвер записывает сюда код действия (напр., `SND_BUF_EMPTY`, `DSK_IO_DONE`).
@@ -262,54 +263,58 @@ S(t+1) =
 | Device / Description                       | RW | D7 | D6 | Legacy IO Address | Legacy Wishbone Address | Native IO Address | Native Wishbone Address |
 |--------------------------------------------|----|----|----|-------------------|-------------------------|-------------------|-------------------------|
 | **ОРИГИНАЛЬНЫЕ УСТРОЙСТВА CPC**            |    |    |    |                   |                         |                   |                         |
-| Gate Array                                 | W  |    |    | 7FXX              | FF7FXX                  | -                 | FC0100 (16 байт)        |
+| Gate Array                                 | W  |    |    | 7FXX              | FF7FXX                  | -                 | FF0100 (16 байт)        |
 | Gate Array Palette Index                   | W  | 0  | 0  | 7FXX              | FF7FXX                  | -                 | ↳ +0                    |
 | Gate Array Palette Value                   | W  | 0  | 1  | 7FXX              | FF7FXX                  | -                 | ↳ +0                    |
 | Gate Array Rom enable                      | W  | 1  | 0  | 7FXX              | FF7FXX                  | -                 | ↳ +0                    |
 | Gate Array RAM banking                     | W  | 1  | 1  | 7FXX              | FF7FXX                  | -                 | ↳ +0                    |
-| CRTC 6845 Index Register                   | W  |    |    | BCXX              | FFBCXX                  | -                 | FС0110 (16 байт)        |
+| CRTC 6845 Index Register                   | W  |    |    | BCXX              | FFBCXX                  | -                 | FF0110 (16 байт)        |
 | CRTC 6845 Data Register                    | RW |    |    | BDXX              | FFBDXX                  | -                 | ↳ +1                    |
-| Upper ROM Select                           | W  |    |    | DFXX              | FFDFXX                  | -                 | FС0140                  |
-| Printer Port                               | W  |    |    | EFXX              |                         | W                 |                         |
+| Upper ROM Select                           | W  |    |    | DFXX              | FFDFXX                  | -                 | FF0120 (16 байт)        |
+| Printer Port                               | W  |    |    | EFXX              | FFEFXX                  | W                 | FF0130 (16 байт)        |
 | **CPC PPI**                                |    |    |    |                   |                         |                   |                         |
-| 8255 PPI Port A (PSG Data)                 | RW |    |    | F4XX              | FFF4XX                  | -                 | FС0120                  |
+| 8255 PPI Port A (PSG Data)                 | RW |    |    | F4XX              | FFF4XX                  | -                 | FF0140 (16 байт)        |
 | 8255 PPI Port B (Vsync,PrnBusy,Tape,etc.)  | RW |    |    | F5XX              | FFF5XX                  | -                 | ↳ +1                    |
 | 8255 PPI Port C (KeybRow,Tape,PSG Control) | RW |    |    | F6XX              | FFF6XX                  | -                 | ↳ +2                    |
 | PPI Control Register                       | W  |    |    | F7XX              | FFF7XX                  | -                 | ↳ +3                    |
 | **CPC FDC**                                |    |    |    |                   |                         |                   |                         |
-| FFloppy Motor Control (for 765 FDC)        | W  |    |    | FA7E              | FFFA7E                  | -                 | FС0130                  |
+| FFloppy Motor Control (for 765 FDC)        | W  |    |    | FA7E              | FFFA7E                  | -                 | FF0150 (16 байт)        |
 | 765 FDC (internal) Status Register         | R  |    |    | FB7E              | FFFA7E                  | -                 | ↳ +0                    |
 | 765 FDC (internal) Data Register           | RW |    |    | FB7F              | FFFB7F                  | -                 | ↳ +1                    |
 | **CPC SERIAL**                             |    |    |    |                   |                         |                   |                         |
-| 80-SIO / DART port                         | RW |    |    | FADC-FADF         | FFFADC-FFFADF           | -                 | FС0150 (16 байт)        |
-| 8253 Timer                                 | RW |    |    | FBDC-FBDF         | FFFBDC-FFFBDF           | -                 | FС0160 (16 байт)        |
+| 80-SIO / DART port                         | RW |    |    | FADC-FADF         | FFFADC-FFFADF           | -                 | FF0160 (16 байт)        |
+| 8253 Timer                                 | RW |    |    | FBDC-FBDF         | FFFBDC-FFFBDF           | -                 | FF0170 (16 байт)        |
+| MMIO SYSCALL                               | RW |    |    | D400              | FF00D4                  | -                 | `4`                     |
 | **LX MMU РЕГИСТРЫ (CLASSIC 8-bit)**        |    |    |    |                   |                         |                   |                         |
-| MMIO Data Window                           | RW |    |    | -                 | FC00D0 + {PAGE, ADDR}   | 00-BF             | FC00D0 + {PAGE, ADDR}   |
-| MMIO Page Register                         | RW |    |    | -                 | FC00D3                  | D3                | FC00D3                  |
-| MMIO SYSCALL                               | RW |    |    | D400              | FC00D4                  | D4                | FC00D4                  |
-| Control Register                           | RW |    |    | -                 | FC00D7                  | D7                | FC00D7                  |
-| Super Slot Select                          | RW |    |    | -                 | FC00D9                  | D9                | FC00D9                  |
-| User Slot Select                           | RW |    |    | -                 | FC00DB                  | DB                | FC00DB                  |
-| Bank 0 Register                            | RW |    |    | -                 | FC00DC                  | DC                | FC00DC                  |
-| Bank 1 Register                            | RW |    |    | -                 | FC00DD                  | DD                | FC00DD                  |
-| Bank 2 Register                            | RW |    |    | -                 | FC00DE                  | DE                | FC00DE                  |
-| Bank 3 Register                            | RW |    |    | -                 | FC00DF                  | DF                | FC00DF                  |
+| MMIO Data Window                           | RW |    |    | -                 | -                       | 00-BF             | FF00D0 + {PAGE, ADDR}   |
+| MMIO Page Register                         | RW |    |    | -                 | -                       | D3                | FF00D3                  |
+| MMIO SYSCALL                               | RW |    |    | D400              | FF00D4                  | D4                | FF00D4                  |
+| Control Register                           | RW |    |    | -                 | -                       | D7                | FF00D7                  |
+| Super Slot Select                          | RW |    |    | -                 | -                       | D9                | FF00D9                  |
+| User Slot Select                           | RW |    |    | -                 | -                       | DB                | FF00DB                  |
+| Bank 0 Register                            | RW |    |    | -                 | -                       | DC                | FF00DC                  |
+| Bank 1 Register                            | RW |    |    | -                 | -                       | DD                | FF00DD                  |
+| Bank 2 Register                            | RW |    |    | -                 | -                       | DE                | FF00DE                  |
+| Bank 3 Register                            | RW |    |    | -                 | -                       | DF                | FF00DF                  |
 | **Расширеный доступ к мапперу**            |    |    |    |                   |                         |                   |                         |
-| Bank 0-3 Registers                         | RW |    |    | -                 | FC0010-FC001F           | -                 | FC00E0-FC00EF           |
-| **LX MMIO УСТРОЙСТВА**                     |    |    |    |                   |                         |                   |                         |
-| **IPC Mailbox**                            | RW |    |    | -                 | **FC0040** (32 байт)    | -                 | **FC0040** (32 байт)    |
-| PIC Controller                             | RW |    |    | -                 | FC0000 (32 байт)        | -                 | FC0000 (32 байт)        |
-| NMI Controller                             | RW |    |    | -                 | FC0020 (32 байт)        | -                 | FC0020 (32 байт)        |
-| System Timer                               | RW |    |    | -                 | FC0060 (32 байт)        | -                 | FC0060 (32 байт)        |
-| RTC Controller                             | RW |    |    | -                 | FC0080 (32 байт)        | -                 | FC0080 (32 байт)        |
-| (Reserved Legacy Devices)                  | RW |    |    | -                 | FC0100 (64 байт)        | -                 | FC0100 (64 байт)        |
-| DMA Controller                             | RW |    |    | -                 | FC0200 (256 байт)       | -                 | FC0200 (256 байт)       |
-| Graphics Chip                              | RW |    |    | -                 | FC0300 (256 байт)       | -                 | FC0300 (256 байт)       |
-| Sound Chip                                 | RW |    |    | -                 | FC0400 (256 байт)       | -                 | FC0400 (256 байт)       |
+| Bank 0-3 Registers                         | RW |    |    | -                 | FF00DC-FF00DF           | -                 | FF00DC-FF00DF           |
+| **LX MMIO PAGE 0**                         |    |    |    |                   |                         |                   |                         |
+| PIC Controller                             | RW |    |    | -                 | -                       | -                 | FF0000 (32 байт)        |
+| NMI Controller                             | RW |    |    | -                 | -                       | -                 | FF0020 (32 байт)        |
+| IPC Mailbox                                | RW |    |    | -                 | -                       | -                 | FF0040 (32 байт)        |
+| System Timer                               | RW |    |    | -                 | -                       | -                 | FF0060 (32 байт)        |
+| RTC Controller                             | RW |    |    | -                 | -                       | -                 | FF0080 (32 байт)        |
+| **LX MMIO PAGE 1**                         |    |    |    |                   |                         |                   |                         |
+| (Reserved Legacy Devices)                  | RW |    |    | -                 | -                       | -                 | FF0100 (64 байт)        |
+| **LX MMIO PAGE 2 и следующие**             |    |    |    |                   |                         |                   |                         |
+| DMA Controller                             | RW |    |    | -                 | -                       | -                 | FF0200 (256 байт)       |
+| Graphics Chip                              | RW |    |    | -                 | -                       | -                 | FF0300 (256 байт)       |
+| Sound Chip                                 | RW |    |    | -                 | -                       | -                 | FF0400 (256 байт)       |
 
-`1` MMIO Data Window обращается не к фиксированному адресу, а к диапазону `FC0000 - FFFFFF` в зависимости от регистра страницы.
+`1` MMIO Data Window обращается не к фиксированному адресу, а к диапазону `FF0000 - FFFFFF` в зависимости от регистра страницы.
 `2` MMIO Data Window окно доступно только только в режиме `superviser` или если разрешен доступ `mmio_userlock`
 `3` MMIO Data Window не доступно в легаси режиме но доступен SYSCALL.
+`4` В легаси режиме регистр SYSCALL доступен по адресу D400 но отвечает по этому адресу нативный FF00D4
 
 ## 10. Legacy MMU регистры
 

@@ -53,7 +53,12 @@ module mmu_native (
     output logic [7:0]  debug_syscall_function_o,
     output logic [7:0]  debug_selected_bank_o,
     output logic [7:0]  debug_current_slot_o,
-    output logic [7:0]  debug_bank_index_o
+    output logic [7:0]  debug_bank_index_o,
+    output logic debug_mmio_sel_o, 
+    output logic debug_mmio_hi_sel_o,
+    output logic debug_mmio_lo_sel_o,
+    output logic debug_mmu_reg_sel_o,
+    output logic debug_syscall_sel_o
 );
 
     // Internal registers
@@ -89,8 +94,10 @@ module mmu_native (
     logic [7:0]  syscall_function;
 
     // Wishbone Slave decoding
-    logic        mmio_sel;      // FC0000-FC03FF
-    logic        mmu_reg_sel;   // FC00D0-FC00FF
+    logic        mmio_sel;      // FF0000-FFFFFF
+    logic        mmio_hi_sel;   // FF8000-FFFFFF
+    logic        mmio_lo_sel;   // FF0000-FF07FF
+    logic        mmu_reg_sel;   // FF00D0-FF00FF
     logic        syscall_sel;   // FFFD400
 
     // Для отладки
@@ -99,17 +106,28 @@ module mmu_native (
     assign debug_super_slot_o = reg_super_slot;
     assign debug_user_slot_o = reg_user_slot;
     assign debug_syscall_function_o = syscall_function; 
+    assign debug_mmio_sel_o = mmio_sel;
+    assign debug_mmio_hi_sel_o = mmio_hi_sel;
+    assign debug_mmio_lo_sel_o = mmio_lo_sel;
+    assign debug_mmu_reg_sel_o = mmu_reg_sel;
+    assign debug_syscall_sel_o = syscall_sel; 
 
     // Декодирование адресов Wishbone Slave
-    assign mmio_sel = (s_wb_adr_i[23:10] == 14'h3C00); // FC0000-FC3FFF (16KB)
-    assign mmu_reg_sel = mmio_sel && 
-                        (s_wb_adr_i[9:0] >= 8'hD0) && 
-                        (s_wb_adr_i[9:0] <= 8'hFF);
-    assign syscall_sel = (s_wb_adr_i == 24'hFFD400) | (s_wb_adr_i == 24'hFC00D4); // SysCall регистр
+    assign mmio_sel = (s_wb_adr_i[23:16] == 8'hFF); // FF0000-FFFFFF (64KB)
+    assign mmio_hi_sel = mmio_sel && (s_wb_adr_i[15] == 1'b1);  // FF8000-FFFFFF (32KB)
+    assign mmio_lo_sel = mmio_sel && (s_wb_adr_i[15] == 1'b0);  // FF0000-FF7FFF (32KB)
+    assign mmu_reg_sel = mmio_lo_sel && 
+                        (s_wb_adr_i[14:8] == 0) &&    // FF00xx
+                        (s_wb_adr_i[7] == 1'b1) &&    // Бит 7 = 1 (80-FF)
+                        (s_wb_adr_i[6] == 1'b1);      // Бит 6 = 1 (C0-FF)
+    assign syscall_sel = mmio_sel && (
+                        (s_wb_adr_i[15:0] == 16'h00D4) ||  // Native: порт D4 -> адрес FF00D4
+                        (s_wb_adr_i[15:0] == 16'hD400)     // Legacy: порт D400 -> адрес FFD400
+                        );
  
     // the mmu answers with select_o only for register area
     // and the `syscall` register which is outside the mmio 
-    assign s_wb_sel_o =mmu_reg_sel || syscall_sel;
+    assign s_wb_sel_o = mmu_reg_sel || syscall_sel;
 
     // Режимы работы
     assign native_mode_o = reg_control[0];
@@ -167,8 +185,8 @@ module mmu_native (
     assign cpu_page      = cpu_a[15:14];
 
     // MMIO and register access для IRQ
-    assign is_mmio_access = is_io_access & (cpu_a[7:0] <= 8'hCF) & access_granted & native_mode_o;
-    assign is_reg_access  = is_io_access & (cpu_a[7:0] >= 8'hD0) & access_granted & native_mode_o;
+    assign is_mmio_access = is_io_access & (cpu_a[7:0] <= 8'hBF) & access_granted & native_mode_o;
+    assign is_reg_access  = is_io_access & (cpu_a[7:0] >= 8'hC0) & access_granted & native_mode_o;
 
     // Current slot selection with page-based bit selection
     always_comb begin
@@ -210,24 +228,24 @@ module mmu_native (
     end
 
     // Complex bank indexing
-    logic [3:0] bank_index;
+    logic [3:0] debug_bank_index;
     
     always_comb begin
         if (is_reg_access) begin
             // Direct bank access via IO ports DC-DF
-            bank_index = {current_slot, s_wb_adr_i[1:0]};
+            debug_bank_index = {current_slot, s_wb_adr_i[1:0]};
         end else begin
             // Normal memory access: {current_slot, cpu_page}
-            bank_index = {current_slot, cpu_page};
+            debug_bank_index = {current_slot, cpu_page};
         end
     end
 
-    assign selected_bank = reg_bank[bank_index];
+    assign selected_bank = reg_bank[{current_slot, cpu_page}];
 
     // Отладка
     assign debug_selected_bank_o = selected_bank;
     assign debug_current_slot_o = current_slot;
-    assign debug_bank_index_o = bank_index;
+    assign debug_bank_index_o = debug_bank_index;
 
     // SysCall trigger - ТОЛЬКО через Slave Wishbone
     assign syscall_trigger_o = syscall_sel && s_wb_we_i && s_wb_cyc_i && s_wb_stb_i;
@@ -260,18 +278,7 @@ module mmu_native (
                     s_wb_dat_o <= syscall_function;
                 end
             end
-            // Обработка доступа к MMIO пространству (FC0000-FC03FF)
-            else if (s_wb_cyc_i && s_wb_stb_i && mmio_sel) begin
-                s_wb_ack_o <= 1;
-                if (s_wb_we_i) begin
-                    // Запись в MMIO
-                    // Здесь можно добавить обработку MMIO устройств
-                end else begin
-                    // Чтение из MMIO
-                    s_wb_dat_o <= 8'h00; // По умолчанию
-                end
-            end
-            // Обработка доступа к регистрам MMU (FC00D0-FC00FF)
+            // Обработка доступа к регистрам MMU (FF00C0-FF00FF)
             else if (s_wb_cyc_i && s_wb_stb_i && mmu_reg_sel) begin
                 s_wb_ack_o <= 1;
                 
@@ -287,26 +294,26 @@ module mmu_native (
                         end
                         8'hD9: reg_super_slot <= s_wb_dat_i;
                         8'hDB: reg_user_slot <= s_wb_dat_i;
-                        8'hDC: reg_bank[bank_index] <= s_wb_dat_i;
-                        8'hDD: reg_bank[bank_index] <= s_wb_dat_i;
-                        8'hDE: reg_bank[bank_index] <= s_wb_dat_i;
-                        8'hDF: reg_bank[bank_index] <= s_wb_dat_i;
-                        8'hE0: reg_bank[0]  <= s_wb_dat_i;  // FC00D0h
-                        8'hE1: reg_bank[1]  <= s_wb_dat_i;  // FC00D1h
-                        8'hE2: reg_bank[2]  <= s_wb_dat_i;  // FC00D2h
-                        8'hE3: reg_bank[3]  <= s_wb_dat_i;  // FC00D3h
-                        8'hE4: reg_bank[4]  <= s_wb_dat_i;  // FC00D4h
-                        8'hE5: reg_bank[5]  <= s_wb_dat_i;  // FC00D5h
-                        8'hE6: reg_bank[6]  <= s_wb_dat_i;  // FC00D6h
-                        8'hE7: reg_bank[7]  <= s_wb_dat_i;  // FC00D7h
-                        8'hE8: reg_bank[8]  <= s_wb_dat_i;  // FC00D8h
-                        8'hE9: reg_bank[9]  <= s_wb_dat_i;  // FC00D9h
-                        8'hEA: reg_bank[10] <= s_wb_dat_i;  // FC00DAh
-                        8'hEB: reg_bank[11] <= s_wb_dat_i;  // FC00DBh
-                        8'hEC: reg_bank[12] <= s_wb_dat_i;  // FC00DCh
-                        8'hED: reg_bank[13] <= s_wb_dat_i;  // FC00DDh
-                        8'hEE: reg_bank[14] <= s_wb_dat_i;  // FC00DEh
-                        8'hEF: reg_bank[15] <= s_wb_dat_i;  // FC00DFh
+                        8'hDC: reg_bank[{current_slot, 2'b00}] <= s_wb_dat_i;
+                        8'hDD: reg_bank[{current_slot, 2'b01}] <= s_wb_dat_i;
+                        8'hDE: reg_bank[{current_slot, 2'b10}] <= s_wb_dat_i;
+                        8'hDF: reg_bank[{current_slot, 2'b11}] <= s_wb_dat_i;
+                        8'hE0: reg_bank[0]  <= s_wb_dat_i;  // FF00D0h
+                        8'hE1: reg_bank[1]  <= s_wb_dat_i;  // FF00D1h
+                        8'hE2: reg_bank[2]  <= s_wb_dat_i;  // FF00D2h
+                        8'hE3: reg_bank[3]  <= s_wb_dat_i;  // FF00D3h
+                        8'hE4: reg_bank[4]  <= s_wb_dat_i;  // FF00D4h
+                        8'hE5: reg_bank[5]  <= s_wb_dat_i;  // FF00D5h
+                        8'hE6: reg_bank[6]  <= s_wb_dat_i;  // FF00D6h
+                        8'hE7: reg_bank[7]  <= s_wb_dat_i;  // FF00D7h
+                        8'hE8: reg_bank[8]  <= s_wb_dat_i;  // FF00D8h
+                        8'hE9: reg_bank[9]  <= s_wb_dat_i;  // FF00D9h
+                        8'hEA: reg_bank[10] <= s_wb_dat_i;  // FF00DAh
+                        8'hEB: reg_bank[11] <= s_wb_dat_i;  // FF00DBh
+                        8'hEC: reg_bank[12] <= s_wb_dat_i;  // FF00DCh
+                        8'hED: reg_bank[13] <= s_wb_dat_i;  // FF00DDh
+                        8'hEE: reg_bank[14] <= s_wb_dat_i;  // FF00DEh
+                        8'hEF: reg_bank[15] <= s_wb_dat_i;  // FF00DFh
                     endcase
                 end else begin
                     // Чтение регистров MMU
@@ -315,10 +322,10 @@ module mmu_native (
                         8'hD7: s_wb_dat_o <= reg_control;
                         8'hD9: s_wb_dat_o <= reg_super_slot;
                         8'hDB: s_wb_dat_o <= reg_user_slot;
-                        8'hDC: s_wb_dat_o <= reg_bank[bank_index];
-                        8'hDD: s_wb_dat_o <= reg_bank[bank_index];
-                        8'hDE: s_wb_dat_o <= reg_bank[bank_index];
-                        8'hDF: s_wb_dat_o <= reg_bank[bank_index];
+                        8'hDC: s_wb_dat_o <= reg_bank[{current_slot, 2'b00}];
+                        8'hDD: s_wb_dat_o <= reg_bank[{current_slot, 2'b01}];
+                        8'hDE: s_wb_dat_o <= reg_bank[{current_slot, 2'b10}];
+                        8'hDF: s_wb_dat_o <= reg_bank[{current_slot, 2'b11}];
                         8'hE0: s_wb_dat_o <= reg_bank[0];
                         8'hE1: s_wb_dat_o <= reg_bank[1];
                         8'hE2: s_wb_dat_o <= reg_bank[2];
@@ -340,6 +347,17 @@ module mmu_native (
                 end
             end
 
+            // Обработка доступа к MMIO пространству (FF0000-FF7FFF)
+            else if (s_wb_cyc_i && s_wb_stb_i && mmio_lo_sel) begin
+                s_wb_ack_o <= 1;
+                if (s_wb_we_i) begin
+                    // Запись в MMIO
+                    // Здесь можно добавить обработку MMIO устройств
+                end else begin
+                    // Чтение из MMIO
+                    s_wb_dat_o <= 8'h00; // По умолчанию
+                end
+            end
         end
     end
 
@@ -367,27 +385,28 @@ module mmu_native (
                 cpu_dout = m_wb_dat_i;
             end
         end
-        // MMIO access для IRQ (00-CFh → FC0000-FC3FFF через PAGE)
+        // MMIO access для IRQ (00-CFh → FF0000-FFFFFF через PAGE)
         else if (is_mmio_access) begin
             m_wb_cyc_o = 1'b1;
             m_wb_stb_o = 1'b1;
-            m_wb_adr_o = 24'hFC0000 + {reg_mmio_page, cpu_a[6:0]};
+            m_wb_adr_o = {8'hFF, reg_mmio_page, cpu_a[7:0]};
             if (is_read) begin
                 cpu_dout = m_wb_dat_i;
             end
-        end
-        // Register access для IRQ (D0-FFh → FC00D0-FC00FF)
+        end        
+        // Register access для IRQ (D0-FFh → FF00C0-FC00FF)
         else if (is_reg_access && access_granted) begin
             m_wb_cyc_o = 1'b1;
             m_wb_stb_o = 1'b1;
             // Трансляция Z80 портов в Wishbone адреса            
-            m_wb_adr_o = {16'hFC00, cpu_a[7:0]};
+            m_wb_adr_o = {16'hFF00, cpu_a[7:0]};
             
             // Для чтения - передаем данные из Wishbone
             if (is_read) begin
                 cpu_dout = m_wb_dat_i;
             end
         end
+
     end
 
     assign cpu_wait = (m_wb_cyc_o && !m_wb_ack_i);

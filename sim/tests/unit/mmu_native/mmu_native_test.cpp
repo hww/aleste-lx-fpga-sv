@@ -571,7 +571,7 @@ void test_address_translation(MMUNativeTestUtils& utils) {
     utils.simulate_z80_memory_access(0x0000, false);
     
     if (utils.was_m_wb_transaction()) {
-        utils.assert_equal(utils.get_last_m_wb_addr(), 0x110000, "Memory translation page 0");
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x044000, "Memory translation page 0");
     } else {
         utils.assert_true(false, "No Wishbone transaction occurred for memory access");
     }
@@ -581,7 +581,7 @@ void test_address_translation(MMUNativeTestUtils& utils) {
     utils.simulate_z80_memory_access(0xC000, false);
     
     if (utils.was_m_wb_transaction()) {
-        utils.assert_equal(utils.get_last_m_wb_addr(), 0x444000, "Memory translation page 3");
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x110000, "Memory translation page 3");
     } else {
         utils.assert_true(false, "No Wishbone transaction occurred for memory access");
     }
@@ -599,7 +599,7 @@ void test_mmio_translation(MMUNativeTestUtils& utils) {
     utils.simulate_z80_io_access(0x0050, false);
     
     if (utils.was_m_wb_transaction()) {
-        utils.assert_equal(utils.get_last_m_wb_addr(), 0xFCAB50, "MMIO translation");
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0xFFAB50, "MMIO translation");
     } else {
         utils.assert_true(false, "No Wishbone transaction occurred for MMIO access");
     }

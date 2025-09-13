@@ -99,37 +99,41 @@ namespace MMURegisterAddress  {
 };
 
 namespace WishboneAreas  {
-    constexpr uint32_t MMIO_BASE      = 0xFC0000;   // Базовый адрес MMIO
-    constexpr uint32_t MMIO_END       = 0xFC03FF;   // Конец MMIO области
-    constexpr uint32_t MMU_REGS_BASE  = 0xFC00D0;   // Базовый адрес регистров MMU
-    constexpr uint32_t MMU_REGS_END   = 0xFC00FF;   // Конец регистров MMU
+    constexpr uint32_t MMIO_BASE      = 0xFF0000;   // Базовый адрес MMIO
+    constexpr uint32_t MMIO_END       = 0xFFFFFF;   // Конец MMIO области
+    constexpr uint32_t MMIO_LO_BASE   = 0xFF0000;   // Базовый адрес MMIO
+    constexpr uint32_t MMIO_LO_END    = 0xFF7FFF;   // Конец MMIO области
+    constexpr uint32_t MMIO_HI_BASE   = 0xFF8000;   // Базовый адрес MMIO
+    constexpr uint32_t MMIO_HI_END    = 0xFFFFFF;   // Конец MMIO области
+    constexpr uint32_t MMU_REGS_BASE  = 0xFF00D0;   // Базовый адрес регистров MMU
+    constexpr uint32_t MMU_REGS_END   = 0xFF00FF;   // Конец регистров MMU
 }
 
 // Wishbone адреса
 namespace WishboneAddress  {
 
 
-    constexpr uint32_t CONTROL        = 0xFC00D7; // Регистр управления
-    constexpr uint32_t MMIO_PAGE      = 0xFC00D3; // Регистр страницы MMIO
-    constexpr uint32_t SUPER_SLOT     = 0xFC00D9; // Регистр слота супервизора
-    constexpr uint32_t USER_SLOT      = 0xFC00DB; // Регистр пользовательского слота
-    constexpr uint32_t BANK_0         = 0xFC00DC; // Банк 0
-    constexpr uint32_t BANK_1         = 0xFC00DD; // Банк 1
-    constexpr uint32_t BANK_2         = 0xFC00DE; // Банк 2
-    constexpr uint32_t BANK_3         = 0xFC00DF; // Банк 3
-    constexpr uint32_t BANK_4         = 0xFC00E0; // Банк 4
-    constexpr uint32_t BANK_5         = 0xFC00E1; // Банк 5
-    constexpr uint32_t BANK_6         = 0xFC00E2; // Банк 6
-    constexpr uint32_t BANK_7         = 0xFC00E3; // Банк 7
-    constexpr uint32_t BANK_8         = 0xFC00E4; // Банк 8
-    constexpr uint32_t BANK_9         = 0xFC00E5; // Банк 9
-    constexpr uint32_t BANK_10        = 0xFC00E6; // Банк 10
-    constexpr uint32_t BANK_11        = 0xFC00E7; // Банк 11
-    constexpr uint32_t BANK_12        = 0xFC00E8; // Банк 12
-    constexpr uint32_t BANK_13        = 0xFC00E9; // Банк 13
-    constexpr uint32_t BANK_14        = 0xFC00EA; // Банк 14
-    constexpr uint32_t BANK_15        = 0xFC00EB; // Банк 15
-    constexpr uint32_t SYSCALL_REG    = 0xFC00D4;  // SysCall регистр
+    constexpr uint32_t MMIO_PAGE      = 0xFF00D3; // Регистр страницы MMIO
+    constexpr uint32_t CONTROL        = 0xFF00D7; // Регистр управления
+    constexpr uint32_t SUPER_SLOT     = 0xFF00D9; // Регистр слота супервизора
+    constexpr uint32_t USER_SLOT      = 0xFF00DB; // Регистр пользовательского слота
+    constexpr uint32_t BANK_0         = 0xFF00DC; // Банк 0
+    constexpr uint32_t BANK_1         = 0xFF00DD; // Банк 1
+    constexpr uint32_t BANK_2         = 0xFF00DE; // Банк 2
+    constexpr uint32_t BANK_3         = 0xFF00DF; // Банк 3
+    constexpr uint32_t BANK_4         = 0xFF00E0; // Банк 4
+    constexpr uint32_t BANK_5         = 0xFF00E1; // Банк 5
+    constexpr uint32_t BANK_6         = 0xFF00E2; // Банк 6
+    constexpr uint32_t BANK_7         = 0xFF00E3; // Банк 7
+    constexpr uint32_t BANK_8         = 0xFF00E4; // Банк 8
+    constexpr uint32_t BANK_9         = 0xFF00E5; // Банк 9
+    constexpr uint32_t BANK_10        = 0xFF00E6; // Банк 10
+    constexpr uint32_t BANK_11        = 0xFF00E7; // Банк 11
+    constexpr uint32_t BANK_12        = 0xFF00E8; // Банк 12
+    constexpr uint32_t BANK_13        = 0xFF00E9; // Банк 13
+    constexpr uint32_t BANK_14        = 0xFF00EA; // Банк 14
+    constexpr uint32_t BANK_15        = 0xFF00EB; // Банк 15
+    constexpr uint32_t SYSCALL_REG    = 0xFF00D4;  // SysCall регистр
 
     constexpr uint32_t SYSCALL_LEG    = 0xFFD400;   // SysCall регистр для legacy
 

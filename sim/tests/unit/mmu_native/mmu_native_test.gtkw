@@ -1,16 +1,17 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Sat Sep 13 05:41:00 2025
+[*] Sat Sep 13 07:40:37 2025
 [*]
 [dumpfile] "/home/valery/asv/sim/tests/unit/mmu_native/mmu_native_test.vcd"
-[dumpfile_mtime] "Fri Sep 12 19:50:14 2025"
-[dumpfile_size] 15776
+[dumpfile_mtime] "Sat Sep 13 07:39:10 2025"
+[dumpfile_size] 15140
 [savefile] "/home/valery/asv/sim/tests/unit/mmu_native/mmu_native_test.gtkw"
-[timestart] 352
+[timestart] 1055
 [size] 1920 1110
 [pos] -1 -1
-*-6.185236 540 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-6.185236 1149 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
+[treeopen] TOP.mmu_native.
 [sst_width] 297
 [signals_width] 262
 [sst_expanded] 1
@@ -87,5 +88,13 @@ TOP.debug_bank_index_o[7:0]
 TOP.debug_mmio_page_o[7:0]
 TOP.debug_selected_bank_o[7:0]
 TOP.debug_syscall_function_o[7:0]
+@28
+TOP.debug_mmio_sel_o
+TOP.debug_mmio_hi_sel_o
+TOP.debug_mmio_lo_sel_o
+@29
+TOP.debug_mmu_reg_sel_o
+@28
+TOP.debug_syscall_sel_o
 [pattern_trace] 1
 [pattern_trace] 0
