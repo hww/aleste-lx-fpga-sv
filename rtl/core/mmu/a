@@ -1,262 +1,328 @@
 // =============================================================================
-// MMU Legacy Module for Aleste LX System
+// TV80-LX Wishbone Bridge with Dual MMU Support
 // =============================================================================
-// Amstrad CPC 6128 Compatibility Mode Memory Management Unit
-// Provides full hardware and software compatibility with Amstrad CPC 6128
+// Z80 CPU with Aleste LX Memory Management Units integration
+// Supports: Native mode (new functionality) and Legacy mode (CPC 6128 compatibility)
 // =============================================================================
 
-module mmu_legacy (
+module tv80_lx_wb (
     // -------------------------------------------------------------------------
     // Clock and Reset
     // -------------------------------------------------------------------------
-    input  logic        clk,
-    input  logic        reset,
-    
-    // -------------------------------------------------------------------------
-    // Operation Mode Control
-    // -------------------------------------------------------------------------
-    input  logic        legacy_mode_i,            // Legacy mode active
-    
-    // -------------------------------------------------------------------------
-    // SLAVE Wishbone Interface (Configuration Access)
-    // -------------------------------------------------------------------------
-    input  logic        s_wb_cyc_i,               // Cycle valid
-    input  logic        s_wb_stb_i,               // Strobe
-    input  logic        s_wb_we_i,                // Write enable
-    input  logic [23:0] s_wb_adr_i,               // 24-bit address
-    input  logic [7:0]  s_wb_dat_i,               // Data in
-    output logic [7:0]  s_wb_dat_o,               // Data out
-    output logic        s_wb_ack_o,               // Transfer acknowledge
+    input          nrst_i,                       // Active low reset
+    input          clk_i,                        // System clock
 
     // -------------------------------------------------------------------------
-    // MASTER Wishbone Interface (Memory and I/O Access)
+    // WISHBONE Master Interface
     // -------------------------------------------------------------------------
-    output logic        m_wb_cyc_o,               // Cycle valid
-    output logic        m_wb_stb_o,               // Strobe
-    output logic        m_wb_we_o,                // Write enable
-    output logic        m_wb_tga_o,               // Address type: 0=MEM, 1=IO
-    output logic [23:0] m_wb_adr_o,               // 24-bit physical address
-    output logic [7:0]  m_wb_dat_o,               // Data out
-    input  logic [7:0]  m_wb_dat_i,               // Data in
-    input  logic        m_wb_ack_i,               // Transfer acknowledge
+    output [23:0]  wbm_adr_o,                    // 24-bit physical address
+    output [1:0]   wbm_tga_o,                    // Address tag: 00=MEM, 01=IO, 10=MMIO
+    input  [7:0]   wbm_dat_i,                    // Data input from bus
+    output [7:0]   wbm_dat_o,                    // Data output to bus
+    output         wbm_cyc_o,                    // Cycle valid
+    output         wbm_stb_o,                    // Strobe
+    output         wbm_we_o,                     // Write enable
+    input          wbm_ack_i,                    // Transfer acknowledge
     
     // -------------------------------------------------------------------------
-    // Z80 Bus Interface
+    // WISHBONE Slave Interface (for register access)
     // -------------------------------------------------------------------------
-    input  logic [15:0] cpu_a,                    // Z80 address bus
-    input  logic        cpu_mreq_n,               // Memory request
-    input  logic        cpu_iorq_n,               // I/O request
-    input  logic        cpu_rd_n,                 // Read strobe
-    input  logic        cpu_wr_n,                 // Write strobe
-    input  logic [7:0]  cpu_dout,                 // Z80 data out
-    output logic [7:0]  cpu_din,                  // Z80 data in  
-    output logic        cpu_wait,                 // CPU wait signal
+    input          s_wb_cyc_i,                   // Slave cycle
+    input          s_wb_stb_i,                   // Slave strobe  
+    input          s_wb_we_i,                    // Slave write enable
+    input  [23:0]  s_wb_adr_i,                   // Slave address
+    input  [7:0]   s_wb_dat_i,                   // Slave data input
+    output [7:0]   s_wb_dat_o,                   // Slave data output
+    output         s_wb_ack_o,                   // Slave acknowledge
+    
+    // -------------------------------------------------------------------------
+    // Z80-specific Interface
+    // -------------------------------------------------------------------------
+    input          nmi_req_i,                    // NMI request
+    input          int_req_i,                    // INT request
+    input          busrq_i,                      // Bus request
+    output         busak_o,                      // Bus acknowledge
 
     // -------------------------------------------------------------------------
-    // CPC Control Outputs
+    // LX-specific Control Outputs
     // -------------------------------------------------------------------------
-    output logic [1:0]  graphic_mode,             // CPC graphics mode
-    output logic        irq_control               // Interrupt control
+    output [1:0]   graphic_mode,                 // CPC graphics mode
+    output         irq_control,                  // Interrupt control
+    output         supervisor_mode_o,            // Current supervisor mode
+    output         legacy_mode_o,
+    output         native_mode_o,
+
+    // -------------------------------------------------------------------------
+    // Debug Outputs
+    // -------------------------------------------------------------------------
+    output [7:0]   debug_control_o,              // Control register for debug
+    output         debug_m1_n_o,
+    output         debug_mreq_n_o,
+    output         debug_iorq_n_o,
+    output         debug_rd_n_o,
+    output         debug_wr_n_o,
+    output         debug_halt_o
 );
 
     // =========================================================================
-    // Internal Registers (CPC 6128 Compatible)
+    // TV80 Core Interface Signals
     // =========================================================================
-    logic [7:0] reg_rmr;                          // RMR: Control Interrupt counter, ROM mapping
-    logic [7:0] reg_mmr;                          // MMR: RAM memory mapping  
-    logic [7:0] reg_upper_rom;                    // Upper ROM selection register
+    wire           m1_n;                         // Machine cycle 1
+    wire           mreq_n;                       // Memory request
+    wire           iorq_n;                       // I/O request
+    wire           rd_n;                         // Read strobe
+    wire           wr_n;                         // Write strobe
+    wire           rfsh_n;                       // Refresh
+    wire           halt_n;                       // Halt state
+    wire           busak_n;                      // Bus acknowledge
+    wire [15:0]    tv80_adr;                     // Z80 address bus
+    wire [7:0]     tv80_dat_o;                   // Z80 data output
+    wire [7:0]     tv80_dat_i;                   // Z80 data input
+    wire           wait_n;                       // Wait state control
+    wire [7:0]     mmu_native_dat_o;            // Z80 data input from native MMU
+    wire [7:0]     mmu_legacy_dat_o;            // Z80 data input from legacy MMU
 
     // =========================================================================
-    // Z80 Bus Decoding Signals
+    // Interrupt Control
     // =========================================================================
-    logic        is_7fxx_write;                   // Gate Array write (7Fxxh)
-    logic        is_dfxx_write;                   // Upper ROM select write (DFxxh)
-    logic        is_mem_access;                   // Memory access active
-    logic        is_mem_write;                    // Memory write operation
-    logic        is_mem_read;                     // Memory read operation
-    logic        is_io_access;                    // I/O access active
-    logic        is_internal_io;                  // Internal I/O register access
+    wire           int_n;                        // Interrupt (active low)
+    wire           nmi_n;                        // NMI (active low)
+    wire           busrq_n;                      // Bus request (active low)
 
     // =========================================================================
-    // Gate Array Control Signals
+    // MMU Control Signals
     // =========================================================================
-    logic        gate_array_select;               // Gate Array register selected
-    logic [1:0]  gate_array_reg;                  // Gate Array register type
+    wire           legacy_mode;                  // Legacy mode active
+    wire           native_mode;                  // Native mode active
+    wire           current_supervisor;           // Current supervisor mode
 
     // =========================================================================
-    // Memory Configuration
+    // MMU Interface Signals
     // =========================================================================
-    logic [2:0]  memory_config;                   // Current memory configuration
-    logic [4:0]  memory_bank;                     // Current memory bank base
-
-    // =========================================================================
-    // Address Calculation
-    // =========================================================================
-    logic [23:0] physical_address;                // 24-bit physical address
-    logic        rom_access;                      // ROM access in progress
-    logic        ram_access;                      // RAM access in progress
-
-    // =========================================================================
-    // Wishbone Control
-    // =========================================================================
-    logic        wb_busy;                         // Wishbone transaction busy
-
-
-    // =========================================================================
-    // Z80 BUS DECODING
-    // =========================================================================
-
-    // Gate Array access detection (7Fxxh write)
-    assign is_7fxx_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a[15:8] == 8'h7F);
+    // Legacy MMU interfaces
+    wire           legacy_mmu_cyc;
+    wire           legacy_mmu_stb;
+    wire           legacy_mmu_we;
+    wire [23:0]    legacy_mmu_adr;
+    wire [7:0]     legacy_mmu_dat_o;
+    wire           legacy_mmu_wait;
     
-    // Upper ROM select detection (DFxxh write)
-    assign is_dfxx_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a[15:8] == 8'hDF);
+    // Legacy MMU Slave interfaces
+    wire [7:0]     legacy_mmu_s_dat_o;
+    wire           legacy_mmu_s_ack_o;
+
+    // Native MMU interfaces
+    wire           native_mmu_cyc;
+    wire           native_mmu_stb;
+    wire           native_mmu_we;
+    wire [23:0]    native_mmu_adr;
+    wire [7:0]     native_mmu_dat_o;
+    wire           native_mmu_wait;
     
-    // Memory and I/O access detection
-    assign is_mem_access = ~cpu_mreq_n;
-    assign is_io_access  = ~cpu_iorq_n;
-    assign is_mem_write  = is_mem_access & ~cpu_wr_n;
-    assign is_mem_read   = is_mem_access & ~cpu_rd_n;
+    // Native MMU Slave interfaces
+    wire [7:0]     native_mmu_s_dat_o;
+    wire           native_mmu_s_ack_o;
+    
+    // =========================================================================
+    // SysCall Bridge Signals
+    // =========================================================================
+    wire           legacy_syscall_detect;        // Detect Legacy SysCall (D400h)
+    wire           legacy_syscall_we;           // Legacy SysCall write enable
 
-    // Internal I/O registers (handled internally, not forwarded to Wishbone)
-    assign is_internal_io = is_7fxx_write | is_dfxx_write;
+    assign tv80_dat_i = native_mode ? mmu_native_dat_o : mmu_legacy_dat_o;
 
-    // Gate Array register selection
-    assign gate_array_select = is_7fxx_write & legacy_mode_i;
-    assign gate_array_reg    = cpu_dout[7:6];     // Register type from data bits
-
+    assign debug_m1_n_o = mreq_n;
+    assign debug_mreq_n_o = mreq_n;
+    assign debug_iorq_n_o = iorq_n;
+    assign debug_rd_n_o = rd_n;
+    assign debug_wr_n_o = wr_n;
+    assign debug_halt_o = halt_n;
 
     // =========================================================================
-    // CPC REGISTER UPDATE FROM Z80 BUS
+    // LEGACY SYSCALL DETECTION
     // =========================================================================
-    always_ff @(posedge clk) begin
-        if (reset) begin
-            // Reset to CPC 6128 default values
-            reg_rmr        <= 8'b10000000;        // Default RMR: Mode 0, ROMs enabled
-            reg_mmr        <= 8'b11000000;        // Default MMR: Config 0, Bank 0
-            reg_upper_rom  <= 8'h00;              // Default upper ROM bank 0
-        end else if (legacy_mode_i) begin
-            // Gate Array register writes
-            if (gate_array_select) begin
-                case (gate_array_reg)
-                    2'b10: reg_rmr <= cpu_dout;   // RMR write (Configuration)
-                    2'b11: reg_mmr <= cpu_dout;   // MMR write (Memory mapping)
-                    default: ;                    // Ignore other values - НОВАЯ СТРОКА
-                endcase
-            end
-
-            // Upper ROM selection write
-            if (is_dfxx_write) begin
-                reg_upper_rom <= cpu_dout;        // Upper ROM bank select
-            end
-        end
-    end
-
+    // Detect writes to D400h in Legacy mode for SysCall redirection
+    assign legacy_syscall_detect = legacy_mode && ~iorq_n && ~wr_n && 
+                                  (tv80_adr == 16'hD400);
+    assign legacy_syscall_we = legacy_syscall_detect;
 
     // =========================================================================
-    // CPC REGISTER ACCESS VIA WISHBONE (SUPERVISOR MODE)
+    // TV80 CORE INSTANTIATION
     // =========================================================================
-    always_ff @(posedge clk) begin
-        if (reset) begin
-            s_wb_ack_o <= 1'b0;
-            s_wb_dat_o <= 8'h00;
-        end else begin
-            s_wb_ack_o <= 1'b0;                   // Default no acknowledge
-            
-            if (s_wb_cyc_i & s_wb_stb_i & ~s_wb_ack_o) begin
-                s_wb_ack_o <= 1'b1;               // Acknowledge valid access
-                
-                if (s_wb_we_i) begin
-                    // Supervisor write to CPC registers
-                    case (s_wb_adr_i)
-                        24'hFC0100: reg_rmr       <= s_wb_dat_i;  // RMR register
-                        24'hFC0101: reg_mmr       <= s_wb_dat_i;  // MMR register
-                        24'hFC0140: reg_upper_rom <= s_wb_dat_i;  // Upper ROM select
-                    endcase
-                end else begin
-                    // Supervisor read from CPC registers
-                    case (s_wb_adr_i)
-                        24'hFC0100: s_wb_dat_o <= reg_rmr;        // Read RMR
-                        24'hFC0101: s_wb_dat_o <= reg_mmr;        // Read MMR
-                        24'hFC0140: s_wb_dat_o <= reg_upper_rom;  // Read Upper ROM
-                        default:    s_wb_dat_o <= 8'hFF;          // Default response
-                    endcase
-                end
-            end
-        end
-    end
-
+    tv80s z80_core (
+        .m1_n(m1_n), 
+        .mreq_n(mreq_n), 
+        .iorq_n(iorq_n), 
+        .rd_n(rd_n), 
+        .wr_n(wr_n), 
+        .rfsh_n(rfsh_n), 
+        .halt_n(halt_n), 
+        .busak_n(busak_n), 
+        .A(tv80_adr), 
+        .dout(tv80_dat_o), 
+        .reset_n(nrst_i), 
+        .clk(clk_i), 
+        .wait_n(wait_n), 
+        .int_n(int_n), 
+        .nmi_n(nmi_n), 
+        .busrq_n(busrq_n), 
+        .di(tv80_dat_i)
+    );
 
     // =========================================================================
-    // MEMORY CONFIGURATION DECODING
+    // LEGACY MMU INSTANTIATION (CPC 6128 COMPATIBLE)
     // =========================================================================
-    assign memory_config = reg_mmr[2:0];          // Memory configuration bits
-    assign memory_bank   = {reg_mmr[5:3], 2'b00}; // 64KB memory bank base address
+    mmu_legacy legacy_mmu (
+        // Clock and Reset
+        .clk(clk_i),
+        .reset(~nrst_i),
+        
+        // Mode Control
+        .legacy_mode_i(legacy_mode),             // Driven by native MMU
+        
+        // Slave Wishbone Interface
+        .s_wb_cyc_i(s_wb_cyc_i & legacy_mode),   // Only in legacy mode
+        .s_wb_stb_i(s_wb_stb_i & legacy_mode),
+        .s_wb_we_i(s_wb_we_i),
+        .s_wb_adr_i(s_wb_adr_i),
+        .s_wb_dat_i(s_wb_dat_i),
+        .s_wb_dat_o(legacy_mmu_s_dat_o),
+        .s_wb_ack_o(legacy_mmu_s_ack_o),
+        
+        // Master Wishbone Interface
+        .m_wb_cyc_o(legacy_mmu_cyc),
+        .m_wb_stb_o(legacy_mmu_stb),
+        .m_wb_we_o(legacy_mmu_we),
+        .m_wb_tga_o(),                          // Not used in this context
+        .m_wb_adr_o(legacy_mmu_adr),
+        .m_wb_dat_o(legacy_mmu_dat_o),
+        .m_wb_dat_i(wbm_dat_i),
+        .m_wb_ack_i(wbm_ack_i),
 
+        // Z80 Bus Interface
+        .cpu_a(tv80_adr),
+        .cpu_mreq_n(mreq_n),
+        .cpu_iorq_n(iorq_n),
+        .cpu_rd_n(rd_n),
+        .cpu_wr_n(wr_n),
+        .cpu_dat_i(tv80_dat_o),
+        .cpu_dat_o(mmu_legacy_dat_o),
+        .cpu_wait(legacy_mmu_wait),
 
-// =========================================================================
-// COMPLEX MEMORY ADDRESS CALCULATION (CPC 6128 COMPATIBLE)
-// =========================================================================
+        // CPC Control Outputs
+        .graphic_mode(graphic_mode),
+        .irq_control(irq_control),
 
-// Базовый адрес ROM-ов в системе. Для Upper ROM банков.
-// Пусть это будет 0x000000, тогда Bank 0 Upper ROM будет указывать туда же, куда и Lower ROM!
-localparam ROM_SPACE_BASE = 24'h000000;
+        .debug_rom_access_o(),
+        .debug_ram_access_o(),
+        .debug_io_access_o()
 
-always_comb begin
-    // Default values
-    physical_address = 24'h000000;
-    rom_access = 1'b0;
-    ram_access = 1'b1;
+    );
 
-        if (is_mem_access) begin
-            // CPC 6128 memory mapping configurations
-            case (memory_config)
-                // Config 0: Standard 64K mapping
-                3'b000: physical_address = {8'h00, cpu_a};
-                
-                // Config 1: RAM 0,1,2,3 (sequential banks)
-                3'b001: begin
-                    case (cpu_a[15:14])
-                        2'b00: physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
-                        2'b01: physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
-                        2'b10: physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
-                        2'b11: physical_address = {memory_bank + 3'd3, cpu_a[13:0]};
-                    endcase
-                end
-                
-                // Config 2: RAM 0,1,2,7 (bank 7 in upper memory)
-                3'b010: begin
-                    case (cpu_a[15:14])
-                        2'b00: physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
-                        2'b01: physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
-                        2'b10: physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
-                        2'b11: physical_address = {memory_bank + 3'd7, cpu_a[13:0]};
-                    endcase
-                end
-                
-                // Additional CPC 6128 configurations can be added here...
-                default: physical_address = {memory_bank, cpu_a[15:0]};
-            endcase
+    // =========================================================================
+    // NATIVE MMU INSTANTIATION (ALESTE LX EXTENDED)
+    // =========================================================================
+    mmu_native native_mmu (
+        // Clock and Reset
+        .clk(clk_i),
+        .reset(~nrst_i),
+        
+        // Mode Control
+        .legacy_mode_o(legacy_mode),             // Legacy mode status
+        .native_mode_o(native_mode),             // Native mode status
+        .supervisor_mode_i(1'b0),                // No external override
+        
+        // Z80 Bus Interface
+        .cpu_a(tv80_adr),
+        .cpu_mreq_n(mreq_n),
+        .cpu_iorq_n(iorq_n),
+        .cpu_rd_n(rd_n),
+        .cpu_wr_n(wr_n),
+        .cpu_m1_n(m1_n),
+        .cpu_din(tv80_dat_o),
+        .cpu_dout(mmu_native_dat_o),             // Data to CPU
+        .cpu_wait(native_mmu_wait),
+        
+        // Master Wishbone Interface
+        .m_wb_cyc_o(native_mmu_cyc),
+        .m_wb_stb_o(native_mmu_stb),
+        .m_wb_we_o(native_mmu_we),
+        .m_wb_adr_o(native_mmu_adr),
+        .m_wb_dat_o(native_mmu_dat_o),
+        .m_wb_dat_i(wbm_dat_i),
+        .m_wb_ack_i(wbm_ack_i),
+        
+        // Slave Wishbone Interface (for register access)
+        .s_wb_cyc_i(s_wb_cyc_i & (native_mode | legacy_syscall_detect)),
+        .s_wb_stb_i(s_wb_stb_i & (native_mode | legacy_syscall_detect)),
+        .s_wb_we_i(s_wb_we_i | legacy_syscall_we),
+        .s_wb_adr_i(legacy_syscall_detect ? 24'hFF00D4 : s_wb_adr_i), // Redirect D400 to FF00D4
+        .s_wb_dat_i(legacy_syscall_detect ? tv80_dat_o : s_wb_dat_i), // Use CPU data for SysCall
+        .s_wb_dat_o(native_mmu_s_dat_o),
+        .s_wb_ack_o(native_mmu_s_ack_o),
+        
+        // Control Outputs
+        .supervisor_mode_o(current_supervisor),  // Supervisor mode status
+        .mmio_userlock_o(),                      // MMIO lock status
+        
+        // SysCall Interface
+        .syscall_function_o(),
+        .syscall_trigger_o(),
+        
+        // Debug Outputs
+        .debug_control_o(debug_control_o),       // Control register for debug
+        .debug_mmio_page_o(),
+        .debug_super_slot_o(),
+        .debug_user_slot_o(),
+        .debug_syscall_function_o(),
+        .debug_selected_bank_o(),
+        .debug_current_slot_o(),
+        .debug_bank_index_o(),
+        .debug_mmio_sel_o(),
+        .debug_mmio_hi_sel_o(),
+        .debug_mmio_lo_sel_o(),
+        .debug_mmu_reg_sel_o(),
+        .debug_syscall_sel_o()
+    );
 
+    // =========================================================================
+    // MMU OUTPUT MULTIPLEXING
+    // =========================================================================
+    assign wbm_cyc_o = legacy_mode ? legacy_mmu_cyc : native_mmu_cyc;
+    assign wbm_stb_o = legacy_mode ? legacy_mmu_stb : native_mmu_stb;
+    assign wbm_we_o  = legacy_mode ? legacy_mmu_we  : native_mmu_we;
+    assign wbm_adr_o = legacy_mode ? legacy_mmu_adr : native_mmu_adr;
+    assign wbm_dat_o = legacy_mode ? legacy_mmu_dat_o : native_mmu_dat_o;
 
-        // ROM access overrides (CPC ROM banking)
-        if (cpu_a[15:14] == 2'b00 && ~reg_rmr[2]) begin
-            // Lower ROM access (0000-3FFF) when enabled
-            // Lower ROM мапится в начало адресного пространства (0x00000 - 0x03FFF)
-            physical_address = ROM_SPACE_BASE + {10'b00_0000_0000, cpu_a[13:0]};
-            rom_access = 1'b1;
-            ram_access = 1'b0;
-        end
-        else if (cpu_a[15:14] == 2'b11 && ~reg_rmr[3]) begin
-            // Upper ROM access (C000-FFFF) when enabled
-            // SIMPLE AND CORRECT: Bank N находится по адресу BASE + (N * 16KB)
-            physical_address = ROM_SPACE_BASE + {reg_upper_rom, 14'b0} + {8'b0, cpu_a[13:0]};
-            rom_access = 1'b1;
-            ram_access = 1'b0;
-        end
-        else begin
-          // ... (существующая логика для RAM) ...
-        end
-    end
-    // ... (логика для IO) ...
-end
+    // =========================================================================
+    // SLAVE INTERFACE MULTIPLEXING
+    // =========================================================================
+    assign s_wb_dat_o = legacy_mode ? legacy_mmu_s_dat_o : native_mmu_s_dat_o;
+    assign s_wb_ack_o = legacy_mode ? legacy_mmu_s_ack_o : native_mmu_s_ack_o;
+
+    // =========================================================================
+    // WAIT STATE LOGIC
+    // =========================================================================
+    assign wait_n = legacy_mode ? ~legacy_mmu_wait : ~native_mmu_wait;
+
+    // =========================================================================
+    // INTERRUPT HANDLING
+    // =========================================================================
+    assign int_n = ~int_req_i;
+    assign nmi_n = ~nmi_req_i;
+    assign busrq_n = ~busrq_i;
+    assign busak_o = ~busak_n;
+
+    // =========================================================================
+    // ADDRESS TAG GENERATION
+    // =========================================================================
+    // 00 = Memory, 01 = I/O, 10 = MMIO
+    assign wbm_tga_o = (~iorq_n ? 2'b01 : 2'b00);
+
+    // =========================================================================
+    // SUPERVISOR MODE OUTPUT
+    // =========================================================================
+    assign supervisor_mode_o = current_supervisor;
+    assign legacy_mode_o = legacy_mode;
+    assign native_mode_o = native_mode;
+endmodule

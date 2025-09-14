@@ -25,6 +25,18 @@ module tv80_lx_wb (
     input          wbm_ack_i,                    // Transfer acknowledge
     
     // -------------------------------------------------------------------------
+    // WISHBONE Slave Interface (for register access)
+    // -------------------------------------------------------------------------
+    input          s_wb_cyc_i,                   // Slave cycle
+    input          s_wb_stb_i,                   // Slave strobe  
+    input          s_wb_we_i,                    // Slave write enable
+    input  [23:0]  s_wb_adr_i,                   // Slave address
+    input  [7:0]   s_wb_dat_i,                   // Slave data input
+    output [7:0]   s_wb_dat_o,                   // Slave data output
+    output         s_wb_ack_o,                   // Slave acknowledge
+    output         s_wb_sel_o,                   // Unity is selected on WB
+
+    // -------------------------------------------------------------------------
     // Z80-specific Interface
     // -------------------------------------------------------------------------
     input          nmi_req_i,                    // NMI request
@@ -45,11 +57,12 @@ module tv80_lx_wb (
     // Debug Outputs
     // -------------------------------------------------------------------------
     output [7:0]   debug_control_o,              // Control register for debug
-    output debug_m1_n_o,
-    output debug_mreq_n_o,
-    output debug_iorq_n_o,
-    output debug_rd_n_o,
-    output debug_wr_n_o
+    output         debug_m1_n_o,
+    output         debug_mreq_n_o,
+    output         debug_iorq_n_o,
+    output         debug_rd_n_o,
+    output         debug_wr_n_o,
+    output         debug_halt_o
 );
 
     // =========================================================================
@@ -94,6 +107,11 @@ module tv80_lx_wb (
     wire [23:0]    legacy_mmu_adr;
     wire [7:0]     legacy_mmu_dat_o;
     wire           legacy_mmu_wait;
+    
+    // Legacy MMU Slave interfaces
+    wire [7:0]     legacy_mmu_s_dat_o;
+    wire           legacy_mmu_s_ack_o;
+    wire           legacy_mmu_s_wb_sel;
 
     // Native MMU interfaces
     wire           native_mmu_cyc;
@@ -102,6 +120,17 @@ module tv80_lx_wb (
     wire [23:0]    native_mmu_adr;
     wire [7:0]     native_mmu_dat_o;
     wire           native_mmu_wait;
+    wire           native_mmu_s_wb_sel;
+    
+    // Native MMU Slave interfaces
+    wire [7:0]     native_mmu_s_dat_o;
+    wire           native_mmu_s_ack_o;
+    
+    // =========================================================================
+    // SysCall Bridge Signals
+    // =========================================================================
+    wire           legacy_syscall_detect;        // Detect Legacy SysCall (D400h)
+    wire           legacy_syscall_we;           // Legacy SysCall write enable
 
     assign tv80_dat_i = native_mode ? mmu_native_dat_o : mmu_legacy_dat_o;
 
@@ -110,6 +139,17 @@ module tv80_lx_wb (
     assign debug_iorq_n_o = iorq_n;
     assign debug_rd_n_o = rd_n;
     assign debug_wr_n_o = wr_n;
+    assign debug_halt_o = halt_n;
+
+    assign s_wb_sel_o = native_mode ? native_mmu_s_wb_sel : legacy_mmu_s_wb_sel;
+
+    // =========================================================================
+    // LEGACY SYSCALL DETECTION
+    // =========================================================================
+    // Detect writes to D400h in Legacy mode for SysCall redirection
+    assign legacy_syscall_detect = legacy_mode && ~iorq_n && ~wr_n && 
+                                  (tv80_adr == 16'hD400);
+    assign legacy_syscall_we = legacy_syscall_detect;
 
     // =========================================================================
     // TV80 CORE INSTANTIATION
@@ -145,15 +185,16 @@ module tv80_lx_wb (
         // Mode Control
         .legacy_mode_i(legacy_mode),             // Driven by native MMU
         
-        // Slave Wishbone Interface (unused in this integration)
-        .s_wb_cyc_i(1'b0),
-        .s_wb_stb_i(1'b0),
-        .s_wb_we_i(1'b0),
-        .s_wb_adr_i(24'h0),
-        .s_wb_dat_i(8'h0),
-        .s_wb_dat_o(),
-        .s_wb_ack_o(),
-        
+        // Slave Wishbone Interface
+        .s_wb_cyc_i(s_wb_cyc_i & legacy_mode),   // Only in legacy mode
+        .s_wb_stb_i(s_wb_stb_i & legacy_mode),
+        .s_wb_we_i(s_wb_we_i),
+        .s_wb_adr_i(s_wb_adr_i),
+        .s_wb_dat_i(s_wb_dat_i),
+        .s_wb_dat_o(legacy_mmu_s_dat_o),
+        .s_wb_ack_o(legacy_mmu_s_ack_o),
+        .s_wb_sel_o(legacy_mmu_s_wb_sel),
+
         // Master Wishbone Interface
         .m_wb_cyc_o(legacy_mmu_cyc),
         .m_wb_stb_o(legacy_mmu_stb),
@@ -187,7 +228,6 @@ module tv80_lx_wb (
     // =========================================================================
     // NATIVE MMU INSTANTIATION (ALESTE LX EXTENDED)
     // =========================================================================
-    // Этот модуль содержит ВСЮ логику управления режимами!
     mmu_native native_mmu (
         // Clock and Reset
         .clk(clk_i),
@@ -219,15 +259,15 @@ module tv80_lx_wb (
         .m_wb_ack_i(wbm_ack_i),
         
         // Slave Wishbone Interface (for register access)
-        .s_wb_cyc_i(1'b0),                      // Not used in this integration
-        .s_wb_stb_i(1'b0),
-        .s_wb_we_i(1'b0),
-        .s_wb_adr_i(24'h0),
-        .s_wb_dat_i(8'h0),
-        .s_wb_sel_o(),
-        .s_wb_dat_o(),
-        .s_wb_ack_o(),
-        
+        .s_wb_cyc_i(s_wb_cyc_i & (native_mode | legacy_syscall_detect)),
+        .s_wb_stb_i(s_wb_stb_i & (native_mode | legacy_syscall_detect)),
+        .s_wb_we_i(s_wb_we_i | legacy_syscall_we),
+        .s_wb_adr_i(legacy_syscall_detect ? 24'hFF00D4 : s_wb_adr_i), // Redirect D400 to FF00D4
+        .s_wb_dat_i(legacy_syscall_detect ? tv80_dat_o : s_wb_dat_i), // Use CPU data for SysCall
+        .s_wb_dat_o(native_mmu_s_dat_o),
+        .s_wb_ack_o(native_mmu_s_ack_o),
+        .s_wb_sel_o(native_mmu_s_wb_sel),
+
         // Control Outputs
         .supervisor_mode_o(current_supervisor),  // Supervisor mode status
         .mmio_userlock_o(),                      // MMIO lock status
@@ -260,6 +300,12 @@ module tv80_lx_wb (
     assign wbm_we_o  = legacy_mode ? legacy_mmu_we  : native_mmu_we;
     assign wbm_adr_o = legacy_mode ? legacy_mmu_adr : native_mmu_adr;
     assign wbm_dat_o = legacy_mode ? legacy_mmu_dat_o : native_mmu_dat_o;
+
+    // =========================================================================
+    // SLAVE INTERFACE MULTIPLEXING
+    // =========================================================================
+    assign s_wb_dat_o = legacy_mode ? legacy_mmu_s_dat_o : native_mmu_s_dat_o;
+    assign s_wb_ack_o = legacy_mode ? legacy_mmu_s_ack_o : native_mmu_s_ack_o;
 
     // =========================================================================
     // WAIT STATE LOGIC

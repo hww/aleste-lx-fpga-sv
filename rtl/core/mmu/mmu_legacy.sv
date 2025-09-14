@@ -39,7 +39,7 @@ module mmu_legacy (
     output logic [7:0]  m_wb_dat_o,               // Data out
     input  logic [7:0]  m_wb_dat_i,               // Data in
     input  logic        m_wb_ack_i,               // Transfer acknowledge
-    
+    output logic        s_wb_sel_o,               // Unit selected on WB but
     // -------------------------------------------------------------------------
     // Z80 Bus Interface
     // -------------------------------------------------------------------------
@@ -133,7 +133,8 @@ module mmu_legacy (
     assign gate_array_select = is_7fxx_write & legacy_mode_i;
     assign gate_array_reg    = cpu_dat_i[7:6];     // Register type from data bits
 
-
+    assign s_wb_sel_o = 1;
+    
     // =========================================================================
     // CPC REGISTER UPDATE FROM Z80 BUS
     // =========================================================================
