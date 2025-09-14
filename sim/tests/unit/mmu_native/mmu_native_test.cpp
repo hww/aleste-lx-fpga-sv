@@ -456,8 +456,8 @@ void test_default_state(MMUNativeTestUtils& utils) {
     utils.assert_equal(utils.get_mmio_userlock(), 1, "Default mmio_userlock should be 1");
     utils.assert_equal(utils.get_supervisor_mode(), 1, "Default supervisor_mode should be 1");
     utils.assert_equal(utils.get_syscall_trig(), 0, "Default syscall_trig should be 0");
-    utils.assert_equal(utils.get_legacy_mode(), 1, "Default should be legacy mode");
-    utils.assert_equal(utils.get_native_mode(), 0, "Default should not be native mode");
+    utils.assert_equal(utils.get_legacy_mode(), 0, "Default should be legacy mode");
+    utils.assert_equal(utils.get_native_mode(), 1, "Default should not be native mode");
 }
 
 void test_syscall_mechanism(MMUNativeTestUtils& utils) {
@@ -571,7 +571,7 @@ void test_address_translation(MMUNativeTestUtils& utils) {
     utils.simulate_z80_memory_access(0x0000, false);
     
     if (utils.was_m_wb_transaction()) {
-        utils.assert_equal(utils.get_last_m_wb_addr(), 0x044000, "Memory translation page 0");
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0xC44000, "Memory translation page 0");
     } else {
         utils.assert_true(false, "No Wishbone transaction occurred for memory access");
     }
@@ -581,7 +581,7 @@ void test_address_translation(MMUNativeTestUtils& utils) {
     utils.simulate_z80_memory_access(0xC000, false);
     
     if (utils.was_m_wb_transaction()) {
-        utils.assert_equal(utils.get_last_m_wb_addr(), 0x110000, "Memory translation page 3");
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0xD10000, "Memory translation page 3");
     } else {
         utils.assert_true(false, "No Wishbone transaction occurred for memory access");
     }

@@ -18,7 +18,7 @@ module mmu_native (
     output logic        legacy_mode_o,
     output logic        native_mode_o,
     input  logic        supervisor_mode_i,        // Test mode override
-    
+
     // -------------------------------------------------------------------------
     // Z80 Bus Interface
     // -------------------------------------------------------------------------
@@ -334,9 +334,9 @@ module mmu_native (
             // Reset all registers and control signals
             s_wb_ack_o             <= 0;
             s_wb_dat_o             <= 0;
-            reg_control            <= 8'b00010010; // Default: Supervisor, Native, MMIO locked
+            reg_control            <= 8'b00010011; // Default: Supervisor, Native, MMIO locked
             reg_mmio_page          <= 8'h00;
-            reg_super_slot         <= 8'h00;
+            reg_super_slot         <= 8'hFF;
             reg_user_slot          <= 8'h00;
             syscall_function       <= 8'h00;
             syscall_pending        <= 1'b0;

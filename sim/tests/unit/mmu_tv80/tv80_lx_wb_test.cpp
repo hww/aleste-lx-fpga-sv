@@ -22,14 +22,14 @@ public:
     MemoryModel(size_t size = 16 * 1024 * 1024) : memory(size, 0x00) {}
     
     void write(uint32_t addr, uint8_t data) {
-        int a = addr-0x400000;
+        int a = addr & 0x00FFFF;
         if (a < memory.size()) {
             memory[a] = data;
         }
     }
     
     uint8_t read(uint32_t addr) {
-        int a = addr-0x400000;
+        int a = addr & 0x00FFFF;
         return (a < memory.size()) ? memory[a] : 0xAA;
     }
     
@@ -68,7 +68,7 @@ public:
         : top(top_ptr), main_time(time_var), tfp(trace_ptr), 
           test_successes(0), test_failures(0),
           last_wb_addr(0), last_wb_data(0), wb_transaction_occurred(false),
-          memory_model(16 * 1024 * 1024) {}
+          memory_model(64 * 1024 * 1024) {}
 
     // ==================== BASIC METHODS ====================
     void eval(int delta) {
@@ -102,33 +102,19 @@ public:
         eval(CLK_REST_TIME-SETUP_TIME); 
         clock_fall(SETUP_TIME);
         eval(CLK_REST_TIME); 
-        
-        /*
-        // Фаза 1: Подготовка сигналов перед rising edge
-        clock_setup();                    // Setup time
-        clock_rise(CLK_REST_TIME);        // Rising edge + остаток фазы
-        
-        // Фаза 2: Обработка на высоком уровне clock
-        monitor_wishbone();               // Обрабатываем шинные транзакции
-        
-        // Фаза 3: Подготовка к falling edge  
-        clock_setup();                    // Setup time
-        clock_fall(CLK_REST_TIME);        // Falling edge + остаток фазы
-        
-        // Фаза 4: Обработка на низком уровне clock
-        monitor_wishbone();               // Дополнительная обработка
-        */
     }
 
     void reset_pulse() {
-        top->nrst_i = 0;
-        top->nmi_req_i = 0;
-        top->int_req_i = 0;
-        top->busrq_i = 0;
-        
-        for (int i = 0; i < 5; i++) clock_tick();
-        top->nrst_i = 1;
-        clock_tick();
+        std::cout << "Applying reset pulse..." << std::endl;
+        top->nrst_i = 0;  // Активный уровень сброса
+        clock_tick();     // ОДНОГО такта с активным сбросом более чем достаточно
+        clock_tick();     // ОДНОГО такта с активным сбросом более чем достаточно
+        top->nrst_i = 1;  // Снимаем сброс
+        clock_tick();     // Такт после сброса
+        last_wb_addr = 0xFFFFFF;
+        last_wb_data = 0xFF;
+        wb_transaction_occurred = false;
+        std::cout << "Reset pulse completed." << std::endl;
     }
 
     void wait_cycles(int cycles) {
@@ -148,7 +134,7 @@ public:
 
     void load_native_mode_test() {
         std::vector<uint8_t> program = {
-            0x3E, 0x01,             // LD A, 0x01 (Native mode)
+            0x3E, 0x03,             // LD A, 0x01 (Native mode)
             0xD3, 0xD7,             // OUT (0xD7), A
             0x3E, 0xAA,             // LD A, 0xAA
             0x32, 0x00, 0x80,       // LD (0x8000), A
@@ -159,9 +145,9 @@ public:
 
     void load_legacy_mode_test() {
         std::vector<uint8_t> program = {
-            0x3E, 0x00,             // LD A, 0x00 (Legacy mode) 
+            0x3E, 0x02,             // LD A, 0x02 (Legacy mode) 
             0xD3, 0xD7,             // OUT (0xD7), A
-            0x3E, 0x01,             // LD A, 0x01
+            0x3E, 0x81,             // LD A, 0x81 register (2) data (01) graphics
             0xD3, 0x7F,             // OUT (0x7F), A - CPC Gate Array
             0x76                    // HALT
         };
@@ -202,10 +188,21 @@ public:
 
     // ==================== TEST CONTROL ====================
     void run_until_halt(int max_cycles = 1000) {
-        for (int i = 0; i < max_cycles; i++) {
+        int cycles = 0;
+        // Цикл выполняется, пока не достигнем максимума тактов ИЛИ
+        // пока не произойдет доступ к адресу >= 0xC000 (признак выполнения нужной части программы)
+        while (cycles < max_cycles && get_last_wb_addr() != 0x00C000) {
             clock_tick();
-            // Check for halt condition or meaningful progress
-            if (last_wb_addr >= 0xC000) break;
+            cycles++;
+        }
+        // Добавим отладочный вывод, чтобы видеть, что вообще происходило
+        std::cout << "run_until_halt: executed for " << cycles << " cycles. Last WB addr: 0x" 
+                << std::hex << get_last_wb_addr() << std::dec << std::endl;
+
+        // Простая проверка: если вышли по максимуму циклов, а не по условию - что-то пошло не так
+        if (cycles >= max_cycles) {
+            std::cout << "WARNING: run_until_halt hit max cycles limit (" << max_cycles 
+                    << "). Program might not have finished." << std::endl;
         }
     }
 
@@ -275,7 +272,7 @@ void test_bootstrap_execution(TV80LXTestUtils& utils) {
     utils.reset_pulse();
     utils.run_until_halt(500);
     
-    utils.assert_memory(0xC000, 0x55, "Bootstrap program should write to memory");
+    utils.assert_memory(0xC0000, 0x55, "Bootstrap program should write to memory");
     utils.assert_true(utils.get_last_wb_addr() != 0x0000, "Should execute meaningful code");
 }
 
@@ -390,21 +387,23 @@ int main(int argc, char** argv) {
 
     // Reset
     test_bootstrap_execution(utils);
+    debug_cpu_state(utils);
     
     // First the timing test
     //test_memory_timing(utils);
 
     // Run complete test suite
-    debug_cpu_state(utils);
     test_native_mode_functionality(utils);
     debug_cpu_state(utils);
+
     test_legacy_mode_functionality(utils);
     debug_cpu_state(utils);
+
     test_interrupt_handling(utils);
     debug_cpu_state(utils);
+
     test_memory_access_patterns(utils);
     debug_cpu_state(utils);
-
 
     // Final extended stability test
     std::cout << "\n=== FINAL STABILITY TEST ===" << std::endl;

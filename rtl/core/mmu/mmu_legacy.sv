@@ -326,28 +326,12 @@ module mmu_legacy (
     // =========================================================================
     // CPU DATA READING - ПРОСТОЕ ЧТЕНИЕ ДЛЯ ПРОЦЕССОРА
     // =========================================================================
-    always_ff @(posedge clk) begin
-        if (reset) begin
-            cpu_dat_o <= 8'hFF;  // Значение по умолчанию
-        end else begin
-            // По умолчанию - данные от Wishbone
-            if (is_mem_read && m_wb_ack_i) begin
-                cpu_dat_o <= m_wb_dat_i;
-            end 
-            else begin
-                cpu_dat_o <= 8'hFF;  // Значение по умолчанию
-            end
-            // Нельзя прочесть регистры GateAray ибо они выбираются данным a[7:6]
-            // Если это внутренний I/O доступ (чтение регистров CPC)
-            //if (is_internal_io && ~cpu_rd_n) begin
-            //    case (cpu_a[15:8])
-            //        
-            //        8'h7F: cpu_dat_o <= {6'b000000, gate_array_reg};  // Статус Gate Array
-            //        8'hDF: cpu_dat_o <= reg_upper_rom;                // Верхний ROM банк
-            //        default: ;
-            //    endcase
-            //end
-        end
+    always_comb begin
+        // По умолчанию - данные от Wishbone
+        cpu_dat_o = 8'hFF;  // Значение по умолчанию
+        if (is_mem_read && m_wb_ack_i) begin
+            cpu_dat_o = m_wb_dat_i;
+        end 
     end
 
     // Wait state generation for Wishbone transactions
