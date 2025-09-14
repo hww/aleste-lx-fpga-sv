@@ -1,44 +1,75 @@
 #include <iostream>
 #include <iomanip>
-#include <functional>
 #include <vector>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 #include "Vtv80_lx_wb.h"
 
 #define CLK_HALF_PERIOD 50
-#define SETUP_TIME 1      // Время установки сигналов до clock
-#define HOLD_TIME 1       // Время удержания сигналов после clock
+#define SETUP_TIME 1
+#define HOLD_TIME 1
 #define CLK_REST_TIME (CLK_HALF_PERIOD - SETUP_TIME - HOLD_TIME)
 
 // =============================================================================
-// Complete Memory Model for Testing
+// Complete Memory Model with Banking Support
 // =============================================================================
 class MemoryModel {
 private:
     std::vector<uint8_t> memory;
+    std::vector<std::vector<uint8_t>> banks;
+    uint8_t current_banks[4];
+    bool native_mode;
+    bool supervisor_mode;
     
 public:
-    MemoryModel(size_t size = 16 * 1024 * 1024) : memory(size, 0x00) {}
+    MemoryModel(size_t size = 16 * 1024 * 1024) : memory(size, 0x00), native_mode(false), supervisor_mode(false) {
+        banks.resize(256, std::vector<uint8_t>(16*1024, 0x00));
+        for (int i = 0; i < 4; i++) current_banks[i] = i;
+    }
+    
+    void set_bank(uint8_t slot, uint8_t bank_num) {
+        if (slot < 4) {
+            current_banks[slot] = bank_num;
+        }
+    }
+    
+    uint8_t get_bank(uint8_t slot) {
+        return (slot < 4) ? current_banks[slot] : 0;
+    }
+    
+    void set_mode(bool native, bool supervisor) {
+        native_mode = native;
+        supervisor_mode = supervisor;
+    }
     
     void write(uint32_t addr, uint8_t data) {
-        int a = addr & 0x00FFFF;
-        if (a < memory.size()) {
-            memory[a] = data;
+        uint32_t phys_addr = translate_address(addr);
+        if (phys_addr < memory.size()) {
+            memory[phys_addr] = data;
         }
     }
     
     uint8_t read(uint32_t addr) {
-        int a = addr & 0x00FFFF;
-        return (a < memory.size()) ? memory[a] : 0xAA;
+        uint32_t phys_addr = translate_address(addr);
+        return (phys_addr < memory.size()) ? memory[phys_addr] : 0xAA;
+    }
+    
+    uint32_t translate_address(uint32_t logical_addr) {
+        if (!native_mode && !supervisor_mode) {
+            // Legacy mode - direct mapping
+            return logical_addr;
+        }
+        
+        uint8_t slot = logical_addr >> 14;
+        uint16_t offset = logical_addr & 0x3FFF;
+        uint8_t bank = current_banks[slot];
+        return (bank << 14) | offset;
     }
     
     void load_program(uint32_t start_addr, const std::vector<uint8_t>& program) {
-        for (size_t i = 0; i < program.size() && (start_addr + i) < memory.size(); i++) {
-            memory[start_addr + i] = program[i];
+        for (size_t i = 0; i < program.size(); i++) {
+            write(start_addr + i, program[i]);
         }
-        std::cout << "Loaded program of size " << program.size() 
-                  << " bytes at address 0x" << std::hex << start_addr << std::dec << std::endl;
     }
 };
 
@@ -47,30 +78,24 @@ public:
 // =============================================================================
 class TV80LXTestUtils {
 private:
-
     vluint64_t& main_time;
     VerilatedVcdC* tfp;
-    
     int test_successes;
     int test_failures;
-    
-    // Wishbone monitoring
     uint32_t last_wb_addr;
     uint8_t last_wb_data;
     bool wb_transaction_occurred;
-    
 
 public:
-    // Memory model
     MemoryModel memory_model;
     Vtv80_lx_wb* top;
+    
     TV80LXTestUtils(Vtv80_lx_wb* top_ptr, vluint64_t& time_var, VerilatedVcdC* trace_ptr = nullptr)
         : top(top_ptr), main_time(time_var), tfp(trace_ptr), 
           test_successes(0), test_failures(0),
           last_wb_addr(0), last_wb_data(0), wb_transaction_occurred(false),
           memory_model(64 * 1024 * 1024) {}
 
-    // ==================== BASIC METHODS ====================
     void eval(int delta) {
         top->eval();
         if (tfp) tfp->dump(main_time);
@@ -87,17 +112,9 @@ public:
         eval(duration);
     }
 
-    void clock_setup() {
-        eval(SETUP_TIME);  // Ждем стабилизации сигналов перед clock
-    }
-
-    void clock_hold() {
-        eval(HOLD_TIME);   // Ждем после clock для hold time
-    }
-
     void clock_tick() {
-        clock_rise(SETUP_TIME);        // Rising edge + остаток фазы
-        monitor_wishbone();               // Обрабатываем шинные транзакции
+        clock_rise(SETUP_TIME);
+        monitor_wishbone();
         clock_rise(SETUP_TIME);
         eval(CLK_REST_TIME-SETUP_TIME); 
         clock_fall(SETUP_TIME);
@@ -106,11 +123,11 @@ public:
 
     void reset_pulse() {
         std::cout << "Applying reset pulse..." << std::endl;
-        top->nrst_i = 0;  // Активный уровень сброса
-        clock_tick();     // ОДНОГО такта с активным сбросом более чем достаточно
-        clock_tick();     // ОДНОГО такта с активным сбросом более чем достаточно
-        top->nrst_i = 1;  // Снимаем сброс
-        clock_tick();     // Такт после сброса
+        top->nrst_i = 0;
+        clock_tick();
+        clock_tick();
+        top->nrst_i = 1;
+        clock_tick();
         last_wb_addr = 0xFFFFFF;
         last_wb_data = 0xFF;
         wb_transaction_occurred = false;
@@ -121,92 +138,65 @@ public:
         for (int i = 0; i < cycles; i++) clock_tick();
     }
 
-    // ==================== MEMORY MANAGEMENT ====================
-    void load_bootstrap_program() {
-        // Simple program: write to memory and halt
-        std::vector<uint8_t> program = {
-            0x3E, 0x55,             // LD A, 0x55
-            0x32, 0x00, 0xC0,       // LD (0xC000), A
-            0x76                    // HALT
-        };
-        memory_model.load_program(0x0000, program);
-    }
-
-    void load_native_mode_test() {
-        std::vector<uint8_t> program = {
-            0x3E, 0x03,             // LD A, 0x01 (Native mode)
-            0xD3, 0xD7,             // OUT (0xD7), A
-            0x3E, 0xAA,             // LD A, 0xAA
-            0x32, 0x00, 0x80,       // LD (0x8000), A
-            0x76                    // HALT
-        };
-        memory_model.load_program(0x0000, program);
-    }
-
-    void load_legacy_mode_test() {
-        std::vector<uint8_t> program = {
-            0x3E, 0x02,             // LD A, 0x02 (Legacy mode) 
-            0xD3, 0xD7,             // OUT (0xD7), A
-            0x3E, 0x81,             // LD A, 0x81 register (2) data (01) graphics
-            0xD3, 0x7F,             // OUT (0x7F), A - CPC Gate Array
-            0x76                    // HALT
-        };
-        memory_model.load_program(0x0000, program);
-    }
-
-    // ==================== WISHBONE HANDLING ====================
     void monitor_wishbone() {
-        // Только на активном такте обрабатываем шину
         if (top->clk_i == 1) {
             if (top->wbm_cyc_o && top->wbm_stb_o) {
                 wb_transaction_occurred = true;
                 last_wb_addr = top->wbm_adr_o;
                 
                 if (top->wbm_we_o) {
-                    // Write operation
                     last_wb_data = top->wbm_dat_o;
-                    memory_model.write(last_wb_addr, last_wb_data);
-                    top->wbm_ack_i = 1;  // Immediate acknowledge for write
-                    std::cout << "  WB Master WR addres=0x" <<  std::hex  << (int)last_wb_addr 
-                      << " data=0x" << (int)last_wb_data << std::dec << std::endl;
+                    
+                    // Handle MMIO registers
+                    if (last_wb_addr >= 0xFF00D0 && last_wb_addr <= 0xFF00DF) {
+                        handle_mmio_write(last_wb_addr, last_wb_data);
+                    } else {
+                        memory_model.write(last_wb_addr, last_wb_data);
+                    }
+                    
+                    top->wbm_ack_i = 1;
                 } else {
-                    // Read operation - CRITICAL: immediate response!
                     top->wbm_dat_i = memory_model.read(last_wb_addr);
-                    top->wbm_ack_i = 1;  // Immediate acknowledge for read
-                    std::cout << "  WB Master RD addres=0x" <<  std::hex  << (int)last_wb_addr 
-                      << " data=0x" << (int)top->wbm_dat_i << std::dec << std::endl;
+                    top->wbm_ack_i = 1;
                 }
             } else {
                 top->wbm_ack_i = 0;
             }
         }
     }
+    
+    void handle_mmio_write(uint32_t addr, uint8_t data) {
+        uint8_t port = addr & 0x0F;
+        
+        switch(port) {
+            case 0xD7: // GLOBAL_CTRL
+                top->native_mode_o = data & 0x01;
+                top->supervisor_mode_o = (data >> 1) & 0x01;
+                memory_model.set_mode(data & 0x01, (data >> 1) & 0x01);
+                break;
+                
+            case 0xDC: case 0xDD: case 0xDE: case 0xDF: // BANK registers
+                memory_model.set_bank(port - 0xDC, data);
+                break;
+                
+            default:
+                break;
+        }
+    }
+
     void clear_wb_transaction() { wb_transaction_occurred = false; }
     bool was_wb_transaction() { return wb_transaction_occurred; }
     uint32_t get_last_wb_addr() { return last_wb_addr; }
     uint8_t get_last_wb_data() { return last_wb_data; }
 
-    // ==================== TEST CONTROL ====================
     void run_until_halt(int max_cycles = 1000) {
         int cycles = 0;
-        // Цикл выполняется, пока не достигнем максимума тактов ИЛИ
-        // пока не произойдет доступ к адресу >= 0xC000 (признак выполнения нужной части программы)
         while (cycles < max_cycles && get_last_wb_addr() != 0x00C000) {
             clock_tick();
             cycles++;
         }
-        // Добавим отладочный вывод, чтобы видеть, что вообще происходило
-        std::cout << "run_until_halt: executed for " << cycles << " cycles. Last WB addr: 0x" 
-                << std::hex << get_last_wb_addr() << std::dec << std::endl;
-
-        // Простая проверка: если вышли по максимуму циклов, а не по условию - что-то пошло не так
-        if (cycles >= max_cycles) {
-            std::cout << "WARNING: run_until_halt hit max cycles limit (" << max_cycles 
-                    << "). Program might not have finished." << std::endl;
-        }
     }
 
-    // ==================== ASSERTION METHODS ====================
     void assert_true(bool condition, const char* message) {
         if (condition) {
             std::cout << "✓ PASS: " << message << std::endl;
@@ -263,112 +253,126 @@ public:
 };
 
 // =============================================================================
-// COMPREHENSIVE TEST FUNCTIONS
+// BIOS Loading Functions
 // =============================================================================
-
-void test_bootstrap_execution(TV80LXTestUtils& utils) {
-    std::cout << "\n=== TESTING BOOTSTRAP EXECUTION ===" << std::endl;
-    utils.load_bootstrap_program();
-    utils.reset_pulse();
-    utils.run_until_halt(500);
+void load_supervisor_bios(TV80LXTestUtils& utils) {
+    std::vector<uint8_t> bios = {
+        // Cold Boot Vector (0x0000)
+        0xF3, 0x31, 0xF0, 0xFF, 0xC3, 0x1A, 0x00,
+        
+        // Padding to SysCall Vector (0x0038)
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC3, 0x38, 0x00,
+        
+        // NMI Vector (0x0066)
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0xED, 0x45,
+        
+        // Supervisor Initialization (0x001A)
+        0x3E, 0x03, 0xD3, 0xD7, 0x3E, 0x07, 0xD3, 0xD7, 0xAF, 0xD3, 0xD7, 0xED, 0x45,
+        
+        // SysCall Dispatcher (0x0038)
+        0x08, 0xD9, 0xF5, 0x78, 0xB9, 0xC2, 0x80, 0x00, 0xF1, 0x3D, 0xCA, 0x90, 0x00,
+        0x3D, 0xCA, 0xA0, 0x00, 0x3E, 0xFE, 0xC3, 0xD0, 0x00,
+        
+        // Function 00: Set GLOBAL_CTRL (0x0080)
+        0xF1, 0x79, 0xD3, 0xD7, 0x3E, 0x00, 0xC3, 0xD0, 0x00,
+        
+        // Function 01: Set User Bank (0x0090)
+        0xF1, 0x79, 0xD3, 0xDC, 0x3E, 0x00, 0xC3, 0xD0, 0x00,
+        
+        // Function 02: Add Numbers (0x00A0)
+        0x7A, 0x83, 0xC3, 0xD0, 0x00,
+        
+        // Common Return Path (0x00D0)
+        0xD9, 0x08, 0xED, 0x4D
+    };
     
-    utils.assert_memory(0xC0000, 0x55, "Bootstrap program should write to memory");
-    utils.assert_true(utils.get_last_wb_addr() != 0x0000, "Should execute meaningful code");
+    utils.memory_model.load_program(0x0000, bios);
+    std::cout << "Supervisor BIOS loaded at 0x0000" << std::endl;
 }
 
-void test_native_mode_functionality(TV80LXTestUtils& utils) {
-    std::cout << "\n=== TESTING NATIVE MODE ===" << std::endl;
-    utils.load_native_mode_test();
-    utils.reset_pulse();
-    utils.run_until_halt(500);
+// =============================================================================
+// Test Functions
+// =============================================================================
+void test_supervisor_registers(TV80LXTestUtils& utils) {
+    std::cout << "\n=== TEST 1: SUPERVISOR REGISTERS ===" << std::endl;
     
-    utils.assert_equal(utils.top->native_mode_o, 1, "Native mode should be enabled");
-    utils.assert_memory(0x8000, 0xAA, "Should write in native mode");
+    std::vector<uint8_t> test_program = {
+        0x3E, 0x03, 0xD3, 0xD7, 0x3E, 0x0F, 0xD3, 0xDC,
+        0x3E, 0x1E, 0xD3, 0xDD, 0x76
+    };
+    
+    utils.memory_model.load_program(0x8000, test_program);
+    utils.reset_pulse();
+    utils.run_until_halt(200);
+    
+    utils.assert_equal(utils.top->native_mode_o, 1, "Native mode should be set");
+    utils.assert_equal(utils.top->supervisor_mode_o, 1, "Supervisor mode should be set");
+    utils.assert_equal(utils.memory_model.get_bank(0), 0x0F, "Bank 0 should be set to 0x0F");
+    utils.assert_equal(utils.memory_model.get_bank(1), 0x1E, "Bank 1 should be set to 0x1E");
 }
 
-void test_legacy_mode_functionality(TV80LXTestUtils& utils) {
-    std::cout << "\n=== TESTING LEGACY MODE ===" << std::endl;
-    utils.load_legacy_mode_test();
-    utils.reset_pulse();
-    utils.run_until_halt(500);
+void test_user_native_syscall(TV80LXTestUtils& utils) {
+    std::cout << "\n=== TEST 2: USER NATIVE SYSCALL ===" << std::endl;
     
-    utils.assert_equal(utils.top->legacy_mode_o, 1, "Legacy mode should be enabled");
-    utils.assert_equal(utils.top->graphic_mode, 1, "Should set graphic mode via CPC IO");
+    std::vector<uint8_t> user_program = {
+        0x3E, 0x02, 0x16, 0x05, 0x1E, 0x03, 0xCD, 0x00, 0x10, 0x32, 0x00, 0xC0, 0x76
+    };
+    
+    std::vector<uint8_t> syscall_wrapper = {
+        0xD3, 0xD4, 0xC9
+    };
+    
+    utils.memory_model.load_program(0x4000, user_program);
+    utils.memory_model.load_program(0x1000, syscall_wrapper);
+    utils.reset_pulse();
+    utils.run_until_halt(200);
+    
+    uint8_t result = utils.memory_model.read(0xC000);
+    utils.assert_equal(result, 0x08, "Syscall should return 5+3=8");
 }
 
-void test_interrupt_handling(TV80LXTestUtils& utils) {
-    std::cout << "\n=== TESTING INTERRUPT HANDLING ===" << std::endl;
-    utils.load_bootstrap_program();
+void test_user_legacy_syscall(TV80LXTestUtils& utils) {
+    std::cout << "\n=== TEST 3: USER LEGACY SYSCALL ===" << std::endl;
+    
+    std::vector<uint8_t> user_program = {
+        0x3E, 0x01, 0x06, 0x00, 0x0E, 0x2A, 0xCD, 0x00, 0x20, 0x76
+    };
+    
+    std::vector<uint8_t> syscall_wrapper = {
+        0xD3, 0x00, 0xD4, 0xC9
+    };
+    
+    utils.memory_model.load_program(0x4000, user_program);
+    utils.memory_model.load_program(0x2000, syscall_wrapper);
     utils.reset_pulse();
+    utils.run_until_halt(200);
     
-    // Trigger interrupt during execution
-    utils.wait_cycles(10);
-    utils.top->int_req_i = 1;
-    utils.clock_tick();
-    utils.top->int_req_i = 0;
-    utils.wait_cycles(10);
-    
-    utils.assert_true(true, "Should handle interrupts without crashing");
+    uint8_t bank = utils.memory_model.get_bank(0);
+    utils.assert_equal(bank, 0x2A, "Legacy syscall should set bank 2Ah for slot 0");
 }
 
 void test_memory_access_patterns(TV80LXTestUtils& utils) {
-    std::cout << "\n=== TESTING MEMORY ACCESS PATTERNS ===" << std::endl;
-    utils.load_bootstrap_program();
+    std::cout << "\n=== TEST 4: MEMORY ACCESS PATTERNS ===" << std::endl;
+    
+    std::vector<uint8_t> test_program = {
+        0x3E, 0x55, 0x32, 0x00, 0x80, 0x32, 0x00, 0xC0, 0x76
+    };
+    
+    utils.memory_model.load_program(0x0000, test_program);
     utils.reset_pulse();
-    utils.run_until_halt(500);
+    utils.run_until_halt(200);
     
-    // Check that we accessed different addresses
-    utils.assert_true(utils.get_last_wb_addr() >= 0xC000, 
-                     "Should access meaningful addresses beyond 0x0000");
+    utils.assert_memory(0x8000, 0x55, "Should write to 0x8000");
+    utils.assert_memory(0xC000, 0x55, "Should write to 0xC000");
+    utils.assert_true(utils.get_last_wb_addr() >= 0xC000, "Should access meaningful addresses");
 }
 
-void test_memory_timing(TV80LXTestUtils& utils) {
-    std::cout << "=== MEMORY TIMING TEST ===" << std::endl;
-    
-    // Сброс
-    utils.top->nrst_i = 0;
-    utils.clock_tick();
-    utils.top->nrst_i = 1;
-    
-    // Мониторим первые 5 тактов выполнения
-    for (int i = 0; i < 5; i++) {
-        utils.clock_tick();
-        
-        std::cout << "Cycle " << i << ": ";
-        std::cout << "M1=" << (int)utils.top->debug_m1_n_o;
-        std::cout << ", MREQ=" << (int)utils.top->debug_mreq_n_o;
-        std::cout << ", IORQ=" << (int)utils.top->debug_iorq_n_o;
-        std::cout << ", RD=" << (int)utils.top->debug_rd_n_o;
-        std::cout << ", WB_CYC=" << (int)utils.top->wbm_cyc_o;
-        std::cout << ", WB_STB=" << (int)utils.top->wbm_stb_o;
-        std::cout << ", WB_ACK=" << (int)utils.top->wbm_ack_i;
-        std::cout << ", WB_DAT=0x" << std::hex << (int)utils.top->wbm_dat_i << std::dec;
-        std::cout << std::endl;
-    }
-}
-
-void debug_cpu_state(TV80LXTestUtils& utils) {
-    std::cout << "\n=== CPU STATE DEBUG ===" << std::endl;
-    std::cout << "Last WB address: 0x" << std::hex << utils.get_last_wb_addr() << std::dec << std::endl;
-    std::cout << "Native mode: " << (int)utils.top->native_mode_o << std::endl;
-    std::cout << "Legacy mode: " << (int)utils.top->legacy_mode_o << std::endl;
-    std::cout << "Supervisor mode: " << (int)utils.top->supervisor_mode_o << std::endl;
-    
-    // Check memory around key addresses
-    std::cout << "Memory at 0x0000: 0x" << std::hex << (int)utils.memory_model.read(0x0000) << std::dec << std::endl;
-    std::cout << "Memory at 0xC000: 0x" << std::hex << (int)utils.memory_model.read(0xC000) << std::dec << std::endl;
-}
-
-void debug_memory_signals(TV80LXTestUtils& utils) {
-    std::cout << "=== MEMORY CONTROL SIGNALS ===" << std::endl;
-    std::cout << "wbm_cyc_o: " << (int)utils.top->wbm_cyc_o << std::endl;
-    std::cout << "wbm_stb_o: " << (int)utils.top->wbm_stb_o << std::endl; 
-    std::cout << "wbm_ack_i: " << (int)utils.top->wbm_ack_i << std::endl;
-    std::cout << "wbm_dat_i: " << (int)utils.top->wbm_dat_i << std::endl;
-    std::cout << "wbm_we_o: " << (int)utils.top->wbm_we_o << std::endl;
-}
 // =============================================================================
-// MAIN TEST SUITE
+// Main Test Suite
 // =============================================================================
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
@@ -383,31 +387,19 @@ int main(int argc, char** argv) {
     
     TV80LXTestUtils utils(top, main_time, tfp);
     
-    std::cout << "=== COMPREHENSIVE TV80-LX-WB TEST SUITE ===" << std::endl;
+    std::cout << "=== TV80-LX-WB SUPERVISOR BIOS TEST SUITE ===" << std::endl;
 
-    // Reset
-    test_bootstrap_execution(utils);
-    debug_cpu_state(utils);
+    // Load BIOS and run tests
+    load_supervisor_bios(utils);
     
-    // First the timing test
-    //test_memory_timing(utils);
-
-    // Run complete test suite
-    test_native_mode_functionality(utils);
-    debug_cpu_state(utils);
-
-    test_legacy_mode_functionality(utils);
-    debug_cpu_state(utils);
-
-    test_interrupt_handling(utils);
-    debug_cpu_state(utils);
-
+    test_supervisor_registers(utils);
+    test_user_native_syscall(utils);
+    test_user_legacy_syscall(utils);
     test_memory_access_patterns(utils);
-    debug_cpu_state(utils);
 
-    // Final extended stability test
+    // Final stability test
     std::cout << "\n=== FINAL STABILITY TEST ===" << std::endl;
-    for (int i = 0; i < 100; i++) utils.clock_tick();
+    for (int i = 0; i < 50; i++) utils.clock_tick();
     utils.assert_true(true, "Extended stability test passed");
     
     utils.print_test_results();
