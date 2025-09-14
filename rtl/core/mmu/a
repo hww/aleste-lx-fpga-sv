@@ -49,7 +49,8 @@ module mmu_legacy (
     input  logic        cpu_rd_n,                 // Read strobe
     input  logic        cpu_wr_n,                 // Write strobe
     input  logic [7:0]  cpu_dout,                 // Z80 data out
-    output logic [7:0]  cpu_din,                  // Z80 data in  // ДОБАВЛЕНО!
+    output logic [7:0]  cpu_din,                  // Z80 data in  
+    output logic        cpu_wait,                 // CPU wait signal
 
     // -------------------------------------------------------------------------
     // CPC Control Outputs
@@ -58,26 +59,204 @@ module mmu_legacy (
     output logic        irq_control               // Interrupt control
 );
 
-    // ... [остальной код без изменений] ...
+    // =========================================================================
+    // Internal Registers (CPC 6128 Compatible)
+    // =========================================================================
+    logic [7:0] reg_rmr;                          // RMR: Control Interrupt counter, ROM mapping
+    logic [7:0] reg_mmr;                          // MMR: RAM memory mapping  
+    logic [7:0] reg_upper_rom;                    // Upper ROM selection register
 
     // =========================================================================
-    // CPU DATA READING - ПРОСТОЕ ЧТЕНИЕ ДЛЯ ПРОЦЕССОРА
+    // Z80 Bus Decoding Signals
+    // =========================================================================
+    logic        is_7fxx_write;                   // Gate Array write (7Fxxh)
+    logic        is_dfxx_write;                   // Upper ROM select write (DFxxh)
+    logic        is_mem_access;                   // Memory access active
+    logic        is_mem_write;                    // Memory write operation
+    logic        is_mem_read;                     // Memory read operation
+    logic        is_io_access;                    // I/O access active
+    logic        is_internal_io;                  // Internal I/O register access
+
+    // =========================================================================
+    // Gate Array Control Signals
+    // =========================================================================
+    logic        gate_array_select;               // Gate Array register selected
+    logic [1:0]  gate_array_reg;                  // Gate Array register type
+
+    // =========================================================================
+    // Memory Configuration
+    // =========================================================================
+    logic [2:0]  memory_config;                   // Current memory configuration
+    logic [4:0]  memory_bank;                     // Current memory bank base
+
+    // =========================================================================
+    // Address Calculation
+    // =========================================================================
+    logic [23:0] physical_address;                // 24-bit physical address
+    logic        rom_access;                      // ROM access in progress
+    logic        ram_access;                      // RAM access in progress
+
+    // =========================================================================
+    // Wishbone Control
+    // =========================================================================
+    logic        wb_busy;                         // Wishbone transaction busy
+
+
+    // =========================================================================
+    // Z80 BUS DECODING
+    // =========================================================================
+
+    // Gate Array access detection (7Fxxh write)
+    assign is_7fxx_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a[15:8] == 8'h7F);
+    
+    // Upper ROM select detection (DFxxh write)
+    assign is_dfxx_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a[15:8] == 8'hDF);
+    
+    // Memory and I/O access detection
+    assign is_mem_access = ~cpu_mreq_n;
+    assign is_io_access  = ~cpu_iorq_n;
+    assign is_mem_write  = is_mem_access & ~cpu_wr_n;
+    assign is_mem_read   = is_mem_access & ~cpu_rd_n;
+
+    // Internal I/O registers (handled internally, not forwarded to Wishbone)
+    assign is_internal_io = is_7fxx_write | is_dfxx_write;
+
+    // Gate Array register selection
+    assign gate_array_select = is_7fxx_write & legacy_mode_i;
+    assign gate_array_reg    = cpu_dout[7:6];     // Register type from data bits
+
+
+    // =========================================================================
+    // CPC REGISTER UPDATE FROM Z80 BUS
     // =========================================================================
     always_ff @(posedge clk) begin
         if (reset) begin
-            cpu_din <= 8'hFF;  // Значение по умолчанию
-        end else begin
-            // По умолчанию - данные от Wishbone
-            cpu_din <= m_wb_dat_i;
-            
-            // Если это внутренний I/O доступ (чтение регистров CPC)
-            if (is_internal_io && ~cpu_rd_n) begin
-                case (cpu_a[15:8])
-                    8'h7F: cpu_din <= {6'b000000, gate_array_reg};  // Статус Gate Array
-                    8'hDF: cpu_din <= reg_upper_rom;                // Верхний ROM банк
+            // Reset to CPC 6128 default values
+            reg_rmr        <= 8'b10000000;        // Default RMR: Mode 0, ROMs enabled
+            reg_mmr        <= 8'b11000000;        // Default MMR: Config 0, Bank 0
+            reg_upper_rom  <= 8'h00;              // Default upper ROM bank 0
+        end else if (legacy_mode_i) begin
+            // Gate Array register writes
+            if (gate_array_select) begin
+                case (gate_array_reg)
+                    2'b10: reg_rmr <= cpu_dout;   // RMR write (Configuration)
+                    2'b11: reg_mmr <= cpu_dout;   // MMR write (Memory mapping)
+                    default: ;                    // Ignore other values - НОВАЯ СТРОКА
                 endcase
+            end
+
+            // Upper ROM selection write
+            if (is_dfxx_write) begin
+                reg_upper_rom <= cpu_dout;        // Upper ROM bank select
             end
         end
     end
 
-endmodule
+
+    // =========================================================================
+    // CPC REGISTER ACCESS VIA WISHBONE (SUPERVISOR MODE)
+    // =========================================================================
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            s_wb_ack_o <= 1'b0;
+            s_wb_dat_o <= 8'h00;
+        end else begin
+            s_wb_ack_o <= 1'b0;                   // Default no acknowledge
+            
+            if (s_wb_cyc_i & s_wb_stb_i & ~s_wb_ack_o) begin
+                s_wb_ack_o <= 1'b1;               // Acknowledge valid access
+                
+                if (s_wb_we_i) begin
+                    // Supervisor write to CPC registers
+                    case (s_wb_adr_i)
+                        24'hFC0100: reg_rmr       <= s_wb_dat_i;  // RMR register
+                        24'hFC0101: reg_mmr       <= s_wb_dat_i;  // MMR register
+                        24'hFC0140: reg_upper_rom <= s_wb_dat_i;  // Upper ROM select
+                    endcase
+                end else begin
+                    // Supervisor read from CPC registers
+                    case (s_wb_adr_i)
+                        24'hFC0100: s_wb_dat_o <= reg_rmr;        // Read RMR
+                        24'hFC0101: s_wb_dat_o <= reg_mmr;        // Read MMR
+                        24'hFC0140: s_wb_dat_o <= reg_upper_rom;  // Read Upper ROM
+                        default:    s_wb_dat_o <= 8'hFF;          // Default response
+                    endcase
+                end
+            end
+        end
+    end
+
+
+    // =========================================================================
+    // MEMORY CONFIGURATION DECODING
+    // =========================================================================
+    assign memory_config = reg_mmr[2:0];          // Memory configuration bits
+    assign memory_bank   = {reg_mmr[5:3], 2'b00}; // 64KB memory bank base address
+
+
+// =========================================================================
+// COMPLEX MEMORY ADDRESS CALCULATION (CPC 6128 COMPATIBLE)
+// =========================================================================
+
+// Базовый адрес ROM-ов в системе. Для Upper ROM банков.
+// Пусть это будет 0x000000, тогда Bank 0 Upper ROM будет указывать туда же, куда и Lower ROM!
+localparam ROM_SPACE_BASE = 24'h000000;
+
+always_comb begin
+    // Default values
+    physical_address = 24'h000000;
+    rom_access = 1'b0;
+    ram_access = 1'b1;
+
+        if (is_mem_access) begin
+            // CPC 6128 memory mapping configurations
+            case (memory_config)
+                // Config 0: Standard 64K mapping
+                3'b000: physical_address = {8'h00, cpu_a};
+                
+                // Config 1: RAM 0,1,2,3 (sequential banks)
+                3'b001: begin
+                    case (cpu_a[15:14])
+                        2'b00: physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
+                        2'b01: physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
+                        2'b10: physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
+                        2'b11: physical_address = {memory_bank + 3'd3, cpu_a[13:0]};
+                    endcase
+                end
+                
+                // Config 2: RAM 0,1,2,7 (bank 7 in upper memory)
+                3'b010: begin
+                    case (cpu_a[15:14])
+                        2'b00: physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
+                        2'b01: physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
+                        2'b10: physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
+                        2'b11: physical_address = {memory_bank + 3'd7, cpu_a[13:0]};
+                    endcase
+                end
+                
+                // Additional CPC 6128 configurations can be added here...
+                default: physical_address = {memory_bank, cpu_a[15:0]};
+            endcase
+
+
+        // ROM access overrides (CPC ROM banking)
+        if (cpu_a[15:14] == 2'b00 && ~reg_rmr[2]) begin
+            // Lower ROM access (0000-3FFF) when enabled
+            // Lower ROM мапится в начало адресного пространства (0x00000 - 0x03FFF)
+            physical_address = ROM_SPACE_BASE + {10'b00_0000_0000, cpu_a[13:0]};
+            rom_access = 1'b1;
+            ram_access = 1'b0;
+        end
+        else if (cpu_a[15:14] == 2'b11 && ~reg_rmr[3]) begin
+            // Upper ROM access (C000-FFFF) when enabled
+            // SIMPLE AND CORRECT: Bank N находится по адресу BASE + (N * 16KB)
+            physical_address = ROM_SPACE_BASE + {reg_upper_rom, 14'b0} + {8'b0, cpu_a[13:0]};
+            rom_access = 1'b1;
+            ram_access = 1'b0;
+        end
+        else begin
+          // ... (существующая логика для RAM) ...
+        end
+    end
+    // ... (логика для IO) ...
+end

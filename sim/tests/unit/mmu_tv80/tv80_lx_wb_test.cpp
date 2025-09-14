@@ -6,7 +6,7 @@
 #include <verilated_vcd_c.h>
 #include "Vtv80_lx_wb.h"
 
-#define CLK_HALF_PERIOD 5
+#define CLK_HALF_PERIOD 50
 #define SETUP_TIME 1      // Время установки сигналов до clock
 #define HOLD_TIME 1       // Время удержания сигналов после clock
 #define CLK_REST_TIME (CLK_HALF_PERIOD - SETUP_TIME - HOLD_TIME)
@@ -22,13 +22,15 @@ public:
     MemoryModel(size_t size = 16 * 1024 * 1024) : memory(size, 0x00) {}
     
     void write(uint32_t addr, uint8_t data) {
-        if (addr < memory.size()) {
-            memory[addr] = data;
+        int a = addr-0x400000;
+        if (a < memory.size()) {
+            memory[a] = data;
         }
     }
     
     uint8_t read(uint32_t addr) {
-        return (addr < memory.size()) ? memory[addr] : 0xAA;
+        int a = addr-0x400000;
+        return (a < memory.size()) ? memory[a] : 0xAA;
     }
     
     void load_program(uint32_t start_addr, const std::vector<uint8_t>& program) {
@@ -179,10 +181,14 @@ public:
                     last_wb_data = top->wbm_dat_o;
                     memory_model.write(last_wb_addr, last_wb_data);
                     top->wbm_ack_i = 1;  // Immediate acknowledge for write
+                    std::cout << "  WB Master WR addres=0x" <<  std::hex  << (int)last_wb_addr 
+                      << " data=0x" << (int)last_wb_data << std::dec << std::endl;
                 } else {
                     // Read operation - CRITICAL: immediate response!
                     top->wbm_dat_i = memory_model.read(last_wb_addr);
                     top->wbm_ack_i = 1;  // Immediate acknowledge for read
+                    std::cout << "  WB Master RD addres=0x" <<  std::hex  << (int)last_wb_addr 
+                      << " data=0x" << (int)top->wbm_dat_i << std::dec << std::endl;
                 }
             } else {
                 top->wbm_ack_i = 0;

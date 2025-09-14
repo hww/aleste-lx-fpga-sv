@@ -67,8 +67,8 @@ module tv80_lx_wb (
     wire [7:0]     tv80_dat_o;                   // Z80 data output
     wire [7:0]     tv80_dat_i;                   // Z80 data input
     wire           wait_n;                       // Wait state control
-    wire [7:0]     tv80_native_dat_i;            // Z80 data input from native MMU
-    wire [7:0]     tv80_legacy_dat_i;            // Z80 data input from legacy MMU
+    wire [7:0]     mmu_native_dat_o;            // Z80 data input from native MMU
+    wire [7:0]     mmu_legacy_dat_o;            // Z80 data input from legacy MMU
 
     // =========================================================================
     // Interrupt Control
@@ -103,7 +103,7 @@ module tv80_lx_wb (
     wire [7:0]     native_mmu_dat_o;
     wire           native_mmu_wait;
 
-    assign tv80_dat_i = native_mode ? tv80_native_dat_i : tv80_legacy_dat_i;
+    assign tv80_dat_i = native_mode ? mmu_native_dat_o : mmu_legacy_dat_o;
 
     assign debug_m1_n_o = mreq_n;
     assign debug_mreq_n_o = mreq_n;
@@ -162,7 +162,7 @@ module tv80_lx_wb (
         .m_wb_adr_o(legacy_mmu_adr),
         .m_wb_dat_o(legacy_mmu_dat_o),
         .m_wb_dat_i(wbm_dat_i),
-        .m_wb_ack_i(),
+        .m_wb_ack_i(wbm_ack_i),
 
         // Z80 Bus Interface
         .cpu_a(tv80_adr),
@@ -170,13 +170,18 @@ module tv80_lx_wb (
         .cpu_iorq_n(iorq_n),
         .cpu_rd_n(rd_n),
         .cpu_wr_n(wr_n),
-        .cpu_dout(tv80_dat_o),
-        .cpu_din(tv80_legacy_dat_i),
+        .cpu_dat_i(tv80_dat_o),
+        .cpu_dat_o(mmu_legacy_dat_o),
         .cpu_wait(legacy_mmu_wait),
 
         // CPC Control Outputs
         .graphic_mode(graphic_mode),
-        .irq_control(irq_control)
+        .irq_control(irq_control),
+
+        .debug_rom_access_o(),
+        .debug_ram_access_o(),
+        .debug_io_access_o()
+
     );
 
     // =========================================================================
@@ -201,7 +206,7 @@ module tv80_lx_wb (
         .cpu_wr_n(wr_n),
         .cpu_m1_n(m1_n),
         .cpu_din(tv80_dat_o),
-        .cpu_dout(tv80_native_dat_i),             // Data to CPU
+        .cpu_dout(mmu_native_dat_o),             // Data to CPU
         .cpu_wait(native_mmu_wait),
         
         // Master Wishbone Interface

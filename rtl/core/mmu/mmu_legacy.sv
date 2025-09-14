@@ -48,15 +48,19 @@ module mmu_legacy (
     input  logic        cpu_iorq_n,               // I/O request
     input  logic        cpu_rd_n,                 // Read strobe
     input  logic        cpu_wr_n,                 // Write strobe
-    input  logic [7:0]  cpu_dout,                 // Z80 data out
-    output logic [7:0]  cpu_din,                  // Z80 data in  
+    input  logic [7:0]  cpu_dat_i,                // Z80 data out
+    output logic [7:0]  cpu_dat_o,                // Z80 data in  
     output logic        cpu_wait,                 // CPU wait signal
 
     // -------------------------------------------------------------------------
     // CPC Control Outputs
     // -------------------------------------------------------------------------
     output logic [1:0]  graphic_mode,             // CPC graphics mode
-    output logic        irq_control               // Interrupt control
+    output logic        irq_control,              // Interrupt control
+    output logic        debug_rom_access_o,
+    output logic        debug_ram_access_o,
+    output logic        debug_io_access_o
+
 );
 
     // =========================================================================
@@ -92,7 +96,11 @@ module mmu_legacy (
     // =========================================================================
     // Address Calculation
     // =========================================================================
-    logic [23:0] physical_address;                // 24-bit physical address
+
+    logic [23:0] physical_address;                // Адрес для доступа
+    logic [23:0] ram_physical_address;            // Адрес для доступа к RAM
+    logic [23:0] rom_physical_address;            // Адрес для доступа к ROM    
+    logic [23:0] io_physical_address;             // Адрес для доступа к IO
     logic        rom_access;                      // ROM access in progress
     logic        ram_access;                      // RAM access in progress
 
@@ -123,7 +131,7 @@ module mmu_legacy (
 
     // Gate Array register selection
     assign gate_array_select = is_7fxx_write & legacy_mode_i;
-    assign gate_array_reg    = cpu_dout[7:6];     // Register type from data bits
+    assign gate_array_reg    = cpu_dat_i[7:6];     // Register type from data bits
 
 
     // =========================================================================
@@ -139,15 +147,15 @@ module mmu_legacy (
             // Gate Array register writes
             if (gate_array_select) begin
                 case (gate_array_reg)
-                    2'b10: reg_rmr <= cpu_dout;   // RMR write (Configuration)
-                    2'b11: reg_mmr <= cpu_dout;   // MMR write (Memory mapping)
+                    2'b10: reg_rmr <= cpu_dat_i;   // RMR write (Configuration)
+                    2'b11: reg_mmr <= cpu_dat_i;   // MMR write (Memory mapping)
                     default: ;                    // Ignore other values - НОВАЯ СТРОКА
                 endcase
             end
 
             // Upper ROM selection write
             if (is_dfxx_write) begin
-                reg_upper_rom <= cpu_dout;        // Upper ROM bank select
+                reg_upper_rom <= cpu_dat_i;        // Upper ROM bank select
             end
         end
     end
@@ -199,7 +207,9 @@ module mmu_legacy (
     // =========================================================================
     always_comb begin
         // Default values
-        physical_address = 24'h000000;
+        io_physical_address = 24'h000000;
+        ram_physical_address = 24'h000000;
+        rom_physical_address = 24'h000000;
         rom_access = 1'b0;
         ram_access = 1'b1;
 
@@ -207,53 +217,69 @@ module mmu_legacy (
             // CPC 6128 memory mapping configurations
             case (memory_config)
                 // Config 0: Standard 64K mapping
-                3'b000: physical_address = {8'h00, cpu_a};
+                3'b000: ram_physical_address = {8'h00, cpu_a};
                 
                 // Config 1: RAM 0,1,2,3 (sequential banks)
                 3'b001: begin
                     case (cpu_a[15:14])
-                        2'b00: physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
-                        2'b01: physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
-                        2'b10: physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
-                        2'b11: physical_address = {memory_bank + 3'd3, cpu_a[13:0]};
+                        2'b00: ram_physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
+                        2'b01: ram_physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
+                        2'b10: ram_physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
+                        2'b11: ram_physical_address = {memory_bank + 3'd3, cpu_a[13:0]};
                     endcase
                 end
                 
                 // Config 2: RAM 0,1,2,7 (bank 7 in upper memory)
                 3'b010: begin
                     case (cpu_a[15:14])
-                        2'b00: physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
-                        2'b01: physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
-                        2'b10: physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
-                        2'b11: physical_address = {memory_bank + 3'd7, cpu_a[13:0]};
+                        2'b00: ram_physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
+                        2'b01: ram_physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
+                        2'b10: ram_physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
+                        2'b11: ram_physical_address = {memory_bank + 3'd7, cpu_a[13:0]};
                     endcase
                 end
                 
                 // Additional CPC 6128 configurations can be added here...
-                default: physical_address = {memory_bank, cpu_a[15:0]};
+                default: ram_physical_address = {memory_bank, cpu_a[15:0]};
             endcase
 
             // ROM access overrides (CPC ROM banking)
             if (cpu_a[15:14] == 2'b00 && ~reg_rmr[2]) begin
                 // Lower ROM access (0000-3FFF) when enabled
-                physical_address = {10'h0000, cpu_a[13:0]};
+                rom_physical_address = {10'b0100000000, cpu_a[13:0]};
                 rom_access = 1'b1;
                 ram_access = 1'b0;
             end
             else if (cpu_a[15:14] == 2'b11 && ~reg_rmr[3]) begin
                 // Upper ROM access (C000-FFFF) when enabled
-                physical_address = {2'h1, reg_upper_rom, cpu_a[13:0]};
+                rom_physical_address = {2'b01, reg_upper_rom, cpu_a[13:0]};
                 rom_access = 1'b1;
                 ram_access = 1'b0;
             end
         end
+        // IO Address      
         else if (is_io_access & ~is_internal_io) begin
             // External I/O accesses go to Wishbone
             // Map to FFxxxxh IO space (24-bit address)
-            physical_address = {8'hFF, cpu_a};
+            io_physical_address = {8'hFF, cpu_a};
         end
     end
 
+    always_comb begin
+        if (is_io_access) begin
+            physical_address = io_physical_address;
+        end
+        else if (is_mem_read && rom_access) begin
+            physical_address = rom_physical_address;
+        end 
+        else begin
+            physical_address = ram_physical_address;
+        end
+    end
+
+    assign debug_rom_access_o = rom_access;
+    assign debug_ram_access_o = ram_access;
+    assign debug_io_access_o = is_io_access;
 
     // =========================================================================
     // CPC CONTROL OUTPUTS
@@ -286,7 +312,7 @@ module mmu_legacy (
                 m_wb_we_o   <= ~cpu_wr_n;         // Write enable
                 m_wb_tga_o  <= is_io_access;      // 0=MEM, 1=IO
                 m_wb_adr_o  <= physical_address;  // 24-bit physical address
-                m_wb_dat_o  <= cpu_dout;          // Data to write
+                m_wb_dat_o  <= cpu_dat_i;          // Data to write
                 wb_busy     <= 1'b1;
             end 
             // Release bus when no activity
@@ -300,25 +326,30 @@ module mmu_legacy (
     // =========================================================================
     // CPU DATA READING - ПРОСТОЕ ЧТЕНИЕ ДЛЯ ПРОЦЕССОРА
     // =========================================================================
-    always_comb begin
+    always_ff @(posedge clk) begin
         if (reset) begin
-            cpu_din = 8'hFF;  // Значение по умолчанию
+            cpu_dat_o <= 8'hFF;  // Значение по умолчанию
         end else begin
             // По умолчанию - данные от Wishbone
-            cpu_din = m_wb_dat_i;
-            
-            // Если это внутренний I/O доступ (чтение регистров CPC)
-            if (is_internal_io && ~cpu_rd_n) begin
-                case (cpu_a[15:8])
-                    // Нельзя прочесть регистры GateAray ибо они выбираются данным a[7:6]
-                    // 8'h7F: cpu_din <= {6'b000000, gate_array_reg};  // Статус Gate Array
-                    8'hDF: cpu_din = reg_upper_rom;                // Верхний ROM банк
-                    default: ;
-                endcase
+            if (is_mem_read && m_wb_ack_i) begin
+                cpu_dat_o <= m_wb_dat_i;
+            end 
+            else begin
+                cpu_dat_o <= 8'hFF;  // Значение по умолчанию
             end
+            // Нельзя прочесть регистры GateAray ибо они выбираются данным a[7:6]
+            // Если это внутренний I/O доступ (чтение регистров CPC)
+            //if (is_internal_io && ~cpu_rd_n) begin
+            //    case (cpu_a[15:8])
+            //        
+            //        8'h7F: cpu_dat_o <= {6'b000000, gate_array_reg};  // Статус Gate Array
+            //        8'hDF: cpu_dat_o <= reg_upper_rom;                // Верхний ROM банк
+            //        default: ;
+            //    endcase
+            //end
         end
     end
 
     // Wait state generation for Wishbone transactions
-    assign cpu_wait = (m_wb_cyc_o && !m_wb_ack_i);
+    assign cpu_wait = (!m_wb_cyc_o || !m_wb_ack_i);
 endmodule

@@ -537,6 +537,6 @@ module mmu_native (
     end
 
     // Wait state generation for Wishbone transactions
-    assign cpu_wait = (m_wb_cyc_o && !m_wb_ack_i);
+    assign cpu_wait = (!m_wb_cyc_o || !m_wb_ack_i);
 
 endmodule
