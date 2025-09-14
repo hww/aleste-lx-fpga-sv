@@ -139,7 +139,7 @@ module tv80_lx_wb (
     assign debug_iorq_n_o = iorq_n;
     assign debug_rd_n_o = rd_n;
     assign debug_wr_n_o = wr_n;
-    assign debug_halt_o = halt_n;
+    assign debug_halt_o = ~halt_n;
 
     assign s_wb_sel_o = native_mode ? native_mmu_s_wb_sel : legacy_mmu_s_wb_sel;
 

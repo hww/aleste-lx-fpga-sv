@@ -197,12 +197,31 @@ public:
     bool was_wb_transaction() { return wb_transaction_occurred; }
     uint32_t get_last_wb_addr() { return last_wb_addr; }
     uint8_t get_last_wb_data() { return last_wb_data; }
+    bool get_halt() { return top->debug_halt_o == 1; }
 
     void run_until_halt(int max_cycles = 1000) {
         int cycles = 0;
-        while (cycles < max_cycles && get_last_wb_addr() != 0x00C000) {
+        bool halted = false;
+        
+        while (cycles < max_cycles && !halted) {
             clock_tick();
             cycles++;
+            
+            // Проверяем HALT на каждом такте
+            halted = (top->debug_halt_o == 1);
+            
+            // Дополнительно можно проверять другие условия завершения
+#if VERBOSE_WAIT_HALT            
+            if (cycles % 100 == 0) {
+                std::cout << "Cycle " << cycles << ", HALT=" << halted << std::endl;
+            }
+#endif            
+        }
+        
+        std::cout << "  Finished: " << cycles << " cycles, HALT=" << halted << std::endl;
+        
+        if (cycles >= max_cycles && !halted) {
+            std::cout << "  ERROR: Timeout! Program did not halt." << std::endl;
         }
     }
 
@@ -306,65 +325,9 @@ void load_supervisor_bios(TV80LXTestUtils& utils) {
 // =============================================================================
 // Test Functions
 // =============================================================================
-//void test_supervisor_registers(TV80LXTestUtils& utils) {
-//    std::cout << "\n=== TEST 1: SUPERVISOR REGISTERS ===" << std::endl;
-//    
-//    std::vector<uint8_t> test_program = {
-//        0x3E, 0x03, 0xD3, 0xD7, 0x3E, 0x0F, 0xD3, 0xDC,
-//        0x3E, 0x1E, 0xD3, 0xDD, 0x76
-//    };
-//    
-//    utils.memory_model.load_program(0x8000, test_program);
-//    utils.reset_pulse();
-//    utils.run_until_halt(200);
-//    
-//    utils.assert_equal(utils.top->native_mode_o, 1, "Native mode should be set");
-//    utils.assert_equal(utils.top->supervisor_mode_o, 1, "Supervisor mode should be set");
-//    utils.assert_equal(utils.memory_model.get_bank(0), 0x0F, "Bank 0 should be set to 0x0F");
-//    utils.assert_equal(utils.memory_model.get_bank(1), 0x1E, "Bank 1 should be set to 0x1E");
-//}
 
-//void test_user_native_syscall(TV80LXTestUtils& utils) {
-//    std::cout << "\n=== TEST 2: USER NATIVE SYSCALL ===" << std::endl;
-//    
-//    std::vector<uint8_t> user_program = {
-//        0x3E, 0x02, 0x16, 0x05, 0x1E, 0x03, 0xCD, 0x00, 0x10, 0x32, 0x00, 0xC0, 0x76
-//    };
-//    
-//    std::vector<uint8_t> syscall_wrapper = {
-//        0xD3, 0xD4, 0xC9
-//    };
-//    
-//    utils.memory_model.load_program(0x4000, user_program);
-//    utils.memory_model.load_program(0x1000, syscall_wrapper);
-//    utils.reset_pulse();
-//    utils.run_until_halt(200);
-//    
-//    uint8_t result = utils.memory_model.read(0xC000);
-//    utils.assert_equal(result, 0x08, "Syscall should return 5+3=8");
-//}
-
-//void test_user_legacy_syscall(TV80LXTestUtils& utils) {
-//    std::cout << "\n=== TEST 3: USER LEGACY SYSCALL ===" << std::endl;
-//    
-//    std::vector<uint8_t> user_program = {
-//        0x3E, 0x01, 0x06, 0x00, 0x0E, 0x2A, 0xCD, 0x00, 0x20, 0x76
-//    };
-//    
-//    std::vector<uint8_t> syscall_wrapper = {
-//        0xD3, 0x00, 0xD4, 0xC9
-//    };
-//    
-//    utils.memory_model.load_program(0x4000, user_program);
-//    utils.memory_model.load_program(0x2000, syscall_wrapper);
-//    utils.reset_pulse();
-//    utils.run_until_halt(200);
-//    
-//    uint8_t bank = utils.memory_model.get_bank(0);
-//    utils.assert_equal(bank, 0x2A, "Legacy syscall should set bank 2Ah for slot 0");
-//}
 void test_simple_program(TV80LXTestUtils& utils) {
-    std::cout << "\n=== TEST 1: SIMPLE PROGRAM EXECUTION ===" << std::endl;
+    std::cout << "\n=== TEST 1 A: SIMPLE PROGRAM EXECUTION ===" << std::endl;
     
     // Простая программа: записать 0x55 в память и остановиться
     // ЗАГРУЖАЕМ В СЛОТ 0 (0000-3FFF) - откуда начинается выполнение!
@@ -377,9 +340,40 @@ void test_simple_program(TV80LXTestUtils& utils) {
     utils.memory_model.load_program(0x0000, test_program); // ← ИСПРАВЛЕНО: 0x0000 вместо 0x8000
     utils.reset_pulse();
     utils.run_until_halt(100);
-    
-    utils.assert_memory(0xC000, 0x55, "Should write 0x55 to C000h");
+    // because the mapper is by default is 00 it will be 00 page instead of the 
+    utils.assert_memory(0x0000, 0x55, "Should write 0x55 to C000h");
 }
+
+void test_mapper_operation(TV80LXTestUtils& utils) {
+    std::cout << "\n=== TEST 1 B: MAPPER OPERATION ===" << std::endl;
+    
+    // Программа: установить банк 3 = 0x03, затем записать 0x55 в C000
+    std::vector<uint8_t> test_program = {
+        // Установить банк 3 (порт 0xDF) в значение 0x03
+        0x3E, 0x03,       // ld a, 03h
+        0xD3, 0xDF,       // out (DFh), a - установить банк 3 = 3
+        
+        // Записать 0x55 в память по адресу C000 (слот 3)
+        0x3E, 0x55,       // ld a, 55h
+        0x32, 0x00, 0xC0, // ld (C000h), a
+        
+        // Остановиться
+        0x76              // halt
+    };
+    
+    utils.memory_model.load_program(0x0000, test_program);
+    utils.reset_pulse();
+    utils.run_until_halt(200);
+    
+    // Проверяем что записалось в память по адресу C000
+    // (это слот 3, банк 3, поэтому физический адрес = (3 << 14) | 0x0000 = 0xC000)
+    utils.assert_memory(0xC000, 0x55, "Should write 0x55 to C000h");
+    
+    // Дополнительная проверка: смотрим что по физическому адресу 0x3000 (банк 3, смещение 0)
+    // тоже должно быть 0x55, поскольку банк 3 отображается на 0x3000-0x3FFF
+    utils.assert_memory(0x3000, 0x55, "Should also be at physical 0x3000 (bank 3)");
+}
+
 
 void test_supervisor_registers(TV80LXTestUtils& utils) {
     std::cout << "\n=== TEST 2: SUPERVISOR REGISTERS ===" << std::endl;
@@ -482,6 +476,7 @@ int main(int argc, char** argv) {
     std::cout << "=== TV80-LX-WB SUPERVISOR BIOS TEST SUITE ===" << std::endl;
 
     test_simple_program(utils);
+    test_mapper_operation(utils);
     // Load BIOS and run tests
     load_supervisor_bios(utils);
     

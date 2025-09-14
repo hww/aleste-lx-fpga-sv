@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Sun Sep 14 18:41:28 2025
+[*] Sun Sep 14 19:02:12 2025
 [*]
 [dumpfile] "/home/valery/asv/sim/tests/unit/mmu_tv80/tv80_lx_wb_test.vcd"
-[dumpfile_mtime] "Sun Sep 14 18:39:26 2025"
-[dumpfile_size] 276877
+[dumpfile_mtime] "Sun Sep 14 19:00:36 2025"
+[dumpfile_size] 304449
 [savefile] "/home/valery/asv/sim/tests/unit/mmu_tv80/tv80_lx_wb_test.gtkw"
 [timestart] 0
 [size] 1920 1110
 [pos] -1 -1
-*-7.979953 50 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-10.379952 4029 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.tv80_lx_wb.
 [treeopen] TOP.tv80_lx_wb.z80_core.
@@ -67,6 +67,8 @@ TOP.tv80_lx_wb.z80_core.mreq_n
 TOP.tv80_lx_wb.z80_core.iorq_n
 TOP.tv80_lx_wb.z80_core.rd_n
 TOP.tv80_lx_wb.z80_core.wr_n
+@29
+TOP.debug_halt_o
 @200
 -WB SLAVE
 @22
@@ -79,7 +81,7 @@ TOP.s_wb_stb_i
 TOP.s_wb_we_i
 TOP.s_wb_sel_o
 TOP.s_wb_ack_o
-@23
+@22
 TOP.tv80_lx_wb.z80_core.di[7:0]
 [pattern_trace] 1
 [pattern_trace] 0

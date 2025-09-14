@@ -133,8 +133,8 @@ module mmu_legacy (
     assign gate_array_select = is_7fxx_write & legacy_mode_i;
     assign gate_array_reg    = cpu_dat_i[7:6];     // Register type from data bits
 
-    assign s_wb_sel_o = 1;
-    
+    assign s_wb_sel_o = legacy_mode_i || s_wb_cyc_i || s_wb_stb_i;
+
     // =========================================================================
     // CPC REGISTER UPDATE FROM Z80 BUS
     // =========================================================================

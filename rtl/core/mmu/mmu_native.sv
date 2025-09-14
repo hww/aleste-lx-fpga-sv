@@ -188,7 +188,7 @@ module mmu_native (
     // Z80 BUS STATE DETECTION
     // =========================================================================
     assign m1_detected      = ~cpu_m1_n & ~cpu_mreq_n;     // M1 cycle detection
-    assign is_io_access     = ~cpu_iorq_n & ~is_legacy_io; // Valid I/O access
+    assign is_io_access     = ~cpu_iorq_n;                 // Valid I/O access
     assign is_mem_access    = ~cpu_mreq_n;                 // Memory access
     assign is_write         = ~cpu_wr_n;                   // Write operation
     assign is_read          = ~cpu_rd_n;                   // Read operation
@@ -203,9 +203,6 @@ module mmu_native (
     assign trap_condition = m1_detected & reg_control[2] & 
                           (cpu_a == 16'h0000 || cpu_a == 16'h0038 || cpu_a == 16'h0066);
     assign hardware_supervisor = trap_condition;
-
-    // Legacy I/O access detection (CPC-style ports)
-    assign is_legacy_io = ~cpu_iorq_n & (cpu_a > 16'h00FF);
 
     // Supervisor mode state machine with delayed exit
     always_ff @(posedge clk) begin
@@ -251,7 +248,6 @@ module mmu_native (
                            access_granted & native_mode_o;
     assign is_reg_access  = is_io_access & (cpu_a[7:0] >= 8'hC0) & 
                            access_granted & native_mode_o;
-
 
     // =========================================================================
     // CURRENT SLOT SELECTION LOGIC
@@ -486,17 +482,11 @@ module mmu_native (
         m_wb_dat_o = cpu_din;
         cpu_dout   = 8'hFF;
 
-        // ---------------------------------------------------------------------
-        // LEGACY I/O ACCESS (CPC COMPATIBILITY)
-        // ---------------------------------------------------------------------
-        if (is_legacy_io) begin
-            // Legacy I/O handled by separate controller - no action here
-        end
         
         // ---------------------------------------------------------------------
         // MEMORY ACCESS (MREQ) - BANK SWITCHING
         // ---------------------------------------------------------------------
-        else if (is_mem_access && native_mode_o) begin
+        if (is_mem_access && native_mode_o) begin
             m_wb_cyc_o = 1'b1;
             m_wb_stb_o = 1'b1;
             // Physical address: {slot, bank, offset}
@@ -530,6 +520,15 @@ module mmu_native (
             // Register address in MMIO space
             m_wb_adr_o = {16'hFF00, cpu_a[7:0]};
             
+            if (is_read) begin
+                cpu_dout = m_wb_dat_i; // Read from MMU register
+            end
+        end
+        else if (is_io_access) begin
+            m_wb_cyc_o = 1'b1;
+            m_wb_stb_o = 1'b1;
+            // Полный 16-битный адрес порта в пространстве MMIO
+            m_wb_adr_o = {16'hFF00, cpu_a[7:0]};
             if (is_read) begin
                 cpu_dout = m_wb_dat_i; // Read from MMU register
             end
