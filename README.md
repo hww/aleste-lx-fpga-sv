@@ -118,6 +118,7 @@ This is ambitious but technically sound. You are not abandoning the dream but tr
 The links below point to the finalized and versioned documentation for this project. These documents are considered stable and will not change significantly between minor releases.
 
 ![FPGA](docs/lx_mmu.r.md)
+![PCB](https://github.com/hww/XiAleste_PCB)
 
 ---
 
