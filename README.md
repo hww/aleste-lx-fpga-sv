@@ -1,59 +1,63 @@
 # Aleste LX FPGA
 
-![Status](https://img.shields.io/badge/Status-Active%20Development-orange) ![License](https://img.shields.io/badge/License-MIT-blue) ![FPGA](https://img.shields.io/badge/FPGA-ECP5-green)
+![Status](https://img.shields.io/badge/Status-Active%20Development-orange)
+![License](https://img.shields.io/badge/License-MIT-blue)
+![FPGA](https://img.shields.io/badge/FPGA-Lattice%20ECP5-green)
+![Core](https://img.shields.io/badge/Core-Z80%20%2B%20Amstrad%20CPC%20SoC-red)
 
-A modern FPGA implementation of the classic Aleste 520EX computer architecture.
+**A modern and compatible FPGA implementation of the Aleste 520EX computer with enhancements.**
 
-This project represents an ongoing effort to recreate and reimagine the Aleste system using contemporary FPGA technology. While development continues, there is no guarantee of final completion - it remains an experimental platform for exploring these classic computing concepts.
+This project is a modern FPGA implementation of the Aleste 520EX computer, aiming for full hardware compatibility while enhancing it with modern capabilities like SDRAM, advanced sound, and video output.
 
 Key aspects:
+- Faithful recreation of the original Aleste and Amstrad CPC architecture
+- Modern FPGA implementation with Lattice ECP5
+- Enhanced capabilities (SDRAM, DMA Sound, HDMI output)
+- Platform for technical exploration and retro computing
 
-- Faithful recreation of the original Aleste architecture
-- Modern FPGA implementation
-- Experimental nature (may not reach full completion)
-- Platform for technical exploration
+---
 
-The project serves primarily as:
+## ⚡ Current Implementation Status
 
-- A technical proof-of-concept
-- An educational platform for retro computing
-- A testbed for architectural experimentation
+| Module             | Status          | Test Coverage           | Notes |
+| :----------------- | :-------------- | :---------------------- | :---- |
+| Z80 Core           | ✅ Works         | ZEXALL                  |       |
+| PPI (i8255)        | ✅ Works         | Loopback                |       |
+| CRTC (6845)        | ✅ Works         | Read/Write & Sync       |       |
+| AY-3-8910          | ✅ Works         | Read/Write & Synthesizer|       |
+| FDC (u765)         | ✅ Works         | Read/Write Sector       |       |
+| Simple UART        | ✅ Works         | Loopback data transfer  | Not CPC standard |
+| MMU Legacy         | ✅ Works         | Advanced test           |       |
+| MMU Native         | ✅ Works         | Advanced test           |       |
+| SDRAM Controller   | ✅ Works         | Read/Write              |       |
+| PIC (i8259)        | ✅ Works         | Read/Write/Interrupt    |       |
+| NMI Logic          | ✅ Works         | Read/Write/Interrupt    |       |
+| System DMA         | ✅ Works         | Read/Write              |       |
+| Magic Sound 2      | ✅ Works         | 🟡 In Progress          |       |
+| Video GPU          | 🟡 Implemented   | 🟡 In Progress          |       |
+| Video Core         | 🟡 In Progress   |                         |       |
+| Scan Doubler       | 🟡 In Progress   |                         |       |
+| MCU SPI Slave      | 🟡 In Progress   |                         |       |
 
-Note: This remains a work in progress with no definitive completion timeline.
+---
 
+## 🚀 Features & Goals
 
-## The project status
-
-
-| Unit             | Status         | Tests                   | Notes            |
-|:-----------------|----------------|-------------------------|------------------|
-| Z80 Core         | ✅ Works        | ZEXALL                  |                  |
-| PPI              | ✅ Works        | Loop back               |                  |
-| CRT 6845         | ✅ Works        | Read/Write Sync         |                  |
-| AY-3-8910        | ✅ Works        | Read/Write Synth        |                  |
-| FDC              | ✅ Works        | Read/Write Sector       |                  |
-| Simple UARD      | ✅ Works        | Loop back data tramsfer | Not CPC standart |
-| MMU Legacy       | ✅ Works        | Advanced test           |                  |
-| MMU Native       | ✅ Works        | Advanced test           |                  |
-| SDRAM Controller | ✅ Works        | Read/Writr              |                  |
-| PIC              | ✅ Works        | Read/Write/Interupt     |                  |
-| NMI              | ✅ Works        | Read/Write/Interupt     |                  |
-| Systam DMA       | ✅ Works        | Read/Write              |                  |
-| Magic Sound 2    | ✅ Works        | 🟡 In Progres           |                  |
-| Video GPU        | 🟡 Implemented | 🟡 In Progres           |                  |
-| Video Core       | 🟡 In Progres  |                         |                  |
-| Scan Doubler     | 🟡 In Progres  |                         |                  |
-| MCU SPI Slave    | 🟡 In Progres  |                         |                  |
-
+*   **Full Z80 Compatibility:** Certified with ZEXALL test suite
+*   **Full Amstrad CPC Compatibility:** Faithful replica of original chipset (CRTC, PPI, AY)
+*   **Modern Memory:** SDRAM controller for 1-2MB of fast memory
+*   **Enhanced Sound:** Original AY-3-8910 + Magic Sound 2 DMA controller
+*   **Video Enhancements:** Native HDMI output with scan doubling
+*   **Modern Storage:** SD card interface via SPI
+*   **Legacy Support:** Floppy controller (u765) for original drives
 
 ---
 
 ## The Licensing
 
-This is a project I work on in my free time. If you use it commercially and would like to support its development, please contact me.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-For a commercial license (allowing proprietary use without open-source obligations), please contact me directly.
-
+> **Note on Commercial Use:** This is a project I work on in my free time. If you are interested in using it commercially and would like to support its development, please contact me directly for commercial licensing options.
 
 ---
 
@@ -163,4 +167,8 @@ project_root/
 └── Makefile
 ```
 
----
+
+## 📞 Contact & Discussion
+
+*   **GitHub Issues:** For technical discussions and bugs
+*   **Telegram Channel:** [Join for updates](https://t.me/aleste_lx_dev)
