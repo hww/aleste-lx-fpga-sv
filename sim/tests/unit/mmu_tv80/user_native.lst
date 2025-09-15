@@ -1,0 +1,29 @@
+              	; --------------------------------------
+              	; zasm: assemble "user_native.asm"
+              	; date: 2025-09-15 14:34:57
+              	; --------------------------------------
+
+
+              	;   device z80
+0000:         	    org 0x0000
+              	
+0000:         	main:
+0000: 3E02    	    ld a,0x02
+0002: 1605    	    ld d,0x05
+0004: 1E03    	    ld e,0x03
+0006: CD4000  	    call syscall
+0009: 3200C0  	    ld (0xC000),a
+000C: 76      	    halt
+              	
+              	    org 0x0040
+0040:         	syscall:
+0040: D3D4    	    out (0xD4),a
+0042: C9      	    ret
+              	
+              	; Fill rest with zeros
+              	    org 0x0100
+0100: 00      	    db 0
+
+
+total time: 0.0005 sec.
+no errors

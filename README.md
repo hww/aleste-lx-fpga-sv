@@ -1,5 +1,7 @@
 # Aleste LX FPGA
 
+![Status](https://img.shields.io/badge/Status-Active%20Development-orange) ![License](https://img.shields.io/badge/License-MIT-blue) ![FPGA](https://img.shields.io/badge/FPGA-ECP5-green)
+
 A modern FPGA implementation of the classic Aleste 520EX computer architecture.
 
 This project represents an ongoing effort to recreate and reimagine the Aleste system using contemporary FPGA technology. While development continues, there is no guarantee of final completion - it remains an experimental platform for exploring these classic computing concepts.
@@ -20,7 +22,29 @@ The project serves primarily as:
 Note: This remains a work in progress with no definitive completion timeline.
 
 
-Of course. The translation captures the technical details and the spirit of the project accurately.
+## The project status
+
+
+| Unit             | Status         | Tests                   | Notes            |
+|:-----------------|----------------|-------------------------|------------------|
+| Z80 Core         | ✅ Works        | ZEXALL                  |                  |
+| PPI              | ✅ Works        | Loop back               |                  |
+| CRT 6845         | ✅ Works        | Read/Write Sync         |                  |
+| AY-3-8910        | ✅ Works        | Read/Write Synth        |                  |
+| FDC              | ✅ Works        | Read/Write Sector       |                  |
+| Simple UARD      | ✅ Works        | Loop back data tramsfer | Not CPC standart |
+| MMU Legacy       | ✅ Works        | Advanced test           |                  |
+| MMU Native       | ✅ Works        | Advanced test           |                  |
+| SDRAM Controller | ✅ Works        | Read/Writr              |                  |
+| PIC              | ✅ Works        | Read/Write/Interupt     |                  |
+| NMI              | ✅ Works        | Read/Write/Interupt     |                  |
+| Systam DMA       | ✅ Works        | Read/Write              |                  |
+| Magic Sound 2    | ✅ Works        | 🟡 In Progres           |                  |
+| Video GPU        | 🟡 Implemented | 🟡 In Progres           |                  |
+| Video Core       | 🟡 In Progres  |                         |                  |
+| Scan Doubler     | 🟡 In Progres  |                         |                  |
+| MCU SPI Slave    | 🟡 In Progres  |                         |                  |
+
 
 ---
 

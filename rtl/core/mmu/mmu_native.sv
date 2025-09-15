@@ -211,8 +211,10 @@ module mmu_native (
             supervisor_delay        <= 1'b0;
             delayed_supervisor_off  <= 1'b0;
         end else begin
-            // Immediate entry on hardware trap or SysCall
-            if (hardware_supervisor || syscall_pending) begin
+            // Immediate entry on hardware trap, SysCall, or control register write
+            if (hardware_supervisor || syscall_pending || 
+                (s_wb_cyc_i && s_wb_stb_i && mmu_reg_sel && s_wb_we_i && 
+                 s_wb_adr_i[7:0] == 8'hD7 && s_wb_dat_i[1])) begin
                 supervisor_mode         <= 1'b1;
                 supervisor_delay        <= 1'b0;
                 delayed_supervisor_off  <= 1'b0;
@@ -223,7 +225,7 @@ module mmu_native (
                 supervisor_delay        <= 1'b0;
                 delayed_supervisor_off  <= 1'b0;
             end
-            // Request delayed exit procedure
+            // Request delayed exit procedure (when control bit is cleared)
             else if (delayed_supervisor_off) begin
                 supervisor_delay <= 1'b1;
             end

@@ -4,11 +4,14 @@
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 #include "Vtv80_lx_wb.h"
+#include <fstream>
+
 
 #define CLK_HALF_PERIOD 50
 #define SETUP_TIME 1
 #define HOLD_TIME 1
 #define CLK_REST_TIME (CLK_HALF_PERIOD - SETUP_TIME - HOLD_TIME)
+
 // =============================================================================
 // Complete Memory Model with Banking Support
 // =============================================================================
@@ -17,33 +20,63 @@ private:
     std::vector<uint8_t> memory;
     
 public:
-    MemoryModel(size_t size = 64 * 1024) : memory(size, 0x00) {
+    MemoryModel(size_t size = 4 * 64 * 1024) : memory(size, 0x00) {
         // Простая линейная память 64KB
     }
-    
+
+    uint32_t translate_address(uint32_t logical_addr) {
+        uint8_t slot = logical_addr >> 22;        // 0-3 (64KB слоты)
+        uint16_t offset = logical_addr & 0xFFFF;  // 0-6535 (16 бит)
+        
+        return (slot << 16) | offset;             // 256KB = 16 банков × 16KB
+    }
+
     void write(uint32_t addr, uint8_t data) {
-        uint32_t phys_addr = addr & 0xFFFF; // Ограничиваем 16-битным адресом
+        uint32_t phys_addr = translate_address(addr);
         if (phys_addr < memory.size()) {
             memory[phys_addr] = data;
         }
     }
     
     uint8_t read(uint32_t addr) {
-        uint32_t phys_addr = addr & 0xFFFF; // Ограничиваем 16-битным адресом
+        uint32_t phys_addr = translate_address(addr);
         return (phys_addr < memory.size()) ? memory[phys_addr] : 0xAA;
     }
     
     void load_program(uint32_t start_addr, const std::vector<uint8_t>& program) {
+        uint32_t phys_start_addr = translate_address(start_addr);
         for (size_t i = 0; i < program.size(); i++) {
-            uint32_t addr = (start_addr + i) & 0xFFFF;
+            uint32_t addr = (phys_start_addr + i);
             if (addr < memory.size()) {
                 memory[addr] = program[i];
             }
         }
         std::cout << "Loaded " << program.size() << " bytes at 0x" 
-                  << std::hex << start_addr << std::dec << std::endl;
+                  << std::hex << start_addr << " (actual address at 0x" << phys_start_addr << ")" << std::dec << std::endl;
     }
     
+    bool load_binary_file(uint32_t address, const std::string& filename) {
+        std::ifstream file(filename, std::ios::binary | std::ios::ate);
+        if (!file.is_open()) {
+            std::cerr << "Error: Cannot open file " << filename << std::endl;
+            return false;
+        }
+        
+        std::streamsize size = file.tellg();
+        file.seekg(0, std::ios::beg);
+        
+        std::vector<uint8_t> buffer(size);
+        if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) {
+            std::cerr << "Error: Cannot read file " << filename << std::endl;
+            return false;
+        }
+
+        load_program(address, buffer);
+
+        std::cout << "Loaded " << size << " bytes from " << filename 
+                  << " to address 0x" << std::hex << address << std::dec << std::endl;
+        return true;
+    }
     // Простая функция для дампа памяти (для отладки)
     void dump_memory(uint32_t start_addr, uint32_t length) {
         std::cout << "Memory dump 0x" << std::hex << start_addr << ":" << std::endl;
@@ -110,13 +143,13 @@ public:
         // Debug output
         if (top->wbm_cyc_o && top->wbm_stb_o) {
             if (top->wbm_we_o) {
-                std::cout << "  WB WRITE: addr=0x" << std::hex << top->wbm_adr_o
-                          << " data=0x" << (int)top->wbm_dat_o 
-                          << " ack=" << top->wbm_ack_i << std::dec << std::endl;
+                std::cout << "  WB WRITE: addr=0x" << std::hex << std::setw(6) << std::setfill('0') << top->wbm_adr_o
+                        << " data=0x" << std::setw(2) << std::setfill('0') << (int)top->wbm_dat_o 
+                        << " ack=" << top->wbm_ack_i << std::dec << std::endl;
             } else {
-                std::cout << "  WB READ:  addr=0x" << std::hex << top->wbm_adr_o
-                          << " data=0x" << (int)top->wbm_dat_i
-                          << " ack=" << top->wbm_ack_i << std::dec << std::endl;
+                std::cout << "  WB READ:  addr=0x" << std::hex << std::setw(6) << std::setfill('0') << top->wbm_adr_o
+                        << " data=0x" << std::setw(2) << std::setfill('0') << (int)top->wbm_dat_i
+                        << " ack=" << top->wbm_ack_i << std::dec << std::endl;
             }
         }
     }
@@ -261,7 +294,13 @@ public:
 
     void assert_memory(uint32_t address, uint8_t expected, const char* message) {
         uint8_t actual = memory_model.read(address);
-        assert_equal(actual, expected, message);
+        
+        // Создаем сообщение с адресом
+        char full_message[256];
+        snprintf(full_message, sizeof(full_message), "memory[0x%06X] = 0x%02X - %s", 
+                address, expected, message);
+        
+        assert_equal(actual, expected, full_message);
     }
 
     void print_test_results() {
@@ -281,53 +320,11 @@ public:
 };
 
 // =============================================================================
-// BIOS Loading Functions
-// =============================================================================
-void load_supervisor_bios(TV80LXTestUtils& utils) {
-    std::vector<uint8_t> bios = {
-        // Cold Boot Vector (0x0000)
-        0xF3, 0x31, 0xF0, 0xFF, 0xC3, 0x1A, 0x00,
-        
-        // Padding to SysCall Vector (0x0038)
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC3, 0x38, 0x00,
-        
-        // NMI Vector (0x0066)
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0xED, 0x45,
-        
-        // Supervisor Initialization (0x001A)
-        0x3E, 0x03, 0xD3, 0xD7, 0x3E, 0x07, 0xD3, 0xD7, 0xAF, 0xD3, 0xD7, 0xED, 0x45,
-        
-        // SysCall Dispatcher (0x0038)
-        0x08, 0xD9, 0xF5, 0x78, 0xB9, 0xC2, 0x80, 0x00, 0xF1, 0x3D, 0xCA, 0x90, 0x00,
-        0x3D, 0xCA, 0xA0, 0x00, 0x3E, 0xFE, 0xC3, 0xD0, 0x00,
-        
-        // Function 00: Set GLOBAL_CTRL (0x0080)
-        0xF1, 0x79, 0xD3, 0xD7, 0x3E, 0x00, 0xC3, 0xD0, 0x00,
-        
-        // Function 01: Set User Bank (0x0090)
-        0xF1, 0x79, 0xD3, 0xDC, 0x3E, 0x00, 0xC3, 0xD0, 0x00,
-        
-        // Function 02: Add Numbers (0x00A0)
-        0x7A, 0x83, 0xC3, 0xD0, 0x00,
-        
-        // Common Return Path (0x00D0)
-        0xD9, 0x08, 0xED, 0x4D
-    };
-    
-    utils.memory_model.load_program(0x0000, bios);
-    std::cout << "Supervisor BIOS loaded at 0x0000" << std::endl;
-}
-
-// =============================================================================
 // Test Functions
 // =============================================================================
 
 void test_simple_program(TV80LXTestUtils& utils) {
-    std::cout << "\n=== TEST 1 A: SIMPLE PROGRAM EXECUTION ===" << std::endl;
+    std::cout << "\n=== TEST 1: SIMPLE PROGRAM EXECUTION ===" << std::endl;
     
     // Простая программа: записать 0x55 в память и остановиться
     // ЗАГРУЖАЕМ В СЛОТ 0 (0000-3FFF) - откуда начинается выполнение!
@@ -337,15 +334,15 @@ void test_simple_program(TV80LXTestUtils& utils) {
         0x76              // halt
     };
     
-    utils.memory_model.load_program(0x0000, test_program); // ← ИСПРАВЛЕНО: 0x0000 вместо 0x8000
+    utils.memory_model.load_program(0xC00000, test_program); // ← ИСПРАВЛЕНО: 0x0000 вместо 0x8000
     utils.reset_pulse();
     utils.run_until_halt(100);
     // because the mapper is by default is 00 it will be 00 page instead of the 
-    utils.assert_memory(0x0000, 0x55, "Should write 0x55 to C000h");
+    utils.assert_memory(0xC00000, 0x55, "Should write 0x55 to C000h");
 }
 
 void test_mapper_operation(TV80LXTestUtils& utils) {
-    std::cout << "\n=== TEST 1 B: MAPPER OPERATION ===" << std::endl;
+    std::cout << "\n=== TEST 2: MAPPER OPERATION ===" << std::endl;
     
     // Программа: установить банк 3 = 0x03, затем записать 0x55 в C000
     std::vector<uint8_t> test_program = {
@@ -361,99 +358,135 @@ void test_mapper_operation(TV80LXTestUtils& utils) {
         0x76              // halt
     };
     
-    utils.memory_model.load_program(0x0000, test_program);
+    utils.memory_model.load_program(0xC00000, test_program);
     utils.reset_pulse();
     utils.run_until_halt(200);
     
     // Проверяем что записалось в память по адресу C000
     // (это слот 3, банк 3, поэтому физический адрес = (3 << 14) | 0x0000 = 0xC000)
-    utils.assert_memory(0xC000, 0x55, "Should write 0x55 to C000h");
-    
-    // Дополнительная проверка: смотрим что по физическому адресу 0x3000 (банк 3, смещение 0)
-    // тоже должно быть 0x55, поскольку банк 3 отображается на 0x3000-0x3FFF
-    utils.assert_memory(0x3000, 0x55, "Should also be at physical 0x3000 (bank 3)");
+    utils.assert_memory(0xC0C000, 0x55, "Should write 0x55 to C000h");
 }
-
 
 void test_supervisor_registers(TV80LXTestUtils& utils) {
-    std::cout << "\n=== TEST 2: SUPERVISOR REGISTERS ===" << std::endl;
+    std::cout << "\n=== TEST 3: SUPERVISOR REGISTERS ===" << std::endl;
     
-    // Программа для установки режимов - ЗАГРУЖАЕМ В СЛОТ 0
+    // Программа: установить разные режимы и проверить их работу
     std::vector<uint8_t> test_program = {
-        0x3E, 0x03,       // ld a, 03h
+        // 1. Установить Native + Supervisor режим
+        0x3E, 0x03,       // ld a, 03h (native=1, supervisor=1, userlock=0)
         0xD3, 0xD7,       // out (D7h), a
+        
+        // 2. Проверить запись в память в Native режиме
+        0x3E, 0xAA,       // ld a, 0xAA
+        0x32, 0x01, 0x90, // ld (8000h), a (слот 2)
+        
+        // 3. Переключиться в User режим (только native)
+        0x3E, 0x01,       // ld a, 01h (native=1, supervisor=0, userlock=0) 
+        0xD3, 0xD7,       // out (D7h), a
+        0x00,             // NOP for switching to user
+        
+        // 4. Попробовать записать в память в User режиме
+        0x3E, 0x55,       // ld a, 0x55
+        0x32, 0x02, 0xA0, // ld (9000h), a  (запись в адресс 0x1000 так как маппер слота 0 в нуле)
+        
+        // 5. Вернуться в Supervisor для выхода
+        0x3E, 0x03,       // ld a, 03h (native=1, supervisor=1, userlock=0)
+        0xD3, 0xD7,       // out (D7h), a
+        
         0x76              // halt
     };
-    
-    utils.memory_model.load_program(0x0000, test_program); // ← ИСПРАВЛЕНО
+    // программу для супервизора
+    utils.memory_model.load_program(0xC00000, test_program);
+    // программу для пользователя
+    utils.memory_model.load_program(0x000000, test_program);
     utils.reset_pulse();
-    utils.run_until_halt(100);
+    utils.run_until_halt(300);
     
-    utils.assert_equal(utils.top->native_mode_o, 1, "Native mode should be set");
-    utils.assert_equal(utils.top->supervisor_mode_o, 1, "Supervisor mode should be set");
+    // Проверки
+    utils.assert_equal(utils.top->native_mode_o, 1, "Native mode should be enabled");
+    utils.assert_equal(utils.top->supervisor_mode_o, 1, "Should end in supervisor mode");
+    
+    // Проверяем что память записалась в разных режимах
+    utils.assert_memory(0xC01001, 0xAA, "Should write in supervisor native mode");
+    utils.assert_memory(0x002002, 0x55, "Should write in user native mode");
+    
+    // Дополнительные проверки регистров
+    std::cout << "Final control register: 0x" << std::hex 
+              << (int)utils.top->debug_control_o << std::dec << std::endl;
 }
-
-//void test_bank_operations(TV80LXTestUtils& utils) {
-//    std::cout << "\n=== TEST 3: BANK OPERATIONS ===" << std::endl;
-//    
-//    std::vector<uint8_t> test_program = {
-//        0x3E, 0x0F,       // ld a, 0Fh
-//        0xD3, 0xDC,       // out (DCh), a - bank 0
-//        0x3E, 0x1E,       // ld a, 1Eh
-//        0xD3, 0xDD,       // out (DDh), a - bank 1
-//        0x76              // halt
-//    };
-//    
-//    utils.memory_model.load_program(0x0000, test_program); // ← ИСПРАВЛЕНО
-//    utils.reset_pulse();
-//    utils.run_until_halt(100);
-//    
-//    utils.assert_equal(utils.memory_model.get_bank(0), 0x0F, "Bank 0 should be 0x0F");
-//    utils.assert_equal(utils.memory_model.get_bank(1), 0x1E, "Bank 1 should be 0x1E");
-//}
 
 void test_memory_access_patterns(TV80LXTestUtils& utils) {
     std::cout << "\n=== TEST 4: MEMORY ACCESS PATTERNS ===" << std::endl;
     
     std::vector<uint8_t> test_program = {
-        0x3E, 0x55, 0x32, 0x00, 0x80, 0x32, 0x00, 0xC0, 0x76
+        // Программируем маппер 0 (банк 0 для адресов 0x0000-0x3FFF)
+        0x3E, 0x00,       // LD A, 0x00 (страница 0)
+        0xD3, 0xDC,       // OUT (0xFC), A
+        
+        // Записываем значение в конец страницы 0 (0x0000-0x3FFF)
+        0x3E, 0xD0,       // LD A, 0xD0
+        0x32, 0xFF, 0x3F, // LD (0x3FFF), A
+        
+        // Программируем маппер 1 (банк 1 для адресов 0x4000-0x7FFF)
+        0x3E, 0x01,       // LD A, 0x01 (страница 1)
+        0xD3, 0xDD,       // OUT (0xFD), A
+        
+        // Записываем значение в конец страницы 1 (0x4000-0x7FFF)
+        0x3E, 0xD1,       // LD A, 0xD1
+        0x32, 0xFF, 0x7F, // LD (0x7FFF), A
+        
+        // Программируем маппер 2 (банк 2 для адресов 0x8000-0xBFFF)
+        0x3E, 0x02,       // LD A, 0x02 (страница 2)
+        0xD3, 0xDE,       // OUT (0xFE), A
+        
+        // Записываем значение в конец страницы 2 (0x8000-0xBFFF)
+        0x3E, 0xD2,       // LD A, 0xD2
+        0x32, 0xFF, 0xBF, // LD (0xBFFF), A
+        
+        // Программируем маппер 3 (банк 3 для адресов 0xC000-0xFFFF)
+        0x3E, 0x03,       // LD A, 0x03 (страница 3)
+        0xD3, 0xDF,       // OUT (0xFF), A
+        
+        // Записываем значение в конец страницы 3 (0xC000-0xFFFF)
+        0x3E, 0xD3,       // LD A, 0xD3
+        0x32, 0xFF, 0xFF, // LD (0xFFFF), A
+        
+        // Останавливаем выполнение
+        0x76              // HALT
     };
-    
-    utils.memory_model.load_program(0x0000, test_program);
+        
+    utils.memory_model.load_program(0xC00000, test_program);
     utils.reset_pulse();
     utils.run_until_halt(200);
     
-    utils.assert_memory(0x8000, 0x55, "Should write to 0x8000");
-    utils.assert_memory(0xC000, 0x55, "Should write to 0xC000");
-    utils.assert_true(utils.get_last_wb_addr() >= 0xC000, "Should access meaningful addresses");
+    // Проверяем записанные значения на каждой странице
+    utils.assert_memory(0xC03FFF, 0xD0, "Should write D0 to page 0 (0x3FFF)");
+    utils.assert_memory(0xC07FFF, 0xD1, "Should write D0 to page 0 (0x7FFF)");
+    utils.assert_memory(0xC0BFFF, 0xD2, "Should write D1 to page 1 (0xBFFF)");
+    utils.assert_memory(0xC0FFFF, 0xD3, "Should write D2 to page 2 (0xFFFF)");
+    
+    // Для страницы 3 проверяем по адресу 0x0000 (но осторожно - там может быть код)
+    // Лучше проверить через маппер, переключившись на страницу 3
+    utils.assert_true(utils.get_last_wb_addr() >= 0xC0C000, "Should access meaningful addresses");
+    
+    // Дополнительная проверка: программируем мапперы и проверяем доступ к разным страницам
+    std::cout << "Memory mapper programming completed successfully" << std::endl;
 }
 
 void test_user_native_syscall(TV80LXTestUtils& utils) {
-    std::cout << "\n=== TEST 4: USER NATIVE SYSCALL ===" << std::endl;
-    
-    // Пользовательская программа ДОЛЖНА БЫТЬ В СЛОТЕ 0!
-    std::vector<uint8_t> user_program = {
-        0x3E, 0x02,       // ld a, 02h - функция сложения
-        0x16, 0x05,       // ld d, 05h
-        0x1E, 0x03,       // ld e, 03h
-        0xCD, 0x20, 0x00, // call syscall_wrapper (в том же слоте!)
-        0x32, 0x00, 0xC0, // ld (C000h), a - сохраняем результат
-        0x76              // halt
-    };
-    
-    // Обертка syscall - ТОЖЕ В СЛОТЕ 0!
-    std::vector<uint8_t> syscall_wrapper = {
-        0xD3, 0xD4,       // out (D4h), a
-        0xC9              // ret
-    };
-    
-    // Загружаем ОБЕ программы в слот 0
-    utils.memory_model.load_program(0x0000, user_program);
-    utils.memory_model.load_program(0x0020, syscall_wrapper); // ← по адресу 0x0020
-    
+    std::cout << "\n=== TEST 5: USER NATIVE SYSCALL ===" << std::endl;   
+    // Загружаем BIOS в слот 3 (0xC00000)
+    utils.memory_model.load_binary_file(0xC00000, "bios.bin");
+    // Загружаем пользовательскую программу в слот 0
+    utils.memory_model.load_binary_file(0x000000, "user_native.bin");
+       
+    // Устанавливаем PC на холодный boot вектор BIOS
     utils.reset_pulse();
-    utils.run_until_halt(200);
     
+    // Запускаем выполнение
+    utils.run_until_halt(1000);
+    
+    // Проверяем результат
     uint8_t result = utils.memory_model.read(0xC000);
     utils.assert_equal(result, 0x08, "Syscall should return 5+3=8");
 }
@@ -477,18 +510,16 @@ int main(int argc, char** argv) {
 
     test_simple_program(utils);
     test_mapper_operation(utils);
-    // Load BIOS and run tests
-    load_supervisor_bios(utils);
-    
     test_supervisor_registers(utils);
-    test_user_native_syscall(utils);
-    //test_user_legacy_syscall(utils);
     test_memory_access_patterns(utils);
+    
+    // Load BIOS and run tests
+    test_user_native_syscall(utils);
 
     // Final stability test
-    std::cout << "\n=== FINAL STABILITY TEST ===" << std::endl;
-    for (int i = 0; i < 50; i++) utils.clock_tick();
-    utils.assert_true(true, "Extended stability test passed");
+    // std::cout << "\n=== FINAL STABILITY TEST ===" << std::endl;
+    // for (int i = 0; i < 50; i++) utils.clock_tick();
+    // utils.assert_true(true, "Extended stability test passed");
     
     utils.print_test_results();
     
