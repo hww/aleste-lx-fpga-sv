@@ -111,6 +111,12 @@ The new cornerstone is a pentad of features:
 
 This is ambitious but technically sound. You are not abandoning the dream but translating it into a more achievable form.
 
+**Documentation**
+
+The links below point to the finalized and versioned documentation for this project. These documents are considered stable and will not change significantly between minor releases.
+
+![FPGA](docs/lx_mmu.r.md)
+
 ---
 
 ## Project Structure
