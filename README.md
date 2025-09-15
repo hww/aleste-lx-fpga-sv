@@ -15,6 +15,8 @@ Key aspects:
 - Enhanced capabilities (SDRAM, DMA Sound, HDMI output)
 - Platform for technical exploration and retro computing
 
+![AlesteLX Diagramm](/docs/aleste_xl.drawio.png)
+
 ---
 
 ## ⚡ Current Implementation Status
