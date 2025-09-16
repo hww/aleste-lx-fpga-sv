@@ -1,0 +1,40 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Tue Sep 16 13:58:47 2025
+[*]
+[dumpfile] "/home/valery/asv/sim/tests/unit/dvi/waveform.vcd"
+[dumpfile_mtime] "Tue Sep 16 13:56:53 2025"
+[dumpfile_size] 60412
+[savefile] "/home/valery/asv/sim/tests/unit/dvi/waveform.gtkw"
+[timestart] 0
+[size] 1920 1110
+[pos] -27 -24
+*-7.682824 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 297
+[signals_width] 134
+[sst_expanded] 1
+[sst_vpaned_height] 334
+@28
+TOP.rst_n
+TOP.clk_platform
+@200
+-RGBIN
+@28
+TOP.clk_pixel_in
+@22
+TOP.r_in[7:0]
+TOP.b_in[7:0]
+TOP.g_in[7:0]
+@28
+TOP.hsync_in
+TOP.vsync_in
+TOP.blank_in
+@200
+-HDMI
+@28
+TOP.tmds_clk_n
+TOP.tmds_clk_p
+TOP.tmds_d_n[2:0]
+TOP.tmds_d_p[2:0]
+[pattern_trace] 1
+[pattern_trace] 0
