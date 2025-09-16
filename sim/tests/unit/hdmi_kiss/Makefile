@@ -1,15 +1,16 @@
 # Makefile
 VERILATOR = verilator
-VERILATOR_FLAGS = -Wall --cc --exe --build --trace -I.
-RTL_PATH = ../../../../rtl/core/dvi
+VERILATOR_FLAGS = -Wall --cc --exe --build --trace -I. \
+	-Wno-WIDTHTRUNC \
+	-Wno-WIDTH
+	
+RTL_PATH = ../../../../rtl/core/hdmi_kiss
 SOURCES = \
-    $(RTL_PATH)/dvi_generic.sv \
-    $(RTL_PATH)/dvi_serializer.sv \
+    $(RTL_PATH)/hdmi_scaler.sv \
     $(RTL_PATH)/tmds_encoder.sv \
-    $(RTL_PATH)/dvi_core.sv \
-    dvi_test.cpp
+    hdmi_scaler_test.cpp
 
-TARGET = Vdvi_generic
+TARGET = Vhdmi_scaler
 
 all: $(TARGET)
 
