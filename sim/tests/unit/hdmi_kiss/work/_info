@@ -1,0 +1,104 @@
+m255
+K4
+z2
+!s12c _opt
+Z0 !s99 nomlopt
+!s11f vlog 2024.1 2024.02, Feb  1 2024
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z1 d//wsl.localhost/Ubuntu/home/valery/asv/sim/tests/unit/hdmi_kiss
+T_opt
+!s110 1758272725
+Vhm?Z_<[bXMb;dQM[elK4k0
+04 14 4 work tb_hdmi_scaler fast 0
+=1-b06ebf81cd2e-68cd1cd3-388-1b0c
+R0
+!s12f OEM100
+!s12b OEM100
+!s124 OEM100
+o-quiet -auto_acc_if_foreign -work work
+Z2 tCvgOpt 0
+n@_opt
+OL;O;2024.1;79
+vdual_port_ram
+Z3 2../../../../rtl/core/hdmi_kiss/hdmi_scaler_core.sv|dual_port_ram.sv|tb_hdmi_scaler.sv
+Z4 DXx6 sv_std 3 std 0 22 9oUSJO;AeEaW`l:M@^WG92
+Z5 !s110 1758272721
+!i10b 1
+!s100 @]d7_KoOcAl`^C];`zB1j0
+IL[fI:TVfYkjPhhlC@z;^J2
+S1
+R1
+w1758211437
+8dual_port_ram.sv
+Fdual_port_ram.sv
+!i122 0
+L0 1 38
+Z6 VDg1SIo80bB@j0V0VzS_@n1
+Z7 OL;L;2024.1;79
+r1
+!s85 0
+31
+Z8 !s108 1758272720.000000
+Z9 !s107 tb_hdmi_scaler.sv|dual_port_ram.sv|../../../../rtl/core/hdmi_kiss/hdmi_scaler_core.sv|
+Z10 !s90 -sv|-work|work|+define+ADDR_WIDTH=12|+define+DATA_WIDTH=32|+define+MODELSIM|../../../../rtl/core/hdmi_kiss/hdmi_scaler_core.sv|dual_port_ram.sv|tb_hdmi_scaler.sv|
+!i113 0
+Z11 o-sv -work work -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+Z12 !s92 -sv -work work +define+ADDR_WIDTH=12 +define+DATA_WIDTH=32 +define+MODELSIM -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+R2
+vhdmi_scaler_core
+R3
+R4
+R5
+!i10b 1
+!s100 >GVGMcGhni:iMeL6RLdcE0
+I<1HL[?oz3D5Gd_S1E8VnT2
+S1
+R1
+w1758271875
+8../../../../rtl/core/hdmi_kiss/hdmi_scaler_core.sv
+F../../../../rtl/core/hdmi_kiss/hdmi_scaler_core.sv
+!i122 0
+L0 1 409
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2
+vtb_hdmi_scaler
+R3
+R4
+R5
+!i10b 1
+!s100 iL^b4WlI:C1Dg3kXYhAQP3
+IQ^H2[UVRC_AEk^^J;OCi11
+S1
+R1
+w1758272552
+8tb_hdmi_scaler.sv
+Ftb_hdmi_scaler.sv
+!i122 0
+L0 3 177
+R6
+R7
+r1
+!s85 0
+31
+R8
+R9
+R10
+!i113 0
+R11
+R12
+R2

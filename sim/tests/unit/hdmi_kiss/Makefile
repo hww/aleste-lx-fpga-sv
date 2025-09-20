@@ -1,16 +1,19 @@
 # Makefile
 VERILATOR = verilator
-VERILATOR_FLAGS = -Wall --cc --exe --build --trace -I. \
+VERILATOR_FLAGS = -Wall --cc --exe --build --trace-fst -I. \
 	-Wno-WIDTHTRUNC \
-	-Wno-WIDTH
+	-Wno-WIDTH \
+	-Wno-UNUSEDPARAM \
+	-Wno-UNUSEDSIGNAL \
+	-Wno-CASEINCOMPLETE
 	
 RTL_PATH = ../../../../rtl/core/hdmi_kiss
 SOURCES = \
-    $(RTL_PATH)/hdmi_scaler.sv \
-    $(RTL_PATH)/tmds_encoder.sv \
+    $(RTL_PATH)/hdmi_scaler_core.sv \
+    $(RTL_PATH)/dual_port_ram.sv \
     hdmi_scaler_test.cpp
 
-TARGET = Vhdmi_scaler
+TARGET = Vhdmi_scaler_core
 
 all: $(TARGET)
 

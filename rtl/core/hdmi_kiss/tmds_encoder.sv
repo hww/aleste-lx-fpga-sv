@@ -3,7 +3,7 @@ module tmds_encoder #(
     parameter int TMDS_WIDTH = 10
 )(
     input  logic clk,
-    input  logic rst_n,
+    input  logic rst,
     input  logic [DATA_WIDTH-1:0] data,
     input  logic [1:0] c,
     input  logic de,
@@ -65,8 +65,8 @@ module tmds_encoder #(
                          : (c[0] ? 10'b0010101011 : 10'b1101010100);
     
     // Output registers with reset
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always_ff @(posedge clk or negedge rst) begin
+        if (rst) begin
             tmds <= '0;
             balance_acc <= '0;
         end else begin
