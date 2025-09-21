@@ -167,7 +167,6 @@ module hdmi_scaler_core #(
     logic dst_rd_en;
     logic [ADDR_WIDTH-1:0] dst_buf_addr;
     logic [1:0] line_repeat_count;
-    logic dst_repeat_line;
 
     logic [10:0] v_active_start;
     logic [10:0] v_active_end;
@@ -186,7 +185,7 @@ module hdmi_scaler_core #(
         if (dst_rst_i) begin
             dst_state <= DST_IDLE;
             dst_buf_sel <= 1'b0;
-            dst_repeat_line <= 1'b0;
+            line_repeat_count <= 2'b0;
             dst_frame_start <= 1'b0;
             dst_line_start <= 1'b0;
         end else begin
@@ -210,23 +209,25 @@ module hdmi_scaler_core #(
                     end
                 end
                 
-                DST_ACTIVE: begin
-                    if (dst_frame_end) begin
-                        dst_state <= DST_IDLE;
-                    end else if (dst_vsync_rise) begin
-                        dst_state <= DST_WAIT_BUFFER;
-                        dst_buf_sel <= dst_buf_ready[0] ? 1'b0 : 
-                                    dst_buf_ready[1] ? 1'b1 : dst_buf_sel;
-                        dst_frame_start <= 1'b1;
-                    end else if (dst_line_end) begin
-                        dst_line_start <= 1'b1;
-                        
-                        // ✅ ПРОСТОЕ переключение буфера
+            DST_ACTIVE: begin
+                if (dst_frame_end) begin
+                    dst_state <= DST_IDLE;
+                end else if (dst_vsync_rise) begin
+                    dst_state <= DST_WAIT_BUFFER;
+                    dst_buf_sel <= dst_buf_ready[0] ? 1'b0 : 
+                                dst_buf_ready[1] ? 1'b1 : dst_buf_sel;
+                    dst_frame_start <= 1'b1;
+                end else if (dst_line_end) begin
+                    dst_line_start <= 1'b1;
+                    
+                    // ✅ ПРАВИЛЬНО - переключать буфер только после V_SCALE строк
+                    if (line_repeat_count == V_SCALE - 1) begin  // После завершения повторения
                         if (dst_buf_ready[~dst_buf_sel]) begin
                             dst_buf_sel <= ~dst_buf_sel;
                         end
                     end
                 end
+            end
             endcase
         end
     end
@@ -292,12 +293,26 @@ module hdmi_scaler_core #(
     assign v_active_start = v_shift_i;
     assign v_active_end = v_shift_i + (SRC_HEIGHT * V_SCALE);
 
-    assign dst_pixel_valid_pre = (dst_y_count >= v_active_start) &&
-                                (dst_y_count < v_active_end) &&
-                                (dst_x_count < DST_WIDTH) &&
-                                (dst_state == DST_ACTIVE) &&
-                                (dst_line_start == 0) &&
-                                dst_buf_ready[dst_buf_sel];
+    //assign dst_pixel_valid_pre = (dst_y_count >= v_active_start) &&
+    //                            (dst_y_count < v_active_end) &&
+    //                            (dst_x_count < DST_WIDTH) &&
+    //                            (dst_state == DST_ACTIVE) &&
+    //                     //       (dst_line_start == 0) &&
+    //                            dst_buf_ready[dst_buf_sel];
+
+    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+        if (dst_rst_i) begin
+            dst_pixel_valid_pre <= 0;
+        end else begin 
+            dst_pixel_valid_pre <= (dst_y_count >= v_active_start) &&
+                                        (dst_y_count < v_active_end) &&
+                                        (dst_x_count < DST_WIDTH) &&
+                                        (dst_state == DST_ACTIVE) &&
+                                 //       (dst_line_start == 0) &&
+                                        dst_buf_ready[dst_buf_sel];
+        end
+    end
+
 
     assign dst_rd_en = dst_pixel_valid_pre && (dst_buf_addr < SRC_WIDTH);
 
@@ -372,6 +387,6 @@ module hdmi_scaler_core #(
     assign debug_dst_y_count_o = dst_y_count;
     assign debug_dst_buf_sel_o = dst_buf_sel;
     assign debug_dst_buf_addr_o = dst_buf_addr;
-    assign debug_dst_repeat_line_o = dst_repeat_line;
+    assign debug_dst_repeat_line_o = line_repeat_count[0];
 
 endmodule
