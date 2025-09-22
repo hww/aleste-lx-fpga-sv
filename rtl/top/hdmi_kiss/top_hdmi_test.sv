@@ -1,12 +1,13 @@
 // =============================================================================
-// Top Level: HDMI Test System
+// Top Level: HDMI Test System with LED Blinker
 // =============================================================================
 
 module top_hdmi_test (
     input  logic clk_25mhz,      // Тактовая частота платы 25 MHz
-    input  logic rst,        // Кнопка сброса
+    input  logic rst,            // Кнопка сброса
     output logic [3:0] gpdi_dp,  // TMDS data+ [B, G, R, CLK]
-    output logic [3:0] gpdi_dn   // TMDS data- [B, G, R, CLK]
+    output logic [3:0] gpdi_dn,  // TMDS data- [B, G, R, CLK]
+    output logic led_o       // Светодиод мигалка
 );
 
     // =========================================================================
@@ -48,7 +49,15 @@ module top_hdmi_test (
     assign rst_n = rst && sys_pll_locked && video_pll_locked;
 
     // =========================================================================
-    // 2. Test Pattern Generation
+    // 2. LED Blinker
+    // =========================================================================
+    blink led_blinker (
+        .clk_i(clk_25mhz),  // Используем входную тактовую 25 MHz
+        .led_o(led_o)
+    );
+
+    // =========================================================================
+    // 3. Test Pattern Generation
     // =========================================================================
     logic [23:0] test_pixel;
     logic test_hsync, test_vsync, test_de;
@@ -63,7 +72,7 @@ module top_hdmi_test (
     );
 
     // =========================================================================
-    // 3. TMDS Encoding
+    // 4. TMDS Encoding
     // =========================================================================
     logic [9:0] tmds_red, tmds_green, tmds_blue;
     logic [1:0] ctrl_signal;
@@ -101,7 +110,7 @@ module top_hdmi_test (
     );
 
     // =========================================================================
-    // 4. DDR Outputs for TMDS - ПРАВИЛЬНАЯ ВЕРСИЯ
+    // 5. DDR Outputs for TMDS
     // =========================================================================
     // Для каждого TMDS бита нужно по два ODDRX1F: для + и -
     
@@ -199,3 +208,28 @@ module top_hdmi_test (
     );
 
 endmodule
+
+// =============================================================================
+// LED Blinker Module
+// =============================================================================
+module blink (
+    input      clk_i,
+    output reg led_o
+);
+
+localparam MAX = 12_500_000;  // Для 25 MHz: 12.5M тактов = 0.5 секунды
+localparam WIDTH = $clog2(MAX);
+
+reg [WIDTH-1:0] cpt_s;
+
+always_ff @(posedge clk_i) begin
+    if (cpt_s == MAX-1) begin
+        cpt_s <= 0;
+        led_o <= ~led_o;
+    end else begin
+        cpt_s <= cpt_s + 1'b1;
+    end
+end
+
+endmodule
+

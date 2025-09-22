@@ -5,15 +5,15 @@ FREQ = 25
 YOSYS = yosys
 NEXTPNR = nextpnr-ecp5
 ECPPACK = ecppack
-PROG = icyprog
+PROG = openFPGALoader -r -c cmsisdap --freq 1000000  --vid=0x1d50 --pid=0x602b  
 
 # Source directories
 CORE_DIR = ../../rtl/core/hdmi_kiss
 TOP_DIR = ../../rtl/top/hdmi_kiss
-CONSTR = ../../constr/ice_sugar_pro_bg256_hdmi.lpf
+CONSTR = ./hdmi_test.lpf
 TARGET = top_hdmi_test
 
-all: $(TARGET).bin
+all: $(TARGET).svf
 
 # Простой Yosys скрипт, который читает все файлы
 $(TARGET).json:
@@ -34,13 +34,20 @@ $(TARGET).json:
 $(TARGET)_out.config: $(TARGET).json $(CONSTR)
 	$(NEXTPNR) --25k --json $< --lpf $(CONSTR) --textcfg $@ --package $(PACKAGE) --top $(TARGET)
 
-$(TARGET).bin: $(TARGET)_out.config
+$(TARGET).bit: $(TARGET)_out.config
 	$(ECPPACK) $< $@
 
-program: $(TARGET).bin
+program: $(TARGET).bit
 	$(PROG) $<
+
+flash: $(TARGET).bit
+	$(PROG) -f $<
+
 
 clean:
 	rm -f *.json *.config *.bin
 
 .PHONY: all program clean
+
+detect:
+	openFPGALoader --scan-usb
