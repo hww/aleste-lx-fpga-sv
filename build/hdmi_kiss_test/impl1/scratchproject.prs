@@ -1,0 +1,82 @@
+#--  Synopsys, Inc.
+#--  Version V-2023.09L-2
+#--  Project file \\wsl.localhost\Ubuntu\home\valery\asv\build\hdmi_kiss_test\impl1\scratchproject.prs
+
+#project files
+add_file -verilog -vlog_std sysv "//wsl.localhost/Ubuntu/home/valery/asv/rtl/core/hdmi_kiss/ecp5_pll.v"
+add_file -verilog -vlog_std sysv "//wsl.localhost/Ubuntu/home/valery/asv/rtl/core/hdmi_kiss/ecp5_cells.v"
+add_file -verilog -vlog_std sysv "//wsl.localhost/Ubuntu/home/valery/asv/rtl/core/hdmi_kiss/sys_pll.sv"
+add_file -verilog -vlog_std sysv "//wsl.localhost/Ubuntu/home/valery/asv/rtl/core/hdmi_kiss/video_pll.sv"
+add_file -verilog -vlog_std sysv "//wsl.localhost/Ubuntu/home/valery/asv/rtl/core/hdmi_kiss/hdmi_scaler_core.sv"
+add_file -verilog -vlog_std sysv "//wsl.localhost/Ubuntu/home/valery/asv/rtl/core/hdmi_kiss/hdmi_scaler_wrapper.sv"
+add_file -verilog -vlog_std sysv "//wsl.localhost/Ubuntu/home/valery/asv/rtl/core/hdmi_kiss/tmds_encoder.sv"
+add_file -verilog -vlog_std sysv "//wsl.localhost/Ubuntu/home/valery/asv/rtl/top/hdmi_kiss/test_pattern_generator.sv"
+add_file -verilog -vlog_std sysv "//wsl.localhost/Ubuntu/home/valery/asv/rtl/top/hdmi_kiss/top_hdmi_test.sv"
+add_file "//wsl.localhost/Ubuntu/home/valery/asv/constr/ice_sugar_pro_bg256_hdmi.lpf"
+
+
+#implementation: "impl1"
+impl -add \\wsl.localhost\Ubuntu\home\valery\asv\build\hdmi_kiss_test\impl1 -type fpga
+
+#device options
+set_option -technology ECP5
+set_option -part LFE5U-25F
+set_option -package CABGA256
+set_option -speed_grade 6
+set_option -part_companion ""
+
+#compilation/mapping options
+
+# hdl_compiler_options
+set_option -distributed_compile 0
+set_option -scm2hydra 0
+set_option -scm2hydra_preserve_rtl_sig 1
+set_option -hdl_strict_syntax 0
+
+# mapper_without_write_options
+set_option -frequency 1
+set_option -srs_instrumentation 1
+
+# mapper_options
+set_option -write_verilog 0
+set_option -write_structural_verilog 0
+set_option -write_vhdl 0
+
+# unset_device_options
+set_option -run_prop_extract 1
+set_option -maxfan 12
+set_option -maxfan_hard 0
+set_option -disable_io_insertion 0
+set_option -retiming 0
+set_option -report_path 4000
+set_option -opcond Default
+set_option -update_models_cp 0
+set_option -preserve_registers 0
+set_option -pipe 1
+
+# NFilter
+set_option -no_sequential_opt 0
+
+# common_options
+set_option -add_dut_hierarchy 0
+set_option -prepare_readback 0
+
+# flow_options
+set_option -slr_aware_debug 0
+
+# sequential_optimization_options
+set_option -symbolic_fsm_compiler 1
+
+# Compiler Options
+set_option -compiler_compatible 0
+set_option -resource_sharing 1
+
+# Compiler Options
+set_option -auto_infer_blackbox 0
+
+#automatic place and route (vendor) options
+set_option -write_apr_constraint 1
+
+#set result format/file last
+project -result_file "//wsl.localhost/Ubuntu/home/valery/asv/build/hdmi_kiss_test/impl1/top_hdmi_test.edn"
+impl -active "impl1"

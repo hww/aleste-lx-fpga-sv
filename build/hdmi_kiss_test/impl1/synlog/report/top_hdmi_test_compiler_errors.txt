@@ -1,0 +1,4 @@
+@E: CG389 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":32:2:32:6|Reference to undefined module EHXPLLL
+@E: CG389 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":32:2:32:6|Reference to undefined module EHXPLLL
+@E: CL123 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\tmds_encoder.sv":68:4:68:12|Logic for tmds[9:0] does not match a standard flip-flop
+

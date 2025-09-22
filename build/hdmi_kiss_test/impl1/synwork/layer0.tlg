@@ -1,0 +1,60 @@
+Selecting top level module top_hdmi_test
+@E: CG389 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":32:2:32:6|Reference to undefined module EHXPLLL
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":5:7:5:14|Synthesizing module ecp5_pll in library work.
+
+	FREQIN=32'b00000000000000000000000000011001
+	FREQOP=32'b00000000000000000000000001100000
+   Generated name = ecp5_pll_25s_96s
+@W: CG141 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":32:2:32:6|Creating black box for EHXPLLL
+	Making port RST an input
+	Making port STDBY an input
+	Making port CLKI an input
+Making port CLKOP a bidir
+	Making port CLKOS an input
+	Making port CLKOS2 an input
+	Making port CLKOS3 an input
+Making port CLKFB a bidir
+Making port LOCK a bidir
+	Making port CLKINTFB an input
+@W: CG781 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":37:10:37:10|Input CLKOS on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. 
+@W: CG781 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":38:11:38:11|Input CLKOS2 on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. 
+@W: CG781 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":39:11:39:11|Input CLKOS3 on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. 
+@W: CG781 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":42:13:42:13|Input CLKINTFB on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. 
+Running optimization stage 1 on ecp5_pll_25s_96s .......
+Finished optimization stage 1 on ecp5_pll_25s_96s (CPU Time 0h:00m:00s, Memory Used current: 88MB peak: 88MB)
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\sys_pll.sv":5:7:5:13|Synthesizing module sys_pll in library work.
+Running optimization stage 1 on sys_pll .......
+Finished optimization stage 1 on sys_pll (CPU Time 0h:00m:00s, Memory Used current: 88MB peak: 88MB)
+@E: CG389 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":32:2:32:6|Reference to undefined module EHXPLLL
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":5:7:5:14|Synthesizing module ecp5_pll in library work.
+
+	FREQIN=32'b00000000000000000000000001100000
+	FREQOP=32'b00000000000000000000000100001110
+   Generated name = ecp5_pll_96s_270s
+@W: CG141 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":32:2:32:6|Creating black box for EHXPLLL
+	Making port RST an input
+	Making port STDBY an input
+	Making port CLKI an input
+Making port CLKOP a bidir
+	Making port CLKOS an input
+	Making port CLKOS2 an input
+	Making port CLKOS3 an input
+Making port CLKFB a bidir
+Making port LOCK a bidir
+	Making port CLKINTFB an input
+@W: CG781 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":37:10:37:10|Input CLKOS on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. 
+@W: CG781 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":38:11:38:11|Input CLKOS2 on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. 
+@W: CG781 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":39:11:39:11|Input CLKOS3 on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. 
+@W: CG781 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":42:13:42:13|Input CLKINTFB on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. 
+Running optimization stage 1 on ecp5_pll_96s_270s .......
+Finished optimization stage 1 on ecp5_pll_96s_270s (CPU Time 0h:00m:00s, Memory Used current: 88MB peak: 89MB)
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\video_pll.sv":5:7:5:15|Synthesizing module video_pll in library work.
+Running optimization stage 1 on video_pll .......
+Finished optimization stage 1 on video_pll (CPU Time 0h:00m:00s, Memory Used current: 88MB peak: 89MB)
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\top\hdmi_kiss\test_pattern_generator.sv":5:7:5:28|Synthesizing module test_pattern_generator in library work.
+Running optimization stage 1 on test_pattern_generator .......
+Finished optimization stage 1 on test_pattern_generator (CPU Time 0h:00m:00s, Memory Used current: 89MB peak: 89MB)
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\tmds_encoder.sv":1:7:1:18|Synthesizing module tmds_encoder in library work.
+@W: CG136 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\tmds_encoder.sv":69:8:69:9|Edge and condition mismatch
+Running optimization stage 1 on tmds_encoder .......
+@E: CL123 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\tmds_encoder.sv":68:4:68:12|Logic for tmds[9:0] does not match a standard flip-flop

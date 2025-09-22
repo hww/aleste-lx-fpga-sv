@@ -1,0 +1,127 @@
+<html><body><samp><pre>
+<!@TC:1758485304>
+#Build: Synplify Pro (R) V-2023.09L-2, Build 349R, Sep 17 2024
+#install: C:\lscc\diamond\3.14\synpbase
+#OS: Windows 10 or later
+#Hostname: VALPC
+
+# Sun Sep 21 23:08:14 2025
+
+#Implementation: impl1
+
+
+Copyright (C) 1994-2023 Synopsys, Inc.
+This Synopsys software and all associated documentation are proprietary to Synopsys, Inc.
+and may only be used pursuant to the terms and conditions of a written license agreement
+with Synopsys, Inc. All other use, reproduction, modification, or distribution of the
+Synopsys software or the associated documentation is strictly prohibited.
+Tool: Synplify Pro (R)
+Build: V-2023.09L-2
+Install: C:\lscc\diamond\3.14\synpbase
+OS: Windows 10 or later
+Hostname: VALPC
+
+Implementation : impl1
+<a name=compilerReport1></a>Synopsys HDL Compiler, Version comp202309synp1, Build 349R, Built Sep 17 2024 08:16:26, @</a>
+
+@N: : <!@TM:1758485316> | Running in 64-bit mode 
+###########################################################[
+
+Copyright (C) 1994-2023 Synopsys, Inc.
+This Synopsys software and all associated documentation are proprietary to Synopsys, Inc.
+and may only be used pursuant to the terms and conditions of a written license agreement
+with Synopsys, Inc. All other use, reproduction, modification, or distribution of the
+Synopsys software or the associated documentation is strictly prohibited.
+Tool: Synplify Pro (R)
+Build: V-2023.09L-2
+Install: C:\lscc\diamond\3.14\synpbase
+OS: Windows 10 or later
+Hostname: VALPC
+
+Implementation : impl1
+<a name=compilerReport2></a>Synopsys Verilog Compiler, Version comp202309synp1, Build 349R, Built Sep 17 2024 08:16:26, @</a>
+
+@N: : <!@TM:1758485316> | Running in 64-bit mode 
+@I::"C:\lscc\diamond\3.14\synpbase\lib\vlog\hypermods.v" (library __hyper__lib__)
+@I::"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v" (library work)
+@I::"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_cells.v" (library work)
+@I::"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\sys_pll.sv" (library work)
+@I::"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\video_pll.sv" (library work)
+<font color=#A52A2A>@W:<a href="@W:CG1249:@XP_HELP">CG1249</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\video_pll.sv:27:5:27:15:@W:CG1249:@XP_MSG">video_pll.sv(27)</a><!@TM:1758485316> | Redeclaration of implicit signal locked_270</font>
+@I::"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\hdmi_scaler_core.sv" (library work)
+@I::"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\hdmi_scaler_wrapper.sv" (library work)
+@I::"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\tmds_encoder.sv" (library work)
+@I::"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\top\hdmi_kiss\test_pattern_generator.sv" (library work)
+@I::"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\top\hdmi_kiss\top_hdmi_test.sv" (library work)
+Verilog syntax check successful!
+Selecting top level module top_hdmi_test
+<a name=error3></a><font color=red>@E:<a href="@E:CG389:@XP_HELP">CG389</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:32:2:32:7:@E:CG389:@XP_MSG">ecp5_pll.v(32)</a><!@TM:1758485316> | Reference to undefined module EHXPLLL</font>
+@N:<a href="@N:CG364:@XP_HELP">CG364</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:5:7:5:15:@N:CG364:@XP_MSG">ecp5_pll.v(5)</a><!@TM:1758485316> | Synthesizing module ecp5_pll in library work.
+
+	FREQIN=32'b00000000000000000000000000011001
+	FREQOP=32'b00000000000000000000000001100000
+   Generated name = ecp5_pll_25s_96s
+<font color=#A52A2A>@W:<a href="@W:CG141:@XP_HELP">CG141</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:32:2:32:7:@W:CG141:@XP_MSG">ecp5_pll.v(32)</a><!@TM:1758485316> | Creating black box for EHXPLLL</font>
+	Making port RST an input
+	Making port STDBY an input
+	Making port CLKI an input
+Making port CLKOP a bidir
+	Making port CLKOS an input
+	Making port CLKOS2 an input
+	Making port CLKOS3 an input
+Making port CLKFB a bidir
+Making port LOCK a bidir
+	Making port CLKINTFB an input
+<font color=#A52A2A>@W:<a href="@W:CG781:@XP_HELP">CG781</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:37:10:37:11:@W:CG781:@XP_MSG">ecp5_pll.v(37)</a><!@TM:1758485316> | Input CLKOS on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. </font>
+<font color=#A52A2A>@W:<a href="@W:CG781:@XP_HELP">CG781</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:38:11:38:12:@W:CG781:@XP_MSG">ecp5_pll.v(38)</a><!@TM:1758485316> | Input CLKOS2 on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. </font>
+<font color=#A52A2A>@W:<a href="@W:CG781:@XP_HELP">CG781</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:39:11:39:12:@W:CG781:@XP_MSG">ecp5_pll.v(39)</a><!@TM:1758485316> | Input CLKOS3 on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. </font>
+<font color=#A52A2A>@W:<a href="@W:CG781:@XP_HELP">CG781</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:42:13:42:14:@W:CG781:@XP_MSG">ecp5_pll.v(42)</a><!@TM:1758485316> | Input CLKINTFB on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. </font>
+Running optimization stage 1 on ecp5_pll_25s_96s .......
+Finished optimization stage 1 on ecp5_pll_25s_96s (CPU Time 0h:00m:00s, Memory Used current: 88MB peak: 88MB)
+@N:<a href="@N:CG364:@XP_HELP">CG364</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\sys_pll.sv:5:7:5:14:@N:CG364:@XP_MSG">sys_pll.sv(5)</a><!@TM:1758485316> | Synthesizing module sys_pll in library work.
+Running optimization stage 1 on sys_pll .......
+Finished optimization stage 1 on sys_pll (CPU Time 0h:00m:00s, Memory Used current: 88MB peak: 88MB)
+<a name=error4></a><font color=red>@E:<a href="@E:CG389:@XP_HELP">CG389</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:32:2:32:7:@E:CG389:@XP_MSG">ecp5_pll.v(32)</a><!@TM:1758485316> | Reference to undefined module EHXPLLL</font>
+@N:<a href="@N:CG364:@XP_HELP">CG364</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:5:7:5:15:@N:CG364:@XP_MSG">ecp5_pll.v(5)</a><!@TM:1758485316> | Synthesizing module ecp5_pll in library work.
+
+	FREQIN=32'b00000000000000000000000001100000
+	FREQOP=32'b00000000000000000000000100001110
+   Generated name = ecp5_pll_96s_270s
+<font color=#A52A2A>@W:<a href="@W:CG141:@XP_HELP">CG141</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:32:2:32:7:@W:CG141:@XP_MSG">ecp5_pll.v(32)</a><!@TM:1758485316> | Creating black box for EHXPLLL</font>
+	Making port RST an input
+	Making port STDBY an input
+	Making port CLKI an input
+Making port CLKOP a bidir
+	Making port CLKOS an input
+	Making port CLKOS2 an input
+	Making port CLKOS3 an input
+Making port CLKFB a bidir
+Making port LOCK a bidir
+	Making port CLKINTFB an input
+<font color=#A52A2A>@W:<a href="@W:CG781:@XP_HELP">CG781</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:37:10:37:11:@W:CG781:@XP_MSG">ecp5_pll.v(37)</a><!@TM:1758485316> | Input CLKOS on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. </font>
+<font color=#A52A2A>@W:<a href="@W:CG781:@XP_HELP">CG781</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:38:11:38:12:@W:CG781:@XP_MSG">ecp5_pll.v(38)</a><!@TM:1758485316> | Input CLKOS2 on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. </font>
+<font color=#A52A2A>@W:<a href="@W:CG781:@XP_HELP">CG781</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:39:11:39:12:@W:CG781:@XP_MSG">ecp5_pll.v(39)</a><!@TM:1758485316> | Input CLKOS3 on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. </font>
+<font color=#A52A2A>@W:<a href="@W:CG781:@XP_HELP">CG781</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v:42:13:42:14:@W:CG781:@XP_MSG">ecp5_pll.v(42)</a><!@TM:1758485316> | Input CLKINTFB on instance pll_i is undriven; assigning to 0.  Simulation mismatch possible. Either assign the input or remove the declaration. </font>
+Running optimization stage 1 on ecp5_pll_96s_270s .......
+Finished optimization stage 1 on ecp5_pll_96s_270s (CPU Time 0h:00m:00s, Memory Used current: 88MB peak: 89MB)
+@N:<a href="@N:CG364:@XP_HELP">CG364</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\video_pll.sv:5:7:5:16:@N:CG364:@XP_MSG">video_pll.sv(5)</a><!@TM:1758485316> | Synthesizing module video_pll in library work.
+Running optimization stage 1 on video_pll .......
+Finished optimization stage 1 on video_pll (CPU Time 0h:00m:00s, Memory Used current: 88MB peak: 89MB)
+@N:<a href="@N:CG364:@XP_HELP">CG364</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\top\hdmi_kiss\test_pattern_generator.sv:5:7:5:29:@N:CG364:@XP_MSG">test_pattern_generator.sv(5)</a><!@TM:1758485316> | Synthesizing module test_pattern_generator in library work.
+Running optimization stage 1 on test_pattern_generator .......
+Finished optimization stage 1 on test_pattern_generator (CPU Time 0h:00m:00s, Memory Used current: 89MB peak: 89MB)
+@N:<a href="@N:CG364:@XP_HELP">CG364</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\tmds_encoder.sv:1:7:1:19:@N:CG364:@XP_MSG">tmds_encoder.sv(1)</a><!@TM:1758485316> | Synthesizing module tmds_encoder in library work.
+<font color=#A52A2A>@W:<a href="@W:CG136:@XP_HELP">CG136</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\tmds_encoder.sv:69:8:69:10:@W:CG136:@XP_MSG">tmds_encoder.sv(69)</a><!@TM:1758485316> | Edge and condition mismatch</font>
+Running optimization stage 1 on tmds_encoder .......
+<a name=error5></a><font color=red>@E:<a href="@E:CL123:@XP_HELP">CL123</a> : <a href="\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\tmds_encoder.sv:68:4:68:13:@E:CL123:@XP_MSG">tmds_encoder.sv(68)</a><!@TM:1758485316> | Logic for tmds[9:0] does not match a standard flip-flop</font>
+Process took 0h:00m:03s realtime, 0h:00m:01s cputime
+# Sun Sep 21 23:08:19 2025
+
+###########################################################]
+@END
+Process took 0h:00m:03s realtime, 0h:00m:01s cputime
+# Sun Sep 21 23:08:27 2025
+
+###########################################################]
+
+</pre></samp></body></html>

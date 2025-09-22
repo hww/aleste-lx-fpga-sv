@@ -1,0 +1,9 @@
+@N|Running in 64-bit mode
+@N|Running in 64-bit mode
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":5:7:5:14|Synthesizing module ecp5_pll in library work.
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\sys_pll.sv":5:7:5:13|Synthesizing module sys_pll in library work.
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v":5:7:5:14|Synthesizing module ecp5_pll in library work.
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\video_pll.sv":5:7:5:15|Synthesizing module video_pll in library work.
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\top\hdmi_kiss\test_pattern_generator.sv":5:7:5:28|Synthesizing module test_pattern_generator in library work.
+@N: CG364 :"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\tmds_encoder.sv":1:7:1:18|Synthesizing module tmds_encoder in library work.
+

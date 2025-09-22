@@ -1,0 +1,54 @@
+#OPTIONS:"|-layerid|0|-orig_srs|\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\build\\hdmi_kiss_test\\impl1\\synwork\\top_hdmi_test_comp.srs|-prodtype|synplify_pro|-I|\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\build\\hdmi_kiss_test\\|-I|C:\\lscc\\diamond\\3.14\\synpbase\\lib|-v95|-encrypt|-pro|-ui|-fid2|-ram|-sharing|on|-ll|2000|-autosm|-lib|work|-fsysv|-lib|work|-fsysv|-lib|work|-fsysv|-lib|work|-fsysv|-lib|work|-fsysv|-lib|work|-fsysv|-lib|work|-fsysv|-lib|work|-fsysv|-lib|work|-fsysv"
+#CUR:"C:\\lscc\\diamond\\3.14\\synpbase\\bin64\\c_ver.exe":1727134360
+#CUR:"C:\\lscc\\diamond\\3.14\\synpbase\\lib\\vlog\\hypermods.v":1727134415
+#CUR:"C:\\lscc\\diamond\\3.14\\synpbase\\lib\\vlog\\scemi_objects.v":1727134415
+#CUR:"C:\\lscc\\diamond\\3.14\\synpbase\\lib\\vlog\\scemi_pipes.svh":1727134415
+#CUR:"\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\rtl\\core\\hdmi_kiss\\ecp5_pll.v":1758481675
+#CUR:"\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\rtl\\core\\hdmi_kiss\\ecp5_cells.v":1758484437
+#CUR:"\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\rtl\\core\\hdmi_kiss\\sys_pll.sv":1758474912
+#CUR:"\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\rtl\\core\\hdmi_kiss\\video_pll.sv":1758474918
+#CUR:"\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\rtl\\core\\hdmi_kiss\\hdmi_scaler_core.sv":1758450674
+#CUR:"\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\rtl\\core\\hdmi_kiss\\hdmi_scaler_wrapper.sv":1758465538
+#CUR:"\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\rtl\\core\\hdmi_kiss\\tmds_encoder.sv":1758122597
+#CUR:"\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\rtl\\top\\hdmi_kiss\\test_pattern_generator.sv":1758470221
+#CUR:"\\\\wsl.localhost\\Ubuntu\\home\\valery\\asv\\rtl\\top\\hdmi_kiss\\top_hdmi_test.sv":1758482200
+#numinternalfiles:3
+#defaultlanguage:verilog
+0			"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_pll.v" verilog
+1			"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\ecp5_cells.v" verilog
+2			"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\sys_pll.sv" verilog
+3			"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\video_pll.sv" verilog
+4			"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\hdmi_scaler_core.sv" verilog
+5			"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\hdmi_scaler_wrapper.sv" verilog
+6			"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\core\hdmi_kiss\tmds_encoder.sv" verilog
+7			"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\top\hdmi_kiss\test_pattern_generator.sv" verilog
+8			"\\wsl.localhost\Ubuntu\home\valery\asv\rtl\top\hdmi_kiss\top_hdmi_test.sv" verilog
+#Dependency Lists(Uses List)
+0 -1
+1 -1
+2 0
+3 0
+4 -1
+5 3 4 6
+6 -1
+7 -1
+8 2 3 7 6
+#Dependency Lists(Users Of)
+0 2 3
+1 -1
+2 8
+3 5 8
+4 5
+5 -1
+6 5 8
+7 8
+8 -1
+#Design Unit to File Association
+module work ecp5_pll 0
+module work sys_pll 2
+module work video_pll 3
+module work hdmi_scaler_core 4
+module work hdmi_scaler_wrapper 5
+module work tmds_encoder 6
+module work test_pattern_generator 7
+module work top_hdmi_test 8

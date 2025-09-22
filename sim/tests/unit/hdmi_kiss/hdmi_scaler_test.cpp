@@ -396,6 +396,7 @@ public:
 
     void reset()
     {
+        dut->dst_clke_i = 1;
         dut->src_rst_i = 1;
         dut->dst_rst_i = 1;
         for (int i = 0; i < 10; i++)
