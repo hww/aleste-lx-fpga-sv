@@ -1,11 +1,9 @@
 {
-  "creator": "Yosys 0.57+157 (git sha1 b9dc57841, clang++ 18.1.8 -fPIC -O3)",
+  "creator": "Yosys 0.45+139 (git sha1 4d581a97d, clang++ 14.0.0-1ubuntu1.1 -fPIC -O3)",
   "modules": {
     "$__ABC9_DELAY": {
       "attributes": {
-        "abc9_box_id": "00000000000000000000000000000011",
         "blackbox": "00000000000000000000000000000001",
-        "abc9_box": "00000000000000000000000000000001",
         "cells_not_processed": "00000000000000000000000000000001",
         "src": "/home/valery/oss-cad-suite/lib/../share/yosys/abc9_model.v:2.1-7.10"
       },
@@ -23,7 +21,7 @@
         }
       },
       "cells": {
-        "$specify$11635": {
+        "$specify$11542": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -121,10 +119,8 @@
     },
     "$__DFF_N__$abc9_flop": {
       "attributes": {
-        "abc9_box_id": "00000000000000000000000000000010",
-        "blackbox": "00000000000000000000000000000001",
         "abc9_flop": "00000000000000000000000000000001",
-        "abc9_box": "00000000000000000000000000000001",
+        "blackbox": "00000000000000000000000000000001",
         "cells_not_processed": "00000000000000000000000000000001",
         "src": "/home/valery/oss-cad-suite/lib/../share/yosys/abc9_model.v:14.1-20.10"
       },
@@ -181,10 +177,8 @@
     },
     "$__DFF_P__$abc9_flop": {
       "attributes": {
-        "abc9_box_id": "00000000000000000000000000000001",
-        "blackbox": "00000000000000000000000000000001",
         "abc9_flop": "00000000000000000000000000000001",
-        "abc9_box": "00000000000000000000000000000001",
+        "blackbox": "00000000000000000000000000000001",
         "cells_not_processed": "00000000000000000000000000000001",
         "src": "/home/valery/oss-cad-suite/lib/../share/yosys/abc9_model.v:23.1-29.10"
       },
@@ -273,7 +267,7 @@
         }
       },
       "cells": {
-        "$specify$11051": {
+        "$specify$10904": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -304,7 +298,7 @@
             "SRC": [ 2 ]
           }
         },
-        "$specify$11052": {
+        "$specify$10905": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -335,7 +329,7 @@
             "SRC": [ 3 ]
           }
         },
-        "$specify$11053": {
+        "$specify$10906": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -366,7 +360,7 @@
             "SRC": [ 4 ]
           }
         },
-        "$specify$11054": {
+        "$specify$10907": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -397,7 +391,7 @@
             "SRC": [ 5 ]
           }
         },
-        "$specify$11055": {
+        "$specify$10908": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -512,7 +506,7 @@
         }
       },
       "cells": {
-        "$specify$11056": {
+        "$specify$10909": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -543,7 +537,7 @@
             "SRC": [ 2 ]
           }
         },
-        "$specify$11057": {
+        "$specify$10910": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -574,7 +568,7 @@
             "SRC": [ 3 ]
           }
         },
-        "$specify$11058": {
+        "$specify$10911": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -605,7 +599,7 @@
             "SRC": [ 4 ]
           }
         },
-        "$specify$11059": {
+        "$specify$10912": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -636,7 +630,7 @@
             "SRC": [ 5 ]
           }
         },
-        "$specify$11060": {
+        "$specify$10913": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -667,7 +661,7 @@
             "SRC": [ 6 ]
           }
         },
-        "$specify$11061": {
+        "$specify$10914": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -793,7 +787,7 @@
         }
       },
       "cells": {
-        "$specify$11062": {
+        "$specify$10915": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -824,7 +818,7 @@
             "SRC": [ 2 ]
           }
         },
-        "$specify$11063": {
+        "$specify$10916": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -855,7 +849,7 @@
             "SRC": [ 3 ]
           }
         },
-        "$specify$11064": {
+        "$specify$10917": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -886,7 +880,7 @@
             "SRC": [ 4 ]
           }
         },
-        "$specify$11065": {
+        "$specify$10918": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -917,7 +911,7 @@
             "SRC": [ 5 ]
           }
         },
-        "$specify$11066": {
+        "$specify$10919": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -948,7 +942,7 @@
             "SRC": [ 6 ]
           }
         },
-        "$specify$11067": {
+        "$specify$10920": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -979,7 +973,7 @@
             "SRC": [ 7 ]
           }
         },
-        "$specify$11068": {
+        "$specify$10921": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -6247,9 +6241,7 @@
     },
     "CCU2C": {
       "attributes": {
-        "abc9_box_id": "00000000000000000000000000000100",
         "blackbox": "00000000000000000000000000000001",
-        "abc9_box": "00000000000000000000000000000001",
         "cells_not_processed": "00000000000000000000000000000001",
         "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:76.1-134.10"
       },
@@ -11960,9 +11952,7 @@
     },
     "DPR16X4C": {
       "attributes": {
-        "abc9_box_id": "00000000000000000000000000000101",
         "blackbox": "00000000000000000000000000000001",
-        "abc9_box": "00000000000000000000000000000001",
         "cells_not_processed": "00000000000000000000000000000001",
         "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:236.1-295.10"
       },
@@ -14998,8 +14988,6 @@
     "L6MUX21": {
       "attributes": {
         "blackbox": "00000000000000000000000000000001",
-        "abc9_box": "00000000000000000000000000000001",
-        "abc9_box_id": "00000000000000000000000000000110",
         "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:65.1-72.10"
       },
       "ports": {
@@ -20387,8 +20375,6 @@
     "PFUMX": {
       "attributes": {
         "blackbox": "00000000000000000000000000000001",
-        "abc9_box": "00000000000000000000000000000001",
-        "abc9_box_id": "00000000000000000000000000000111",
         "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:179.1-186.10"
       },
       "ports": {
@@ -20736,9 +20722,7 @@
     },
     "TRELLIS_DPR16X4": {
       "attributes": {
-        "abc9_box_id": "00000000000000000000000000001000",
         "blackbox": "00000000000000000000000000000001",
-        "abc9_box": "00000000000000000000000000000001",
         "cells_not_processed": "00000000000000000000000000000001",
         "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:190.1-231.10"
       },
@@ -20822,9 +20806,8 @@
     },
     "TRELLIS_FF": {
       "attributes": {
-        "abc9_flop": "1",
-        "abc9_box": "0",
         "blackbox": "00000000000000000000000000000001",
+        "abc9_flop": "1",
         "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:311.1-376.10"
       },
       "parameter_default_values": {
@@ -20904,6 +20887,7 @@
           "hide_name": 0,
           "bits": [ 7 ],
           "attributes": {
+            "init": "0",
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:311.57-311.58"
           }
         }
@@ -21453,78 +21437,6 @@
             "Q": [ 7 ],
             "RST": [ "1" ],
             "SCLK": [ "x" ]
-          }
-        },
-        "encoder_blue": {
-          "hide_name": 0,
-          "type": "$scopeinfo",
-          "parameters": {
-            "TYPE": "module"
-          },
-          "attributes": {
-            "cell_module_not_derived": "00000000000000000000000000000001",
-            "cell_src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:103.18-110.6",
-            "module": "tmds_encoder",
-            "module_dynports": "00000000000000000000000000000001",
-            "module_src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:1.1-78.10"
-          },
-          "port_directions": {
-          },
-          "connections": {
-          }
-        },
-        "encoder_green": {
-          "hide_name": 0,
-          "type": "$scopeinfo",
-          "parameters": {
-            "TYPE": "module"
-          },
-          "attributes": {
-            "cell_module_not_derived": "00000000000000000000000000000001",
-            "cell_src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:93.18-100.6",
-            "module": "tmds_encoder",
-            "module_dynports": "00000000000000000000000000000001",
-            "module_src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:1.1-78.10"
-          },
-          "port_directions": {
-          },
-          "connections": {
-          }
-        },
-        "encoder_red": {
-          "hide_name": 0,
-          "type": "$scopeinfo",
-          "parameters": {
-            "TYPE": "module"
-          },
-          "attributes": {
-            "cell_module_not_derived": "00000000000000000000000000000001",
-            "cell_src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:83.18-90.6",
-            "module": "tmds_encoder",
-            "module_dynports": "00000000000000000000000000000001",
-            "module_src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:1.1-78.10"
-          },
-          "port_directions": {
-          },
-          "connections": {
-          }
-        },
-        "led_blinker": {
-          "hide_name": 0,
-          "type": "$scopeinfo",
-          "parameters": {
-            "TYPE": "module"
-          },
-          "attributes": {
-            "cell_module_not_derived": "00000000000000000000000000000001",
-            "cell_src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:54.11-57.6",
-            "module": "blink",
-            "module_dynports": "00000000000000000000000000000001",
-            "module_src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:215.1-234.10"
-          },
-          "port_directions": {
-          },
-          "connections": {
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q": {
@@ -23867,131 +23779,6 @@
             "Z": [ 36 ]
           }
         },
-        "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_14_D_LUT4_D": {
-          "hide_name": 0,
-          "type": "LUT4",
-          "parameters": {
-            "INIT": "1111000000000000"
-          },
-          "attributes": {
-            "module_not_derived": "00000000000000000000000000000001",
-            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:119.33-120.56"
-          },
-          "port_directions": {
-            "A": "input",
-            "B": "input",
-            "C": "input",
-            "D": "input",
-            "Z": "output"
-          },
-          "connections": {
-            "A": [ "0" ],
-            "B": [ "0" ],
-            "C": [ 37 ],
-            "D": [ 125 ],
-            "Z": [ 126 ]
-          }
-        },
-        "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_14_D_LUT4_D_Z_LUT4_Z": {
-          "hide_name": 0,
-          "type": "LUT4",
-          "parameters": {
-            "INIT": "0010000000000000"
-          },
-          "attributes": {
-            "module_not_derived": "00000000000000000000000000000001",
-            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:128.32-129.56"
-          },
-          "port_directions": {
-            "A": "input",
-            "B": "input",
-            "C": "input",
-            "D": "input",
-            "Z": "output"
-          },
-          "connections": {
-            "A": [ 15 ],
-            "B": [ 17 ],
-            "C": [ 39 ],
-            "D": [ 127 ],
-            "Z": [ 128 ]
-          }
-        },
-        "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_14_D_LUT4_D_Z_LUT4_Z_1": {
-          "hide_name": 0,
-          "type": "LUT4",
-          "parameters": {
-            "INIT": "0001000000000000"
-          },
-          "attributes": {
-            "module_not_derived": "00000000000000000000000000000001",
-            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:128.32-129.56"
-          },
-          "port_directions": {
-            "A": "input",
-            "B": "input",
-            "C": "input",
-            "D": "input",
-            "Z": "output"
-          },
-          "connections": {
-            "A": [ 33 ],
-            "B": [ 35 ],
-            "C": [ 101 ],
-            "D": [ 129 ],
-            "Z": [ 130 ]
-          }
-        },
-        "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_14_D_LUT4_D_Z_LUT4_Z_1_D_LUT4_Z": {
-          "hide_name": 0,
-          "type": "LUT4",
-          "parameters": {
-            "INIT": "0000000000000010"
-          },
-          "attributes": {
-            "module_not_derived": "00000000000000000000000000000001",
-            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:128.32-129.56"
-          },
-          "port_directions": {
-            "A": "input",
-            "B": "input",
-            "C": "input",
-            "D": "input",
-            "Z": "output"
-          },
-          "connections": {
-            "A": [ 25 ],
-            "B": [ 27 ],
-            "C": [ 29 ],
-            "D": [ 31 ],
-            "Z": [ 129 ]
-          }
-        },
-        "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_14_D_LUT4_D_Z_LUT4_Z_D_LUT4_Z": {
-          "hide_name": 0,
-          "type": "LUT4",
-          "parameters": {
-            "INIT": "0000010000000000"
-          },
-          "attributes": {
-            "module_not_derived": "00000000000000000000000000000001",
-            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:128.32-129.56"
-          },
-          "port_directions": {
-            "A": "input",
-            "B": "input",
-            "C": "input",
-            "D": "input",
-            "Z": "output"
-          },
-          "connections": {
-            "A": [ 57 ],
-            "B": [ 59 ],
-            "C": [ 61 ],
-            "D": [ 19 ],
-            "Z": [ 127 ]
-          }
-        },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_14_D_LUT4_Z": {
           "hide_name": 0,
           "type": "LUT4",
@@ -24083,8 +23870,8 @@
             "Z": "output"
           },
           "connections": {
-            "D0": [ 131 ],
-            "D1": [ 132 ],
+            "D0": [ 127 ],
+            "D1": [ 128 ],
             "SD": [ 47 ],
             "Z": [ 98 ]
           }
@@ -24105,10 +23892,10 @@
             "Z": "output"
           },
           "connections": {
-            "ALUT": [ 133 ],
-            "BLUT": [ 134 ],
+            "ALUT": [ 129 ],
+            "BLUT": [ 130 ],
             "C0": [ 45 ],
-            "Z": [ 131 ]
+            "Z": [ 127 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D0_PFUMX_Z_ALUT_LUT4_Z": {
@@ -24133,7 +23920,7 @@
             "B": [ "0" ],
             "C": [ "0" ],
             "D": [ "0" ],
-            "Z": [ 133 ]
+            "Z": [ 129 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D0_PFUMX_Z_BLUT_LUT4_Z": {
@@ -24158,7 +23945,7 @@
             "B": [ "0" ],
             "C": [ "0" ],
             "D": [ "0" ],
-            "Z": [ 134 ]
+            "Z": [ 130 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D1_PFUMX_Z": {
@@ -24177,10 +23964,10 @@
             "Z": "output"
           },
           "connections": {
-            "ALUT": [ 135 ],
-            "BLUT": [ 136 ],
+            "ALUT": [ 131 ],
+            "BLUT": [ 132 ],
             "C0": [ 45 ],
-            "Z": [ 132 ]
+            "Z": [ 128 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D1_PFUMX_Z_ALUT_LUT4_Z": {
@@ -24205,7 +23992,7 @@
             "B": [ 37 ],
             "C": [ 41 ],
             "D": [ 43 ],
-            "Z": [ 135 ]
+            "Z": [ 131 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D1_PFUMX_Z_BLUT_LUT4_Z": {
@@ -24230,7 +24017,7 @@
             "B": [ "0" ],
             "C": [ "0" ],
             "D": [ "0" ],
-            "Z": [ 136 ]
+            "Z": [ 132 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_LUT4_Z": {
@@ -24279,7 +24066,7 @@
             "A": [ "0" ],
             "B": [ "0" ],
             "C": [ 31 ],
-            "D": [ 137 ],
+            "D": [ 133 ],
             "Z": [ 30 ]
           }
         },
@@ -24305,7 +24092,7 @@
             "B": [ "0" ],
             "C": [ 33 ],
             "D": [ 98 ],
-            "Z": [ 137 ]
+            "Z": [ 133 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_18": {
@@ -24429,7 +24216,7 @@
             "A": [ 27 ],
             "B": [ 29 ],
             "C": [ 31 ],
-            "D": [ 137 ],
+            "D": [ 133 ],
             "Z": [ 123 ]
           }
         },
@@ -24599,8 +24386,8 @@
             "Z": "output"
           },
           "connections": {
-            "D0": [ 138 ],
-            "D1": [ 139 ],
+            "D0": [ 134 ],
+            "D1": [ 135 ],
             "SD": [ 64 ],
             "Z": [ 124 ]
           }
@@ -24621,10 +24408,10 @@
             "Z": "output"
           },
           "connections": {
-            "ALUT": [ 140 ],
-            "BLUT": [ 141 ],
+            "ALUT": [ 136 ],
+            "BLUT": [ 137 ],
             "C0": [ 95 ],
-            "Z": [ 138 ]
+            "Z": [ 134 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D0_PFUMX_Z_ALUT_LUT4_Z": {
@@ -24649,7 +24436,7 @@
             "B": [ "0" ],
             "C": [ "0" ],
             "D": [ "0" ],
-            "Z": [ 140 ]
+            "Z": [ 136 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D0_PFUMX_Z_BLUT_LUT4_Z": {
@@ -24674,7 +24461,7 @@
             "B": [ "0" ],
             "C": [ "0" ],
             "D": [ "0" ],
-            "Z": [ 141 ]
+            "Z": [ 137 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D1_PFUMX_Z": {
@@ -24693,10 +24480,10 @@
             "Z": "output"
           },
           "connections": {
-            "ALUT": [ 142 ],
-            "BLUT": [ 143 ],
+            "ALUT": [ 138 ],
+            "BLUT": [ 139 ],
             "C0": [ 95 ],
-            "Z": [ 139 ]
+            "Z": [ 135 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D1_PFUMX_Z_ALUT_LUT4_Z": {
@@ -24721,7 +24508,7 @@
             "B": [ 59 ],
             "C": [ 61 ],
             "D": [ 19 ],
-            "Z": [ 142 ]
+            "Z": [ 138 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D1_PFUMX_Z_BLUT_LUT4_Z": {
@@ -24746,7 +24533,7 @@
             "B": [ "0" ],
             "C": [ "0" ],
             "D": [ "0" ],
-            "Z": [ 143 ]
+            "Z": [ 139 ]
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_D_LUT4_Z": {
@@ -24770,7 +24557,7 @@
             "A": [ "0" ],
             "B": [ "0" ],
             "C": [ 31 ],
-            "D": [ 137 ],
+            "D": [ 133 ],
             "Z": [ 122 ]
           }
         },
@@ -24796,7 +24583,7 @@
             "B": [ "0" ],
             "C": [ "0" ],
             "D": [ 12 ],
-            "Z": [ 144 ]
+            "Z": [ 140 ]
           }
         },
         "led_blinker.led_o_TRELLIS_FF_Q": {
@@ -24824,7 +24611,7 @@
           "connections": {
             "CE": [ 14 ],
             "CLK": [ 2 ],
-            "DI": [ 144 ],
+            "DI": [ 140 ],
             "LSR": [ "0" ],
             "Q": [ 12 ]
           }
@@ -24847,45 +24634,136 @@
             "Z": "output"
           },
           "connections": {
-            "A": [ 128 ],
+            "A": [ 141 ],
             "B": [ 95 ],
             "C": [ 126 ],
-            "D": [ 130 ],
+            "D": [ 142 ],
             "Z": [ 14 ]
           }
         },
-        "pattern_gen": {
+        "led_blinker.led_o_TRELLIS_FF_Q_CE_LUT4_Z_A_LUT4_Z": {
           "hide_name": 0,
-          "type": "$scopeinfo",
+          "type": "LUT4",
           "parameters": {
-            "TYPE": "module"
+            "INIT": "0010000000000000"
           },
           "attributes": {
-            "cell_module_not_derived": "00000000000000000000000000000001",
-            "cell_src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:65.28-72.6",
-            "module": "test_pattern_generator",
-            "module_src": "../../rtl/top/hdmi_kiss/test_pattern_generator.sv:5.1-78.10"
+            "module_not_derived": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:128.32-129.56"
           },
           "port_directions": {
+            "A": "input",
+            "B": "input",
+            "C": "input",
+            "D": "input",
+            "Z": "output"
           },
           "connections": {
+            "A": [ 15 ],
+            "B": [ 17 ],
+            "C": [ 39 ],
+            "D": [ 143 ],
+            "Z": [ 141 ]
           }
         },
-        "sys_pll_inst": {
+        "led_blinker.led_o_TRELLIS_FF_Q_CE_LUT4_Z_A_LUT4_Z_1": {
           "hide_name": 0,
-          "type": "$scopeinfo",
+          "type": "LUT4",
           "parameters": {
-            "TYPE": "module"
+            "INIT": "0001000000000000"
           },
           "attributes": {
-            "cell_module_not_derived": "00000000000000000000000000000001",
-            "cell_src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:25.13-30.6",
-            "module": "sys_pll",
-            "module_src": "../../rtl/core/hdmi_kiss/sys_pll.sv:5.1-23.10"
+            "module_not_derived": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:128.32-129.56"
           },
           "port_directions": {
+            "A": "input",
+            "B": "input",
+            "C": "input",
+            "D": "input",
+            "Z": "output"
           },
           "connections": {
+            "A": [ 33 ],
+            "B": [ 35 ],
+            "C": [ 101 ],
+            "D": [ 144 ],
+            "Z": [ 142 ]
+          }
+        },
+        "led_blinker.led_o_TRELLIS_FF_Q_CE_LUT4_Z_A_LUT4_Z_1_D_LUT4_Z": {
+          "hide_name": 0,
+          "type": "LUT4",
+          "parameters": {
+            "INIT": "0000000000000010"
+          },
+          "attributes": {
+            "module_not_derived": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:128.32-129.56"
+          },
+          "port_directions": {
+            "A": "input",
+            "B": "input",
+            "C": "input",
+            "D": "input",
+            "Z": "output"
+          },
+          "connections": {
+            "A": [ 25 ],
+            "B": [ 27 ],
+            "C": [ 29 ],
+            "D": [ 31 ],
+            "Z": [ 144 ]
+          }
+        },
+        "led_blinker.led_o_TRELLIS_FF_Q_CE_LUT4_Z_A_LUT4_Z_D_LUT4_Z": {
+          "hide_name": 0,
+          "type": "LUT4",
+          "parameters": {
+            "INIT": "0000010000000000"
+          },
+          "attributes": {
+            "module_not_derived": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:128.32-129.56"
+          },
+          "port_directions": {
+            "A": "input",
+            "B": "input",
+            "C": "input",
+            "D": "input",
+            "Z": "output"
+          },
+          "connections": {
+            "A": [ 57 ],
+            "B": [ 59 ],
+            "C": [ 61 ],
+            "D": [ 19 ],
+            "Z": [ 143 ]
+          }
+        },
+        "led_blinker.led_o_TRELLIS_FF_Q_CE_LUT4_Z_C_LUT4_Z": {
+          "hide_name": 0,
+          "type": "LUT4",
+          "parameters": {
+            "INIT": "1111000000000000"
+          },
+          "attributes": {
+            "module_not_derived": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:119.33-120.56"
+          },
+          "port_directions": {
+            "A": "input",
+            "B": "input",
+            "C": "input",
+            "D": "input",
+            "Z": "output"
+          },
+          "connections": {
+            "A": [ "0" ],
+            "B": [ "0" ],
+            "C": [ 37 ],
+            "D": [ 125 ],
+            "Z": [ 126 ]
           }
         },
         "tmds_ddr[0].ddr_out_n": {
@@ -25031,23 +24909,6 @@
             "RST": [ "1" ],
             "SCLK": [ "x" ]
           }
-        },
-        "video_pll_inst": {
-          "hide_name": 0,
-          "type": "$scopeinfo",
-          "parameters": {
-            "TYPE": "module"
-          },
-          "attributes": {
-            "cell_module_not_derived": "00000000000000000000000000000001",
-            "cell_src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:33.15-39.6",
-            "module": "video_pll",
-            "module_src": "../../rtl/core/hdmi_kiss/video_pll.sv:5.1-46.10"
-          },
-          "port_directions": {
-          },
-          "connections": {
-          }
         }
       },
       "netnames": {
@@ -25128,6 +24989,22 @@
             "src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:176.24-176.35"
           }
         },
+        "encoder_blue.TMDS_code": {
+          "hide_name": 0,
+          "bits": [ "x", "x", "x", "x", "x", "x", "x", "x", "x", "x" ],
+          "attributes": {
+            "hdlname": "encoder_blue TMDS_code",
+            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:61.17-61.26"
+          }
+        },
+        "encoder_blue.TMDS_data": {
+          "hide_name": 0,
+          "bits": [ "x", "x", "x", "x", "x", "x", "x", "x", "x", "x" ],
+          "attributes": {
+            "hdlname": "encoder_blue TMDS_data",
+            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:60.17-60.26"
+          }
+        },
         "encoder_blue.c": {
           "hide_name": 0,
           "bits": [ "x", "x" ],
@@ -25144,12 +25021,12 @@
             "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:5.18-5.21"
           }
         },
-        "encoder_blue.q_m": {
+        "encoder_blue.invert_q_m": {
           "hide_name": 0,
-          "bits": [ "x", "x", "x", "x", "x", "x", "x", "x", "x" ],
+          "bits": [ "x" ],
           "attributes": {
-            "hdlname": "encoder_blue q_m",
-            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:38.17-38.20"
+            "hdlname": "encoder_blue invert_q_m",
+            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:49.11-49.21"
           }
         },
         "encoder_blue.rst": {
@@ -25168,6 +25045,22 @@
             "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:10.35-10.39"
           }
         },
+        "encoder_green.TMDS_code": {
+          "hide_name": 0,
+          "bits": [ "x", "x", "x", "x", "x", "x", "x", "x", "x", "x" ],
+          "attributes": {
+            "hdlname": "encoder_green TMDS_code",
+            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:61.17-61.26"
+          }
+        },
+        "encoder_green.TMDS_data": {
+          "hide_name": 0,
+          "bits": [ "x", "x", "x", "x", "x", "x", "x", "x", "x", "x" ],
+          "attributes": {
+            "hdlname": "encoder_green TMDS_data",
+            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:60.17-60.26"
+          }
+        },
         "encoder_green.c": {
           "hide_name": 0,
           "bits": [ "x", "x" ],
@@ -25184,12 +25077,12 @@
             "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:5.18-5.21"
           }
         },
-        "encoder_green.q_m": {
+        "encoder_green.invert_q_m": {
           "hide_name": 0,
-          "bits": [ "x", "x", "x", "x", "x", "x", "x", "x", "x" ],
+          "bits": [ "x" ],
           "attributes": {
-            "hdlname": "encoder_green q_m",
-            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:38.17-38.20"
+            "hdlname": "encoder_green invert_q_m",
+            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:49.11-49.21"
           }
         },
         "encoder_green.rst": {
@@ -25208,6 +25101,22 @@
             "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:10.35-10.39"
           }
         },
+        "encoder_red.TMDS_code": {
+          "hide_name": 0,
+          "bits": [ "x", "x", "x", "x", "x", "x", "x", "x", "x", "x" ],
+          "attributes": {
+            "hdlname": "encoder_red TMDS_code",
+            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:61.17-61.26"
+          }
+        },
+        "encoder_red.TMDS_data": {
+          "hide_name": 0,
+          "bits": [ "x", "x", "x", "x", "x", "x", "x", "x", "x", "x" ],
+          "attributes": {
+            "hdlname": "encoder_red TMDS_data",
+            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:60.17-60.26"
+          }
+        },
         "encoder_red.c": {
           "hide_name": 0,
           "bits": [ "x", "x" ],
@@ -25224,12 +25133,12 @@
             "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:5.18-5.21"
           }
         },
-        "encoder_red.q_m": {
+        "encoder_red.invert_q_m": {
           "hide_name": 0,
-          "bits": [ "x", "x", "x", "x", "x", "x", "x", "x", "x" ],
+          "bits": [ "x" ],
           "attributes": {
-            "hdlname": "encoder_red q_m",
-            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:38.17-38.20"
+            "hdlname": "encoder_red invert_q_m",
+            "src": "../../rtl/core/hdmi_kiss/tmds_encoder.sv:49.11-49.21"
           }
         },
         "encoder_red.rst": {
@@ -25688,30 +25597,6 @@
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
           }
         },
-        "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_14_D_LUT4_D_Z": {
-          "hide_name": 0,
-          "bits": [ 128, 95, 126, 130 ],
-          "attributes": {
-            "force_downto": "00000000000000000000000000000001",
-            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
-          }
-        },
-        "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_14_D_LUT4_D_Z_LUT4_Z_1_D": {
-          "hide_name": 0,
-          "bits": [ 33, 35, 101, 129 ],
-          "attributes": {
-            "force_downto": "00000000000000000000000000000001",
-            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
-          }
-        },
-        "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_14_D_LUT4_D_Z_LUT4_Z_D": {
-          "hide_name": 0,
-          "bits": [ 15, 17, 39, 127 ],
-          "attributes": {
-            "force_downto": "00000000000000000000000000000001",
-            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
-          }
-        },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D": {
           "hide_name": 0,
           "bits": [ 25, 27, 29, 31, 33, 101, 98 ],
@@ -25722,49 +25607,49 @@
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D0": {
           "hide_name": 0,
-          "bits": [ 131 ],
+          "bits": [ 127 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.34-141.36"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D0_PFUMX_Z_ALUT": {
           "hide_name": 0,
-          "bits": [ 133 ],
+          "bits": [ 129 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.22-141.24"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D0_PFUMX_Z_BLUT": {
           "hide_name": 0,
-          "bits": [ 134 ],
+          "bits": [ 130 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.18-141.20"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D1": {
           "hide_name": 0,
-          "bits": [ 132 ],
+          "bits": [ 128 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.38-141.40"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D1_PFUMX_Z_ALUT": {
           "hide_name": 0,
-          "bits": [ 135 ],
+          "bits": [ 131 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.30-141.32"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_16_D_L6MUX21_Z_D1_PFUMX_Z_BLUT": {
           "hide_name": 0,
-          "bits": [ 136 ],
+          "bits": [ 132 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.26-141.28"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_17_D": {
           "hide_name": 0,
-          "bits": [ 27, 29, 31, 137 ],
+          "bits": [ 31, 133 ],
           "attributes": {
             "force_downto": "00000000000000000000000000000001",
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
@@ -25772,7 +25657,7 @@
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_3_D": {
           "hide_name": 0,
-          "bits": [ 25, 123 ],
+          "bits": [ 21, 23, 25, 123 ],
           "attributes": {
             "force_downto": "00000000000000000000000000000001",
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
@@ -25796,49 +25681,49 @@
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D0": {
           "hide_name": 0,
-          "bits": [ 138 ],
+          "bits": [ 134 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.34-141.36"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D0_PFUMX_Z_ALUT": {
           "hide_name": 0,
-          "bits": [ 140 ],
+          "bits": [ 136 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.22-141.24"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D0_PFUMX_Z_BLUT": {
           "hide_name": 0,
-          "bits": [ 141 ],
+          "bits": [ 137 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.18-141.20"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D1": {
           "hide_name": 0,
-          "bits": [ 139 ],
+          "bits": [ 135 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.38-141.40"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D1_PFUMX_Z_ALUT": {
           "hide_name": 0,
-          "bits": [ 142 ],
+          "bits": [ 138 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.30-141.32"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_9_D_L6MUX21_Z_D1_PFUMX_Z_BLUT": {
           "hide_name": 0,
-          "bits": [ 143 ],
+          "bits": [ 139 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:141.26-141.28"
           }
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_D": {
           "hide_name": 0,
-          "bits": [ 27, 29, 122 ],
+          "bits": [ 29, 122 ],
           "attributes": {
             "force_downto": "00000000000000000000000000000001",
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
@@ -25858,9 +25743,41 @@
           "attributes": {
           }
         },
+        "led_blinker.led_o_TRELLIS_FF_Q_CE_LUT4_Z_A": {
+          "hide_name": 0,
+          "bits": [ 141, 95, 126, 142 ],
+          "attributes": {
+            "force_downto": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
+          }
+        },
+        "led_blinker.led_o_TRELLIS_FF_Q_CE_LUT4_Z_A_LUT4_Z_1_D": {
+          "hide_name": 0,
+          "bits": [ 33, 35, 101, 144 ],
+          "attributes": {
+            "force_downto": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
+          }
+        },
+        "led_blinker.led_o_TRELLIS_FF_Q_CE_LUT4_Z_A_LUT4_Z_D": {
+          "hide_name": 0,
+          "bits": [ 15, 17, 39, 143 ],
+          "attributes": {
+            "force_downto": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
+          }
+        },
+        "led_blinker.led_o_TRELLIS_FF_Q_CE_LUT4_Z_C": {
+          "hide_name": 0,
+          "bits": [ 35, 126 ],
+          "attributes": {
+            "force_downto": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
+          }
+        },
         "led_blinker.led_o_TRELLIS_FF_Q_DI": {
           "hide_name": 0,
-          "bits": [ 144 ],
+          "bits": [ 140 ],
           "attributes": {
           }
         },

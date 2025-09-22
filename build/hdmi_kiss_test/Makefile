@@ -13,7 +13,7 @@ TOP_DIR = ../../rtl/top/hdmi_kiss
 CONSTR = ./hdmi_test.lpf
 TARGET = top_hdmi_test
 
-all: $(TARGET).svf
+all: $(TARGET).bit
 
 # Простой Yosys скрипт, который читает все файлы
 $(TARGET).json:
