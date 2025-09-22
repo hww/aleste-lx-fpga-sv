@@ -7,7 +7,7 @@
 #include <verilated_fst_c.h>
 #include "Vhdmi_scaler_core.h"
 
-const int SRC_WIDTH = 1280;
+const int SRC_WIDTH = 640;
 const int SRC_HEIGHT = 384;
 const int DATA_WIDTH = 24;
 const int V_SCALE = 2;
@@ -25,7 +25,7 @@ const int DST_VSYNC_END = DST_VSYNC_START + 5;
 // Clock ratios
 const int SRC_CLK_RATIO = 2;
 const int DST_CLK_RATIO = 4;
-const int PIXEL_VALID_RATIO = 8;
+const int PIXEL_VALID_RATIO = 16;
 
 struct VideoPixel
 {
@@ -290,7 +290,7 @@ private:
                     valid_pixels++;
                     line_pixels++;
                     // Calculate expected source coordinates (FIXED formula)
-                    int src_x = x - 2;
+                    int src_x = (x/2)-1;
                     int src_y = (y / V_SCALE) - 1;
 
                     if (src_y >= 0 && src_y < SRC_HEIGHT && src_x >= 0 && src_x < SRC_WIDTH)
@@ -409,11 +409,12 @@ public:
 
     void generate_test_frame(int frame_num, VideoFrame &input_frame)
     {
-        const int INPUT_ACTIVE_WIDTH = 1280;
+        const int INPUT_ACTIVE_WIDTH = 640;
         const int INPUT_ACTIVE_HEIGHT = 384; // ДОЛЖНО БЫТЬ 384!
-        const int INPUT_HSYNC_PULSE = 40;
-        const int INPUT_BACK_PORCH = 110;
-        const int INPUT_FRONT_PORCH = 220;
+        const int INPUT_HSYNC_PULSE = 20;    // ← ИЗМЕНЕНО: было 40 (половина)
+        const int INPUT_BACK_PORCH = 55;     // ← ИЗМЕНЕНО: было 110 (половина)  
+        const int INPUT_FRONT_PORCH = 110;   // ← ИЗМЕНЕНО: было 220 (половина)
+        
         const int INPUT_VSYNC_PULSE = 5;
         const int INPUT_V_BACK_PORCH = 5;
         const int INPUT_V_FRONT_PORCH = 5;
@@ -424,11 +425,11 @@ public:
                                        INPUT_VSYNC_PULSE + INPUT_V_BACK_PORCH;
 
         std::cout << "Input frame structure:" << std::endl;
-        std::cout << "  Active: 1280 × 384" << std::endl;
+        std::cout << "  Active: 640 × 384" << std::endl;
         std::cout << "  Front porch: 220" << std::endl;
         std::cout << "  HSync: 40" << std::endl;
         std::cout << "  Back porch: 110" << std::endl;
-        std::cout << "  → Total width: 1650" << std::endl;
+        std::cout << "  → Total width: " << INPUT_TOTAL_WIDTH << std::endl;
         std::cout << "  V Front porch: 5" << std::endl;
         std::cout << "  VSync: 5" << std::endl;
         std::cout << "  V Back porch: 5" << std::endl;

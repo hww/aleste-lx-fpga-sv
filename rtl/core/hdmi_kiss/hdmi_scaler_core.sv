@@ -13,6 +13,7 @@ module hdmi_scaler_core #(
     parameter int SRC_WIDTH        = 1280,     // Ширина входного изображения
     parameter int SRC_HEIGHT       = 384,      // Высота входного изображения
     parameter int DATA_WIDTH       = 24,       // Разрядность данных пикселя (RGB)
+    parameter int H_SCALE          = 2,        // Коэффициент горизонтального масштабирования    
     parameter int V_SCALE          = 2,        // Коэффициент вертикального масштабирования
     parameter int ADDR_WIDTH       = $clog2(SRC_WIDTH),  // Ширина адреса буфера
     
@@ -349,18 +350,36 @@ module hdmi_scaler_core #(
             end
         end
     end
-    
+      
+    // ----------------------------------------------------------------------------
+    // Счетчик повторений пикселов для горизонтального масштабирования
+    // ----------------------------------------------------------------------------  
+    logic dst_pixel_toggle;  // 0=повторять пиксель, 1=брать следующий
+
+    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+        if (dst_rst_i) begin
+            dst_pixel_toggle <= 0;
+        end else if (dst_clke_i) begin
+            if (dst_line_start) begin
+                dst_pixel_toggle <= 0;
+            end else if (dst_pixel_valid_pre) begin
+                dst_pixel_toggle <= ~dst_pixel_toggle;  // Переключаем каждый пиксель
+            end
+        end
+    end
+
     // ----------------------------------------------------------------------------
     // Адресация буфера для чтения
     // ----------------------------------------------------------------------------
+
     always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
         if (dst_rst_i) begin
             dst_buf_addr <= '0;
         end else if (dst_clke_i) begin
             if (dst_frame_start || dst_line_start) begin
                 dst_buf_addr <= '0;
-            end else if (dst_pixel_valid_pre && (dst_buf_addr < SRC_WIDTH - 1)) begin
-                dst_buf_addr <= dst_buf_addr + 1;
+            end else if (dst_pixel_valid_pre && dst_pixel_toggle && (dst_buf_addr < SRC_WIDTH - 1)) begin
+                dst_buf_addr <= dst_buf_addr + 1;  // Только при toggle=1
             end
         end
     end
@@ -416,12 +435,14 @@ module hdmi_scaler_core #(
         .DEPTH(SRC_WIDTH)
     ) line_buffer_0 (
         .src_clk_i(src_clk_i),
+        .src_clke_i(1),
         .src_rst_i(src_rst_i),
         .src_wr_en_i(src_buf_wr && (src_buf_sel == 1'b0)),
         .src_wr_addr_i(src_buf_addr),
         .src_wr_data_i(src_pixel_data_i),
         
         .dst_clk_i(dst_clk_i),
+        .dst_clke_i(dst_clke_i),
         .dst_rst_i(dst_rst_i),
         .dst_rd_en_i(dst_rd_en && (dst_buf_sel == 1'b0)),
         .dst_rd_addr_i(dst_buf_addr),
@@ -434,12 +455,14 @@ module hdmi_scaler_core #(
         .DEPTH(SRC_WIDTH)
     ) line_buffer_1 (
         .src_clk_i(src_clk_i),
+        .src_clke_i(1),
         .src_rst_i(src_rst_i),
         .src_wr_en_i(src_buf_wr && (src_buf_sel == 1'b1)),
         .src_wr_addr_i(src_buf_addr),
         .src_wr_data_i(src_pixel_data_i),
         
         .dst_clk_i(dst_clk_i),
+        .dst_clke_i(dst_clke_i),
         .dst_rst_i(dst_rst_i),
         .dst_rd_en_i(dst_rd_en && (dst_buf_sel == 1'b1)),
         .dst_rd_addr_i(dst_buf_addr),

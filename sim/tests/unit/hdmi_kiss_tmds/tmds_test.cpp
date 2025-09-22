@@ -43,12 +43,12 @@ int main(int argc, char** argv) {
     int tests = 0;
     
     // Инициализация
-    dut->rst_n = 0;
+    dut->rst = 1;
     dut->clk = 0;
     dut->eval();
     dut->clk = 1;
     dut->eval();
-    dut->rst_n = 1;
+    dut->rst = 0;
     
     // Тест контрольных кодов
     cout << "=== Testing Control Codes ===" << endl;
