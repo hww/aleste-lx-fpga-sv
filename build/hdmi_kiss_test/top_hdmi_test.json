@@ -21,7 +21,7 @@
         }
       },
       "cells": {
-        "$specify$11542": {
+        "$specify$11575": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -267,7 +267,7 @@
         }
       },
       "cells": {
-        "$specify$10904": {
+        "$specify$10937": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -298,7 +298,7 @@
             "SRC": [ 2 ]
           }
         },
-        "$specify$10905": {
+        "$specify$10938": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -329,7 +329,7 @@
             "SRC": [ 3 ]
           }
         },
-        "$specify$10906": {
+        "$specify$10939": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -360,7 +360,7 @@
             "SRC": [ 4 ]
           }
         },
-        "$specify$10907": {
+        "$specify$10940": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -391,7 +391,7 @@
             "SRC": [ 5 ]
           }
         },
-        "$specify$10908": {
+        "$specify$10941": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -506,7 +506,7 @@
         }
       },
       "cells": {
-        "$specify$10909": {
+        "$specify$10942": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -537,7 +537,7 @@
             "SRC": [ 2 ]
           }
         },
-        "$specify$10910": {
+        "$specify$10943": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -568,7 +568,7 @@
             "SRC": [ 3 ]
           }
         },
-        "$specify$10911": {
+        "$specify$10944": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -599,7 +599,7 @@
             "SRC": [ 4 ]
           }
         },
-        "$specify$10912": {
+        "$specify$10945": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -630,7 +630,7 @@
             "SRC": [ 5 ]
           }
         },
-        "$specify$10913": {
+        "$specify$10946": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -661,7 +661,7 @@
             "SRC": [ 6 ]
           }
         },
-        "$specify$10914": {
+        "$specify$10947": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -787,7 +787,7 @@
         }
       },
       "cells": {
-        "$specify$10915": {
+        "$specify$10948": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -818,7 +818,7 @@
             "SRC": [ 2 ]
           }
         },
-        "$specify$10916": {
+        "$specify$10949": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -849,7 +849,7 @@
             "SRC": [ 3 ]
           }
         },
-        "$specify$10917": {
+        "$specify$10950": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -880,7 +880,7 @@
             "SRC": [ 4 ]
           }
         },
-        "$specify$10918": {
+        "$specify$10951": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -911,7 +911,7 @@
             "SRC": [ 5 ]
           }
         },
-        "$specify$10919": {
+        "$specify$10952": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -942,7 +942,7 @@
             "SRC": [ 6 ]
           }
         },
-        "$specify$10920": {
+        "$specify$10953": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -973,7 +973,7 @@
             "SRC": [ 7 ]
           }
         },
-        "$specify$10921": {
+        "$specify$10954": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -24912,6 +24912,13 @@
         }
       },
       "netnames": {
+        "clk_16mhz": {
+          "hide_name": 0,
+          "bits": [ "x" ],
+          "attributes": {
+            "src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:17.11-17.20"
+          }
+        },
         "clk_25mhz": {
           "hide_name": 0,
           "bits": [ 2 ],
@@ -24933,13 +24940,6 @@
             "src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:18.11-18.20"
           }
         },
-        "clk_32mhz": {
-          "hide_name": 0,
-          "bits": [ "x" ],
-          "attributes": {
-            "src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:17.11-17.20"
-          }
-        },
         "clk_96m": {
           "hide_name": 0,
           "bits": [ "x" ],
@@ -24949,7 +24949,7 @@
         },
         "clk_div": {
           "hide_name": 0,
-          "bits": [ "x", "x" ],
+          "bits": [ "x", "x", "x" ],
           "attributes": {
             "src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:42.17-42.24"
           }
@@ -25649,7 +25649,7 @@
         },
         "led_blinker.cpt_s_TRELLIS_FF_Q_DI_LUT4_Z_17_D": {
           "hide_name": 0,
-          "bits": [ 31, 133 ],
+          "bits": [ 27, 29, 31, 133 ],
           "attributes": {
             "force_downto": "00000000000000000000000000000001",
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
@@ -25788,12 +25788,12 @@
             "src": "../../rtl/top/hdmi_kiss/top_hdmi_test.sv:10.18-10.23"
           }
         },
-        "pattern_gen.clk_32mhz": {
+        "pattern_gen.clk_16mhz": {
           "hide_name": 0,
           "bits": [ "x" ],
           "attributes": {
-            "hdlname": "pattern_gen clk_32mhz",
-            "src": "../../rtl/top/hdmi_kiss/test_pattern_generator.sv:6.18-6.27"
+            "hdlname": "pattern_gen clk_16mhz",
+            "src": "../../rtl/top/hdmi_kiss/test_pattern_generator.sv:2.18-2.27"
           }
         },
         "pattern_gen.hsync": {
@@ -25801,7 +25801,7 @@
           "bits": [ "x" ],
           "attributes": {
             "hdlname": "pattern_gen hsync",
-            "src": "../../rtl/top/hdmi_kiss/test_pattern_generator.sv:9.18-9.23"
+            "src": "../../rtl/top/hdmi_kiss/test_pattern_generator.sv:5.18-5.23"
           }
         },
         "pattern_gen.rst": {
@@ -25809,7 +25809,7 @@
           "bits": [ "1" ],
           "attributes": {
             "hdlname": "pattern_gen rst",
-            "src": "../../rtl/top/hdmi_kiss/test_pattern_generator.sv:7.18-7.21"
+            "src": "../../rtl/top/hdmi_kiss/test_pattern_generator.sv:3.18-3.21"
           }
         },
         "pattern_gen.vsync": {
@@ -25817,7 +25817,7 @@
           "bits": [ "x" ],
           "attributes": {
             "hdlname": "pattern_gen vsync",
-            "src": "../../rtl/top/hdmi_kiss/test_pattern_generator.sv:10.18-10.23"
+            "src": "../../rtl/top/hdmi_kiss/test_pattern_generator.sv:6.18-6.23"
           }
         },
         "rst": {

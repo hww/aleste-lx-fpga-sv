@@ -14,12 +14,12 @@ module top_hdmi_test (
     // 1. Clock and Reset Generation
     // =========================================================================
     logic clk_96m;
-    logic clk_32mhz;
+    logic clk_16mhz;      // Изменено: 16MHz для PAL
     logic clk_27mhz;
     logic clk_270mhz;
     logic sys_pll_locked;
     logic video_pll_locked;
-    logic rst_n;
+    logic reset_active;
 
     // Системный PLL: 25 MHz -> 96 MHz
     sys_pll sys_pll_inst (
@@ -38,33 +38,42 @@ module top_hdmi_test (
         .locked(video_pll_locked)
     );
 
-    // Генерация 32 MHz из 96 MHz
-    logic [1:0] clk_div;
-    always_ff @(posedge clk_96m) begin
-        clk_div <= clk_div + 1;
+    // Генерация 16 MHz из 96 MHz (96/6 = 16MHz)
+    logic [2:0] clk_div;
+    always_ff @(posedge clk_96m or posedge rst) begin
+        if (rst) begin
+            clk_div <= 0;
+        end else begin
+            clk_div <= clk_div + 1;
+        end
     end
-    assign clk_32mhz = clk_div[1];  // 96 MHz / 3 ≈ 32 MHz
+    assign clk_16mhz = clk_div[2];  // 96 MHz / 6 = 16 MHz
 
     // Сбросная логика
-    assign rst_n = rst && sys_pll_locked && video_pll_locked;
+    // Reset активен (1), когда:
+    // - нажата кнопка сброса (rst=1) 
+    // - ИЛИ sys_pll не заблокирован
+    // - ИЛИ video_pll не заблокирован
+    assign reset_active = rst | ~sys_pll_locked | ~video_pll_locked;
 
     // =========================================================================
     // 2. LED Blinker
     // =========================================================================
     blink led_blinker (
+        .rst_i(reset_active),
         .clk_i(clk_25mhz),  // Используем входную тактовую 25 MHz
         .led_o(led_o)
     );
 
     // =========================================================================
-    // 3. Test Pattern Generation
+    // 3. Test Pattern Generation (16MHz PAL)
     // =========================================================================
     logic [23:0] test_pixel;
     logic test_hsync, test_vsync, test_de;
 
     test_pattern_generator pattern_gen (
-        .clk_32mhz(clk_32mhz),
-        .rst(!rst_n),
+        .clk_16mhz(clk_16mhz),    // Изменено: 16MHz для PAL
+        .rst(reset_active),
         .pixel(test_pixel),
         .hsync(test_hsync),
         .vsync(test_vsync),
@@ -72,7 +81,7 @@ module top_hdmi_test (
     );
 
     // =========================================================================
-    // 4. TMDS Encoding
+    // 4. TMDS Encoding (остается 27MHz для HDMI)
     // =========================================================================
     logic [9:0] tmds_red, tmds_green, tmds_blue;
     logic [1:0] ctrl_signal;
@@ -82,7 +91,7 @@ module top_hdmi_test (
     // Red channel encoder
     tmds_encoder encoder_red (
         .clk(clk_27mhz),
-        .rst(!rst_n),
+        .rst(reset_active),
         .data(test_pixel[23:16]),
         .c(ctrl_signal),
         .de(test_de),
@@ -92,7 +101,7 @@ module top_hdmi_test (
     // Green channel encoder
     tmds_encoder encoder_green (
         .clk(clk_27mhz),
-        .rst(!rst_n),
+        .rst(reset_active),
         .data(test_pixel[15:8]),
         .c(ctrl_signal),
         .de(test_de),
@@ -102,7 +111,7 @@ module top_hdmi_test (
     // Blue channel encoder
     tmds_encoder encoder_blue (
         .clk(clk_27mhz),
-        .rst(!rst_n),
+        .rst(reset_active),
         .data(test_pixel[7:0]),
         .c(ctrl_signal),
         .de(test_de),
@@ -122,7 +131,7 @@ module top_hdmi_test (
         logic ddr_data_0_n, ddr_data_1_n;
         
         always_ff @(posedge clk_270mhz) begin
-            if (!rst_n) begin
+            if (reset_active) begin
                 ddr_data_0 <= 1'b0;
                 ddr_data_1 <= 1'b0;
                 ddr_data_0_n <= 1'b1;  // Инвертированные для негативного выхода
@@ -157,7 +166,7 @@ module top_hdmi_test (
             .D0(ddr_data_0),
             .D1(ddr_data_1),
             .SCLK(clk_270mhz),
-            .RST(!rst_n)
+            .RST(reset_active)
         );
         
         // Негативный выход
@@ -166,7 +175,7 @@ module top_hdmi_test (
             .D0(ddr_data_0_n),
             .D1(ddr_data_1_n),
             .SCLK(clk_270mhz),
-            .RST(!rst_n)
+            .RST(reset_active)
         );
     end
     endgenerate
@@ -176,7 +185,7 @@ module top_hdmi_test (
     logic ddr_clk_0_n, ddr_clk_1_n;
     
     always_ff @(posedge clk_270mhz) begin
-        if (!rst_n) begin
+        if (reset_active) begin
             ddr_clk_0 <= 1'b0;
             ddr_clk_1 <= 1'b0;
             ddr_clk_0_n <= 1'b1;  // Инвертированные
@@ -195,7 +204,7 @@ module top_hdmi_test (
         .D0(ddr_clk_0),
         .D1(ddr_clk_1),
         .SCLK(clk_270mhz),
-        .RST(!rst_n)
+        .RST(reset_active)
     );
     
     // Тактовый негативный
@@ -204,7 +213,7 @@ module top_hdmi_test (
         .D0(ddr_clk_0_n),
         .D1(ddr_clk_1_n),
         .SCLK(clk_270mhz),
-        .RST(!rst_n)
+        .RST(reset_active)
     );
 
 endmodule
@@ -213,6 +222,7 @@ endmodule
 // LED Blinker Module
 // =============================================================================
 module blink (
+    input      rst_i,
     input      clk_i,
     output reg led_o
 );
@@ -222,12 +232,17 @@ localparam WIDTH = $clog2(MAX);
 
 reg [WIDTH-1:0] cpt_s;
 
-always_ff @(posedge clk_i) begin
-    if (cpt_s == MAX-1) begin
+always_ff @(posedge clk_i or posedge rst_i) begin
+    if (rst_i) begin
+        led_o <= 0;
         cpt_s <= 0;
-        led_o <= ~led_o;
     end else begin
-        cpt_s <= cpt_s + 1'b1;
+        if (cpt_s == MAX-1) begin
+            cpt_s <= 0;
+            led_o <= ~led_o;
+        end else begin
+            cpt_s <= cpt_s + 1'b1;
+        end
     end
 end
 

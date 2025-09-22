@@ -435,7 +435,7 @@ module hdmi_scaler_core #(
         .DEPTH(SRC_WIDTH)
     ) line_buffer_0 (
         .src_clk_i(src_clk_i),
-        .src_clke_i(1),
+        .src_clke_i(1'b1),
         .src_rst_i(src_rst_i),
         .src_wr_en_i(src_buf_wr && (src_buf_sel == 1'b0)),
         .src_wr_addr_i(src_buf_addr),
@@ -455,7 +455,7 @@ module hdmi_scaler_core #(
         .DEPTH(SRC_WIDTH)
     ) line_buffer_1 (
         .src_clk_i(src_clk_i),
-        .src_clke_i(1),
+        .src_clke_i(1'b1),
         .src_rst_i(src_rst_i),
         .src_wr_en_i(src_buf_wr && (src_buf_sel == 1'b1)),
         .src_wr_addr_i(src_buf_addr),

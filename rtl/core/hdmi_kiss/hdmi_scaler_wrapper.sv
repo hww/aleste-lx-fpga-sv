@@ -73,7 +73,7 @@ module hdmi_scaler_wrapper #(
     // =========================================================================
     // 3. TMDS Encoding
     // =========================================================================
-    tmds_encoder #(.CHANNEL("RED")) encoder_red (
+    tmds_encoder #() encoder_red (
         .clk(video_clk),
         .rst(!video_rst_n),
         .data(dst_pixel_data[23:16]),
@@ -83,7 +83,7 @@ module hdmi_scaler_wrapper #(
         .tmds_out(tmds_red)
     );
 
-    tmds_encoder #(.CHANNEL("GREEN")) encoder_green (
+    tmds_encoder #() encoder_green (
         .clk(video_clk),
         .rst(!video_rst_n),
         .data(dst_pixel_data[15:8]),
@@ -93,7 +93,7 @@ module hdmi_scaler_wrapper #(
         .tmds_out(tmds_green)
     );
 
-    tmds_encoder #(.CHANNEL("BLUE")) encoder_blue (
+    tmds_encoder #() encoder_blue (
         .clk(video_clk),
         .rst(!video_rst_n),
         .data(dst_pixel_data[7:0]),

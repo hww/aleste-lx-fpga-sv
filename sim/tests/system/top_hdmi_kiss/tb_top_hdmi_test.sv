@@ -1,0 +1,38 @@
+`timescale 1ns/1ps
+
+module tb_top_hdmi_test;
+
+    logic clk_25mhz;
+    logic rst;
+    logic [3:0] gpdi_dp, gpdi_dn;
+    logic led_o;
+    
+    // Генерация тактовой 25MHz
+    always #20 clk_25mhz = ~clk_25mhz;
+    
+    top_hdmi_test dut (.*);
+    
+    initial begin
+        $dumpfile("hdmi_test.vcd");
+        $dumpvars(0, tb_top_hdmi_test);  // Записываем все сигналы
+        
+        // Инициализация
+        clk_25mhz = 0;
+        rst = 0;
+        
+        $display("=== Начало теста HDMI ===");
+        
+        // Сброс
+        #100 rst = 1;
+        #100 rst = 0;
+        
+        // Ждем ровно 2 кадра PAL (40ms)
+        #40000000;  // 40ms
+        
+        $display("=== Конец теста (2 кадра PAL) ===");
+        $display("Проверьте VCD файл: hdmi_test.vcd");
+        
+        $finish;
+    end
+
+endmodule
