@@ -5,7 +5,9 @@ module tb_top_hdmi_test;
     logic clk_25mhz;
     logic rst;
     logic [3:0] gpdi_dp, gpdi_dn;
-    logic led_o;
+    logic led_r_o;
+    logic led_g_o;
+    logic led_b_o;
     
     // Генерация тактовой 25MHz
     always #20 clk_25mhz = ~clk_25mhz;

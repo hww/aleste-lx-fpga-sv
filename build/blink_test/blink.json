@@ -21,7 +21,7 @@
         }
       },
       "cells": {
-        "$specify$1037": {
+        "$specify$1072": {
           "hide_name": 1,
           "type": "$specify2",
           "parameters": {
@@ -21522,7 +21522,7 @@
         "hdlname": "blink",
         "dynports": "00000000000000000000000000000001",
         "top": "00000000000000000000000000000001",
-        "src": "blink.v:1.1-39.10"
+        "src": "blink.v:1.1-45.10"
       },
       "ports": {
         "rst": {
@@ -21533,9 +21533,17 @@
           "direction": "input",
           "bits": [ 3 ]
         },
-        "led_o": {
+        "led_r_o": {
           "direction": "output",
           "bits": [ 4 ]
+        },
+        "led_g_o": {
+          "direction": "output",
+          "bits": [ 5 ]
+        },
+        "led_b_o": {
+          "direction": "output",
+          "bits": [ 6 ]
         }
       },
       "cells": {
@@ -21550,7 +21558,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21569,16 +21577,16 @@
           "connections": {
             "A0": [ "0" ],
             "A1": [ "0" ],
-            "B0": [ 5 ],
-            "B1": [ 6 ],
+            "B0": [ 7 ],
+            "B1": [ 8 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
-            "CIN": [ 7 ],
-            "COUT": [ 8 ],
+            "CIN": [ 9 ],
+            "COUT": [ 10 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 9 ],
-            "S1": [ 10 ]
+            "S0": [ 11 ],
+            "S1": [ 12 ]
           }
         },
         "cpt_s_CCU2C_B0_1": {
@@ -21592,7 +21600,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21611,16 +21619,16 @@
           "connections": {
             "A0": [ "0" ],
             "A1": [ "0" ],
-            "B0": [ 11 ],
-            "B1": [ 12 ],
+            "B0": [ 13 ],
+            "B1": [ 14 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
-            "CIN": [ 13 ],
-            "COUT": [ 7 ],
+            "CIN": [ 15 ],
+            "COUT": [ 9 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 14 ],
-            "S1": [ 15 ]
+            "S0": [ 16 ],
+            "S1": [ 17 ]
           }
         },
         "cpt_s_CCU2C_B0_10": {
@@ -21634,7 +21642,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21653,16 +21661,16 @@
           "connections": {
             "A0": [ "1" ],
             "A1": [ "0" ],
-            "B0": [ 16 ],
-            "B1": [ 17 ],
+            "B0": [ 18 ],
+            "B1": [ 19 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
             "CIN": [ "0" ],
-            "COUT": [ 18 ],
+            "COUT": [ 20 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 19 ],
-            "S1": [ 20 ]
+            "S0": [ 21 ],
+            "S1": [ 22 ]
           }
         },
         "cpt_s_CCU2C_B0_2": {
@@ -21676,7 +21684,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21695,16 +21703,16 @@
           "connections": {
             "A0": [ "0" ],
             "A1": [ "0" ],
-            "B0": [ 21 ],
-            "B1": [ 22 ],
+            "B0": [ 23 ],
+            "B1": [ 24 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
-            "CIN": [ 23 ],
-            "COUT": [ 13 ],
+            "CIN": [ 25 ],
+            "COUT": [ 15 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 24 ],
-            "S1": [ 25 ]
+            "S0": [ 26 ],
+            "S1": [ 27 ]
           }
         },
         "cpt_s_CCU2C_B0_3": {
@@ -21718,7 +21726,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21737,16 +21745,16 @@
           "connections": {
             "A0": [ "0" ],
             "A1": [ "0" ],
-            "B0": [ 26 ],
-            "B1": [ 27 ],
+            "B0": [ 28 ],
+            "B1": [ 29 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
-            "CIN": [ 18 ],
-            "COUT": [ 23 ],
+            "CIN": [ 20 ],
+            "COUT": [ 25 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 28 ],
-            "S1": [ 29 ]
+            "S0": [ 30 ],
+            "S1": [ 31 ]
           }
         },
         "cpt_s_CCU2C_B0_4": {
@@ -21760,7 +21768,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21779,16 +21787,16 @@
           "connections": {
             "A0": [ "0" ],
             "A1": [ "0" ],
-            "B0": [ 30 ],
-            "B1": [ 31 ],
+            "B0": [ 32 ],
+            "B1": [ 33 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
-            "CIN": [ 32 ],
-            "COUT": [ 33 ],
+            "CIN": [ 34 ],
+            "COUT": [ 35 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 34 ],
-            "S1": [ 35 ]
+            "S0": [ 36 ],
+            "S1": [ 37 ]
           }
         },
         "cpt_s_CCU2C_B0_5": {
@@ -21802,7 +21810,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21821,16 +21829,16 @@
           "connections": {
             "A0": [ "0" ],
             "A1": [ "0" ],
-            "B0": [ 36 ],
-            "B1": [ 37 ],
+            "B0": [ 38 ],
+            "B1": [ 39 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
-            "CIN": [ 38 ],
-            "COUT": [ 32 ],
+            "CIN": [ 40 ],
+            "COUT": [ 34 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 39 ],
-            "S1": [ 40 ]
+            "S0": [ 41 ],
+            "S1": [ 42 ]
           }
         },
         "cpt_s_CCU2C_B0_6": {
@@ -21844,7 +21852,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21863,16 +21871,16 @@
           "connections": {
             "A0": [ "0" ],
             "A1": [ "0" ],
-            "B0": [ 41 ],
-            "B1": [ 42 ],
+            "B0": [ 43 ],
+            "B1": [ 44 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
-            "CIN": [ 43 ],
-            "COUT": [ 38 ],
+            "CIN": [ 45 ],
+            "COUT": [ 40 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 44 ],
-            "S1": [ 45 ]
+            "S0": [ 46 ],
+            "S1": [ 47 ]
           }
         },
         "cpt_s_CCU2C_B0_7": {
@@ -21886,7 +21894,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21905,16 +21913,16 @@
           "connections": {
             "A0": [ "0" ],
             "A1": [ "0" ],
-            "B0": [ 46 ],
-            "B1": [ 47 ],
+            "B0": [ 48 ],
+            "B1": [ 49 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
-            "CIN": [ 48 ],
-            "COUT": [ 43 ],
+            "CIN": [ 50 ],
+            "COUT": [ 45 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 49 ],
-            "S1": [ 50 ]
+            "S0": [ 51 ],
+            "S1": [ 52 ]
           }
         },
         "cpt_s_CCU2C_B0_8": {
@@ -21928,7 +21936,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21947,16 +21955,16 @@
           "connections": {
             "A0": [ "0" ],
             "A1": [ "0" ],
-            "B0": [ 51 ],
-            "B1": [ 52 ],
+            "B0": [ 53 ],
+            "B1": [ 54 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
-            "CIN": [ 53 ],
-            "COUT": [ 48 ],
+            "CIN": [ 55 ],
+            "COUT": [ 50 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 54 ],
-            "S1": [ 55 ]
+            "S0": [ 56 ],
+            "S1": [ 57 ]
           }
         },
         "cpt_s_CCU2C_B0_9": {
@@ -21970,7 +21978,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4"
           },
           "port_directions": {
             "A0": "input",
@@ -21989,16 +21997,16 @@
           "connections": {
             "A0": [ "0" ],
             "A1": [ "0" ],
-            "B0": [ 56 ],
-            "B1": [ 57 ],
+            "B0": [ 58 ],
+            "B1": [ 59 ],
             "C0": [ "0" ],
             "C1": [ "0" ],
-            "CIN": [ 8 ],
-            "COUT": [ 53 ],
+            "CIN": [ 10 ],
+            "COUT": [ 55 ],
             "D0": [ "1" ],
             "D1": [ "1" ],
-            "S0": [ 58 ],
-            "S1": [ 59 ]
+            "S0": [ 60 ],
+            "S1": [ 61 ]
           }
         },
         "cpt_s_LUT4_D": {
@@ -22022,8 +22030,8 @@
             "A": [ "0" ],
             "B": [ "0" ],
             "C": [ "0" ],
-            "D": [ 16 ],
-            "Z": [ 60 ]
+            "D": [ 18 ],
+            "Z": [ 62 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q": {
@@ -22039,7 +22047,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22049,9 +22057,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 35 ],
-            "LSR": [ 61 ],
-            "Q": [ 31 ]
+            "DI": [ 37 ],
+            "LSR": [ 63 ],
+            "Q": [ 33 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_1": {
@@ -22067,7 +22075,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22077,9 +22085,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 34 ],
-            "LSR": [ 61 ],
-            "Q": [ 30 ]
+            "DI": [ 36 ],
+            "LSR": [ 63 ],
+            "Q": [ 32 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_10": {
@@ -22095,7 +22103,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22105,9 +22113,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 59 ],
-            "LSR": [ 61 ],
-            "Q": [ 57 ]
+            "DI": [ 61 ],
+            "LSR": [ 63 ],
+            "Q": [ 59 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_11": {
@@ -22123,7 +22131,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22133,9 +22141,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 58 ],
-            "LSR": [ 61 ],
-            "Q": [ 56 ]
+            "DI": [ 60 ],
+            "LSR": [ 63 ],
+            "Q": [ 58 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_12": {
@@ -22151,7 +22159,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22161,9 +22169,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 10 ],
-            "LSR": [ 61 ],
-            "Q": [ 6 ]
+            "DI": [ 12 ],
+            "LSR": [ 63 ],
+            "Q": [ 8 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_13": {
@@ -22179,7 +22187,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22189,9 +22197,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 9 ],
-            "LSR": [ 61 ],
-            "Q": [ 5 ]
+            "DI": [ 11 ],
+            "LSR": [ 63 ],
+            "Q": [ 7 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_14": {
@@ -22207,7 +22215,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22217,9 +22225,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 15 ],
-            "LSR": [ 61 ],
-            "Q": [ 12 ]
+            "DI": [ 17 ],
+            "LSR": [ 63 ],
+            "Q": [ 14 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_15": {
@@ -22235,7 +22243,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22245,9 +22253,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 14 ],
-            "LSR": [ 61 ],
-            "Q": [ 11 ]
+            "DI": [ 16 ],
+            "LSR": [ 63 ],
+            "Q": [ 13 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_16": {
@@ -22263,7 +22271,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22273,9 +22281,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 25 ],
-            "LSR": [ 61 ],
-            "Q": [ 22 ]
+            "DI": [ 27 ],
+            "LSR": [ 63 ],
+            "Q": [ 24 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_17": {
@@ -22291,7 +22299,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22301,9 +22309,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 24 ],
-            "LSR": [ 61 ],
-            "Q": [ 21 ]
+            "DI": [ 26 ],
+            "LSR": [ 63 ],
+            "Q": [ 23 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_18": {
@@ -22319,7 +22327,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22329,9 +22337,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 29 ],
-            "LSR": [ 61 ],
-            "Q": [ 27 ]
+            "DI": [ 31 ],
+            "LSR": [ 63 ],
+            "Q": [ 29 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_19": {
@@ -22347,7 +22355,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22357,9 +22365,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 28 ],
-            "LSR": [ 61 ],
-            "Q": [ 26 ]
+            "DI": [ 30 ],
+            "LSR": [ 63 ],
+            "Q": [ 28 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_2": {
@@ -22375,7 +22383,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22385,9 +22393,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 40 ],
-            "LSR": [ 61 ],
-            "Q": [ 37 ]
+            "DI": [ 42 ],
+            "LSR": [ 63 ],
+            "Q": [ 39 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_20": {
@@ -22403,7 +22411,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22413,9 +22421,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 20 ],
-            "LSR": [ 61 ],
-            "Q": [ 17 ]
+            "DI": [ 22 ],
+            "LSR": [ 63 ],
+            "Q": [ 19 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_21": {
@@ -22431,7 +22439,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22441,9 +22449,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 60 ],
-            "LSR": [ 61 ],
-            "Q": [ 16 ]
+            "DI": [ 62 ],
+            "LSR": [ 63 ],
+            "Q": [ 18 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_3": {
@@ -22459,7 +22467,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22469,9 +22477,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 39 ],
-            "LSR": [ 61 ],
-            "Q": [ 36 ]
+            "DI": [ 41 ],
+            "LSR": [ 63 ],
+            "Q": [ 38 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_4": {
@@ -22487,7 +22495,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22497,9 +22505,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 45 ],
-            "LSR": [ 61 ],
-            "Q": [ 42 ]
+            "DI": [ 47 ],
+            "LSR": [ 63 ],
+            "Q": [ 44 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_5": {
@@ -22515,7 +22523,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22525,9 +22533,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 44 ],
-            "LSR": [ 61 ],
-            "Q": [ 41 ]
+            "DI": [ 46 ],
+            "LSR": [ 63 ],
+            "Q": [ 43 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_6": {
@@ -22543,7 +22551,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22553,9 +22561,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 50 ],
-            "LSR": [ 61 ],
-            "Q": [ 47 ]
+            "DI": [ 52 ],
+            "LSR": [ 63 ],
+            "Q": [ 49 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_7": {
@@ -22571,7 +22579,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22581,9 +22589,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 49 ],
-            "LSR": [ 61 ],
-            "Q": [ 46 ]
+            "DI": [ 51 ],
+            "LSR": [ 63 ],
+            "Q": [ 48 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_8": {
@@ -22599,7 +22607,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22609,9 +22617,9 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 55 ],
-            "LSR": [ 61 ],
-            "Q": [ 52 ]
+            "DI": [ 57 ],
+            "LSR": [ 63 ],
+            "Q": [ 54 ]
           }
         },
         "cpt_s_TRELLIS_FF_Q_9": {
@@ -22627,7 +22635,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:21.1-28.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
+            "src": "blink.v:23.1-30.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:68.164-68.215"
           },
           "port_directions": {
             "CLK": "input",
@@ -22637,12 +22645,122 @@
           },
           "connections": {
             "CLK": [ 3 ],
-            "DI": [ 54 ],
-            "LSR": [ 61 ],
-            "Q": [ 51 ]
+            "DI": [ 56 ],
+            "LSR": [ 63 ],
+            "Q": [ 53 ]
           }
         },
-        "led_o_LUT4_D": {
+        "led_b_o_LUT4_B": {
+          "hide_name": 0,
+          "type": "LUT4",
+          "parameters": {
+            "INIT": "0011110011001100"
+          },
+          "attributes": {
+            "module_not_derived": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:124.33-125.56"
+          },
+          "port_directions": {
+            "A": "input",
+            "B": "input",
+            "C": "input",
+            "D": "input",
+            "Z": "output"
+          },
+          "connections": {
+            "A": [ "0" ],
+            "B": [ 6 ],
+            "C": [ 5 ],
+            "D": [ 4 ],
+            "Z": [ 64 ]
+          }
+        },
+        "led_b_o_TRELLIS_FF_Q": {
+          "hide_name": 0,
+          "type": "TRELLIS_FF",
+          "parameters": {
+            "CEMUX": "INV",
+            "CLKMUX": "CLK",
+            "GSR": "DISABLED",
+            "LSRMUX": "LSR",
+            "REGSET": "RESET",
+            "SRMODE": "LSR_OVER_CE"
+          },
+          "attributes": {
+            "module_not_derived": "00000000000000000000000000000001",
+            "src": "blink.v:32.1-39.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:88.171-88.230"
+          },
+          "port_directions": {
+            "CE": "input",
+            "CLK": "input",
+            "DI": "input",
+            "LSR": "input",
+            "Q": "output"
+          },
+          "connections": {
+            "CE": [ 65 ],
+            "CLK": [ 3 ],
+            "DI": [ 64 ],
+            "LSR": [ 63 ],
+            "Q": [ 6 ]
+          }
+        },
+        "led_g_o_LUT4_C": {
+          "hide_name": 0,
+          "type": "LUT4",
+          "parameters": {
+            "INIT": "0000111111110000"
+          },
+          "attributes": {
+            "module_not_derived": "00000000000000000000000000000001",
+            "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:119.33-120.56"
+          },
+          "port_directions": {
+            "A": "input",
+            "B": "input",
+            "C": "input",
+            "D": "input",
+            "Z": "output"
+          },
+          "connections": {
+            "A": [ "0" ],
+            "B": [ "0" ],
+            "C": [ 5 ],
+            "D": [ 4 ],
+            "Z": [ 66 ]
+          }
+        },
+        "led_g_o_TRELLIS_FF_Q": {
+          "hide_name": 0,
+          "type": "TRELLIS_FF",
+          "parameters": {
+            "CEMUX": "INV",
+            "CLKMUX": "CLK",
+            "GSR": "DISABLED",
+            "LSRMUX": "LSR",
+            "REGSET": "RESET",
+            "SRMODE": "LSR_OVER_CE"
+          },
+          "attributes": {
+            "module_not_derived": "00000000000000000000000000000001",
+            "src": "blink.v:32.1-39.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:88.171-88.230"
+          },
+          "port_directions": {
+            "CE": "input",
+            "CLK": "input",
+            "DI": "input",
+            "LSR": "input",
+            "Q": "output"
+          },
+          "connections": {
+            "CE": [ 65 ],
+            "CLK": [ 3 ],
+            "DI": [ 66 ],
+            "LSR": [ 63 ],
+            "Q": [ 5 ]
+          }
+        },
+        "led_r_o_LUT4_D": {
           "hide_name": 0,
           "type": "LUT4",
           "parameters": {
@@ -22664,10 +22782,10 @@
             "B": [ "0" ],
             "C": [ "0" ],
             "D": [ 4 ],
-            "Z": [ 62 ]
+            "Z": [ 67 ]
           }
         },
-        "led_o_TRELLIS_FF_Q": {
+        "led_r_o_TRELLIS_FF_Q": {
           "hide_name": 0,
           "type": "TRELLIS_FF",
           "parameters": {
@@ -22680,7 +22798,7 @@
           },
           "attributes": {
             "module_not_derived": "00000000000000000000000000000001",
-            "src": "blink.v:30.1-37.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:88.171-88.230"
+            "src": "blink.v:32.1-39.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:88.171-88.230"
           },
           "port_directions": {
             "CE": "input",
@@ -22690,14 +22808,14 @@
             "Q": "output"
           },
           "connections": {
-            "CE": [ 63 ],
+            "CE": [ 65 ],
             "CLK": [ 3 ],
-            "DI": [ 62 ],
-            "LSR": [ 61 ],
+            "DI": [ 67 ],
+            "LSR": [ 63 ],
             "Q": [ 4 ]
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z": {
           "hide_name": 0,
           "type": "PFUMX",
           "parameters": {
@@ -22713,13 +22831,13 @@
             "Z": "output"
           },
           "connections": {
-            "ALUT": [ 64 ],
-            "BLUT": [ 65 ],
-            "C0": [ 66 ],
-            "Z": [ 63 ]
+            "ALUT": [ 68 ],
+            "BLUT": [ 69 ],
+            "C0": [ 70 ],
+            "Z": [ 65 ]
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_ALUT_LUT4_Z": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_ALUT_LUT4_Z": {
           "hide_name": 0,
           "type": "LUT4",
           "parameters": {
@@ -22737,14 +22855,14 @@
             "Z": "output"
           },
           "connections": {
-            "A": [ 67 ],
-            "B": [ 68 ],
-            "C": [ 69 ],
-            "D": [ 70 ],
-            "Z": [ 64 ]
+            "A": [ 71 ],
+            "B": [ 72 ],
+            "C": [ 73 ],
+            "D": [ 74 ],
+            "Z": [ 68 ]
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_BLUT_LUT4_Z": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_BLUT_LUT4_Z": {
           "hide_name": 0,
           "type": "LUT4",
           "parameters": {
@@ -22766,10 +22884,10 @@
             "B": [ "0" ],
             "C": [ "0" ],
             "D": [ "0" ],
-            "Z": [ 65 ]
+            "Z": [ 69 ]
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z": {
           "hide_name": 0,
           "type": "LUT4",
           "parameters": {
@@ -22787,14 +22905,14 @@
             "Z": "output"
           },
           "connections": {
-            "A": [ 42 ],
-            "B": [ 41 ],
-            "C": [ 47 ],
-            "D": [ 46 ],
-            "Z": [ 67 ]
+            "A": [ 44 ],
+            "B": [ 43 ],
+            "C": [ 49 ],
+            "D": [ 48 ],
+            "Z": [ 71 ]
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_1": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_1": {
           "hide_name": 0,
           "type": "LUT4",
           "parameters": {
@@ -22812,14 +22930,14 @@
             "Z": "output"
           },
           "connections": {
-            "A": [ 31 ],
-            "B": [ 30 ],
-            "C": [ 37 ],
-            "D": [ 36 ],
-            "Z": [ 68 ]
+            "A": [ 33 ],
+            "B": [ 32 ],
+            "C": [ 39 ],
+            "D": [ 38 ],
+            "Z": [ 72 ]
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_2": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_2": {
           "hide_name": 0,
           "type": "LUT4",
           "parameters": {
@@ -22837,14 +22955,14 @@
             "Z": "output"
           },
           "connections": {
-            "A": [ 6 ],
-            "B": [ 5 ],
-            "C": [ 12 ],
-            "D": [ 11 ],
-            "Z": [ 69 ]
+            "A": [ 8 ],
+            "B": [ 7 ],
+            "C": [ 14 ],
+            "D": [ 13 ],
+            "Z": [ 73 ]
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_3": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_3": {
           "hide_name": 0,
           "type": "LUT4",
           "parameters": {
@@ -22862,14 +22980,14 @@
             "Z": "output"
           },
           "connections": {
-            "A": [ 52 ],
-            "B": [ 51 ],
-            "C": [ 57 ],
-            "D": [ 56 ],
-            "Z": [ 70 ]
+            "A": [ 54 ],
+            "B": [ 53 ],
+            "C": [ 59 ],
+            "D": [ 58 ],
+            "Z": [ 74 ]
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_4": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_4": {
           "hide_name": 0,
           "type": "LUT4",
           "parameters": {
@@ -22888,13 +23006,13 @@
           },
           "connections": {
             "A": [ "0" ],
-            "B": [ 17 ],
-            "C": [ 16 ],
-            "D": [ 71 ],
-            "Z": [ 66 ]
+            "B": [ 19 ],
+            "C": [ 18 ],
+            "D": [ 75 ],
+            "Z": [ 70 ]
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_4_D_LUT4_Z": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_4_D_LUT4_Z": {
           "hide_name": 0,
           "type": "LUT4",
           "parameters": {
@@ -22912,11 +23030,11 @@
             "Z": "output"
           },
           "connections": {
-            "A": [ 22 ],
-            "B": [ 21 ],
-            "C": [ 27 ],
-            "D": [ 26 ],
-            "Z": [ 71 ]
+            "A": [ 24 ],
+            "B": [ 23 ],
+            "C": [ 29 ],
+            "D": [ 28 ],
+            "Z": [ 75 ]
           }
         },
         "rst_inst.rst_cpt_LUT4_D": {
@@ -22940,8 +23058,8 @@
             "A": [ "0" ],
             "B": [ "0" ],
             "C": [ "0" ],
-            "D": [ 72 ],
-            "Z": [ 61 ]
+            "D": [ 76 ],
+            "Z": [ 63 ]
           }
         },
         "rst_inst.rst_cpt_TRELLIS_FF_Q": {
@@ -22967,11 +23085,11 @@
             "Q": "output"
           },
           "connections": {
-            "CE": [ 73 ],
+            "CE": [ 77 ],
             "CLK": [ 3 ],
-            "DI": [ 74 ],
+            "DI": [ 78 ],
             "LSR": [ 2 ],
-            "Q": [ 72 ]
+            "Q": [ 76 ]
           }
         },
         "rst_inst.rst_cpt_TRELLIS_FF_Q_1": {
@@ -22997,11 +23115,11 @@
             "Q": "output"
           },
           "connections": {
-            "CE": [ 73 ],
+            "CE": [ 77 ],
             "CLK": [ 3 ],
-            "DI": [ 75 ],
+            "DI": [ 79 ],
             "LSR": [ 2 ],
-            "Q": [ 76 ]
+            "Q": [ 80 ]
           }
         },
         "rst_inst.rst_cpt_TRELLIS_FF_Q_2": {
@@ -23027,11 +23145,11 @@
             "Q": "output"
           },
           "connections": {
-            "CE": [ 73 ],
+            "CE": [ 77 ],
             "CLK": [ 3 ],
-            "DI": [ 77 ],
+            "DI": [ 81 ],
             "LSR": [ 2 ],
-            "Q": [ 78 ]
+            "Q": [ 82 ]
           }
         },
         "rst_inst.rst_cpt_TRELLIS_FF_Q_2_DI_LUT4_Z": {
@@ -23055,8 +23173,8 @@
             "A": [ "0" ],
             "B": [ "0" ],
             "C": [ "0" ],
-            "D": [ 78 ],
-            "Z": [ 77 ]
+            "D": [ 82 ],
+            "Z": [ 81 ]
           }
         },
         "rst_inst.rst_cpt_TRELLIS_FF_Q_CE_LUT4_Z": {
@@ -23078,10 +23196,10 @@
           },
           "connections": {
             "A": [ "0" ],
-            "B": [ 72 ],
-            "C": [ 76 ],
-            "D": [ 78 ],
-            "Z": [ 73 ]
+            "B": [ 76 ],
+            "C": [ 80 ],
+            "D": [ 82 ],
+            "Z": [ 77 ]
           }
         },
         "rst_inst.rst_cpt_TRELLIS_FF_Q_DI_LUT4_Z": {
@@ -23103,10 +23221,10 @@
           },
           "connections": {
             "A": [ "0" ],
-            "B": [ 72 ],
-            "C": [ 76 ],
-            "D": [ 78 ],
-            "Z": [ 74 ]
+            "B": [ 76 ],
+            "C": [ 80 ],
+            "D": [ 82 ],
+            "Z": [ 78 ]
           }
         },
         "rst_inst.rst_cpt_TRELLIS_FF_Q_DI_LUT4_Z_1": {
@@ -23129,9 +23247,9 @@
           "connections": {
             "A": [ "0" ],
             "B": [ "0" ],
-            "C": [ 76 ],
-            "D": [ 78 ],
-            "Z": [ 75 ]
+            "C": [ 80 ],
+            "D": [ 82 ],
+            "Z": [ 79 ]
           }
         }
       },
@@ -23140,174 +23258,205 @@
           "hide_name": 0,
           "bits": [ 3 ],
           "attributes": {
-            "src": "blink.v:3.16-3.21"
+            "src": "blink.v:3.17-3.22"
           }
         },
         "cpt_s": {
           "hide_name": 0,
-          "bits": [ 16, 17, 26, 27, 21, 22, 11, 12, 5, 6, 56, 57, 51, 52, 46, 47, 41, 42, 36, 37, 30, 31 ],
+          "bits": [ 18, 19, 28, 29, 23, 24, 13, 14, 7, 8, 58, 59, 53, 54, 48, 49, 43, 44, 38, 39, 32, 33 ],
           "attributes": {
-            "src": "blink.v:12.18-12.23"
+            "src": "blink.v:14.18-14.23"
           }
         },
         "cpt_s_CCU2C_B0_10_COUT": {
           "hide_name": 0,
-          "bits": [ 18 ],
+          "bits": [ 20 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
           }
         },
         "cpt_s_CCU2C_B0_10_S0": {
           "hide_name": 0,
-          "bits": [ 19 ],
+          "bits": [ 21 ],
           "attributes": {
             "unused_bits": "0 "
           }
         },
         "cpt_s_CCU2C_B0_1_COUT": {
           "hide_name": 0,
-          "bits": [ 7 ],
+          "bits": [ 9 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
           }
         },
         "cpt_s_CCU2C_B0_2_COUT": {
           "hide_name": 0,
-          "bits": [ 13 ],
+          "bits": [ 15 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
           }
         },
         "cpt_s_CCU2C_B0_3_COUT": {
           "hide_name": 0,
-          "bits": [ 23 ],
+          "bits": [ 25 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
           }
         },
         "cpt_s_CCU2C_B0_4_COUT": {
           "hide_name": 0,
-          "bits": [ 33 ],
+          "bits": [ 35 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13",
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13",
             "unused_bits": "0 "
           }
         },
         "cpt_s_CCU2C_B0_5_COUT": {
           "hide_name": 0,
-          "bits": [ 32 ],
+          "bits": [ 34 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
           }
         },
         "cpt_s_CCU2C_B0_6_COUT": {
           "hide_name": 0,
-          "bits": [ 38 ],
+          "bits": [ 40 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
           }
         },
         "cpt_s_CCU2C_B0_7_COUT": {
           "hide_name": 0,
-          "bits": [ 43 ],
+          "bits": [ 45 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
           }
         },
         "cpt_s_CCU2C_B0_8_COUT": {
           "hide_name": 0,
-          "bits": [ 48 ],
+          "bits": [ 50 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
           }
         },
         "cpt_s_CCU2C_B0_9_COUT": {
           "hide_name": 0,
-          "bits": [ 53 ],
+          "bits": [ 55 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
           }
         },
         "cpt_s_CCU2C_B0_COUT": {
           "hide_name": 0,
-          "bits": [ 8 ],
+          "bits": [ 10 ],
           "attributes": {
             "abc9_carry": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:74.7-80.4|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_sim.v:82.9-82.13"
           }
         },
         "cpt_s_TRELLIS_FF_Q_DI": {
           "hide_name": 0,
-          "bits": [ 60, 20, 28, 29, 24, 25, 14, 15, 9, 10, 58, 59, 54, 55, 49, 50, 44, 45, 39, 40, 34, 35 ],
+          "bits": [ 62, 22, 30, 31, 26, 27, 16, 17, 11, 12, 60, 61, 56, 57, 51, 52, 46, 47, 41, 42, 36, 37 ],
           "attributes": {
             "force_downto": "00000000000000000000000000000001",
-            "src": "blink.v:26.18-26.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:34.26-34.27"
+            "src": "blink.v:28.18-28.30|/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/arith_map.v:34.26-34.27"
           }
         },
-        "led_o": {
+        "led_b_o": {
+          "hide_name": 0,
+          "bits": [ 6 ],
+          "attributes": {
+            "src": "blink.v:6.17-6.24"
+          }
+        },
+        "led_g_o": {
+          "hide_name": 0,
+          "bits": [ 5 ],
+          "attributes": {
+            "src": "blink.v:5.17-5.24"
+          }
+        },
+        "led_g_o_TRELLIS_FF_Q_DI": {
+          "hide_name": 0,
+          "bits": [ 67, 66, 64 ],
+          "attributes": {
+            "force_downto": "00000000000000000000000000000001",
+            "src": "blink.v:37.16-37.23|/home/valery/oss-cad-suite/lib/../share/yosys/techmap.v:270.26-270.27"
+          }
+        },
+        "led_r_o": {
           "hide_name": 0,
           "bits": [ 4 ],
           "attributes": {
-            "src": "blink.v:4.16-4.21"
+            "src": "blink.v:4.17-4.24"
           }
         },
-        "led_o_TRELLIS_FF_Q_CE": {
+        "led_r_o_TRELLIS_FF_Q_CE": {
           "hide_name": 0,
-          "bits": [ 63 ],
+          "bits": [ 65 ],
           "attributes": {
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_ALUT": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_ALUT": {
           "hide_name": 0,
-          "bits": [ 64 ],
+          "bits": [ 68 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:133.22-133.24"
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_BLUT": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_BLUT": {
           "hide_name": 0,
-          "bits": [ 65 ],
+          "bits": [ 69 ],
           "attributes": {
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:133.18-133.20"
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0": {
           "hide_name": 0,
-          "bits": [ 67, 68, 69, 70, 66 ],
+          "bits": [ 71, 72, 73, 74, 70 ],
           "attributes": {
             "force_downto": "00000000000000000000000000000001",
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
           }
         },
-        "led_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_4_D": {
+        "led_r_o_TRELLIS_FF_Q_CE_PFUMX_Z_C0_LUT4_Z_4_D": {
           "hide_name": 0,
-          "bits": [ 17, 16, 71 ],
+          "bits": [ 19, 18, 75 ],
           "attributes": {
             "force_downto": "00000000000000000000000000000001",
             "src": "/home/valery/oss-cad-suite/lib/../share/yosys/ecp5/cells_map.v:108.23-108.24"
           }
         },
-        "led_o_TRELLIS_FF_Q_DI": {
+        "led_r_o_TRELLIS_FF_Q_DI": {
           "hide_name": 0,
-          "bits": [ 62 ],
+          "bits": [ 67, 5, 6 ],
           "attributes": {
+            "force_downto": "00000000000000000000000000000001",
+            "src": "blink.v:37.16-37.23|/home/valery/oss-cad-suite/lib/../share/yosys/techmap.v:270.23-270.24"
+          }
+        },
+        "rgb": {
+          "hide_name": 0,
+          "bits": [ 4, 5, 6 ],
+          "attributes": {
+            "src": "blink.v:15.12-15.15"
           }
         },
         "rst": {
           "hide_name": 0,
           "bits": [ 2 ],
           "attributes": {
-            "src": "blink.v:2.16-2.19"
+            "src": "blink.v:2.17-2.20"
           }
         },
         "rst_inst.clk_i": {
@@ -23320,7 +23469,7 @@
         },
         "rst_inst.rst_cpt": {
           "hide_name": 0,
-          "bits": [ 78, 76, 72 ],
+          "bits": [ 82, 80, 76 ],
           "attributes": {
             "hdlname": "rst_inst rst_cpt",
             "src": "rst_gen.v:8.11-8.18"
@@ -23328,13 +23477,13 @@
         },
         "rst_inst.rst_cpt_LUT4_D_Z": {
           "hide_name": 0,
-          "bits": [ 61 ],
+          "bits": [ 63 ],
           "attributes": {
           }
         },
         "rst_inst.rst_cpt_TRELLIS_FF_Q_2_DI": {
           "hide_name": 0,
-          "bits": [ 77, 76, 72 ],
+          "bits": [ 81, 80, 76 ],
           "attributes": {
             "force_downto": "00000000000000000000000000000001",
             "src": "rst_gen.v:16.14-16.28|/home/valery/oss-cad-suite/lib/../share/yosys/techmap.v:270.23-270.24"
@@ -23342,13 +23491,13 @@
         },
         "rst_inst.rst_cpt_TRELLIS_FF_Q_CE": {
           "hide_name": 0,
-          "bits": [ 73 ],
+          "bits": [ 77 ],
           "attributes": {
           }
         },
         "rst_inst.rst_cpt_TRELLIS_FF_Q_DI": {
           "hide_name": 0,
-          "bits": [ 77, 75, 74 ],
+          "bits": [ 81, 79, 78 ],
           "attributes": {
             "force_downto": "00000000000000000000000000000001",
             "src": "rst_gen.v:16.14-16.28|/home/valery/oss-cad-suite/lib/../share/yosys/techmap.v:270.26-270.27"

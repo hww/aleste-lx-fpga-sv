@@ -7,7 +7,9 @@ module top_hdmi_test (
     input  logic rst,            // Кнопка сброса
     output logic [3:0] gpdi_dp,  // TMDS data+ [B, G, R, CLK]
     output logic [3:0] gpdi_dn,  // TMDS data- [B, G, R, CLK]
-    output logic led_o       // Светодиод мигалка
+    output logic led_r_o,        // Светодиод мигалка
+    output logic led_g_o,        // Светодиод мигалка
+    output logic led_b_o         // Светодиод мигалка
 );
 
     // =========================================================================
@@ -55,6 +57,9 @@ module top_hdmi_test (
     // - ИЛИ sys_pll не заблокирован
     // - ИЛИ video_pll не заблокирован
     assign reset_active = rst | ~sys_pll_locked | ~video_pll_locked;
+    
+    assign led_g_o = ~rst;
+    assign led_b_o = ~reset_active;
 
     // =========================================================================
     // 2. LED Blinker
@@ -62,7 +67,7 @@ module top_hdmi_test (
     blink led_blinker (
         .rst_i(reset_active),
         .clk_i(clk_25mhz),  // Используем входную тактовую 25 MHz
-        .led_o(led_o)
+        .led_o(led_r_o)
     );
 
     // =========================================================================

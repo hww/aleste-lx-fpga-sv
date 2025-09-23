@@ -17,7 +17,7 @@ $(TARGET).bit: $(TARGET)_out.config
 ${TARGET}.svf : ${TARGET}.bit
 
 program: ${TARGET}.svf
-	openFPGALoader --vid=0x1d50 --pid=0x602b -c cmsisdap $(TARGET).bit
+	openFPGALoader --vid=0x1d50 --pid=0x602b --freq 500000 -c cmsisdap $(TARGET).bit
 
 clean:
 	rm -f *.svf *.bit *.config *.ys
