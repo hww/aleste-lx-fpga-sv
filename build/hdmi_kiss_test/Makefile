@@ -5,7 +5,7 @@ FREQ = 25
 YOSYS = yosys
 NEXTPNR = nextpnr-ecp5
 ECPPACK = ecppack
-PROG = openFPGALoader -r -c cmsisdap --freq 1000000  --vid=0x1d50 --pid=0x602b  
+PROG = openFPGALoader -c cmsisdap --freq 500000  --vid=0x1d50 --pid=0x602b  
 
 # Source directories
 CORE_DIR = ../../rtl/core/hdmi_kiss
