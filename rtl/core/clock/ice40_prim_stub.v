@@ -1,6 +1,0 @@
-module SB_GB (
-    input  wire USER_SIGNAL_TO_GLOBAL_BUFFER,
-    output wire GLOBAL_BUFFER_OUTPUT
-);
-    assign GLOBAL_BUFFER_OUTPUT = USER_SIGNAL_TO_GLOBAL_BUFFER;
-endmodule
