@@ -1,18 +1,18 @@
 // ECP5 Primitives for Yosys
-module EHXPLLL (
-    input CLKI, RST, STDBY,
-    output CLKOP, CLKOS, LOCK
-);
-    parameter CLKI_DIV = 1;
-    parameter CLKFB_DIV = 1;
-    parameter CLKOP_DIV = 1;
-    parameter CLKOS_DIV = 1;
-    parameter FEEDBK_PATH = "CLKOP";
-    
-    assign CLKOP = CLKI;
-    assign CLKOS = CLKI;
-    assign LOCK = 1'b1;
-endmodule
+//module EHXPLLL (
+//    input CLKI, RST, STDBY,
+//    output CLKOP, CLKOS, LOCK
+//);
+//    parameter CLKI_DIV = 1;
+//    parameter CLKFB_DIV = 1;
+//    parameter CLKOP_DIV = 1;
+//    parameter CLKOS_DIV = 1;
+//    parameter FEEDBK_PATH = "CLKOP";
+//    
+//    assign CLKOP = CLKI;
+//    assign CLKOS = CLKI;
+//    assign LOCK = 1'b1;
+//endmodule
 
 // Правильная реализация ODDR для ECP5
 //module ODDRX1F (

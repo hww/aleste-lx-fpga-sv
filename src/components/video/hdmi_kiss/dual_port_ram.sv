@@ -8,9 +8,9 @@
 // =============================================================================
 
 module dual_port_ram #(
-    parameter int DATA_WIDTH = 24,     // Разрядность данных
-    parameter int DEPTH      = 640,    // Глубина памяти (количество слов)
-    parameter int ADDR_WIDTH = $clog2(DEPTH)  // Ширина адресной шины
+    parameter int DATA_WIDTH  = 24,     // Разрядность данных
+    parameter int DATA_LENGTH = 640,    // Глубина памяти (количество слов)
+    parameter int ADDR_WIDTH  = $clog2(DATA_LENGTH)  // Ширина адресной шины
 )(
     // -------------------------------------------------------------------------
     // PORT A - Write Port (Source Domain)
@@ -36,16 +36,16 @@ module dual_port_ram #(
     // =========================================================================
     // MEMORY ARRAY - массив памяти
     // =========================================================================
-    logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
+    logic [DATA_WIDTH-1:0] mem [0:DATA_LENGTH-1];
     
     // =========================================================================
     // WRITE PROCESS - процесс записи (синхронный, домен src_clk_i)
     // =========================================================================
-    always_ff @(posedge src_clk_i or posedge src_rst_i) begin
+    always_ff @(posedge src_clk_i) begin
         if (src_rst_i) begin
             // При сбросе можно очистить память, но обычно это не делается
             // для экономии ресурсов и сохранения данных
-            // for (int i = 0; i < DEPTH; i++) begin
+            // for (int i = 0; i < DATA_LENGTH; i++) begin
             //     mem[i] <= {DATA_WIDTH{1'b0}};
             // end
         end else if (src_clke_i && src_wr_en_i) begin
@@ -57,7 +57,7 @@ module dual_port_ram #(
     // =========================================================================
     // READ PROCESS - процесс чтения (синхронный, домен dst_clk_i)
     // =========================================================================
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             // Сброс выходных данных
             dst_rd_data_o <= {DATA_WIDTH{1'b0}};
@@ -75,40 +75,40 @@ module dual_port_ram #(
     // =========================================================================
     // SIMULATION CHECKS - проверки для симуляции
     // =========================================================================
-    // synthesis translate_off
+`ifndef SYNTHESIS
     initial begin
         // Проверка параметров
         if (DATA_WIDTH <= 0) begin
             $error("DATA_WIDTH must be positive");
         end
-        if (DEPTH <= 0) begin
-            $error("DEPTH must be positive");
+        if (DATA_LENGTH <= 0) begin
+            $error("DATA_LENGTH must be positive");
         end
-        if (ADDR_WIDTH != $clog2(DEPTH)) begin
-            $error("ADDR_WIDTH must be $clog2(DEPTH)");
+        if (ADDR_WIDTH != $clog2(DATA_LENGTH)) begin
+            $error("ADDR_WIDTH must be $clog2(DATA_LENGTH)");
         end
         
         // Инициализация памяти нулями для симуляции
-        for (int i = 0; i < DEPTH; i++) begin
+        for (int i = 0; i < DATA_LENGTH; i++) begin
             mem[i] = {DATA_WIDTH{1'b0}};
         end
     end
     
     // Проверка адресов записи
     always_ff @(posedge src_clk_i) begin
-        if (src_clke_i && src_wr_en_i && (src_wr_addr_i >= DEPTH)) begin
+        if (src_clke_i && src_wr_en_i && (src_wr_addr_i >= DATA_LENGTH)) begin
             $warning("Write address out of bounds: %0d >= %0d", 
-                     src_wr_addr_i, DEPTH);
+                     src_wr_addr_i, DATA_LENGTH);
         end
     end
     
     // Проверка адресов чтения
     always_ff @(posedge dst_clk_i) begin
-        if (dst_clke_i && dst_rd_en_i && (dst_rd_addr_i >= DEPTH)) begin
+        if (dst_clke_i && dst_rd_en_i && (dst_rd_addr_i >= DATA_LENGTH)) begin
             $warning("Read address out of bounds: %0d >= %0d", 
-                     dst_rd_addr_i, DEPTH);
+                     dst_rd_addr_i, DATA_LENGTH);
         end
     end
-    // synthesis translate_on
+`endif
     
 endmodule

@@ -337,6 +337,7 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Счетчик повторений строк для вертикального масштабирования
     // ----------------------------------------------------------------------------
+    /*
     always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
         if (dst_rst_i) begin
             dst_line_repeat_count <= '0;
@@ -350,7 +351,7 @@ module hdmi_scaler_core #(
             end
         end
     end
-      
+      */
     // ----------------------------------------------------------------------------
     // Счетчик повторений пикселов для горизонтального масштабирования
     // ----------------------------------------------------------------------------  
@@ -432,7 +433,7 @@ module hdmi_scaler_core #(
     // Буфер 0 - четные строки
     dual_port_ram #(
         .DATA_WIDTH(DATA_WIDTH),
-        .DEPTH(SRC_WIDTH)
+        .DATA_LENGTH(SRC_WIDTH)
     ) line_buffer_0 (
         .src_clk_i(src_clk_i),
         .src_clke_i(1'b1),
@@ -452,7 +453,7 @@ module hdmi_scaler_core #(
     // Буфер 1 - нечетные строки
     dual_port_ram #(
         .DATA_WIDTH(DATA_WIDTH),
-        .DEPTH(SRC_WIDTH)
+        .DATA_LENGTH(SRC_WIDTH)
     ) line_buffer_1 (
         .src_clk_i(src_clk_i),
         .src_clke_i(1'b1),

@@ -12,10 +12,10 @@ module tb_top_hdmi_test;
     // Генерация тактовой 25MHz
     always #20 clk_25mhz = ~clk_25mhz;
     
-    top_hdmi_test dut (.*);
+    hdmi_kiss_test dut (.*);
     
     initial begin
-        $dumpfile("hdmi_test.vcd");
+        $dumpfile("hdmi_kiss_test.vcd");
         $dumpvars(0, tb_top_hdmi_test);  // Записываем все сигналы
         
         // Инициализация

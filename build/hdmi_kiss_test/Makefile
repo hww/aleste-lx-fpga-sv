@@ -5,52 +5,42 @@ FREQ = 25
 YOSYS = yosys
 NEXTPNR = nextpnr-ecp5
 ECPPACK = ecppack
-PROG = openFPGALoader -r -c cmsisdap --freq 1000000  --vid=0x1d50 --pid=0x602b  
+PROG = icyprog
 
-# Source files
+# Source directories
 CORE_DIR = ../../src/components/video/hdmi_kiss
 TOP_DIR = ../../src/systems/hdmi_kiss
-CONSTR = ./hdmi_test.lpf
+CONSTR = hdmi_kiss_test.lpf
 TARGET = hdmi_kiss_test
 
-all: $(TARGET).bit
+all: $(TARGET).bin
 
-$(TARGET).json: 
-#	 read_verilog $(CORE_DIR)/clock.v; \
-#	yosys -q hdmi_kiss_test.ys
-	$(YOSYS) -p \
-	"read_verilog $(CORE_DIR)/ecp5_cells.v; \
-	 read_verilog -sv $(CORE_DIR)/sys_pll.sv; \
-	 read_verilog -sv $(CORE_DIR)/video_pll.sv; \
-	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_core.sv; \
-	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_wrapper.sv; \
-	 read_verilog -sv $(CORE_DIR)/tmds_encoder.sv; \
-	 read_verilog -sv $(TOP_DIR)/test_pattern_generator.sv; \
-	 read_verilog -sv $(TOP_DIR)/hdmi_kiss_test.sv; \
-	 hierarchy -top $(TARGET); \
+# Простой Yosys скрипт, который читает все файлы
+$(TARGET).json:
+	$(YOSYS)  -q -l yosys.log -p \
+	"read_verilog $(CORE_DIR)/clock.v;\
+	 read_verilog $(CORE_DIR)/ecp5_cells.v;\
+	 read_verilog -sv $(CORE_DIR)/serializer.sv;\
+	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_core.sv;\
+	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_wrapper.sv;\
+	 read_verilog -sv $(CORE_DIR)/dual_port_ram.sv;\
+	 read_verilog -sv $(CORE_DIR)/tmds_encoder.sv;\
+	 read_verilog -sv $(TOP_DIR)/test_pattern_generator.sv;\
+	 read_verilog -sv $(TOP_DIR)/hdmi_kiss_test.sv;\
+	 proc; opt; memory; opt; techmap; abc; clean;\
+	 hierarchy -top $(TARGET);\
 	 synth_ecp5 -json $(TARGET).json"
 
-$(TARGET)_out.config: $(TARGET).json
+$(TARGET)_out.config: $(TARGET).json $(CONSTR)
 	$(NEXTPNR) --25k --json $< --lpf $(CONSTR) --textcfg $@ --package $(PACKAGE) --top $(TARGET)
 
-$(TARGET).bit: $(TARGET)_out.config
-	$(ECPPACK) $<  $@ --svf $(TARGET).svf
+$(TARGET).bin: $(TARGET)_out.config
+	$(ECPPACK) $< $@
 
-ocd: $(TARGET).bit
-	openocd -f icelink.cfg 
-
-program: $(TARGET).bit
+program: $(TARGET).bin
 	$(PROG) $<
 
-flash: $(TARGET).bit
-	$(PROG) -f $<
-
 clean:
-	rm -f *.json *.config *.bit *.log *.svf *.bak
+	rm -f *.json *.config *.bin
 
-rebuild: clean all
-
-.PHONY: all program clean rebuild detect
-
-detect:
-	openFPGALoader --scan-usb
+.PHONY: all program clean

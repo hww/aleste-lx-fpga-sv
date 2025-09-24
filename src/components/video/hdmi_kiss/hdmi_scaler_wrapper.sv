@@ -1,122 +1,152 @@
+// =============================================================================
+// HDMI Scaler Wrapper
+// Обёртка для масштабатора видео с TMDS кодированием
+// =============================================================================
+
 module hdmi_scaler_wrapper #(
-    parameter INPUT_WIDTH = 640,
-    parameter INPUT_HEIGHT = 480,
-    parameter PIXEL_DEPTH = 24
+    parameter SRC_WIDTH  = 640,     // Ширина входного изображения
+    parameter SRC_HEIGHT = 480,     // Высота входного изображения  
+    parameter DATA_WIDTH  = 24      // Глубина цвета (RGB888)
 )(
+    // =========================================================================
     // System Interface
-    input  logic clk_96m,
-    input  logic rst_n,
+    // =========================================================================
+    input  logic clk_pixel,           // Пиксельная частота (например 27MHz)
+    input  logic clk_pixel_10x,       // Частота в 10 раз выше (например 270MHz)
+    input  logic rst_i,               // Сброс (активный низкий уровень)
     
-    // Video Input
-    input  logic [PIXEL_DEPTH-1:0] pixel_data,
-    input  logic hsync_in,
-    input  logic vsync_in,
-    input  logic data_enable,
+    // =========================================================================
+    // Video Input Interface
+    // =========================================================================
+    input  logic [DATA_WIDTH-1:0] pixel_data,  // Данные пикселя
+    input  logic hsync_in,            // Горизонтальная синхронизация
+    input  logic vsync_in,            // Вертикальная синхронизация  
+    input  logic data_enable,         // Разрешение данных
     
-    // HDMI Output
-    output logic [2:0] tmds_data_p,
-    output logic [2:0] tmds_data_n,
-    output logic tmds_clock_p,
-    output logic tmds_clock_n
+    // =========================================================================
+    // TMDS Output Interface
+    // =========================================================================
+    output logic [2:0] tmds_data,     // TMDS данные [2]=red, [1]=green, [0]=blue
+    output logic tmds_clock           // TMDS тактовая частота
 );
 
     // =========================================================================
-    // 1. Video Clock Generation
+    // 1. Internal Signal Declarations
     // =========================================================================
-    logic video_clk;       // 27 MHz
-    logic video_clk_10x;   // 270 MHz
-    logic pll_locked;
-    logic video_rst_n;
-
-    video_pll ecp5_pll (
-        .clki(clk_96m),
-        .rst(!rst_n),
-        .clkop(video_clk_10x),
-        .clkos(video_clk),
-        .lock(pll_locked)
-    );
-
-    assign video_rst_n = rst_n && pll_locked;
+    logic dst_pixel_valid;            // Разрешение данных масштабированного видео
+    logic [DATA_WIDTH-1:0] dst_pixel_data;  // Данные масштабированного пикселя
+    logic dst_hsync;                  // Горизонтальная синхронизация выхода
+    logic dst_vsync;                  // Вертикальная синхронизация выхода
+    
+    logic [9:0] tmds_red;             // Закодированные TMDS данные красного канала
+    logic [9:0] tmds_green;           // Закодированные TMDS данные зеленого канала  
+    logic [9:0] tmds_blue;            // Закодированные TMDS данные синего канала
 
     // =========================================================================
-    // 2. Video Scaling
+    // 2. Video Scaling Core
     // =========================================================================
-    logic dst_pixel_valid;
-    logic [PIXEL_DEPTH-1:0] dst_pixel_data;
-    logic dst_hsync;
-    logic dst_vsync;
-
     hdmi_scaler_core #(
-        .SRC_WIDTH(INPUT_WIDTH),
-        .SRC_HEIGHT(INPUT_HEIGHT),
-        .DATA_WIDTH(PIXEL_DEPTH),
-        .V_SCALE(2)
+        .SRC_WIDTH(SRC_WIDTH),      // Ширина входного изображения
+        .SRC_HEIGHT(SRC_HEIGHT),    // Высота входного изображения
+        .DATA_WIDTH(DATA_WIDTH),     // Разрядность данных пикселя
+        .V_SCALE(2)                   // Коэффициент вертикального масштабирования
     ) scaler_inst (
-        .src_clk_i(clk_96m),
-        .src_rst_i(!rst_n),
-        .dst_clk_i(video_clk),
-        .dst_rst_i(!video_rst_n),
+        // Clock and Reset
+        .src_clk_i(clk_pixel),        // Тактовая частота источника
+        .src_rst_i(rst_i),            // Сброс источника (активный высокий)
+        .dst_clk_i(clk_pixel),        // Тактовая частота приемника
+        .dst_rst_i(rst_i),            // Сброс приемника (активный высокий)
         
         // Video Input
-        .src_pixel_valid_i(data_enable),
-        .src_pixel_data_i(pixel_data),
-        .src_hsync_i(hsync_in),
-        .src_vsync_i(vsync_in),
+        .src_pixel_valid_i(data_enable),  // Разрешение входных данных
+        .src_pixel_data_i(pixel_data),    // Входные данные пикселя
+        .src_hsync_i(hsync_in),           // Входная горизонтальная синхронизация
+        .src_vsync_i(vsync_in),           // Входная вертикальная синхронизация
 
-        // Video Output
-        .dst_pixel_valid_o(dst_pixel_valid),
-        .dst_pixel_data_o(dst_pixel_data),
-        .dst_hsync_o(dst_hsync),
-        .dst_vsync_o(dst_vsync)
+        // Video Output  
+        .dst_pixel_valid_o(dst_pixel_valid),  // Разрешение выходных данных
+        .dst_pixel_data_o(dst_pixel_data),    // Выходные данные пикселя
+        .dst_hsync_o(dst_hsync),              // Выходная горизонтальная синхронизация
+        .dst_vsync_o(dst_vsync)               // Выходная вертикальная синхронизация
     );
 
     // =========================================================================
     // 3. TMDS Encoding
     // =========================================================================
-    tmds_encoder #() encoder_red (
-        .clk(video_clk),
-        .rst(!video_rst_n),
-        .data(dst_pixel_data[23:16]),
-        .hsync(dst_hsync),
-        .vsync(dst_vsync),
-        .data_enable(dst_pixel_valid),
-        .tmds_out(tmds_red)
+    
+    logic [1:0] control;
+    assign control = {dst_vsync, dst_hsync};
+
+     // Red Channel TMDS Encoder
+    tmds_encoder encoder_red (
+        .clk_i(clk_pixel),               // Тактовая частота
+        .rst_i(rst_i),                   // Сброс (активный высокий)
+        .data_i(dst_pixel_data[23:16]),  // Данные красного канала [7:0]
+        .control_i(control),             // Контрольные биты [vsync, hsync]
+        .data_enable_i(dst_pixel_valid), // Разрешение данных
+        .tmds_o(tmds_red)                // Выходные TMDS данные
     );
 
-    tmds_encoder #() encoder_green (
-        .clk(video_clk),
-        .rst(!video_rst_n),
-        .data(dst_pixel_data[15:8]),
-        .hsync(dst_hsync),
-        .vsync(dst_vsync),
-        .data_enable(dst_pixel_valid),
-        .tmds_out(tmds_green)
+    // Green Channel TMDS Encoder  
+    tmds_encoder encoder_green (
+        .clk_i(clk_pixel),               // Тактовая частота
+        .rst_i(rst_i),                   // Сброс (активный высокий)
+        .data_i(dst_pixel_data[15:8]),   // Данные зеленого канала [7:0]
+        .control_i(control),             // Контрольные биты [vsync, hsync]
+        .data_enable_i(dst_pixel_valid), // Разрешение данных
+        .tmds_o(tmds_green)              // Выходные TMDS данные
     );
 
-    tmds_encoder #() encoder_blue (
-        .clk(video_clk),
-        .rst(!video_rst_n),
-        .data(dst_pixel_data[7:0]),
-        .hsync(dst_hsync),
-        .vsync(dst_vsync),
-        .data_enable(dst_pixel_valid),
-        .tmds_out(tmds_blue)
+    // Blue Channel TMDS Encoder
+    tmds_encoder encoder_blue (
+        .clk_i(clk_pixel),               // Тактовая частота
+        .rst_i(rst_i),                   // Сброс (активный высокий)
+        .data_i(dst_pixel_data[7:0]),    // Данные синего канала [7:0]
+        .control_i(control),             // Контрольные биты [vsync, hsync]
+        .data_enable_i(dst_pixel_valid), // Разрешение данных
+        .tmds_o(tmds_blue)               // Выходные TMDS данные
     );
 
     // =========================================================================
-    // 4. DDR Output
+    // 4. TMDS Serialization
     // =========================================================================
-    ddr_output ddr_inst (
-        .video_clk(video_clk),
-        .video_clk_10x(video_clk_10x),
-        .rst_n(video_rst_n),
-        .tmds_red(tmds_red),
-        .tmds_green(tmds_green),
-        .tmds_blue(tmds_blue),
-        .tmds_data_p(tmds_data_p),
-        .tmds_data_n(tmds_data_n),
-        .tmds_clock_p(tmds_clock_p),
-        .tmds_clock_n(tmds_clock_n)
+    
+    // Red Channel Serializer
+    serializer #(
+        .WIDTH(10)                    // Разрядность входных данных
+    ) ser_red (
+        .clk_pixel(clk_pixel),        // Пиксельная тактовая частота
+        .clk_10x(clk_pixel_10x),      // Тактовая частота в 10 раз выше
+        .rst(rst_i),                    // Сброс (активный низкий)
+        .parallel_data(tmds_red),     // Параллельные входные данные
+        .serial_data(tmds_data[2])    // Последовательные выходные данные
     );
+
+    // Green Channel Serializer
+    serializer #(
+        .WIDTH(10)                    // Разрядность входных данных
+    ) ser_green (
+        .clk_pixel(clk_pixel),        // Пиксельная тактовая частота
+        .clk_10x(clk_pixel_10x),      // Тактовая частота в 10 раз выше
+        .rst(rst_i),                   // Сброс (активный низкий)
+        .parallel_data(tmds_green),   // Параллельные входные данные
+        .serial_data(tmds_data[1])    // Последовательные выходные данные
+    );
+
+    // Blue Channel Serializer
+    serializer #(
+        .WIDTH(10)                    // Разрядность входных данных
+    ) ser_blue (
+        .clk_pixel(clk_pixel),        // Пиксельная тактовая частота
+        .clk_10x(clk_pixel_10x),      // Тактовая частота в 10 раз выше
+        .rst(rst_i),                    // Сброс (активный низкий)
+        .parallel_data(tmds_blue),    // Параллельные входные данные
+        .serial_data(tmds_data[0])    // Последовательные выходные данные
+    );
+
+    // =========================================================================
+    // 5. Clock Output
+    // =========================================================================
+    assign tmds_clock = clk_pixel;    // Прямое подключение тактовой частоты
 
 endmodule
