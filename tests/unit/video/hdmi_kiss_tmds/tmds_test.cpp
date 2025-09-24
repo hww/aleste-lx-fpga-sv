@@ -43,26 +43,26 @@ int main(int argc, char** argv) {
     int tests = 0;
     
     // Инициализация
-    dut->rst = 1;
-    dut->clk = 0;
+    dut->rst_i = 1;
+    dut->clk_i = 0;
     dut->eval();
-    dut->clk = 1;
+    dut->clk_i = 1;
     dut->eval();
-    dut->rst = 0;
+    dut->rst_i = 0;
     
     // Тест контрольных кодов
     cout << "=== Testing Control Codes ===" << endl;
     for (int c = 0; c < 4; c++) {
-        dut->data = 0;
-        dut->c = c;
-        dut->de = 0;
+        dut->data_i = 0;
+        dut->control_i = c;
+        dut->data_enable_i = 0;
         
-        dut->clk = 0;
+        dut->clk_i = 0;
         dut->eval();
-        dut->clk = 1;
+        dut->clk_i = 1;
         dut->eval();
         
-        bitset<10> hw_result(dut->tmds);
+        bitset<10> hw_result(dut->tmds_o);
         bitset<10> ref_result = get_expected_tmds(0, c, false);
         
         cout << "Control " << c << ": HW=" << hw_result 
@@ -84,17 +84,17 @@ int main(int argc, char** argv) {
     for (uint8_t data : test_cases) {
         // Даем несколько тактов для стабилизации DC баланса
         for (int i = 0; i < 3; i++) {
-            dut->data = data;
-            dut->c = 0;
-            dut->de = 1;
+            dut->data_i = data;
+            dut->control_i = 0;
+            dut->data_enable_i = 1;
             
-            dut->clk = 0;
+            dut->clk_i = 0;
             dut->eval();
-            dut->clk = 1;
+            dut->clk_i = 1;
             dut->eval();
         }
         
-        bitset<10> hw_result(dut->tmds);
+        bitset<10> hw_result(dut->tmds_o);
         bitset<10> ref_result = get_expected_tmds(data, 0, true);
         
         cout << "Data 0x" << hex << (int)data << ": HW=" << hw_result 
