@@ -5,37 +5,39 @@ FREQ = 25
 YOSYS = yosys
 NEXTPNR = nextpnr-ecp5
 ECPPACK = ecppack
-PROG = openFPGALoader -r -c cmsisdap --freq 500000  --vid=0x1d50 --pid=0x602b  
+PROG = openFPGALoader -r -c cmsisdap --freq 1000000  --vid=0x1d50 --pid=0x602b  
 
-# Source directories
-CORE_DIR = ../../rtl/core/hdmi_kiss
-TOP_DIR = ../../rtl/top/hdmi_kiss
+# Source files
+CORE_DIR = ../../src/components/video/hdmi_kiss
+TOP_DIR = ../../src/systems/hdmi_kiss
 CONSTR = ./hdmi_test.lpf
-TARGET = top_hdmi_test
+TARGET = hdmi_kiss_test
 
 all: $(TARGET).bit
 
-# Простой Yosys скрипт, который читает все файлы
-$(TARGET).json:
+$(TARGET).json: 
+#	 read_verilog $(CORE_DIR)/clock.v; \
+#	yosys -q hdmi_kiss_test.ys
 	$(YOSYS) -p \
-	"read_verilog $(CORE_DIR)/ecp5_pll.v;\
-	 read_verilog $(CORE_DIR)/ecp5_cells.v;\
-	 read_verilog -sv $(CORE_DIR)/sys_pll.sv;\
-	 read_verilog -sv $(CORE_DIR)/video_pll.sv;\
-	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_core.sv;\
-	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_wrapper.sv;\
-	 read_verilog -sv $(CORE_DIR)/tmds_encoder.sv;\
-	 read_verilog -sv $(TOP_DIR)/test_pattern_generator.sv;\
-	 read_verilog -sv $(TOP_DIR)/top_hdmi_test.sv;\
-	 proc; opt; memory; opt; techmap; abc; clean;\
-	 hierarchy -top $(TARGET);\
+	"read_verilog $(CORE_DIR)/ecp5_cells.v; \
+	 read_verilog -sv $(CORE_DIR)/sys_pll.sv; \
+	 read_verilog -sv $(CORE_DIR)/video_pll.sv; \
+	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_core.sv; \
+	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_wrapper.sv; \
+	 read_verilog -sv $(CORE_DIR)/tmds_encoder.sv; \
+	 read_verilog -sv $(TOP_DIR)/test_pattern_generator.sv; \
+	 read_verilog -sv $(TOP_DIR)/hdmi_kiss_test.sv; \
+	 hierarchy -top $(TARGET); \
 	 synth_ecp5 -json $(TARGET).json"
 
-$(TARGET)_out.config: $(TARGET).json $(CONSTR)
+$(TARGET)_out.config: $(TARGET).json
 	$(NEXTPNR) --25k --json $< --lpf $(CONSTR) --textcfg $@ --package $(PACKAGE) --top $(TARGET)
 
 $(TARGET).bit: $(TARGET)_out.config
-	$(ECPPACK) $< $@
+	$(ECPPACK) $<  $@ --svf $(TARGET).svf
+
+ocd: $(TARGET).bit
+	openocd -f icelink.cfg 
 
 program: $(TARGET).bit
 	$(PROG) $<
@@ -43,11 +45,12 @@ program: $(TARGET).bit
 flash: $(TARGET).bit
 	$(PROG) -f $<
 
-
 clean:
-	rm -f *.json *.config *.bin
+	rm -f *.json *.config *.bit *.log *.svf *.bak
 
-.PHONY: all program clean
+rebuild: clean all
+
+.PHONY: all program clean rebuild detect
 
 detect:
 	openFPGALoader --scan-usb
