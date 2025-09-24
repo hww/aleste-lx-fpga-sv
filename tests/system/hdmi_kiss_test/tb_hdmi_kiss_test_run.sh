@@ -5,6 +5,7 @@ echo "=== HDMI Test Simulation ==="
 # Компилируем только основные модули, исключая проблемные обертки
 iverilog -g2012 -DSIMULATION \
     sim_stubs.sv \
+    ../../../src/components/video/hdmi_kiss/ecp5_cells.v \
     ../../../src/components/video/hdmi_kiss/clock.v \
     ../../../src/components/video/hdmi_kiss/dual_port_ram.sv \
     ../../../src/components/video/hdmi_kiss/serializer.sv \

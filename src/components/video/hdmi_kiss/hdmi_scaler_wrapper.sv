@@ -1,6 +1,5 @@
 // =============================================================================
-// HDMI Scaler Wrapper
-// Обёртка для масштабатора видео с TMDS кодированием
+// HDMI Scaler Wrapper - ИСПРАВЛЕННАЯ ВЕРСИЯ
 // =============================================================================
 
 module hdmi_scaler_wrapper #(
@@ -11,9 +10,11 @@ module hdmi_scaler_wrapper #(
     // =========================================================================
     // System Interface
     // =========================================================================
-    input  logic clk_pixel,           // Пиксельная частота (например 27MHz)
-    input  logic clk_pixel_10x,       // Частота в 10 раз выше (например 270MHz)
-    input  logic rst_i,               // Сброс (активный низкий уровень)
+    input  logic src_clk_i,           // Входная тактовая (96MHz)
+    input  logic src_pixel_clk_i,     // Строб входных пикселей (16MHz)
+    input  logic dst_clk_i,           // Выходная тактовая (27MHz)
+    input  logic clk_pixel_10x,       // Частота в 10 раз выше (270MHz)
+    input  logic rst_i,               // Сброс
     
     // =========================================================================
     // Video Input Interface
@@ -43,27 +44,27 @@ module hdmi_scaler_wrapper #(
     logic [9:0] tmds_blue;            // Закодированные TMDS данные синего канала
 
     // =========================================================================
-    // 2. Video Scaling Core
+    // 2. Video Scaling Core - ПРАВИЛЬНОЕ ПОДКЛЮЧЕНИЕ ДОМЕНОВ
     // =========================================================================
     hdmi_scaler_core #(
         .SRC_WIDTH(SRC_WIDTH),      // Ширина входного изображения
         .SRC_HEIGHT(SRC_HEIGHT),    // Высота входного изображения
-        .DATA_WIDTH(DATA_WIDTH),     // Разрядность данных пикселя
-        .V_SCALE(2)                   // Коэффициент вертикального масштабирования
+        .DATA_WIDTH(DATA_WIDTH),    // Разрядность данных пикселя
+        .V_SCALE(2)                 // Коэффициент вертикального масштабирования
     ) scaler_inst (
-        // Clock and Reset
-        .src_clk_i(clk_pixel),        // Тактовая частота источника
-        .src_rst_i(rst_i),            // Сброс источника (активный высокий)
-        .dst_clk_i(clk_pixel),        // Тактовая частота приемника
-        .dst_rst_i(rst_i),            // Сброс приемника (активный высокий)
+        // Clock and Reset - РАЗНЫЕ ДОМЕНЫ!
+        .src_clk_i(src_clk_i),        // Входная тактовая 96MHz
+        .src_rst_i(rst_i),            // Сброс источника
+        .dst_clk_i(dst_clk_i),        // Выходная тактовая 27MHz
+        .dst_rst_i(rst_i),            // Сброс приемника
         
-        // Video Input
-        .src_pixel_valid_i(data_enable),  // Разрешение входных данных
+        // Video Input (домен src_clk_i)
+        .src_pixel_valid_i(data_enable && src_pixel_clk_i),  // Строб + разрешение
         .src_pixel_data_i(pixel_data),    // Входные данные пикселя
         .src_hsync_i(hsync_in),           // Входная горизонтальная синхронизация
         .src_vsync_i(vsync_in),           // Входная вертикальная синхронизация
 
-        // Video Output  
+        // Video Output (домен dst_clk_i)  
         .dst_pixel_valid_o(dst_pixel_valid),  // Разрешение выходных данных
         .dst_pixel_data_o(dst_pixel_data),    // Выходные данные пикселя
         .dst_hsync_o(dst_hsync),              // Выходная горизонтальная синхронизация
@@ -71,53 +72,53 @@ module hdmi_scaler_wrapper #(
     );
 
     // =========================================================================
-    // 3. TMDS Encoding
+    // 3. TMDS Encoding (домен dst_clk_i - 27MHz)
     // =========================================================================
     
     logic [1:0] control;
     assign control = {dst_vsync, dst_hsync};
 
-     // Red Channel TMDS Encoder
+    // Red Channel TMDS Encoder
     tmds_encoder encoder_red (
-        .clk_i(clk_pixel),               // Тактовая частота
-        .rst_i(rst_i),                   // Сброс (активный высокий)
-        .data_i(dst_pixel_data[23:16]),  // Данные красного канала [7:0]
-        .control_i(control),             // Контрольные биты [vsync, hsync]
+        .clk_i(dst_clk_i),               // Тактовая частота 27MHz
+        .rst_i(rst_i),                   // Сброс
+        .data_i(dst_pixel_data[23:16]),  // Данные красного канала
+        .control_i(2'b00),               // Контрольные биты (для blue канала)
         .data_enable_i(dst_pixel_valid), // Разрешение данных
         .tmds_o(tmds_red)                // Выходные TMDS данные
     );
 
     // Green Channel TMDS Encoder  
     tmds_encoder encoder_green (
-        .clk_i(clk_pixel),               // Тактовая частота
-        .rst_i(rst_i),                   // Сброс (активный высокий)
-        .data_i(dst_pixel_data[15:8]),   // Данные зеленого канала [7:0]
-        .control_i(control),             // Контрольные биты [vsync, hsync]
+        .clk_i(dst_clk_i),               // Тактовая частота 27MHz
+        .rst_i(rst_i),                   // Сброс
+        .data_i(dst_pixel_data[15:8]),   // Данные зеленого канала
+        .control_i(2'b00),               // Контрольные биты
         .data_enable_i(dst_pixel_valid), // Разрешение данных
         .tmds_o(tmds_green)              // Выходные TMDS данные
     );
 
-    // Blue Channel TMDS Encoder
+    // Blue Channel TMDS Encoder - здесь контрольные биты!
     tmds_encoder encoder_blue (
-        .clk_i(clk_pixel),               // Тактовая частота
-        .rst_i(rst_i),                   // Сброс (активный высокий)
-        .data_i(dst_pixel_data[7:0]),    // Данные синего канала [7:0]
+        .clk_i(dst_clk_i),               // Тактовая частота 27MHz
+        .rst_i(rst_i),                   // Сброс
+        .data_i(dst_pixel_data[7:0]),    // Данные синего канала
         .control_i(control),             // Контрольные биты [vsync, hsync]
         .data_enable_i(dst_pixel_valid), // Разрешение данных
         .tmds_o(tmds_blue)               // Выходные TMDS данные
     );
 
     // =========================================================================
-    // 4. TMDS Serialization
+    // 4. TMDS Serialization (домен clk_pixel_10x - 270MHz)
     // =========================================================================
     
     // Red Channel Serializer
     serializer #(
         .WIDTH(10)                    // Разрядность входных данных
     ) ser_red (
-        .clk_pixel(clk_pixel),        // Пиксельная тактовая частота
-        .clk_10x(clk_pixel_10x),      // Тактовая частота в 10 раз выше
-        .rst(rst_i),                    // Сброс (активный низкий)
+        .clk_pixel(dst_clk_i),        // Пиксельная тактовая частота 27MHz
+        .clk_10x(clk_pixel_10x),      // Тактовая частота в 10 раз выше 270MHz
+        .rst(rst_i),                  // Сброс
         .parallel_data(tmds_red),     // Параллельные входные данные
         .serial_data(tmds_data[2])    // Последовательные выходные данные
     );
@@ -126,9 +127,9 @@ module hdmi_scaler_wrapper #(
     serializer #(
         .WIDTH(10)                    // Разрядность входных данных
     ) ser_green (
-        .clk_pixel(clk_pixel),        // Пиксельная тактовая частота
-        .clk_10x(clk_pixel_10x),      // Тактовая частота в 10 раз выше
-        .rst(rst_i),                   // Сброс (активный низкий)
+        .clk_pixel(dst_clk_i),        // Пиксельная тактовая частота 27MHz
+        .clk_10x(clk_pixel_10x),      // Тактовая частота в 10 раз выше 270MHz
+        .rst(rst_i),                  // Сброс
         .parallel_data(tmds_green),   // Параллельные входные данные
         .serial_data(tmds_data[1])    // Последовательные выходные данные
     );
@@ -137,16 +138,27 @@ module hdmi_scaler_wrapper #(
     serializer #(
         .WIDTH(10)                    // Разрядность входных данных
     ) ser_blue (
-        .clk_pixel(clk_pixel),        // Пиксельная тактовая частота
-        .clk_10x(clk_pixel_10x),      // Тактовая частота в 10 раз выше
-        .rst(rst_i),                    // Сброс (активный низкий)
+        .clk_pixel(dst_clk_i),        // Пиксельная тактовая частота 27MHz
+        .clk_10x(clk_pixel_10x),      // Тактовая частота в 10 раз выше 270MHz
+        .rst(rst_i),                  // Сброс
         .parallel_data(tmds_blue),    // Параллельные входные данные
         .serial_data(tmds_data[0])    // Последовательные выходные данные
     );
 
     // =========================================================================
-    // 5. Clock Output
+    // 5. Clock Output - ГЕНЕРАЦИЯ ПРАВИЛЬНОГО TMDS CLOCK
     // =========================================================================
-    assign tmds_clock = clk_pixel;    // Прямое подключение тактовой частоты
+    
+    // Генерация тактового сигнала 50% скважности из 270MHz
+    //logic tmds_clk_reg;
+    //always_ff @(posedge clk_pixel_10x or posedge rst_i) begin
+    //    if (rst_i) begin
+    //        tmds_clk_reg <= 1'b0;
+    //    end else begin
+    //        tmds_clk_reg <= ~tmds_clk_reg;  // 270MHz / 2 = 135MHz
+    //    end
+    //end
+    
+    assign tmds_clock = dst_clk_i;
 
 endmodule

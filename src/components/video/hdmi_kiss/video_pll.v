@@ -1,8 +1,8 @@
-module system_pll
+module video_pll
 (
-  input  clkin_25MHz,
-  output clk_100MHz,     // Основная системная частота
-  output clk_16MHz,      // Базовая частота для периферии
+  input  clk_100MHz,     // От system_pll
+  output clk_270MHz,     // Для TMDS сериализации
+  output clk_27MHz,      // Пиксельная частота HDMI
   output locked
 );
     wire int_locked;
@@ -16,25 +16,25 @@ module system_pll
         .DPHASE_SOURCE("DISABLED"),
         .CLKOS_FPHASE(0),
         .CLKOP_FPHASE(0),
-        .CLKOS_CPHASE(3),     // Для 16 MHz
-        .CLKOP_CPHASE(5),     // Для 100 MHz
+        .CLKOS_CPHASE(4),     // Для 27 MHz
+        .CLKOP_CPHASE(2),     // Для 270 MHz
         .OUTDIVIDER_MUXD("DIVD"),
         .OUTDIVIDER_MUXC("DIVC"),
         .CLKOS_ENABLE("ENABLED"),
         .CLKOP_ENABLE("ENABLED"),
-        .CLKOS_DIV(25),       // 400 MHz / 25 = 16 MHz
-        .CLKOP_DIV(4),        // 400 MHz / 4 = 100 MHz
-        .CLKFB_DIV(4),        // 100 MHz / 4 = 25 MHz (feedback)
+        .CLKOS_DIV(10),       // 270 MHz / 10 = 27 MHz
+        .CLKOP_DIV(1),        // 270 MHz напрямую
+        .CLKFB_DIV(10),       // 270 MHz / 10 = 27 MHz (feedback)
         .CLKI_DIV(1),
         .FEEDBK_PATH("CLKOP")
     )
-    pll_system
+    pll_video
     (
-        .CLKI(clkin_25MHz),
-        .CLKFB(clk_100MHz),
-        .CLKOP(clk_100MHz),
-        .CLKOS(clk_16MHz),
-        .CLKOS2(), 
+        .CLKI(clk_100MHz),
+        .CLKFB(clk_270MHz),
+        .CLKOP(clk_270MHz),
+        .CLKOS(clk_27MHz),
+        .CLKOS2(),
         .CLKOS3(),
         .RST(1'b0),
         .STDBY(1'b0),

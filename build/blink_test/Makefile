@@ -18,6 +18,9 @@ ${TARGET}.svf : ${TARGET}.bit
 
 program: ${TARGET}.svf
 	openFPGALoader --vid=0x1d50 --pid=0x602b --freq 500000 -c cmsisdap $(TARGET).bit
+	
+ocd: $(TARGET).bit
+	openocd -f icelink.cfg 
 
 clean:
 	rm -f *.svf *.bit *.config *.ys

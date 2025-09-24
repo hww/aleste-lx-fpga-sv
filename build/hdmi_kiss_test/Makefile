@@ -13,12 +13,13 @@ TOP_DIR = ../../src/systems/hdmi_kiss
 CONSTR = hdmi_kiss_test.lpf
 TARGET = hdmi_kiss_test
 
-all: $(TARGET).bin
+all: $(TARGET).bit
 
 # Простой Yosys скрипт, который читает все файлы
 $(TARGET).json:
 	$(YOSYS)  -q -l yosys.log -p \
 	"read_verilog $(CORE_DIR)/clock.v;\
+	 read_verilog $(CORE_DIR)/video_pll.v;\
 	 read_verilog $(CORE_DIR)/ecp5_cells.v;\
 	 read_verilog -sv $(CORE_DIR)/serializer.sv;\
 	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_core.sv;\
@@ -32,13 +33,22 @@ $(TARGET).json:
 	 synth_ecp5 -json $(TARGET).json"
 
 $(TARGET)_out.config: $(TARGET).json $(CONSTR)
-	$(NEXTPNR) --25k --json $< --lpf $(CONSTR) --textcfg $@ --package $(PACKAGE) --top $(TARGET)
+	$(NEXTPNR) --25k --json $< --lpf $(CONSTR) --textcfg $@ --package $(PACKAGE) --top $(TARGET) --sdc clocks.sdc
 
-$(TARGET).bin: $(TARGET)_out.config
-	$(ECPPACK) $< $@
+$(TARGET).bit: $(TARGET)_out.config
+	$(ECPPACK) $< $@ --svf $(TARGET).svf
 
-program: $(TARGET).bin
+
+$(TARGET).svf: $(TARGET)_out.config
+	$(ECPPACK) $< $@ --svf $(TARGET).svf
+
+program: $(TARGET).bit
 	$(PROG) $<
+config: $(TARGET)_out.config
+	echo done
+	
+ocd: $(TARGET).svf
+	openocd -f icelink.cfg 
 
 clean:
 	rm -f *.json *.config *.bin

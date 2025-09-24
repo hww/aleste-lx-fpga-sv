@@ -15,25 +15,36 @@ module hdmi_kiss_test (
     // =========================================================================
     // 1. Clock Generation
     // =========================================================================
+
     logic pll_locked;
-    logic clk_96m;      // 96MHz - основная тактовая
-    logic clk_270m;     // 270MHz - для DDR serialization
-    logic clk_27m;      // 27MHz - пиксельная частота HDMI
-    logic pixel_clk;    // 16MHz - для PAL генератора
+    logic sys_locked;
+    logic vid_locked;
+    logic clk_100m;        // 100MHz - основная тактовая
+    logic clk_16m;         // 16MHz - cpc 
+    logic clk_270m;        // 270MHz - для DDR serialization
+    logic clk_27m;         // 27MHz - пиксельная частота HDMI
+    logic pixel_clk;       // 16MHz - для PAL генератора
     logic reset_active;
     logic [4:0] clk_div;
 
-    // Используем проверенный PLL из рабочего примера
-    clock working_pll (
-        .clk_25mhz(clk_25mhz),
-        .clk_27mhz(clk_27m),
-        .clk_270mhz(clk_270m),
-        .clk_96mhz(clk_96m),
-        .locked(pll_locked)
+    system_pll sys_pll_inst(
+        .clkin_25MHz(clk_25mhz),
+        .clk_100MHz(clk_100m),
+        .clk_16MHz(clk_16m),
+        .locked(sys_locked)
     );
-   
+
+    video_pll vid_pll_inst(
+        .clk_100MHz(clk_100m),
+        .clk_270MHz(clk_270m),
+        .clk_27MHz(clk_27m),
+        .locked(vid_locked)
+    );
+
+    assign pll_locked = sys_locked & vid_locked;
+
     // Делитель для получения 16MHz из 96MHz (96/6 = 16MHz)
-    always_ff @(posedge clk_96m or posedge rst) begin
+    always_ff @(posedge clk_100m or posedge rst) begin
         if (rst) begin
             clk_div <= 0;
         end else begin
@@ -61,7 +72,7 @@ module hdmi_kiss_test (
     logic src_hsync, src_vsync, src_de;
     
     test_pattern_generator pattern_gen (
-        .clk_i(clk_96m),
+        .clk_i(clk_100m),
         .pixel_clk_i(pixel_clk),
         .rst_i(reset_active),
         .pixel_o(src_pixel_data),
@@ -82,10 +93,12 @@ module hdmi_kiss_test (
         .DATA_WIDTH(24)
     ) wrapper_inst (
         // Clock Inputs (внешние тактовые сигналы)
-        .clk_pixel(clk_27m),          // 27MHz пиксельная частота
-        .clk_pixel_10x(clk_270m),     // 270MHz для сериализации
-        .rst_i(reset_active),        // Активный низкий сброс
-        
+        .rst_i(reset_active),             // Сброс  
+        .src_clk_i(clk_100m),             // 100MHz входная тактовая
+        .src_pixel_clk_i(pixel_clk),      // 16MHz строб пикселей
+        .dst_clk_i(clk_27m),              // 27MHz выходная тактовая
+        .clk_pixel_10x(clk_270m),         // 270MHz для сериализации
+
         // Video Input
         .pixel_data(src_pixel_data),
         .hsync_in(src_hsync),
@@ -105,74 +118,32 @@ module hdmi_kiss_test (
     // 5. DDR Outputs for TMDS Data Lines
     // =========================================================================
     
-    // Red Channel DDR
-    ODDRX1F ddr_red_p (
-        .Q(gpdi_dp[2]),
-        .D0(tmds_data[2]),
-        .D1(tmds_data[2]),
-        .SCLK(clk_270m),
-        .RST(reset_active)
-    );
-    
-    ODDRX1F ddr_red_n (
-        .Q(gpdi_dn[2]),
-        .D0(~tmds_data[2]),
-        .D1(~tmds_data[2]),
-        .SCLK(clk_270m),
-        .RST(reset_active)
+    // Red Channel
+    OBUFDS OBUFDS_red (
+        .I(tmds_data[2]),      // Сериализованные данные от serializer
+        .O(gpdi_dp[2]),        // Выход data+
+        .OB(gpdi_dn[2])        // Выход data- (инвертированный)
     );
 
-    // Green Channel DDR
-    ODDRX1F ddr_green_p (
-        .Q(gpdi_dp[1]),
-        .D0(tmds_data[1]),
-        .D1(tmds_data[1]),
-        .SCLK(clk_270m),
-        .RST(reset_active)
-    );
-    
-    ODDRX1F ddr_green_n (
-        .Q(gpdi_dn[1]),
-        .D0(~tmds_data[1]),
-        .D1(~tmds_data[1]),
-        .SCLK(clk_270m),
-        .RST(reset_active)
+    // Green Channel  
+    OBUFDS OBUFDS_green (
+        .I(tmds_data[1]),      // Сериализованные данные от serializer
+        .O(gpdi_dp[1]),        // Выход data+
+        .OB(gpdi_dn[1])        // Выход data- (инвертированный)
     );
 
-    // Blue Channel DDR
-    ODDRX1F ddr_blue_p (
-        .Q(gpdi_dp[0]),
-        .D0(tmds_data[0]),
-        .D1(tmds_data[0]),
-        .SCLK(clk_270m),
-        .RST(reset_active)
-    );
-    
-    ODDRX1F ddr_blue_n (
-        .Q(gpdi_dn[0]),
-        .D0(~tmds_data[0]),
-        .D1(~tmds_data[0]),
-        .SCLK(clk_270m),
-        .RST(reset_active)
+    // Blue Channel
+    OBUFDS OBUFDS_blue (
+        .I(tmds_data[0]),      // Сериализованные данные от serializer
+        .O(gpdi_dp[0]),        // Выход data+
+        .OB(gpdi_dn[0])        // Выход data- (инвертированный)
     );
 
-    // =========================================================================
-    // 6. DDR Output for TMDS Clock
-    // =========================================================================
-    ODDRX1F ddr_clk_p (
-        .Q(gpdi_dp[3]),
-        .D0(tmds_clock),
-        .D1(tmds_clock),
-        .SCLK(clk_270m),
-        .RST(reset_active)
-    );
-    
-    ODDRX1F ddr_clk_n (
-        .Q(gpdi_dn[3]),
-        .D0(~tmds_clock),
-        .D1(~tmds_clock),
-        .SCLK(clk_270m),
-        .RST(reset_active)
+    // Clock Channel
+    OBUFDS OBUFDS_clock (
+        .I(tmds_clock),        // Тактовый сигнал (27MHz)
+        .O(gpdi_dp[3]),        // Выход data+
+        .OB(gpdi_dn[3])        // Выход data- (инвертированный)
     );
 
 endmodule
