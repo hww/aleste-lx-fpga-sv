@@ -165,6 +165,91 @@ public:
             std::cout << "Missing: " << (expected_size - file_size) << " bytes" << std::endl;
         }
     }
+    void saveHexDump(const std::string &filename, int maxPointsPerLine = 80) const
+    {
+        std::ofstream file(filename);
+        if (!file)
+        {
+            std::cerr << "Error: Cannot open file " << filename << std::endl;
+            return;
+        }
+
+        // Ширина номера строки (десятичный, фиксированная ширина)
+        int lineNumberWidth = 4; // достаточно для 9999 строк
+        if (height >= 10000)
+        {
+            lineNumberWidth = static_cast<int>(std::to_string(height).length());
+        }
+
+        // 6 знакомест на точку + пробел
+        int pointsPerLine = maxPointsPerLine / 7; // 6 символов + 1 пробел
+        
+        if (pointsPerLine <= 0) 
+        {
+            pointsPerLine = 1;
+        }
+
+        bool useTruncation = (pointsPerLine < width);
+
+        for (int y = 0; y < height; y++)
+        {
+            // Номер строки с фиксированной шириной
+            file << std::setw(lineNumberWidth) << std::setfill('0') << y << " ";
+
+            if (!useTruncation)
+            {
+                // Вывод всех точек строки
+                for (int x = 0; x < width; x++)
+                {
+                    const auto &pixel = at(x, y);
+                    file << std::hex << std::uppercase << std::setw(6) 
+                        << std::setfill('0') << pixel.color;
+                    if (x < width - 1)
+                    {
+                        file << " ";
+                    }
+                }
+            }
+            else
+            {
+                // Транкейшн: N/2 от начала и N/2 от конца
+                int firstHalf = pointsPerLine / 2;
+                int secondHalf = pointsPerLine - firstHalf;
+
+                // Первая половина
+                for (int x = 0; x < firstHalf; x++)
+                {
+                    const auto &pixel = at(x, y);
+                    file << std::hex << std::uppercase << std::setw(6) 
+                        << std::setfill('0') << pixel.color << " ";
+                }
+
+                // Многоточие для обозначения пропущенных точек
+                file << ".... ";
+
+                // Вторая половина (от конца строки)
+                for (int x = width - secondHalf; x < width; x++)
+                {
+                    const auto &pixel = at(x, y);
+                    file << std::hex << std::uppercase << std::setw(6) 
+                        << std::setfill('0') << pixel.color;
+                    if (x < width - 1)
+                    {
+                        file << " ";
+                    }
+                }
+            }
+
+            file << std::endl;
+        }
+
+        file.close();
+        
+        std::cout << "Hex dump " << filename << ": " << width << "×" << height 
+                << ", max " << maxPointsPerLine << " chars/line"
+                << (useTruncation ? " (with truncation)" : " (full)") 
+                << std::endl;
+    }
 };
 
 class HDMI_Scaler_Test
@@ -483,6 +568,9 @@ public:
             generate_test_frame(frame_num, input_frame);
             input_frame.savePPM(src_filename);
 
+            std::string src_dumpname = "hdmi_scaler_test_src_frame_" + std::to_string(frame_num) + ".hex";
+            input_frame.saveHexDump(src_dumpname, 128); 
+
             VideoFrame output_frame(DST_TOTAL_WIDTH, DST_TOTAL_HEIGHT);
 
             int cycles = 0;
@@ -526,7 +614,6 @@ public:
                     else
                     {
                         dut->src_pixel_valid_i = 0;
-                        dut->src_pixel_data_i = 0;
                     }
                 }
                 else
@@ -596,6 +683,10 @@ public:
 
             std::string filename = "hdmi_scaler_test_frame_" + std::to_string(frame_num) + ".ppm";
             output_frame.savePPM(filename);
+
+            std::string dumpname = "hdmi_scaler_test_frame_" + std::to_string(frame_num) + ".hex";
+            output_frame.saveHexDump(dumpname, 128); 
+
             analyze_frame(output_frame, frame_num);
             frame_count++;
         }

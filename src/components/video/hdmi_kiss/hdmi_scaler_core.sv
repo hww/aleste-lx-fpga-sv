@@ -90,7 +90,7 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Синхронизация и детектирование фронтов входных синхросигналов
     // ----------------------------------------------------------------------------
-    always_ff @(posedge src_clk_i or posedge src_rst_i) begin
+    always_ff @(posedge src_clk_i) begin
         if (src_rst_i) begin
             src_hsync_ff1 <= 1'b0;
             src_hsync_ff2 <= 1'b0;
@@ -111,7 +111,7 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Счетчик адреса для записи в буфер
     // ----------------------------------------------------------------------------
-    always_ff @(posedge src_clk_i or posedge src_rst_i) begin
+    always_ff @(posedge src_clk_i) begin
         if (src_rst_i) begin
             src_buf_addr <= '0;
         end else if (src_hsync_rise || src_vsync_rise) begin
@@ -129,7 +129,7 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Управление выбором буфера и флагами готовности
     // ----------------------------------------------------------------------------
-    always_ff @(posedge src_clk_i or posedge src_rst_i) begin
+    always_ff @(posedge src_clk_i) begin
         if (src_rst_i) begin
             src_buf_sel <= 1'b0;
             src_buf_ready <= 2'b00;
@@ -156,7 +156,7 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Синхронизация флагов готовности буферов в выходной домен
     // ----------------------------------------------------------------------------
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_buf_ready_ff1 <= 2'b00;
             dst_buf_ready_ff2 <= 2'b00;
@@ -171,7 +171,7 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Синхронизация и детектирование фронтов VSYNC в выходном домене
     // ----------------------------------------------------------------------------
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_src_vsync_ff1 <= 1'b0;
             dst_src_vsync_ff2 <= 1'b0;
@@ -187,7 +187,7 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Синхронизация и детектирование фронтов HSYNC в выходном домене
     // ----------------------------------------------------------------------------
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_src_hsync_ff1 <= 1'b0;
             dst_src_hsync_ff2 <= 1'b0;
@@ -234,11 +234,10 @@ module hdmi_scaler_core #(
     
     dst_state_t dst_state;
     
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_state <= DST_IDLE;
             dst_buf_sel <= 1'b0;
-            dst_line_repeat_count <= 2'b0;
             dst_frame_start <= 1'b0;
             dst_line_start <= 1'b0;
         end else if (dst_clke_i) begin
@@ -247,18 +246,15 @@ module hdmi_scaler_core #(
             
             case (dst_state)
                 DST_IDLE: begin
-                    // Ожидание начала кадра
                     if (dst_vsync_rise) begin
                         dst_state <= DST_WAIT_BUFFER;
-                        // Выбор буфера с доступными данными
                         dst_buf_sel <= dst_buf_ready[0] ? 1'b0 : 
-                                      dst_buf_ready[1] ? 1'b1 : 1'b0;
+                                    dst_buf_ready[1] ? 1'b1 : 1'b0;
                         dst_frame_start <= 1'b1;
                     end
                 end
                 
                 DST_WAIT_BUFFER: begin
-                    // Ожидание готовности выбранного буфера
                     if (dst_buf_ready[dst_buf_sel]) begin
                         dst_state <= DST_ACTIVE;
                         dst_line_start <= 1'b1;
@@ -266,18 +262,14 @@ module hdmi_scaler_core #(
                 end
                 
                 DST_ACTIVE: begin
-                    // Активная передача видео данных
                     if (dst_frame_end) begin
-                        // Конец кадра
                         dst_state <= DST_IDLE;
                     end else if (dst_vsync_rise) begin
-                        // Начало нового кадра во время активной передачи
                         dst_state <= DST_WAIT_BUFFER;
                         dst_buf_sel <= dst_buf_ready[0] ? 1'b0 : 
                                     dst_buf_ready[1] ? 1'b1 : dst_buf_sel;
                         dst_frame_start <= 1'b1;
                     end else if (dst_line_end) begin
-                        // Конец строки
                         dst_line_start <= 1'b1;
                         
                         // Переключение буфера после V_SCALE повторений строки
@@ -295,7 +287,7 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Горизонтальный счетчик (с учетом разрешения тактирования)
     // ----------------------------------------------------------------------------
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_x_count <= '0;
         end else if (dst_clke_i) begin
@@ -312,7 +304,7 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Вертикальный счетчик (с учетом разрешения тактирования)
     // ----------------------------------------------------------------------------
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_y_count <= '0;
         end else if (dst_clke_i) begin
@@ -337,12 +329,15 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Счетчик повторений строк для вертикального масштабирования
     // ----------------------------------------------------------------------------
-    /*
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_line_repeat_count <= '0;
         end else if (dst_clke_i) begin
-            if (dst_line_start) begin
+            if (dst_frame_start) begin
+                // Сброс при начале кадра
+                dst_line_repeat_count <= '0;
+            end else if (dst_line_end) begin
+                // В конце строки увеличиваем счетчик или сбрасываем
                 if (dst_line_repeat_count == V_SCALE - 1) begin
                     dst_line_repeat_count <= '0;
                 end else begin
@@ -351,13 +346,13 @@ module hdmi_scaler_core #(
             end
         end
     end
-      */
+
     // ----------------------------------------------------------------------------
     // Счетчик повторений пикселов для горизонтального масштабирования
     // ----------------------------------------------------------------------------  
     logic dst_pixel_toggle;  // 0=повторять пиксель, 1=брать следующий
 
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_pixel_toggle <= 0;
         end else if (dst_clke_i) begin
@@ -373,7 +368,7 @@ module hdmi_scaler_core #(
     // Адресация буфера для чтения
     // ----------------------------------------------------------------------------
 
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_buf_addr <= '0;
         end else if (dst_clke_i) begin
@@ -392,7 +387,7 @@ module hdmi_scaler_core #(
     assign v_active_end = v_shift_i + (SRC_HEIGHT * V_SCALE);
     
     // Генерация предварительного сигнала валидности пикселя
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_pixel_valid_pre <= 0;
         end else if (dst_clke_i) begin 
@@ -416,7 +411,7 @@ module hdmi_scaler_core #(
     // ----------------------------------------------------------------------------
     // Регистр валидности выходного пикселя
     // ----------------------------------------------------------------------------
-    always_ff @(posedge dst_clk_i or posedge dst_rst_i) begin
+    always_ff @(posedge dst_clk_i) begin
         if (dst_rst_i) begin
             dst_pixel_valid_o <= 1'b0;
         end else if (dst_clke_i) begin

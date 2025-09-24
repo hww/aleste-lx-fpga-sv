@@ -19,7 +19,7 @@ module hdmi_kiss_test (
     logic clk_96m;      // 96MHz - основная тактовая
     logic clk_270m;     // 270MHz - для DDR serialization
     logic clk_27m;      // 27MHz - пиксельная частота HDMI
-    logic clk_16mhz;    // 16MHz - для PAL генератора
+    logic pixel_clk;    // 16MHz - для PAL генератора
     logic reset_active;
     logic [4:0] clk_div;
 
@@ -40,7 +40,7 @@ module hdmi_kiss_test (
             clk_div <= clk_div + 1;
         end
     end
-    assign clk_16mhz = (clk_div < 3'd3);  // Скважность 50%
+    assign pixel_clk = (clk_div == 3'd3);  // Скважность 50%
 
     // Сбросная логика
     assign reset_active = rst | ~pll_locked;
@@ -61,12 +61,13 @@ module hdmi_kiss_test (
     logic src_hsync, src_vsync, src_de;
     
     test_pattern_generator pattern_gen (
-        .clk_16mhz(clk_16mhz),
-        .rst(reset_active),
-        .pixel(src_pixel_data),
-        .hsync(src_hsync),
-        .vsync(src_vsync),
-        .de(src_de)
+        .clk_i(clk_96m),
+        .pixel_clk_i(pixel_clk),
+        .rst_i(reset_active),
+        .pixel_o(src_pixel_data),
+        .hsync_o(src_hsync),
+        .vsync_o(src_vsync),
+        .pixel_clk_o(src_de)
     );
 
     // =========================================================================
