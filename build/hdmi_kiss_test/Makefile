@@ -18,7 +18,7 @@ all: $(TARGET).bit
 # Простой Yosys скрипт, который читает все файлы
 $(TARGET).json:
 	$(YOSYS)  -q -l yosys.log -p \
-	"read_verilog $(CORE_DIR)/clock.v;\
+	"read_verilog $(CORE_DIR)/system_pll.v;\
 	 read_verilog $(CORE_DIR)/video_pll.v;\
 	 read_verilog $(CORE_DIR)/ecp5_cells.v;\
 	 read_verilog -sv $(CORE_DIR)/serializer.sv;\

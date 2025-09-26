@@ -1,11 +1,11 @@
 module test_pattern_generator (
     input  logic rst_i,          // Сброс
     input  logic clk_i,
-    input  logic pixel_clk_i,  // Тактовая частота 16 MHz (PAL pixel clock)
+    input  logic pixel_clk_i,    // Тактовая частота 16 MHz (PAL pixel clock)
     output logic [23:0] pixel_o, // Выходной пиксель
-    output logic hsync_o,        // Горизонтальная синхронизация
-    output logic vsync_o,        // Вертикальная синхронизация
-    output logic pixel_clk_o   // Разрешение данных
+    output logic hsync_o,        // Горизонтальная синхронизация (активный 1)
+    output logic vsync_o,        // Вертикальная синхронизация (активный 1)
+    output logic pixel_clk_o     // Разрешение данных
 );
     // Параметры прогрессивной PAL видео режима (16 MHz)
     localparam H_ACTIVE = 640;     // 40µs × 16MHz
@@ -47,11 +47,12 @@ module test_pattern_generator (
 
     logic de;
 
-    // Генерация синхросигналов PAL
-    assign hsync_o = ~((h_count >= H_ACTIVE + H_FP) && 
+    // Генерация горизонтального синхросигнала PAL (active 1)
+    assign hsync_o = ((h_count >= H_ACTIVE + H_FP) && 
                     (h_count < H_ACTIVE + H_FP + H_SYNC));
     
-    assign vsync_o = ~((v_count >= V_ACTIVE + V_FP) && 
+    // Генерация вертикального синхросигнала PAL (active 1)
+    assign vsync_o = ((v_count >= V_ACTIVE + V_FP) && 
                     (v_count < V_ACTIVE + V_FP + V_SYNC));
     
     assign de = (h_count < H_ACTIVE) && (v_count < V_ACTIVE);

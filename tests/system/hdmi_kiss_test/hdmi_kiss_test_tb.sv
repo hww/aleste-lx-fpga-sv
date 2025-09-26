@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module tb_top_hdmi_test;
+module hdmi_kiss_test_tb;
 
     logic clk_25mhz;
     logic rst;
@@ -8,15 +8,23 @@ module tb_top_hdmi_test;
     logic led_r_o;
     logic led_g_o;
     logic led_b_o;
-    
+    logic debug_0;
+    logic debug_1;
+    logic debug_2;
+    logic debug_3;
+    logic debug_4;
+    logic debug_5;
+    logic debug_6;
+    logic debug_7;
+
     // Генерация тактовой 25MHz
     always #20 clk_25mhz = ~clk_25mhz;
     
     hdmi_kiss_test dut (.*);
     
     initial begin
-        $dumpfile("hdmi_kiss_test.vcd");
-        $dumpvars(0, tb_top_hdmi_test);  // Записываем все сигналы
+        $dumpfile("hdmi_kiss_test.fst");
+        $dumpvars(0, hdmi_kiss_test_tb);  // Записываем все сигналы
         
         // Инициализация
         clk_25mhz = 0;

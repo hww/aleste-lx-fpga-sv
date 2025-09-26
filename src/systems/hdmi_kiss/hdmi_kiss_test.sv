@@ -9,49 +9,55 @@ module hdmi_kiss_test (
     output logic [3:0] gpdi_dn,  // TMDS data- [2:0]=RGB, [3]=CLK  
     output logic led_r_o,        // Светодиод мигалка
     output logic led_g_o,        // Индикация Hsync
-    output logic led_b_o         // Индикация Vsync
+    output logic led_b_o,        // Индикация Vsync
+
+    output logic debug_0,
+    output logic debug_1,
+    output logic debug_2,
+    output logic debug_3,
+    output logic debug_4,
+    output logic debug_5,
+    output logic debug_6,
+    output logic debug_7
 );
 
     // =========================================================================
     // 1. Clock Generation
     // =========================================================================
 
-    logic pll_locked;
     logic sys_locked;
     logic vid_locked;
-    logic clk_100m;        // 100MHz - основная тактовая
-    logic clk_16m;         // 16MHz - cpc 
-    logic clk_270m;        // 270MHz - для DDR serialization
-    logic clk_27m;         // 27MHz - пиксельная частота HDMI
+    logic pll_locked;
+
+    logic clk_100M;        // 100MHz - основная тактовая
+    logic clk_32M;         // 32MHz - cpc native 
+    logic clk_16M;         // 16MHz - cpc 
+    logic clk_270M;        // 270MHz - для DDR serialization
+    logic clk_27M;         // 27MHz - пиксельная частота HDMI
     logic pixel_clk;       // 16MHz - для PAL генератора
     logic reset_active;
     logic [4:0] clk_div;
 
     system_pll sys_pll_inst(
-        .clkin_25MHz(clk_25mhz),
-        .clk_100MHz(clk_100m),
-        .clk_16MHz(clk_16m),
+        .rst(rst),
+        .clkin_25M(clk_25mhz),
+        .clk_100M(clk_100M),
+        .clk_32M(clk_32M),
+        .clk_16M(clk_16M),
         .locked(sys_locked)
     );
 
     video_pll vid_pll_inst(
-        .clk_100MHz(clk_100m),
-        .clk_270MHz(clk_270m),
-        .clk_27MHz(clk_27m),
+        .rst(rst),
+        .clkin_25M(clk_25mhz),
+        .clk_270M(clk_270M),
+        .clk_27M(clk_27M),
         .locked(vid_locked)
     );
 
     assign pll_locked = sys_locked & vid_locked;
 
-    // Делитель для получения 16MHz из 96MHz (96/6 = 16MHz)
-    always_ff @(posedge clk_100m or posedge rst) begin
-        if (rst) begin
-            clk_div <= 0;
-        end else begin
-            clk_div <= clk_div + 1;
-        end
-    end
-    assign pixel_clk = (clk_div == 3'd3);  // Скважность 50%
+    assign pixel_clk = clk_16M; 
 
     // Сбросная логика
     assign reset_active = rst | ~pll_locked;
@@ -65,6 +71,15 @@ module hdmi_kiss_test (
         .led_o(led_r_o)
     );
 
+    assign debug_0 = clk_27M;
+    assign debug_1 = vid_locked; 
+    assign debug_2 = clk_32M;
+    assign debug_3 = pixel_clk;
+    assign debug_4 = led_r_o;
+    assign debug_5 = led_r_o;
+    assign debug_6 = led_r_o;
+    assign debug_7 = led_r_o;
+
     // =========================================================================
     // 3. Test Pattern Generation (16MHz PAL)
     // =========================================================================
@@ -72,7 +87,7 @@ module hdmi_kiss_test (
     logic src_hsync, src_vsync, src_de;
     
     test_pattern_generator pattern_gen (
-        .clk_i(clk_100m),
+        .clk_i(clk_32M),
         .pixel_clk_i(pixel_clk),
         .rst_i(reset_active),
         .pixel_o(src_pixel_data),
@@ -94,10 +109,10 @@ module hdmi_kiss_test (
     ) wrapper_inst (
         // Clock Inputs (внешние тактовые сигналы)
         .rst_i(reset_active),             // Сброс  
-        .src_clk_i(clk_100m),             // 100MHz входная тактовая
+        .src_clk_i(clk_32M),              // 32MHz входная тактовая
         .src_pixel_clk_i(pixel_clk),      // 16MHz строб пикселей
-        .dst_clk_i(clk_27m),              // 27MHz выходная тактовая
-        .clk_pixel_10x(clk_270m),         // 270MHz для сериализации
+        .dst_clk_i(clk_27M),              // 27MHz выходная тактовая
+        .clk_pixel_10x(clk_270M),         // 270MHz для сериализации
 
         // Video Input
         .pixel_data(src_pixel_data),

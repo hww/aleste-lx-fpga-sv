@@ -149,16 +149,6 @@ module hdmi_scaler_wrapper #(
     // 5. Clock Output - ГЕНЕРАЦИЯ ПРАВИЛЬНОГО TMDS CLOCK
     // =========================================================================
     
-    // Генерация тактового сигнала 50% скважности из 270MHz
-    //logic tmds_clk_reg;
-    //always_ff @(posedge clk_pixel_10x or posedge rst_i) begin
-    //    if (rst_i) begin
-    //        tmds_clk_reg <= 1'b0;
-    //    end else begin
-    //        tmds_clk_reg <= ~tmds_clk_reg;  // 270MHz / 2 = 135MHz
-    //    end
-    //end
-    
     assign tmds_clock = dst_clk_i;
 
 endmodule
