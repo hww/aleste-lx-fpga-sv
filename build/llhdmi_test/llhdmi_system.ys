@@ -1,0 +1,8 @@
+read_verilog ../../src/systems/llhdmi/llhdmi_system.v
+read_verilog ../../src/components/video/llhdmi/llhdmi.v
+read_verilog ../../src/components/video/llhdmi/vgatestsrc.v
+read_verilog ../../src/components/video/llhdmi/tmds_encoder.v
+read_verilog ../../src/components/video/llhdmi/clock.v
+read_verilog ../../src/components/video/llhdmi/OBUFDS.v
+hierarchy -top llhdmi_system
+synth_ecp5 -json llhdmi_system.json
