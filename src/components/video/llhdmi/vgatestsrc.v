@@ -35,257 +35,262 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-`default_nettype	none
-//
-module	vgatestsrc(i_pixclk, i_reset,
-		// External connections
-		i_width, i_height,
-		i_rd, i_newline, i_newframe,
-		// VGA connections
-		o_pixel);
-	parameter	BITS_PER_COLOR = 4,
-			HW=12, VW=12;
-		//HW=13,VW=11;
-	localparam	BPC = BITS_PER_COLOR,
-			BITS_PER_PIXEL = 3 * BPC,
-			BPP = BITS_PER_PIXEL;
-	//
-	input	wire			i_pixclk, i_reset;
-	input	wire	[HW-1:0]	i_width;
-	input	wire	[VW-1:0]	i_height;
-	//
-	input	wire		i_rd, i_newline, i_newframe;
-	//
-	output	reg	[(BPP-1):0]	o_pixel;
+`default_nettype none
 
+module vgatestsrc #(
+    parameter BITS_PER_COLOR = 4,    // Bits per color channel (R, G, or B)
+    parameter H_WIDTH        = 12,   // Bit width for horizontal counter
+    parameter V_WIDTH        = 12,   // Bit width for vertical counter
+    parameter FRAC_BITS      = 16    // Fractional bits for gradient calculation
+)(
+    // Clock and reset
+    input  wire                 i_pixclk,
+    input  wire                 i_reset,
+    
+    // Screen dimensions
+    input  wire [H_WIDTH-1:0]   i_width,
+    input  wire [V_WIDTH-1:0]   i_height,
+    
+    // Control signals
+    input  wire                 i_rd,        // Read enable (pixel valid)
+    input  wire                 i_newline,   // End of line pulse
+    input  wire                 i_newframe,  // End of frame pulse
+    
+    // Pixel output
+    output reg  [3*BITS_PER_COLOR-1:0] o_pixel
+);
 
+    // Local parameters for better readability
+    localparam BPC = BITS_PER_COLOR;
+    localparam BPP = 3 * BPC;  // Total bits per pixel (R+G+B)
 
-	wire	[BPP-1:0]	white, black, purplish_blue, purple, dark_gray,
-				darkest_gray, mid_white, mid_cyan, mid_magenta,
-				mid_red, mid_green, mid_blue, mid_yellow;
-	wire	[BPC-1:0]	midv, mid_off;
+    // Color definitions
+    wire [BPP-1:0] white, black, purplish_blue, purple, dark_gray,
+                   darkest_gray, mid_white, mid_cyan, mid_magenta,
+                   mid_red, mid_green, mid_blue, mid_yellow;
+    
+    wire [BPC-1:0] mid_value, zero_value;
 
-	assign	midv    = { 2'b11, {(BPC-2){1'b0}} };
-	assign	mid_off = { (BPC){1'b0} };
+    assign mid_value  = {2'b11, {(BPC-2){1'b0}}};  // Middle intensity value
+    assign zero_value = {BPC{1'b0}};               // Zero intensity
 
-	assign	white = {(BPP){1'b1}};
-	assign	black = {(BPP){1'b0}};
-	assign	purplish_blue = {
-				{(BPC){1'b0}},
-				3'b001,  {(BPC-3){1'b0}},
-				2'b01, {(BPC-2){1'b0}} };
-	assign	purple = { {2'b00, {(BPC-2){1'b1}} }, {(BPC){1'b0}},
-			{ 1'b0, {(BPC-1){1'b1}} } };
+    // Basic colors
+    assign white         = {BPP{1'b1}};
+    assign black         = {BPP{1'b0}};
+    assign purplish_blue = {zero_value, {3'b001, {(BPC-3){1'b0}}}, {2'b01, {(BPC-2){1'b0}}}};
+    assign purple        = {{2'b00, {(BPC-2){1'b1}}}, zero_value, {1'b0, {(BPC-1){1'b1}}}};
+    
+    // Gray scales
+    assign dark_gray     = {3{{4'b0010, {(BPC-4){1'b0}}}}};
+    assign darkest_gray  = {3{{4'b0001, {(BPC-4){1'b0}}}}};
+    
+    // Mid-intensity colors
+    assign mid_white    = {mid_value, mid_value, mid_value};
+    assign mid_yellow   = {mid_value, mid_value, zero_value};
+    assign mid_red      = {mid_value, zero_value, zero_value};
+    assign mid_green    = {zero_value, mid_value, zero_value};
+    assign mid_blue     = {zero_value, zero_value, mid_value};
+    assign mid_cyan     = {zero_value, mid_value, mid_value};
+    assign mid_magenta  = {mid_value, zero_value, mid_value};
 
-	assign	dark_gray    = {(3){  { 4'b0010, {(BPC-4){1'b0}} } }};
-	assign	darkest_gray = {(3){  { 4'b0001, {(BPC-4){1'b0}} } }};
+    // Position counters and registers
+    reg [H_WIDTH-1:0] h_pos, h_edge;
+    reg [V_WIDTH-1:0] v_pos, v_edge;
+    reg [3:0] v_line_segment, h_bar_segment;
+    reg line_active;
 
-	assign	mid_white   = { midv,    midv,    midv    };
-	assign	mid_yellow  = { midv,    midv,    mid_off };
-	assign	mid_red     = { midv,    mid_off, mid_off };
-	assign	mid_green   = { mid_off, midv,    mid_off };
-	assign	mid_blue    = { mid_off, mid_off, midv    };
-	assign	mid_cyan    = { mid_off, midv,    midv    };
-	assign	mid_magenta = { midv,    mid_off, midv    };
+    // Line active flag (reset at start of frame/line, set when drawing)
+    always @(posedge i_pixclk) begin
+        if (i_reset || i_newframe || i_newline) begin
+            line_active <= 1'b0;
+        end else if (i_rd) begin
+            line_active <= 1'b1;
+        end
+    end
 
-	reg	[HW-1:0]	hpos, hedge;
-	reg	[VW-1:0]	ypos, yedge;
-	reg	[3:0]		yline, hbar;
-	//
-	//
-	// 1 Border
-	// 8 BARS
-	// 1 short bar
-	// 3 fat bars
-	// 1 border
-	// 1 gradient bar
-	// 1 border
-	//
-	reg	dline;
-	always @(posedge i_pixclk)
-	if ((i_reset)||(i_newframe)||(i_newline))
-		dline <= 1'b0;
-	else if (i_rd)
-		dline <= 1'b1;
-	
-	always @(posedge i_pixclk)
-	if ((i_reset)||(i_newframe))
-	begin
-		ypos  <= 0;
-		yline <= 0;
-		yedge <= { 4'h0, i_height[(VW-1):4] };
-	end else if (i_newline)
-	begin
-		ypos <= ypos + { {(VW-1){1'h0}}, dline };
-		if (ypos >= yedge)
-		begin
-			yline <= yline + 1'b1;
-			yedge <= yedge + { 4'h0, i_height[(VW-1):4] };
-		end
-	end
+    // Vertical position and line segment counter
+    always @(posedge i_pixclk) begin
+        if (i_reset || i_newframe) begin
+            v_pos          <= 0;
+            v_line_segment <= 0;
+            v_edge         <= {4'h0, i_height[V_WIDTH-1:4]}; // Divide by 16
+        end else if (i_newline) begin
+            v_pos <= v_pos + {{(V_WIDTH-1){1'b0}}, line_active};
+            
+            if (v_pos >= v_edge) begin
+                v_line_segment <= v_line_segment + 1'b1;
+                v_edge <= v_edge + {4'h0, i_height[V_WIDTH-1:4]};
+            end
+        end
+    end
 
-	initial	hpos  = 0;
-	initial	hbar  = 0;
-	initial	hedge = 0; // { 4'h0, i_width[(HW-1):4] };
-	always @(posedge i_pixclk)
-	if ((i_reset)||(i_newline))
-	begin
-		hpos <= 0;
-		hbar <= 0;
-		hedge <= { 4'h0, i_width[(HW-1):4] };
-	end else if (i_rd)
-	begin
-		hpos <= hpos + 1'b1;
-		if (hpos >= hedge)
-		begin
-			hbar <= hbar + 1'b1;
-			hedge <= hedge + { 4'h0, i_width[(HW-1):4] };
-		end
-	end
+    // Horizontal position and bar segment counter
+    always @(posedge i_pixclk) begin
+        if (i_reset || i_newline) begin
+            h_pos          <= 0;
+            h_bar_segment  <= 0;
+            h_edge         <= {4'h0, i_width[H_WIDTH-1:4]}; // Divide by 16
+        end else if (i_rd) begin
+            h_pos <= h_pos + 1'b1;
+            
+            if (h_pos >= h_edge) begin
+                h_bar_segment <= h_bar_segment + 1'b1;
+                h_edge <= h_edge + {4'h0, i_width[H_WIDTH-1:4]};
+            end
+        end
+    end
 
-	reg	[BPP-1:0]	topbar, midbar, fatbar, gradient, pattern;
-	always @(posedge i_pixclk)
-	case(hbar[3:0])
-	4'h0: topbar <= black;
-	4'h1: topbar <= mid_white;
-	4'h2: topbar <= mid_white;
-	4'h3: topbar <= mid_yellow;
-	4'h4: topbar <= mid_yellow;
-	4'h5: topbar <= mid_cyan;
-	4'h6: topbar <= mid_cyan;
-	4'h7: topbar <= mid_green;
-	4'h8: topbar <= mid_green;
-	4'h9: topbar <= mid_magenta;
-	4'ha: topbar <= mid_magenta;
-	4'hb: topbar <= mid_red;
-	4'hc: topbar <= mid_red;
-	4'hd: topbar <= mid_blue;
-	4'he: topbar <= mid_blue;
-	4'hf: topbar <= black;
-	endcase
+    // Color bar patterns
+    reg [BPP-1:0] top_bar_color, mid_bar_color, fat_bar_color, gradient_color, final_pattern;
 
-	always @(posedge i_pixclk)
-	case(hbar[3:0])
-	4'h0: midbar <= black;
-	4'h1: midbar <= mid_blue;
-	4'h2: midbar <= mid_blue;
-	4'h3: midbar <= black;
-	4'h4: midbar <= black;
-	4'h5: midbar <= mid_magenta;
-	4'h6: midbar <= mid_magenta;
-	4'h7: midbar <= black;
-	4'h8: midbar <= black;
-	4'h9: midbar <= mid_cyan;
-	4'ha: midbar <= mid_cyan;
-	4'hb: midbar <= black;
-	4'hc: midbar <= black;
-	4'hd: midbar <= mid_white;
-	4'he: midbar <= mid_white;
-	4'hf: midbar <= black;
-	endcase
+    // Top color bar pattern (16 segments)
+    always @(posedge i_pixclk) begin
+        case (h_bar_segment)
+            4'h0: top_bar_color <= black;
+            4'h1: top_bar_color <= mid_white;
+            4'h2: top_bar_color <= mid_white;
+            4'h3: top_bar_color <= mid_yellow;
+            4'h4: top_bar_color <= mid_yellow;
+            4'h5: top_bar_color <= mid_cyan;
+            4'h6: top_bar_color <= mid_cyan;
+            4'h7: top_bar_color <= mid_green;
+            4'h8: top_bar_color <= mid_green;
+            4'h9: top_bar_color <= mid_magenta;
+            4'ha: top_bar_color <= mid_magenta;
+            4'hb: top_bar_color <= mid_red;
+            4'hc: top_bar_color <= mid_red;
+            4'hd: top_bar_color <= mid_blue;
+            4'he: top_bar_color <= mid_blue;
+            4'hf: top_bar_color <= black;
+        endcase
+    end
 
-	always @(posedge i_pixclk)
-	case(hbar[3:0])
-	4'h0: fatbar <= black;
-	4'h1: fatbar <= purplish_blue;
-	4'h2: fatbar <= purplish_blue;
-	4'h3: fatbar <= purplish_blue;
-	4'h4: fatbar <=	white;
-	4'h5: fatbar <= white;
-	4'h6: fatbar <= white;
-	4'h7: fatbar <= purple;
-	4'h8: fatbar <= purple;
-	4'h9: fatbar <= purple;
-	4'ha: fatbar <= darkest_gray;
-	4'hb: fatbar <= black;
-	4'hc: fatbar <= dark_gray;
-	4'hd: fatbar <= darkest_gray;
-	4'he: fatbar <= black;
-	4'hf: fatbar <= black;
-	endcase
+    // Middle color bar pattern
+    always @(posedge i_pixclk) begin
+        case (h_bar_segment)
+            4'h0: mid_bar_color <= black;
+            4'h1: mid_bar_color <= mid_blue;
+            4'h2: mid_bar_color <= mid_blue;
+            4'h3: mid_bar_color <= black;
+            4'h4: mid_bar_color <= black;
+            4'h5: mid_bar_color <= mid_magenta;
+            4'h6: mid_bar_color <= mid_magenta;
+            4'h7: mid_bar_color <= black;
+            4'h8: mid_bar_color <= black;
+            4'h9: mid_bar_color <= mid_cyan;
+            4'ha: mid_bar_color <= mid_cyan;
+            4'hb: mid_bar_color <= black;
+            4'hc: mid_bar_color <= black;
+            4'hd: mid_bar_color <= mid_white;
+            4'he: mid_bar_color <= mid_white;
+            4'hf: mid_bar_color <= black;
+        endcase
+    end
 
-	reg	[(HW-1):0]	last_width;
-	always @(posedge i_pixclk)
-		last_width <= i_width;
+    // Fat color bar pattern
+    always @(posedge i_pixclk) begin
+        case (h_bar_segment)
+            4'h0: fat_bar_color <= black;
+            4'h1: fat_bar_color <= purplish_blue;
+            4'h2: fat_bar_color <= purplish_blue;
+            4'h3: fat_bar_color <= purplish_blue;
+            4'h4: fat_bar_color <= white;
+            4'h5: fat_bar_color <= white;
+            4'h6: fat_bar_color <= white;
+            4'h7: fat_bar_color <= purple;
+            4'h8: fat_bar_color <= purple;
+            4'h9: fat_bar_color <= purple;
+            4'ha: fat_bar_color <= darkest_gray;
+            4'hb: fat_bar_color <= black;
+            4'hc: fat_bar_color <= dark_gray;
+            4'hd: fat_bar_color <= darkest_gray;
+            4'he: fat_bar_color <= black;
+            4'hf: fat_bar_color <= black;
+        endcase
+    end
 
-	// Attempt to discover 1/i_width in h_step
-	localparam	FRACB=16;
-	//
-	reg	[(FRACB-1):0]	hfrac, h_step;
-	always @(posedge i_pixclk)
-	if ((i_reset)||(i_newline))
-		hfrac <= 0;
-	else if (i_rd)
-		hfrac <= hfrac + h_step;
+    // Gradient generation
+    reg [H_WIDTH-1:0] last_width;
+    reg [FRAC_BITS-1:0] h_fraction, h_step;
+    
+    always @(posedge i_pixclk) begin
+        last_width <= i_width;
+    end
 
-	always @(posedge i_pixclk)
-	if ((i_reset)||(i_width != last_width))
-		h_step <= 1;
-	else if ((i_newline)&&(hfrac > 0))
-	begin
-		if (hfrac < {(FRACB){1'b1}} - { {(FRACB-HW){1'b0}}, i_width })
-			h_step <= h_step + 1'b1;
-		else if (hfrac < { {(FRACB-HW){1'b0}}, i_width })
-			h_step <= h_step - 1'b1;
-	end
+    // Calculate step size for gradient (1/width approximation)
+    always @(posedge i_pixclk) begin
+        if (i_reset || i_width != last_width) begin
+            h_step <= 1;
+        end else if (i_newline && h_fraction > 0) begin
+            if (h_fraction < {FRAC_BITS{1'b1}} - {{(FRAC_BITS-H_WIDTH){1'b0}}, i_width}) begin
+                h_step <= h_step + 1'b1;
+            end else if (h_fraction < {{(FRAC_BITS-H_WIDTH){1'b0}}, i_width}) begin
+                h_step <= h_step - 1'b1;
+            end
+        end
+    end
 
-	always @(posedge i_pixclk)
-	case(hfrac[FRACB-1:FRACB-4])
-	4'h0: gradient <= black;
-	// Red
-	4'h1: gradient <= { 1'b0, hfrac[(FRACB-5):(FRACB-3-BPC)], {(2){mid_off}} };
-	4'h2: gradient <= { 1'b1, hfrac[(FRACB-5):(FRACB-3-BPC)], {(2){mid_off}} };
-	4'h3: gradient <= black;
-	// Green
-	4'h4: gradient <= { mid_off, 1'b0, hfrac[(FRACB-5):(FRACB-3-BPC)], mid_off };
-	4'h5: gradient <= { mid_off, 1'b1, hfrac[(FRACB-5):(FRACB-3-BPC)], mid_off };
-	4'h6: gradient <= black;
-	// Blue
-	4'h7: gradient <= { {(2){mid_off}}, 1'b0, hfrac[(FRACB-5):(FRACB-3-BPC)] };
-	4'h8: gradient <= { {(2){mid_off}}, 1'b1, hfrac[(FRACB-5):(FRACB-3-BPC)] };
-	4'h9: gradient <= black;
-	// Gray
-	4'ha: gradient <= {(3){ 2'b00, hfrac[(FRACB-5):(FRACB-2-BPC)] }};
-	4'hb: gradient <= {(3){ 2'b01, hfrac[(FRACB-5):(FRACB-2-BPC)] }};
-	4'hc: gradient <= {(3){ 2'b10, hfrac[(FRACB-5):(FRACB-2-BPC)] }};
-	4'hd: gradient <= {(3){ 2'b11, hfrac[(FRACB-5):(FRACB-2-BPC)] }};
-	4'he: gradient <= black;
-	//
-	4'hf: gradient <= black;
-	endcase
+    // Fractional position counter for gradient
+    always @(posedge i_pixclk) begin
+        if (i_reset || i_newline) begin
+            h_fraction <= 0;
+        end else if (i_rd) begin
+            h_fraction <= h_fraction + h_step;
+        end
+    end
 
-	always @(posedge i_pixclk)
-	case(yline)
-	4'h0: pattern <= black;
-	4'h1: pattern <= topbar; //
-	4'h2: pattern <= topbar;
-	4'h3: pattern <= topbar;
-	4'h4: pattern <= topbar;
-	4'h5: pattern <= topbar;
-	4'h6: pattern <= topbar;
-	4'h7: pattern <= topbar;
-	4'h8: pattern <= topbar;
-	4'h9: pattern <= midbar; //
-	4'ha: pattern <= fatbar; //
-	4'hb: pattern <= fatbar;
-	4'hc: pattern <= fatbar;
-	4'hd: pattern <= black;
-	4'he: pattern <= gradient;
-	4'hf: pattern <= black;
-	endcase
+    // Gradient color selection based on fractional position
+    always @(posedge i_pixclk) begin
+        case (h_fraction[FRAC_BITS-1:FRAC_BITS-4])
+            4'h0: gradient_color <= black;
+            // Red gradient
+            4'h1: gradient_color <= {1'b0, h_fraction[FRAC_BITS-5:FRAC_BITS-3-BPC], {2{zero_value}}};
+            4'h2: gradient_color <= {1'b1, h_fraction[FRAC_BITS-5:FRAC_BITS-3-BPC], {2{zero_value}}};
+            4'h3: gradient_color <= black;
+            // Green gradient
+            4'h4: gradient_color <= {zero_value, 1'b0, h_fraction[FRAC_BITS-5:FRAC_BITS-3-BPC], zero_value};
+            4'h5: gradient_color <= {zero_value, 1'b1, h_fraction[FRAC_BITS-5:FRAC_BITS-3-BPC], zero_value};
+            4'h6: gradient_color <= black;
+            // Blue gradient
+            4'h7: gradient_color <= {{2{zero_value}}, 1'b0, h_fraction[FRAC_BITS-5:FRAC_BITS-3-BPC]};
+            4'h8: gradient_color <= {{2{zero_value}}, 1'b1, h_fraction[FRAC_BITS-5:FRAC_BITS-3-BPC]};
+            4'h9: gradient_color <= black;
+            // Gray gradient
+            4'ha: gradient_color <= {3{2'b00, h_fraction[FRAC_BITS-5:FRAC_BITS-2-BPC]}};
+            4'hb: gradient_color <= {3{2'b01, h_fraction[FRAC_BITS-5:FRAC_BITS-2-BPC]}};
+            4'hc: gradient_color <= {3{2'b10, h_fraction[FRAC_BITS-5:FRAC_BITS-2-BPC]}};
+            4'hd: gradient_color <= {3{2'b11, h_fraction[FRAC_BITS-5:FRAC_BITS-2-BPC]}};
+            4'he: gradient_color <= black;
+            4'hf: gradient_color <= black;
+        endcase
+    end
 
-	always @(posedge i_pixclk)
-	if (i_newline)
-		o_pixel <= white;
-	else if (i_rd)
-	begin
-		if (hpos == i_width-12'd3)
-			o_pixel <= white;
-		else if ((ypos == 0)||(ypos == i_height-1))
-			o_pixel <= white;
-		else
-			o_pixel <= pattern;
-	end
+    // Final pattern selection based on vertical line segment
+    always @(posedge i_pixclk) begin
+        case (v_line_segment)
+            4'h0: final_pattern <= black;
+            4'h1, 4'h2, 4'h3, 4'h4, 4'h5, 4'h6, 4'h7, 4'h8: final_pattern <= top_bar_color;
+            4'h9: final_pattern <= mid_bar_color;
+            4'ha, 4'hb, 4'hc: final_pattern <= fat_bar_color;
+            4'hd: final_pattern <= black;
+            4'he: final_pattern <= gradient_color;
+            4'hf: final_pattern <= black;
+        endcase
+    end
+
+    // Final pixel output with border detection
+    always @(posedge i_pixclk) begin
+        if (i_newline) begin
+            o_pixel <= white;  // End of line marker
+        end else if (i_rd) begin
+            if (h_pos == i_width - 12'd3) begin
+                o_pixel <= white;  // Right border
+            end else if (v_pos == 0 || v_pos == i_height - 1) begin
+                o_pixel <= white;  // Top/Bottom border
+            end else begin
+                o_pixel <= final_pattern;  // Main pattern
+            end
+        end
+    end
 
 endmodule
-
