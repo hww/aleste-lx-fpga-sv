@@ -4,22 +4,25 @@ module hdmi_analyzer_tb;
 
     // Testbench signals
     reg clk_25mhz, rst;
-    reg [3:0] gpdi_dp, gpdi_dn;
-    wire tmds_clock;
+    logic [3:0] gpdi_dp, gpdi_dn;
+    logic tmds_clock;
     wire [2:0] tmds_data;
     
     // HDMI decoder signals
-    wire [7:0] red, green, blue;
-    wire hsync, vsync, de;
-    wire [11:0] h_pos, v_pos;
-    
+    logic [7:0] dec_red, dec_green, dec_blue;
+    logic dec_hsync, dec_vsync, ddec_e;
+    logic [11:0] h_pos, v_pos;
+    logic dst_hsync, dst_vsync;
+
     // DUT instantiation
     hdmi_kiss_test dut (
         .clk_25mhz(clk_25mhz),
         .rst(rst),
         .gpdi_dp(gpdi_dp),
         .gpdi_dn(gpdi_dn),
-        .led_r_o(), .led_g_o(), .led_b_o()
+        .led_r_o(), .led_g_o(), .led_b_o(),
+        .dst_hsync_o(dst_hsync),
+        .dst_vsync_o(dst_vsync)
     );
 
     assign tmds_clock = gpdi_dp[3];
@@ -33,15 +36,15 @@ module hdmi_analyzer_tb;
 
     hdmi_decoder decoder (
         .rst(rst),
-        .tmds_clk(clk_270M),
-        .pix_clk(tmds_clock),
+        .tmds_clk(clk_270M), // 270 MHz - внутренняя высокая частота  
+        .pix_clk(tmds_clock),// 27 MHz - pixel clock из кабеля HDMI
         .tmds_data(tmds_data),
-        .red(red),
-        .green(green), 
-        .blue(blue),
-        .hsync(hsync),
-        .vsync(vsync),
-        .de(de)
+        .red(dec_red),
+        .green(dec_green), 
+        .blue(dec_blue),
+        .hsync(dec_hsync),
+        .vsync(dec_vsync),
+        .de(dec_de)
     );
 
 
@@ -58,10 +61,12 @@ module hdmi_analyzer_tb;
         clk_270M = 0;
         rst = 1;
         #1000 rst = 0;
-        
+        //$dumpoff;
         // Wait for stable signal
-        #100000;
-        
+        #1000;
+        //@(posedge dst_vsync);
+        //$dumpon;
+                
         // Run diagnostic tests
         //test_clock_frequency();
         //test_sync_signals();
@@ -70,7 +75,7 @@ module hdmi_analyzer_tb;
         //test_video_timing();
 
         generate_report();
-        #500000 $finish;
+        #5000000 $finish;
     end
 
 
@@ -108,26 +113,26 @@ module hdmi_analyzer_tb;
             $display("\n[TEST 2] Sync Signals Detection");
             
             // Wait for VSYNC
-            @(posedge vsync);
+            @(posedge dec_vsync);
             v_sync_count = 1;
             
             // Measure VSYNC width
             v_sync_width = 0;
-            while (vsync) begin
+            while (dec_vsync) begin
                 @(posedge tmds_clock);
                 v_sync_width = v_sync_width + 1;
             end
             
             // Count HSYNC pulses for one frame
             h_sync_count = 0;
-            while (!vsync) begin
-                @(posedge hsync);
+            while (!dec_vsync) begin
+                @(posedge dec_hsync);
                 h_sync_count = h_sync_count + 1;
                 
                 if (h_sync_count == 1) begin
                     // Measure first HSYNC width
                     h_sync_width = 0;
-                    while (hsync) begin
+                    while (dec_hsync) begin
                         @(posedge tmds_clock);
                         h_sync_width = h_sync_width + 1;
                     end
@@ -162,7 +167,7 @@ module hdmi_analyzer_tb;
             
             repeat(total_samples) begin
                 @(posedge tmds_clock);
-                if (de) begin
+                if (dec_de) begin
                     de_active = de_active + 1;
                 end else begin
                     de_inactive = de_inactive + 1;
@@ -196,17 +201,17 @@ module hdmi_analyzer_tb;
             
             pixel_changes = 0;
             total_pixels = 2000;
-            last_pixel = {red, green, blue};
+            last_pixel = {dec_red, dec_green, dec_blue};
             
             for (i = 0; i < total_pixels; i = i + 1) begin
                 // Wait for active video
-                wait(de);
+                wait(dec_de);
                 @(posedge tmds_clock);
                 
-                if ({red, green, blue} !== last_pixel) begin
+                if ({dec_red, dec_green, dec_blue} !== last_pixel) begin
                     pixel_changes = pixel_changes + 1;
                 end
-                last_pixel = {red, green, blue};
+                last_pixel = {dec_red, dec_green, dec_blue};
                 
                 // Wait for next pixel (simplified)
                 @(posedge tmds_clock);
@@ -222,7 +227,7 @@ module hdmi_analyzer_tb;
             $display("  Pixels sampled: %0d", total_pixels);
             $display("  Pixels changed: %0d", pixel_changes);
             $display("  Variation: %.1f%%", variation_percent);
-            $display("  Current pixel: R=%h G=%h B=%h", red, green, blue);
+            $display("  Current pixel: R=%h G=%h B=%h", dec_red, dec_green, dec_blue);
             
             if (variation_percent > 30.0) begin
                 $display("✅ PASS - Healthy image content");
@@ -243,15 +248,15 @@ module hdmi_analyzer_tb;
             $display("\n[TEST 5] Video Timing Analysis");
             
             // Measure frame time
-            @(posedge vsync);
+            @(posedge dec_vsync);
             frame_time = $time;
-            @(posedge vsync);
+            @(posedge dec_vsync);
             frame_time = $time - frame_time;
             
             // Measure line time
-            @(posedge hsync);
+            @(posedge dec_hsync);
             line_time = $time;
-            @(posedge hsync);
+            @(posedge dec_hsync);
             line_time = $time - line_time;
             
             frame_rate = 1000000000.0 / frame_time; // Convert ns to Hz
@@ -276,9 +281,9 @@ module hdmi_analyzer_tb;
             $display("HDMI DECODER DIAGNOSTIC REPORT");
             $display("==========================================");
             $display("Decoder outputs:");
-            $display("  HSYNC: %b, VSYNC: %b, DE: %b", hsync, vsync, de);
+            $display("  HSYNC: %b, VSYNC: %b, DE: %b", dec_hsync, dec_vsync, dec_de);
             $display("  Position: H=%0d, V=%0d", h_pos, v_pos);
-            $display("  Pixel: R=%h, G=%h, B=%h", red, green, blue);
+            $display("  Pixel: R=%h, G=%h, B=%h", dec_red, dec_green, dec_blue);
             $display("");
             $display("If DE=1 but pixels don't change:");
             $display("  → Problem in video source generation");
@@ -295,7 +300,7 @@ module hdmi_analyzer_tb;
     initial begin
         $dumpfile("hdmi_analyzer.fst");
         $dumpvars(0, hdmi_analyzer_tb);
-        #500000 $dumpoff;
+        #50000000 $dumpoff;
     end
 
 endmodule

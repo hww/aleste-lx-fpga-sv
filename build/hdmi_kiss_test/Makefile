@@ -8,9 +8,8 @@ ECPPACK = ecppack
 PROG = icyprog
 
 # Source directories
-CORE_DIR = ../../src/components/video/hdmi_kiss
-TOP_DIR = ../../src/systems/hdmi_kiss
-CONSTR = hdmi_kiss_test.lpf
+SRC_DIR = ../../src
+CONSTR = hdmi_kiss_test.ecp5.lpf
 TARGET = hdmi_kiss_test
 
 all: $(TARGET).bit
@@ -18,16 +17,16 @@ all: $(TARGET).bit
 # Простой Yosys скрипт, который читает все файлы
 $(TARGET).json:
 	$(YOSYS)  -q -l yosys.log -p \
-	"read_verilog $(CORE_DIR)/system_pll.v;\
-	 read_verilog $(CORE_DIR)/video_pll.v;\
-	 read_verilog $(CORE_DIR)/ecp5_cells.v;\
-	 read_verilog -sv $(CORE_DIR)/serializer.sv;\
-	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_core.sv;\
-	 read_verilog -sv $(CORE_DIR)/hdmi_scaler_wrapper.sv;\
-	 read_verilog -sv $(CORE_DIR)/dual_port_ram.sv;\
-	 read_verilog -sv $(CORE_DIR)/tmds_encoder.sv;\
-	 read_verilog -sv $(TOP_DIR)/test_pattern_generator.sv;\
-	 read_verilog -sv $(TOP_DIR)/hdmi_kiss_test.sv;\
+	"read_verilog $(SRC_DIR)/platforms/icesugar_pro/clocks/system_pll.v;\
+	 read_verilog $(SRC_DIR)/platforms/icesugar_pro/clocks/video_pll.v;\
+	 read_verilog $(SRC_DIR)/platforms/icesugar_pro/primitives/ecp5_cells.v;\
+	 read_verilog -sv $(SRC_DIR)/components/primitives/led_blinker.sv;\
+	 read_verilog -sv $(SRC_DIR)/components/video/hdmi_kiss/serializer.sv;\
+	 read_verilog -sv $(SRC_DIR)/components/video/hdmi_kiss/tmds_encoder.sv;\
+	 read_verilog -sv $(SRC_DIR)/components/video/sdlx/dual_port_ram.sv;\
+	 read_verilog -sv $(SRC_DIR)/components/video/sdlx/hdmi_scaler_core.sv;\
+	 read_verilog -sv $(SRC_DIR)/components/video/sdlx/test_pattern_generator.sv;\
+	 read_verilog -sv $(SRC_DIR)/systems/hdmi_kiss/hdmi_kiss_test.sv;\
 	 proc; opt; memory; opt; techmap; abc; clean;\
 	 hierarchy -top $(TARGET);\
 	 synth_ecp5 -json $(TARGET).json"
@@ -44,6 +43,7 @@ $(TARGET).svf: $(TARGET)_out.config
 
 program: $(TARGET).bit
 	$(PROG) $<
+
 config: $(TARGET)_out.config
 	echo done
 	

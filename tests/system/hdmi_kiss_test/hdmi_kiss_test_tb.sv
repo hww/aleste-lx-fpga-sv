@@ -37,8 +37,10 @@ module hdmi_kiss_test_tb;
         #100 rst = 0;
         
         // Ждем ровно 2 кадра PAL (40ms)
+        //#40000000;  // 40ms
         #40000000;  // 40ms
-        
+        //#4000000;  // 400mks
+
         $display("=== Конец теста (2 кадра PAL) ===");
         $display("Проверьте VCD файл: hdmi_test.vcd");
         

@@ -1,0 +1,164 @@
+#include <iostream>
+#include <bitset>
+#include <random>
+#include <verilated.h>
+#include "Vtmds_encoder.h"
+
+using namespace std;
+
+// Правильные ожидаемые значения для TMDS
+bitset<10> get_expected_tmds(uint8_t data, uint8_t control, bool data_enable) {
+    if (!data_enable) {
+        switch (control & 0x03) {
+            case 0: return bitset<10>("1101010100");
+            case 1: return bitset<10>("0010101011");
+            case 2: return bitset<10>("0101010100");
+            case 3: return bitset<10>("1010101011");
+            default: return bitset<10>("1101010100");
+        }
+    }
+    
+    switch (data) {
+        case 0x00: return bitset<10>("0100000000");
+        case 0xFF: return bitset<10>("0011111111"); 
+        case 0x55: return bitset<10>("0100110011");
+        case 0xAA: return bitset<10>("1000110011");
+        case 0x80: return bitset<10>("0110000000");
+        case 0x01: return bitset<10>("0111111111");
+        case 0x7F: return bitset<10>("1010000000");
+        case 0xFE: return bitset<10>("1011111111");
+        default: return bitset<10>("0000000000");
+    }
+}
+
+int main(int argc, char** argv) {
+    Verilated::commandArgs(argc, argv);
+    Vtmds_encoder* dut = new Vtmds_encoder;
+    
+    cout << "TMDS Encoder Verilator Test" << endl;
+    cout << "===========================" << endl;
+    
+    int errors = 0;
+    int tests = 0;
+    
+    // Инициализация
+    dut->rst_i = 1;
+    dut->clk_i = 0;
+    dut->eval();
+    dut->clk_i = 1;
+    dut->eval();
+    dut->rst_i = 0;
+    
+    // Тест контрольных кодов
+    cout << "\n1. Testing Control Codes:" << endl;
+    for (int control = 0; control < 4; control++) {
+        dut->data_i = 0;
+        dut->control_i = control;
+        dut->data_enable_i = 0;
+        
+        dut->clk_i = 0;
+        dut->eval();
+        dut->clk_i = 1;
+        dut->eval();
+        
+        bitset<10> hw_result(dut->tmds_o);
+        bitset<10> ref_result = get_expected_tmds(0, control, false);
+        
+        cout << "   Control " << control << ": " << hw_result;
+        
+        if (hw_result == ref_result) {
+            cout << " ✓ PASS" << endl;
+        } else {
+            cout << " ✗ FAIL" << endl;
+            errors++;
+        }
+        tests++;
+    }
+    
+    // Тест данных
+    cout << "\n2. Testing Data Encoding:" << endl;
+    vector<uint8_t> test_cases = {0x00, 0xFF, 0x55, 0xAA, 0x80, 0x01, 0x7F, 0xFE};
+    
+    for (uint8_t data : test_cases) {
+        // Стабилизация
+        for (int i = 0; i < 3; i++) {
+            dut->data_i = data;
+            dut->control_i = 0;
+            dut->data_enable_i = 1;
+            
+            dut->clk_i = 0;
+            dut->eval();
+            dut->clk_i = 1;
+            dut->eval();
+        }
+        
+        bitset<10> hw_result(dut->tmds_o);
+        bitset<10> ref_result = get_expected_tmds(data, 0, true);
+        
+        cout << "   Data 0x" << hex << (int)data << ": " << hw_result;
+        
+        if (hw_result == ref_result) {
+            cout << " ✓ PASS" << endl;
+        } else {
+            cout << " ✗ FAIL" << endl;
+            errors++;
+        }
+        tests++;
+    }
+    
+    // Тест переключения режимов
+    cout << "\n3. Testing Mode Switching:" << endl;
+    dut->data_i = 0x55;
+    dut->control_i = 1;
+    dut->data_enable_i = 1;
+    
+    dut->clk_i = 0;
+    dut->eval();
+    dut->clk_i = 1;
+    dut->eval();
+    
+    bitset<10> data_result(dut->tmds_o);
+    cout << "   Data mode: " << data_result;
+    
+    if (data_result == bitset<10>("0100110011")) {
+        cout << " ✓ PASS" << endl;
+    } else {
+        cout << " ✗ FAIL" << endl;
+        errors++;
+    }
+    tests++;
+    
+    dut->data_enable_i = 0;
+    dut->clk_i = 0;
+    dut->eval();
+    dut->clk_i = 1;
+    dut->eval();
+    
+    bitset<10> control_result(dut->tmds_o);
+    cout << "   Control mode: " << control_result;
+    
+    if (control_result == bitset<10>("0010101011")) {
+        cout << " ✓ PASS" << endl;
+    } else {
+        cout << " ✗ FAIL" << endl;
+        errors++;
+    }
+    tests++;
+    
+    // Финальные результаты
+    cout << "\n=== FINAL RESULTS ===" << endl;
+    cout << "Tests completed: " << tests << endl;
+    cout << "Critical errors: " << errors << endl;
+    
+    if (errors == 0) {
+        cout << "🎉 TMDS ENCODER VERIFIED SUCCESSFULLY!" << endl;
+        cout << "All functional tests passed - encoder is working correctly." << endl;
+    } else {
+        cout << "❌ ENCODER HAS CRITICAL ERRORS" << endl;
+    }
+    
+    dut->final();
+    delete dut;
+    
+    return errors > 0 ? 1 : 0;
+}
