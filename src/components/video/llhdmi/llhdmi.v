@@ -6,19 +6,12 @@ module llhdmi #(
   parameter H_FRONT_PORCH = 16,
   parameter H_SYNC_PULSE  = 96,
   parameter H_BACK_PORCH  = 48,
-  parameter H_TOTAL       = H_VISIBLE + H_FRONT_PORCH + H_SYNC_PULSE + H_BACK_PORCH,
+
   
   parameter V_VISIBLE     = 480,
   parameter V_FRONT_PORCH = 10,
   parameter V_SYNC_PULSE  = 2,
   parameter V_BACK_PORCH  = 33,
-  parameter V_TOTAL       = V_VISIBLE + V_FRONT_PORCH + V_SYNC_PULSE + V_BACK_PORCH,
-  
-  // Sync pulse positions
-  parameter H_SYNC_START  = H_VISIBLE + H_FRONT_PORCH,
-  parameter H_SYNC_END    = H_SYNC_START + H_SYNC_PULSE,
-  parameter V_SYNC_START  = V_VISIBLE + V_FRONT_PORCH,
-  parameter V_SYNC_END    = V_SYNC_START + V_SYNC_PULSE,
   
   // TMDS parameters
   parameter TMDS_WIDTH    = 10,
@@ -53,6 +46,15 @@ module llhdmi #(
   output wire [TMDS_WIDTH-1:0] o_TMDS_blu
 `endif
 );
+  localparam H_TOTAL       = H_VISIBLE + H_FRONT_PORCH + H_SYNC_PULSE + H_BACK_PORCH;
+  localparam V_TOTAL       = V_VISIBLE + V_FRONT_PORCH + V_SYNC_PULSE + V_BACK_PORCH;
+  
+  // Sync pulse positions
+  localparam H_SYNC_START  = H_VISIBLE + H_FRONT_PORCH;
+  localparam H_SYNC_END    = H_SYNC_START + H_SYNC_PULSE;
+  localparam V_SYNC_START  = V_VISIBLE + V_FRONT_PORCH;
+  localparam V_SYNC_END    = V_SYNC_START + V_SYNC_PULSE;
+
 
   // Pixel position counters
   reg [10:0] CounterX;  // Needs to count up to 799

@@ -1,8 +1,26 @@
 `default_nettype none
 
+// Include configuration
+`ifdef CONFIG_27MHZ
+    `include "config_27mhz.vh"
+`else
+    `include "config_25mhz.vh"  // Default
+`endif
+
 module llhdmi_system #(
-    parameter H_RESOLUTION = 640,      // Horizontal resolution
-    parameter V_RESOLUTION = 480,      // Vertical resolution
+    parameter BASE_CLOCK    = `BASE_CLOCK,
+
+    parameter H_VISIBLE     = `H_VISIBLE,// Horizontal resolution
+    parameter H_FRONT_PORCH = `H_FRONT_PORCH,
+    parameter H_SYNC_PULSE  = `H_SYNC_PULSE,
+    parameter H_BACK_PORCH  = `H_BACK_PORCH,
+    parameter H_TOTAL       = H_VISIBLE + H_FRONT_PORCH + H_SYNC_PULSE + H_BACK_PORCH,
+    
+    parameter V_VISIBLE     = `V_VISIBLE,// Vertical resolution
+    parameter V_FRONT_PORCH = `V_FRONT_PORCH,
+    parameter V_SYNC_PULSE  = `V_SYNC_PULSE,
+    parameter V_BACK_PORCH  = `V_BACK_PORCH,
+
     parameter BITS_PER_COLOR = 8,      // Bits per color channel
     parameter RESET_CYCLES = 4,        // Reset duration in clock cycles
     parameter CLOCK_INDEX = 3,         // GPIO index for clock output
@@ -20,8 +38,8 @@ module llhdmi_system #(
 );
 
     // Internal clock signals
-    wire clk_25MHz;   // Pixel clock
-    wire clk_250MHz;  // TMDS clock (10x pixel clock)
+    wire clk_tdms_pixel;   // Pixel clock
+    wire clk_tdms;  // TMDS clock (10x pixel clock)
     
     // Video data signals
     wire [BITS_PER_COLOR-1:0] red, grn, blu;  // Color components
@@ -37,13 +55,24 @@ module llhdmi_system #(
 
     // Keep the board from rebooting by holding wifi_gpio0 high
     assign wifi_gpio0 = 1'b1;
-
-    // Clock generation module
-    clock clock_instance(
-        .clkin_25MHz(clk_25mhz),   // Input 25MHz clock
-        .clk_25MHz(clk_25MHz),     // Output 25MHz pixel clock
-        .clk_250MHz(clk_250MHz)    // Output 250MHz TMDS clock
-    );
+    generate
+      if (BASE_CLOCK == 25000000) begin
+        clock clock_instance(
+            .clkin_25MHz(clk_25mhz),      // Input 25MHz clock
+            .clk_25MHz(clk_tdms_pixel),   // Output 25MHz pixel clock
+            .clk_250MHz(clk_tdms)         // Output 250MHz TMDS clock
+        );
+      end 
+      else if (BASE_CLOCK == 27000000) begin
+        video_pll vid_pll_inst(
+            .rst('0),
+            .clkin_25M(clk_25mhz),        // Input 25MHz clock
+            .clk_270M(clk_tdms),          // Output 270MHz TMDS clock
+            .clk_27M(clk_tdms_pixel),     // Output 27MHz pixel clock
+            .locked()
+        );
+      end
+    endgenerate
 
     // Assign color components from combined pixel data
     assign red = pixel_data[3*BITS_PER_COLOR-1:2*BITS_PER_COLOR];
@@ -54,7 +83,7 @@ module llhdmi_system #(
     reg [RESET_CYCLES-1:0] reset_counter = 0;
     wire reset_active = ~reset_counter[RESET_CYCLES-1];
     
-    always @(posedge clk_25mhz) begin
+    always @(posedge clk_tdms_pixel) begin
         if (reset_active) begin
             reset_counter <= reset_counter + 1;
         end
@@ -62,12 +91,18 @@ module llhdmi_system #(
 
     // HDMI encoder instance
     llhdmi #(
-        .H_VISIBLE(H_RESOLUTION),
-        .V_VISIBLE(V_RESOLUTION)
+        .H_VISIBLE(H_VISIBLE),
+        .H_FRONT_PORCH(H_FRONT_PORCH),
+        .H_SYNC_PULSE(H_SYNC_PULSE),
+        .H_BACK_PORCH(H_BACK_PORCH),
+        .V_VISIBLE(V_VISIBLE),
+        .V_FRONT_PORCH(V_FRONT_PORCH),
+        .V_SYNC_PULSE(V_SYNC_PULSE),
+        .V_BACK_PORCH(V_BACK_PORCH)
     ) llhdmi_encoder (
         // Clock inputs
-        .i_tmdsclk(clk_250MHz),
-        .i_pixclk(clk_25MHz),
+        .i_tmdsclk(clk_tdms),
+        .i_pixclk(clk_tdms_pixel),
         
         // Control inputs
         .i_reset(reset_active),
@@ -96,12 +131,12 @@ module llhdmi_system #(
         .FRAC_BITS(16)
     ) vga_test_pattern (
         // Clock and reset
-        .i_pixclk(clk_25MHz),
+        .i_pixclk(clk_tdms_pixel),
         .i_reset(reset_active),
         
         // Screen dimensions
-        .i_width(H_RESOLUTION),
-        .i_height(V_RESOLUTION),
+        .i_width(H_VISIBLE),
+        .i_height(V_VISIBLE),
         
         // Control signals
         .i_rd(o_rd),
@@ -132,7 +167,7 @@ module llhdmi_system #(
     );
     
     OBUFDS OBUFDS_clock(
-        .I(clk_25MHz),
+        .I(clk_tdms_pixel),
         .O(gpdi_dp[CLOCK_INDEX]),
         .OB(gpdi_dn[CLOCK_INDEX])
     );
