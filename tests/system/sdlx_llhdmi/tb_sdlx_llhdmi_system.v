@@ -36,7 +36,7 @@ module tb_sdlx_llhdmi_system;
     
     // Запись VCD файла
     initial begin
-        $dumpfile("sdlx_llhdmi_system.vcd");
+        $dumpfile("sdlx_llhdmi_system.fst");
         $dumpvars(0, tb_sdlx_llhdmi_system);
         
         // Симуляция 2ms для проверки частот

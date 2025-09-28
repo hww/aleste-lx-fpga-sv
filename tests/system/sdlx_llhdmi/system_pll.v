@@ -16,7 +16,15 @@ module system_pll(
     // Правильные периоды (в наносекундах)
     always #5 clk_100M_reg = ~clk_100M_reg;        // 100MHz: период 10ns
     always #15.625 clk_32M_reg = ~clk_32M_reg;     // 32MHz: период 31.25ns  
-    always #31.25 clk_16M_reg = ~clk_16M_reg;      // 16MHz: период 62.5ns
+    
+    // Делитель на 2 от 32MHz для получения 16MHz
+    always @(posedge clk_32M_reg) begin
+        if (rst) begin
+            clk_16M_reg <= 0;
+        end else begin
+            clk_16M_reg <= ~clk_16M_reg;
+        end
+    end
     
     // Симуляция locked сигнала
     initial begin

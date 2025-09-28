@@ -60,9 +60,9 @@ module pal_pattern #(
     // Screen Parameters (adapted for 640x240 @ 16MHz)
     // =========================================================================
     localparam H_TOTAL   = 1024;    // Total pixels per line (64µs × 16MHz)
-    localparam H_ACTIVE  = 640;     // Active pixels per line (40µs × 16MHz)
+    localparam H_ACTIVE  = 720;     // Active pixels per line (40µs × 16MHz)
     localparam V_TOTAL   = 312;     // Total lines per frame (for 50Hz)
-    localparam V_ACTIVE  = 240;     // Active lines per frame
+    localparam V_ACTIVE  = 288;     // Active lines per frame
 
     // =========================================================================
     // Local Parameters

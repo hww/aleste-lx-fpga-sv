@@ -55,7 +55,6 @@ module sdlx_llhdmi_system #(
     wire [23:0] pattern_pixel;
     wire pattern_hsync;
     wire pattern_vsync;
-    wire pattern_pixel_stb;
     wire pattern_de;
     wire pattern_newline;
     wire pattern_newframe;
@@ -123,15 +122,12 @@ module sdlx_llhdmi_system #(
         .reset_i(system_reset),
         .hpos_o(pattern_hpos),
         .vpos_o(pattern_vpos),
-        .rd_o(pattern_pixel_stb),
+        .rd_o(pattern_de),
         .newline_o(pattern_newline), 
         .newframe_o(pattern_newframe),
         .hsync_o(pattern_hsync),
         .vsync_o(pattern_vsync)
     );
-
-    // Assign DE signal for pattern generator
-    assign pattern_de = pattern_pixel_stb;
 
     // Test pattern generator (16MHz domain)
     pal_pattern  #(
@@ -141,10 +137,10 @@ module sdlx_llhdmi_system #(
         .FRAC_BITS(16)              // Fractional bits for gradient calculation
     ) pattern_gen(
         // Clock and reset
-        .pixclk_i(clk_16m),     // 16MHz pixel clock
+        .pixclk_i(clk_16m),              // 16MHz pixel clock
         .reset_i(system_reset),
         // Control signals
-        .rd_i(pattern_de),      // Read enable (pixel valid)
+        .rd_i(pattern_de),               // Read enable (pixel valid)
         // Pixel output
         .pixel_o(pattern_pixel),
         // Новые выходы для синхросигналов
@@ -153,16 +149,14 @@ module sdlx_llhdmi_system #(
     );
     
     // Assign pattern generator outputs to scaler inputs
-    assign scaler_src_pixel_stb = pattern_pixel_stb;
     assign scaler_src_pixel_data = pattern_pixel;
     assign scaler_src_hsync = pattern_hsync;
     assign scaler_src_vsync = pattern_vsync;
-    assign scaler_src_de = pattern_de;
+    assign scaler_src_pixel_stb = pattern_de & clk_16m;
 
     // HDMI scaler - cross-domain scaling
     hdmi_scaler #(
-        .SRC_WIDTH(640),           // Input pattern width
-        .SRC_HEIGHT(384),          // Input pattern height
+        .SRC_WIDTH(720),           // Input pattern width
         .DATA_WIDTH(24),           // 24-bit RGB
         .V_SCALE(2),               // Vertical scaling factor
         .DST_WIDTH(H_VISIBLE),     // Output width from config

@@ -2,7 +2,6 @@
 SIMULATOR := iverilog
 VVP := vvp
 GTKWAVE := gtkwave
-VCD_TO_FST := vcd2fst
 
 # Файлы для симуляции
 TB_TOP := tb_sdlx_llhdmi_system.v
@@ -24,40 +23,27 @@ SV_FILES := \
 IVERILOG_FLAGS := -g2012 -DCONFIG_27MHZ -I$(SRC_DIR)/config
 
 # Цели
-.PHONY: all sim wave clean vcd fst
+.PHONY: all sim wave clean quick info
 
-all: fst
+all: sim
 
-# Компиляция и симуляция
+# Компиляция
 compile: $(TB_TOP) $(STUBS) $(SRC_FILES) $(SV_FILES)
 	$(SIMULATOR) $(IVERILOG_FLAGS) -o a.out \
 		$(TB_TOP) $(STUBS) $(SRC_FILES) \
 		$(SV_FILES)
 
-# Только VCD симуляция
-vcd: compile
-	$(VVP) a.out
+# Симуляция с прямым выводом в FST
+sim: compile
+	$(VVP) -N a.out -fst sdlx_llhdmi_system.fst
 
-# Конвертация VCD в FST
-fst: vcd
-	$(VCD_TO_FST) -v sdlx_llhdmi_system.vcd -f sdlx_llhdmi_system.fst
-	@echo "FST file generated: sdlx_llhdmi_system.fst"
-
-# Симуляция с созданием FST
-sim: fst
+# Быстрая симуляция (100us) с FST
+quick: compile
+	$(VVP) -N a.out -fst sdlx_llhdmi_system.fst +timeout=100000
 
 # Просмотр волновых форм
-wave: fst
+wave: sim
 	$(GTKWAVE) sdlx_llhdmi_system.fst &
-
-# Быстрая симуляция (100us)
-quick:
-	$(SIMULATOR) $(IVERILOG_FLAGS) -o a.out \
-		$(TB_TOP) $(STUBS) $(SRC_FILES) \
-		$(SV_FILES)
-	# Симуляция 100us вместо 1ms
-	$(VVP) -N a.out +timeout=100000
-	$(VCD_TO_FST) -v sdlx_llhdmi_system.vcd -f sdlx_llhdmi_system.fst
 
 # Очистка
 clean:
@@ -69,5 +55,3 @@ info:
 	$(SIMULATOR) -V
 	@echo "GTKWave version:"
 	$(GTKWAVE) --version || echo "GTKWave not found"
-	@echo "vcd2fst:"
-	which $(VCD_TO_FST) || echo "vcd2fst not installed"

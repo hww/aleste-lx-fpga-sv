@@ -3,7 +3,7 @@
 // =============================================================================
 // For Aleste LX project by H2W
 // =============================================================================
-// Модуль для масштабирования видео с входного разрешения SRC_WIDTH x SRC_HEIGHT
+// Модуль для масштабирования видео с входного разрешения SRC_WIDTH 
 // до выходного разрешения DST_WIDTH x DST_HEIGHT с вертикальным масштабированием V_SCALE
 // Использует двойную буферизацию строк для кросс-доменной синхронизации
 // =============================================================================
@@ -12,8 +12,7 @@
 
 module hdmi_scaler #(
     // Параметры входного видео
-    parameter int SRC_WIDTH        = 640,      // Ширина входного изображения
-    parameter int SRC_HEIGHT       = 384,      // Высота входного изображения
+    parameter int SRC_WIDTH        = 720,      // Ширина входного изображения
     parameter int DATA_WIDTH       = 24,       // Разрядность данных пикселя (RGB)
     parameter int V_SCALE          = 2,        // Коэффициент вертикального масштабирования
     // Параметры выходного видео
@@ -69,34 +68,22 @@ module hdmi_scaler #(
     logic dst_hreset_ff, dst_vreset_ff;
 
     // ----------------------------------------------------------------------------
-    // Удлинение стробов на 1 такт в входном домене
-    // ----------------------------------------------------------------------------
-    always_ff @(posedge src_clk_i) begin
-        if (src_rst_i) begin
-            src_newline_ext <= 0;
-            src_newframe_ext <= 0;
-        end else begin
-            // Удлиняем на 1 такт
-            src_newline_ext <= src_newline_i | (src_newline_ext && !src_pixel_stb_i);
-            src_newframe_ext <= src_newframe_i | (src_newframe_ext && !src_pixel_stb_i);
-        end
-    end
-    
-    // ----------------------------------------------------------------------------
     // Счетчик адреса для записи в буфер
     // ----------------------------------------------------------------------------
     always_ff @(posedge src_clk_i) begin
         if (src_rst_i) begin
             src_buf_addr <= '0;
-        end else if (src_newframe_i) begin
-            // Сброс адреса при новом кадре
-            src_buf_addr <= '0;
-        end else if (src_newline_i) begin
-            // Сброс адреса при новой строке
-            src_buf_addr <= '0;
         end else if (src_pixel_stb_i) begin
-            // Инкремент адреса при валидном пикселе
-            src_buf_addr <= src_buf_addr + 1;
+            if (src_newframe_i) begin
+                // Сброс адреса при новом кадре
+                src_buf_addr <= '0;
+            end else if (src_newline_i) begin
+                // Сброс адреса при новой строке
+                src_buf_addr <= '0;
+            end else begin
+                // Инкремент адреса при валидном пикселе
+                src_buf_addr <= src_buf_addr + 1;
+            end
         end
     end
     
@@ -113,13 +100,13 @@ module hdmi_scaler #(
         if (src_rst_i) begin
             src_has_writing <= '0;
             src_has_writing_delayed <= '0;
-        end else begin
+        end else if (src_pixel_stb_i) begin
             // Задержанная версия для использования при newline
             src_has_writing_delayed <= src_has_writing;
             
             if (src_newline_i | src_newframe_i) begin
                 src_has_writing <= '0;
-            end else if (src_pixel_stb_i) begin
+            end else begin
                 src_has_writing <= '1;
             end
         end
@@ -129,15 +116,17 @@ module hdmi_scaler #(
         if (src_rst_i) begin
             src_buf_sel <= 1'b0;
             src_buf_ready <= 2'b00;
-        end else if (src_newframe_i) begin
-            // Сброс при начале нового кадра
-            src_buf_sel <= 1'b0;
-            src_buf_ready <= 2'b00;
-        end else if (src_newline_i) begin
-            // Переключение буфера и установка флага готовности при конце строки
-            src_buf_ready[~src_buf_sel] <= 1'b0;
-            src_buf_ready[src_buf_sel] <= src_has_writing_delayed;
-            src_buf_sel <= ~src_buf_sel;
+        end else if (src_pixel_stb_i) begin            
+            if (src_newframe_i) begin
+                // Сброс при начале нового кадра
+                src_buf_sel <= 1'b0;
+                src_buf_ready <= 2'b00;
+            end else if (src_newline_i) begin
+                // Переключение буфера и установка флага готовности при конце строки
+                src_buf_ready[~src_buf_sel] <= 1'b0;
+                src_buf_ready[src_buf_sel] <= src_has_writing_delayed;
+                src_buf_sel <= ~src_buf_sel;
+            end
         end
     end
     
@@ -148,6 +137,20 @@ module hdmi_scaler #(
     logic [1:0] dst_buf_ready_ff1, dst_buf_ready_ff2, dst_buf_ready;
     logic [2:0] dst_newline_sync, dst_newframe_sync;
     logic dst_newline_rise, dst_newframe_rise;
+
+    // ----------------------------------------------------------------------------
+    // Удлинение стробов на 1 такт в входном домене
+    // ----------------------------------------------------------------------------
+    always_ff @(posedge src_clk_i) begin
+        if (src_rst_i) begin
+            src_newline_ext <= 0;
+            src_newframe_ext <= 0;
+        end else begin
+            // Удлиняем на 1 такт
+            src_newline_ext <= src_newline_i | (src_newline_ext && !src_pixel_stb_i);
+            src_newframe_ext <= src_newframe_i | (src_newframe_ext && !src_pixel_stb_i);
+        end
+    end
     
     // ----------------------------------------------------------------------------
     // Синхронизация флагов готовности буферов в выходной домен

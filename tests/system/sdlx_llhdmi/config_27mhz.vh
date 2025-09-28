@@ -6,7 +6,7 @@
 `define H_SYNC_PULSE     62
 `define H_BACK_PORCH     60
 
-`define V_VISIBLE        480
+`define V_VISIBLE        288
 `define V_FRONT_PORCH    9
 `define V_SYNC_PULSE     6
 `define V_BACK_PORCH     30

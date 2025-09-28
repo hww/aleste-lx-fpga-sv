@@ -16,16 +16,16 @@ module pal_timing #(
     output logic vsync_o
 );
 
-    // Параметры для PAL 768x288 (активная область может быть меньше)
-    localparam H_ACTIVE  = 768;    // Активная часть строки PAL
-    localparam H_FRONT   = 96;
-    localparam H_BACK    = 224;    // Back porch
-    localparam H_SYNC    = 64;     // Длительность синхроимпульса
+    // Параметры для PAL 720x288 (активная область может быть меньше)
+    localparam H_ACTIVE  = 720;    // Активная часть строки PAL
+    localparam H_FRONT   = 12;
+    localparam H_BACK    = 64;     // Back porch
+    localparam H_SYNC    = 228;    // Длительность синхроимпульса
     
     localparam V_ACTIVE  = 288;    // Активные строки PAL
-    localparam V_FRONT   = 53;
-    localparam V_SYNC    = 5;      // Синхроимпульс по вертикали  
-    localparam V_BACK    = 54;     // Back porch
+    localparam V_FRONT   = 2;
+    localparam V_SYNC    = 3;      // Синхроимпульс по вертикали  
+    localparam V_BACK    = 19;     // Back porch
 
     localparam H_TOTAL   = H_ACTIVE + H_FRONT + H_SYNC + H_BACK;  // 800   
     localparam V_TOTAL   = V_ACTIVE + V_FRONT + V_SYNC + V_BACK;  // 281
