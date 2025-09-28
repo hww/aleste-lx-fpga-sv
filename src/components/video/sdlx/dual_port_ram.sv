@@ -99,17 +99,17 @@ module dual_port_ram #(
     // Проверка адресов записи
     always_ff @(posedge src_clk_i) begin
         if (src_clke_i && src_wr_en_i && (src_wr_addr_i >= DATA_LENGTH)) begin
-            $warning("Write address out of bounds: %0d >= %0d", 
-                     src_wr_addr_i, DATA_LENGTH);
+        //    $warning("Write address out of bounds: %0d >= %0d", 
+        //             src_wr_addr_i, DATA_LENGTH);
         end
     end
     
     // Проверка адресов чтения
     always_ff @(posedge dst_clk_i) begin
-        if (dst_clke_i && dst_rd_en_i && (dst_rd_addr_i >= DATA_LENGTH)) begin
-            $warning("Read address out of bounds: %0d >= %0d", 
-                     dst_rd_addr_i, DATA_LENGTH);
-        end
+        //if (dst_clke_i && dst_rd_en_i && (dst_rd_addr_i >= DATA_LENGTH)) begin
+        //    $warning("Read address out of bounds: %0d >= %0d", 
+        //             dst_rd_addr_i, DATA_LENGTH);
+        //end
     end
 `endif
     

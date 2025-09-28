@@ -101,9 +101,8 @@ module pattern #(
         .o_pixel(pixel_data)
     );
 
-    // Verilator lint directives for unused signals
-    /* verilator lint_off UNUSED */
+    // verilator lint_off UNUSED
     wire unused_signals = o_red | o_grn | o_blu;
-    /* verilator lint_on UNUSED */
+    // verilator lint_on UNUSED
 
 endmodule

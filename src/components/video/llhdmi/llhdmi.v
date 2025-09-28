@@ -37,10 +37,11 @@ module llhdmi #(
   // TMDS outputs
   output wire o_red,            // Red TMDS data stream
   output wire o_grn,            // Green TMDS data stream
-  output wire o_blu,            // Blue TMDS data stream
+  output wire o_blu             // Blue TMDS data stream
   
   // Debug outputs (Verilator only)
 `ifdef VERILATOR
+  ,                             // Blue TMDS data stream
   output wire [TMDS_WIDTH-1:0] o_TMDS_red,
   output wire [TMDS_WIDTH-1:0] o_TMDS_grn, 
   output wire [TMDS_WIDTH-1:0] o_TMDS_blu

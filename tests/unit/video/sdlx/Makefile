@@ -9,11 +9,11 @@ VERILATOR_FLAGS = -Wall --cc --exe --build --trace-fst -I. \
 	
 RTL_PATH = ../../../../src/components/video/sdlx
 SOURCES = \
-    $(RTL_PATH)/hdmi_scaler_core.sv \
+    $(RTL_PATH)/hdmi_scaler.sv \
     $(RTL_PATH)/dual_port_ram.sv \
     hdmi_scaler_test.cpp
 
-TARGET = Vhdmi_scaler_core
+TARGET = Vhdmi_scaler
 
 all: $(TARGET)
 

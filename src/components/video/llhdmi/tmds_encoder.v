@@ -1,9 +1,7 @@
 // (c) fpga4fun.com & KNJN LLC 2013
 
 ////////////////////////////////////////////////////////////////////////
-module tmds_encoder #(
-
-)(
+module tmds_encoder (
 	input clk, // 250 MHz
 	input [7:0] VD,  // video data (red, green or blue)
 	input [1:0] CD,  // control data
