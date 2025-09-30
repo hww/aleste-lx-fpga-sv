@@ -6,16 +6,25 @@
 module sdlx_llhdmi_system #(
     parameter BASE_CLOCK    = `BASE_CLOCK,
 
-    parameter H_VISIBLE     = `H_VISIBLE,// Horizontal resolution
-    parameter H_FRONT_PORCH = `H_FRONT_PORCH,
-    parameter H_SYNC_PULSE  = `H_SYNC_PULSE,
-    parameter H_BACK_PORCH  = `H_BACK_PORCH,
-    parameter H_TOTAL       = H_VISIBLE + H_FRONT_PORCH + H_SYNC_PULSE + H_BACK_PORCH,
+    parameter SRC_H_VISIBLE      = `SRC_H_VISIBLE,
+    parameter SRC_H_FRONT_PORCH  = `SRC_H_FRONT_PORCH,
+    parameter SRC_H_SYNC_PULSE   = `SRC_H_SYNC_PULSE,
+    parameter SRC_H_BACK_PORCH   = `SRC_H_BACK_PORCH,
+     
+    parameter SRC_V_VISIBLE      = `SRC_V_VISIBLE,
+    parameter SRC_V_FRONT_PORCH  = `SRC_V_FRONT_PORCH,
+    parameter SRC_V_SYNC_PULSE   = `SRC_V_SYNC_PULSE,
+    parameter SRC_V_BACK_PORCH   = `SRC_V_BACK_PORCH,
+
+    parameter HDMI_H_VISIBLE     = `HDMI_H_VISIBLE,
+    parameter HDMI_H_FRONT_PORCH = `HDMI_H_FRONT_PORCH,
+    parameter HDMI_H_SYNC_PULSE  = `HDMI_H_SYNC_PULSE,
+    parameter HDMI_H_BACK_PORCH  = `HDMI_H_BACK_PORCH,
     
-    parameter V_VISIBLE     = `V_VISIBLE,// Vertical resolution
-    parameter V_FRONT_PORCH = `V_FRONT_PORCH,
-    parameter V_SYNC_PULSE  = `V_SYNC_PULSE,
-    parameter V_BACK_PORCH  = `V_BACK_PORCH,
+    parameter HDMI_V_VISIBLE     = `HDMI_V_VISIBLE,
+    parameter HDMI_V_FRONT_PORCH = `HDMI_V_FRONT_PORCH,
+    parameter HDMI_V_SYNC_PULSE  = `HDMI_V_SYNC_PULSE,
+    parameter HDMI_V_BACK_PORCH  = `HDMI_V_BACK_PORCH,
 
     parameter BITS_PER_COLOR = 8,      // Bits per color channel
     parameter RESET_CYCLES = 4,        // Reset duration in clock cycles
@@ -30,7 +39,10 @@ module sdlx_llhdmi_system #(
     output wire [DATA_INDICES:0] gpdi_dn,  // Negative differential outputs
     
     // System control output
-    output wire              wifi_gpio0
+    output wire              wifi_gpio0,
+    output wire              debug_0,
+    output wire              debug_1,
+    output wire              debug_2
 );       
     localparam GEN_H_WIDTH = 11;
     localparam GEN_V_WIDTH = 9;
@@ -53,11 +65,6 @@ module sdlx_llhdmi_system #(
     
     // Pattern generator signals
     wire [23:0] pattern_pixel;
-    wire pattern_hsync;
-    wire pattern_vsync;
-    wire pattern_de;
-    wire pattern_newline;
-    wire pattern_newframe;
     wire [GEN_H_WIDTH-1:0] pattern_hpos;
     wire [GEN_V_WIDTH-1:0] pattern_vpos;
 
@@ -70,7 +77,7 @@ module sdlx_llhdmi_system #(
     
     // Scaler output signals (27MHz domain)
     wire scaler_dst_pixel_stb;
-    wire [23:0] scaler_dst_pixel_data;
+    wire [23:0] pixel_data;
     wire scaler_dst_newline;
     wire scaler_dst_newframe;
     wire scaler_dst_de;
@@ -113,7 +120,16 @@ module sdlx_llhdmi_system #(
         end
     end
 
+
     pal_timing  #(
+        .H_VISIBLE(SRC_H_VISIBLE),               // Активная часть строки PAL
+        .H_FRONT_PORCH(SRC_H_FRONT_PORCH),
+        .H_SYNC_PULSE(SRC_H_SYNC_PULSE),         // Длительность синхроимпульса
+        .H_BACK_PORCH(SRC_H_BACK_PORCH),         // Back porch
+        .V_VISIBLE(SRC_V_VISIBLE),               // Активные строки PAL
+        .V_FRONT_PORCH(SRC_V_FRONT_PORCH),
+        .V_SYNC_PULSE(SRC_V_SYNC_PULSE),         // Синхроимпульс по вертикали  
+        .V_BACK_PORCH(SRC_V_BACK_PORCH),         // Back porch        
         .H_WIDTH(GEN_H_WIDTH),
         .V_WIDTH(GEN_V_WIDTH)
     ) pattern_timing (
@@ -122,15 +138,25 @@ module sdlx_llhdmi_system #(
         .reset_i(system_reset),
         .hpos_o(pattern_hpos),
         .vpos_o(pattern_vpos),
-        .rd_o(pattern_de),
-        .newline_o(pattern_newline), 
-        .newframe_o(pattern_newframe),
-        .hsync_o(pattern_hsync),
-        .vsync_o(pattern_vsync)
+        .rd_o(debug_2),
+        .newline_o(debug_0), 
+        .newframe_o(debug_1),
+        .hsync_o(),
+        .vsync_o()
     );
 
+/*
     // Test pattern generator (16MHz domain)
     pal_pattern  #(
+        .H_VISIBLE(SRC_H_VISIBLE),               // Активная часть строки PAL
+        .H_FRONT_PORCH(SRC_H_FRONT_PORCH),
+        .H_SYNC_PULSE(SRC_H_SYNC_PULSE),         // Длительность синхроимпульса
+        .H_BACK_PORCH(SRC_H_BACK_PORCH),         // Back porch
+        .V_VISIBLE(SRC_V_VISIBLE),               // Активные строки PAL
+        .V_FRONT_PORCH(SRC_V_FRONT_PORCH),
+        .V_SYNC_PULSE(SRC_V_SYNC_PULSE),         // Синхроимпульс по вертикали  
+        .V_BACK_PORCH(SRC_V_BACK_PORCH),         // Back porch
+
         .BITS_PER_COLOR(8),         // 8 bits per color channel для 24-bit RGB
         .H_WIDTH(12),               // Bit width for horizontal counter
         .V_WIDTH(12),               // Bit width for vertical counter  
@@ -147,21 +173,21 @@ module sdlx_llhdmi_system #(
         .newline_i(pattern_newline),     // Строб последнего пиксела строки
         .newframe_i(pattern_newframe)    // Строб последнего пиксела кадра
     );
-    
-    // Assign pattern generator outputs to scaler inputs
-    assign scaler_src_pixel_data = pattern_pixel;
-    assign scaler_src_hsync = pattern_hsync;
-    assign scaler_src_vsync = pattern_vsync;
-    assign scaler_src_pixel_stb = pattern_de & clk_16m;
-
+   */ 
+/*
     // HDMI scaler - cross-domain scaling
     hdmi_scaler #(
-        .SRC_WIDTH(720),           // Input pattern width
-        .DATA_WIDTH(24),           // 24-bit RGB
-        .V_SCALE(2),               // Vertical scaling factor
-        .DST_WIDTH(H_VISIBLE),     // Output width from config
-        .DST_HEIGHT(V_VISIBLE),    // Output height from config
-        .DST_TOTAL_WIDTH(H_TOTAL)  // Total line width
+        .SRC_H_VISIBLE(SRC_H_VISIBLE),      // Input pattern width
+        .DATA_WIDTH(24),                // 24-bit RGB
+        .V_SCALE(2),                    // Vertical scaling factor
+        .HDMI_H_VISIBLE(HDMI_H_VISIBLE),  
+        .HDMI_H_FRONT_PORCH(HDMI_H_FRONT_PORCH),
+        .HDMI_H_SYNC_PULSE(HDMI_H_SYNC_PULSE), 
+        .HDMI_H_BACK_PORCH(HDMI_H_BACK_PORCH), 
+        .HDMI_V_VISIBLE(HDMI_V_VISIBLE),    
+        .HDMI_V_FRONT_PORCH(HDMI_V_FRONT_PORCH),
+        .HDMI_V_SYNC_PULSE(HDMI_V_SYNC_PULSE), 
+        .HDMI_V_BACK_PORCH(HDMI_V_BACK_PORCH) 
     ) scaler_inst (
         // Source domain (16MHz)
         .src_clk_i(clk_32m),
@@ -176,29 +202,29 @@ module sdlx_llhdmi_system #(
         .dst_rst_i(system_reset),
         
         // Scaled output
-        .dst_pixel_data_o(scaler_dst_pixel_data),
+        .dst_pixel_data_o(pixel_data),
         .dst_newline_o(scaler_dst_newline),
         .dst_newframe_o(scaler_dst_newframe),
         .dst_de_o(scaler_dst_de),
         .dst_hreset_o(),  // Не подключен
         .dst_vreset_o()   // Не подключен
     );
-
+*/
     // Extract color components from scaled 24-bit RGB data
-    assign red = scaler_dst_pixel_data[23:16];
-    assign grn = scaler_dst_pixel_data[15:8];
-    assign blu = scaler_dst_pixel_data[7:0];
+    assign red = debug_0 ? 8'hFF : pixel_data[23:16];
+    assign grn = debug_1 ? 8'hFF : pixel_data[15:8];
+    assign blu = pixel_data[7:0];
 
     // HDMI encoder instance (27MHz domain)
     llhdmi #(
-        .H_VISIBLE(H_VISIBLE),
-        .H_FRONT_PORCH(H_FRONT_PORCH),
-        .H_SYNC_PULSE(H_SYNC_PULSE),
-        .H_BACK_PORCH(H_BACK_PORCH),
-        .V_VISIBLE(V_VISIBLE),
-        .V_FRONT_PORCH(V_FRONT_PORCH),
-        .V_SYNC_PULSE(V_SYNC_PULSE),
-        .V_BACK_PORCH(V_BACK_PORCH)
+        .H_VISIBLE(HDMI_H_VISIBLE),
+        .H_FRONT_PORCH(HDMI_H_FRONT_PORCH),
+        .H_SYNC_PULSE(HDMI_H_SYNC_PULSE),
+        .H_BACK_PORCH(HDMI_H_BACK_PORCH),
+        .V_VISIBLE(HDMI_V_VISIBLE),
+        .V_FRONT_PORCH(HDMI_V_FRONT_PORCH),
+        .V_SYNC_PULSE(HDMI_V_SYNC_PULSE),
+        .V_BACK_PORCH(HDMI_V_BACK_PORCH)
     ) llhdmi_encoder (
         // Clock inputs
         .i_tmdsclk(clk_tdms),
@@ -223,7 +249,32 @@ module sdlx_llhdmi_system #(
         .o_blu(o_blu)
     );
 
+    // VGA test pattern generator
+    vgatestsrc #(
+        .BITS_PER_COLOR(BITS_PER_COLOR),
+        .H_WIDTH(12),  // Supports up to 4096 pixels wide
+        .V_WIDTH(12),  // Supports up to 4096 pixels high
+        .FRAC_BITS(16)
+    ) vga_test_pattern (
+        // Clock and reset
+        .i_pixclk(clk_tdms_pixel),
+        .i_reset(system_reset),
+        
+        // Screen dimensions
+        .i_width(HDMI_H_VISIBLE),
+        .i_height(HDMI_V_VISIBLE),
+        
+        // Control signals
+        .i_rd(o_rd),
+        .i_newline(o_newline),
+        .i_newframe(o_newframe),
+        
+        // Pixel output
+        .o_pixel(pixel_data)
+    );
+
     // Differential output buffers for HDMI signals
+
     OBUFDS OBUFDS_red(
         .I(o_red),
         .O(gpdi_dp[2]),

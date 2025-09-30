@@ -44,7 +44,7 @@ module dual_port_ram #(
     initial begin
         dst_rd_data_o = 0;
     end
-    
+
     // =========================================================================
     // WRITE PROCESS - процесс записи (синхронный, домен src_clk_i)
     // =========================================================================
@@ -64,20 +64,8 @@ module dual_port_ram #(
     // =========================================================================
     // READ PROCESS - процесс чтения (синхронный, домен dst_clk_i)
     // =========================================================================
-    always_ff @(posedge dst_clk_i) begin
-        if (dst_rst_i) begin
-            // Сброс выходных данных
-            dst_rd_data_o <= {DATA_WIDTH{1'b0}};
-        end else if (dst_clke_i) begin
-            if (dst_rd_en_i) begin
-                // Чтение из памяти по указанному адресу
-                dst_rd_data_o <= mem[dst_rd_addr_i];
-            end else begin
-                // Поддержание нулевого выхода при отсутствии чтения
-                dst_rd_data_o <= {DATA_WIDTH{1'b0}};
-            end
-        end
-    end
+
+    assign dst_rd_data_o = dst_rd_en_i ?  mem[dst_rd_addr_i] :  {DATA_WIDTH{1'b0}};
     
     // =========================================================================
     // SIMULATION CHECKS - проверки для симуляции

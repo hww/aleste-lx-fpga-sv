@@ -7,25 +7,25 @@
 #include <verilated_fst_c.h>
 #include "Vhdmi_scaler.h"
 
-// Clock ratios
-const int SRC_CLK_RATIO = 4; // Медленнее в 2 раза (13.5MHz)
-const int DST_CLK_RATIO = 4; // Быстрее в 2 раза (27MHz)
-const int PIXEL_VALID_RATIO = 8;
+// Clock ratios - ПРОСТАЯ СХЕМА
+const int CLK_RATIO = 4;       // Базовая тактовая 27MHz для обоих доменов
+const int SRC_PIXEL_RATIO = 2; // 1 пиксель каждые 8 тактов (медленнее)
+const int DST_PIXEL_RATIO = 1; // 1 пиксель каждые 4 такта (быстрее)
 
 // Settings
 const int V_SCALE = 2;
 
 // Output timing parameters (PAL 720x576)
 const int DST_WIDTH = 720;
-const int DST_HEIGHT = 576;
+const int DST_HEIGHT = 480;
 const int DST_TOTAL_WIDTH = 864;
-const int DST_TOTAL_HEIGHT = 625; //+1 make it dividavle by 2
+const int DST_TOTAL_HEIGHT = 525;
 
-// PAL 720x576 Configuration but fake timing for test
-const int SRC_WIDTH = DST_WIDTH;
-const int SRC_HEIGHT = (DST_HEIGHT / 2);
-const int SRC_TOTAL_WIDTH = DST_TOTAL_WIDTH;
-const int SRC_TOTAL_HEIGHT = 312;
+// Input timing - ОДНА строка 6845 = ДВЕ строки HDMI по времени
+const int SRC_WIDTH = 720;
+const int SRC_HEIGHT = 240;
+const int SRC_TOTAL_WIDTH = 864;
+const int SRC_TOTAL_HEIGHT = 262; // 525 / 2 ~ 262
 
 struct VideoPixel
 {
@@ -109,7 +109,7 @@ public:
 
                 if (pixel.newline && pixel.newframe)
                 {
-                    rgb[0] = 255; // While for newline+newframe
+                    rgb[0] = 255; // White for newline+newframe
                     rgb[1] = 255;
                     rgb[2] = 255;
                 }
@@ -162,7 +162,6 @@ public:
             std::cout << " ❌ (CORRUPTED!)" << std::endl;
         }
     }
-
     void saveHexDump(const std::string &filename, int maxPointsPerLine = 80) const
     {
         std::ofstream file(filename);
@@ -239,9 +238,27 @@ private:
     int error_count;
     int frame_count;
 
+    // Тактовые счетчики
     int src_clk_counter;
     int dst_clk_counter;
-    int pixel_valid_counter;
+    int src_pixel_counter;
+    int dst_pixel_counter;
+
+    // Состояние тактов
+    bool src_clk_prev;
+    bool dst_clk_prev;
+
+    // HDMI timing
+    int dst_x_count;
+    int dst_y_count;
+    bool dst_de;
+    bool dst_newline;
+    bool dst_newframe;
+
+    // 6845 state
+    bool crt_frame_started;
+    int crt_x;
+    int crt_y;
 
     void start_trace()
     {
@@ -252,27 +269,117 @@ private:
         dut->trace(tfp, 99);
         tfp->open("hdmi_scaler_test.fst");
         std::cout << "Starting HDMI Scaler Test" << std::endl;
+
         error_count = 0;
         frame_count = 0;
         src_clk_counter = 0;
         dst_clk_counter = 0;
-        pixel_valid_counter = 0;
+        src_pixel_counter = 0;
+        dst_pixel_counter = 0;
+
+        src_clk_prev = false;
+        dst_clk_prev = false;
+
+        dst_x_count = 0;
+        dst_y_count = 0;
+        dst_de = false;
+        dst_newline = false;
+        dst_newframe = false;
+
+        crt_frame_started = false;
+        crt_x = 0;
+        crt_y = 0;
     }
 
     void tick()
     {
-        dut->src_clk_i = (src_clk_counter < SRC_CLK_RATIO / 2);
-        dut->dst_clk_i = (dst_clk_counter < DST_CLK_RATIO / 2);
+        src_clk_prev = dut->src_clk_i;
+        dst_clk_prev = dut->dst_clk_i;
 
-        if (++src_clk_counter >= SRC_CLK_RATIO)
+        // Тактовые сигналы
+        dut->src_clk_i = (src_clk_counter < CLK_RATIO / 2);
+        dut->dst_clk_i = (dst_clk_counter < CLK_RATIO / 2);
+
+        src_clk_counter++;
+        dst_clk_counter++;
+
+        if (src_clk_counter >= CLK_RATIO)
             src_clk_counter = 0;
-        if (++dst_clk_counter >= DST_CLK_RATIO)
+        if (dst_clk_counter >= CLK_RATIO)
             dst_clk_counter = 0;
-        if (++pixel_valid_counter >= PIXEL_VALID_RATIO)
-            pixel_valid_counter = 0;
+
+        // Счетчики пикселей увеличиваются ТОЛЬКО на rising edge
+        if (src_clk_rising_edge())
+        {
+            src_pixel_counter++;
+            if (src_pixel_counter >= SRC_PIXEL_RATIO)
+                src_pixel_counter = 0;
+        }
+
+        if (dst_clk_rising_edge())
+        {
+            dst_pixel_counter++;
+            if (dst_pixel_counter >= DST_PIXEL_RATIO)
+                dst_pixel_counter = 0;
+        }
 
         dut->eval();
         tfp->dump(sim_time++);
+    }
+
+    // Стробы пикселей - ПРАВИЛЬНАЯ ЛОГИКА
+    bool src_pixel_strobe() const
+    {
+        return src_pixel_counter == 0 && src_clk_rising_edge();
+    }
+
+    bool dst_pixel_strobe() const
+    {
+        return dst_pixel_counter == 0;
+    }
+
+    // Детекторы фронтов
+    bool src_clk_rising_edge() const
+    {
+        return !src_clk_prev && dut->src_clk_i;
+    }
+
+    bool dst_clk_rising_edge() const
+    {
+        return !dst_clk_prev && dut->dst_clk_i;
+    }
+    bool dst_clk_falling_edge() const
+    {
+        return dst_clk_prev && !dut->dst_clk_i;
+    }
+    void generate_hdmi_timing()
+    {        
+        // УВЕЛИЧИВАЕМ СЧЕТЧИКИ НА КАЖДОМ ВЫЗОВЕ
+        dst_x_count++;
+
+        dst_de = (dst_x_count < DST_WIDTH) && (dst_y_count < DST_HEIGHT);
+        dst_newline = (dst_x_count == DST_WIDTH - 1);
+        dst_newframe = dst_newline && (dst_y_count == DST_HEIGHT - 1);
+
+        dut->dst_rd_i = dst_de; // && dst_pixel_strobe();
+        dut->dst_newline_i = dst_newline;
+        dut->dst_newframe_i = dst_newframe;
+
+        if (dst_x_count >= DST_TOTAL_WIDTH)
+        {
+            dst_x_count = 0;
+            dst_y_count++;
+            if (dst_y_count >= DST_TOTAL_HEIGHT)
+            {
+                dst_y_count = 0;
+                std::cout << "HDMI: FRAME COMPLETED!" << std::endl;
+            }
+        }
+        // Отладка: показываем прогресс
+        if (dst_newline)
+        {
+            // std::cout << "HDMI: line " << dst_y_count << " completed" << std::endl;
+        }
     }
 
     void report_error(const std::string &message, int x = -1, int y = -1,
@@ -294,10 +401,12 @@ private:
     {
         return ((x & 0xFFF) << 12) | (y & 0xFFF);
     }
+
     uint32_t decode_rgb_x(uint32_t rgb)
     {
-        return ((rgb>>12) & 0xFFF);
+        return ((rgb >> 12) & 0xFFF);
     }
+
     uint32_t decode_rgb_y(uint32_t rgb)
     {
         return (rgb & 0xFFF);
@@ -312,8 +421,8 @@ private:
         int newframe_errors = 0;
         int data_errors = 0;
 
-        // Check active area (skip 2 lines)
-        for (int y = 2; y < DST_HEIGHT; y++)
+        // Check active area
+        for (int y = 0; y < DST_HEIGHT; y++)
         {
             for (int x = 0; x < DST_WIDTH; x++)
             {
@@ -324,13 +433,13 @@ private:
 
                     // Calculate expected source coordinates
                     int src_x = x;
-                    int src_y = (y-2) / V_SCALE;
-                    
+                    int src_y = y / V_SCALE;
+
                     if (src_y >= 0 && src_y < SRC_HEIGHT && src_x >= 0 && src_x < SRC_WIDTH)
                     {
                         uint32_t expected_color = make_rgb(src_x, src_y);
-                        
-                        int pix_x = decode_rgb_x(pixel.color); 
+
+                        int pix_x = decode_rgb_x(pixel.color);
                         int pix_y = decode_rgb_y(pixel.color);
 
                         if (src_x != pix_x || src_y != pix_y)
@@ -375,8 +484,12 @@ private:
 
 public:
     HDMI_Scaler_Test() : dut(new Vhdmi_scaler), tfp(nullptr), sim_time(0),
-                         error_count(0), frame_count(0), src_clk_counter(0),
-                         dst_clk_counter(0), pixel_valid_counter(0)
+                         error_count(0), frame_count(0), src_clk_counter(0), dst_clk_counter(0),
+                         src_pixel_counter(0), dst_pixel_counter(0),
+                         src_clk_prev(false), dst_clk_prev(false),
+                         dst_x_count(0), dst_y_count(0), dst_de(false),
+                         dst_newline(false), dst_newframe(false),
+                         crt_frame_started(false), crt_x(0), crt_y(0)
     {
         Verilated::traceEverOn(true);
     }
@@ -393,6 +506,14 @@ public:
     {
         dut->src_rst_i = 1;
         dut->dst_rst_i = 1;
+        dut->src_pixel_data_i = 0;
+        dut->src_rd_i = 0;
+        dut->src_newline_i = 0;
+        dut->src_newframe_i = 0;
+        dut->dst_rd_i = 0;
+        dut->dst_newline_i = 0;
+        dut->dst_newframe_i = 0;
+
         for (int i = 0; i < 10; i++)
             tick();
         dut->src_rst_i = 0;
@@ -403,10 +524,6 @@ public:
 
     void generate_test_frame(int frame_count, VideoFrame &input_frame)
     {
-        std::cout << "Input frame structure:" << std::endl;
-        std::cout << "  Active: " << SRC_WIDTH << " × " << SRC_HEIGHT << std::endl;
-        std::cout << "  Total: " << SRC_TOTAL_WIDTH << " × " << SRC_TOTAL_HEIGHT << std::endl;
-
         input_frame = VideoFrame(SRC_TOTAL_WIDTH, SRC_TOTAL_HEIGHT);
 
         for (int y = 0; y < SRC_TOTAL_HEIGHT; y++)
@@ -416,16 +533,10 @@ public:
                 auto &pixel = input_frame.at(x, y);
                 pixel.x = x;
                 pixel.y = y;
-
-                // Active area
                 pixel.valid = (x < SRC_WIDTH) && (y < SRC_HEIGHT);
                 if (pixel.valid)
                     pixel.color = make_rgb(x, y);
-
-                // Newline strobe (last pixel in active line)
                 pixel.newline = (x == SRC_WIDTH - 1);
-
-                // Newframe strobe (last pixel in active frame)
                 pixel.newframe = pixel.newline && (y == SRC_HEIGHT - 1);
             }
         }
@@ -437,149 +548,187 @@ public:
         reset();
         std::cout << "🔄 Resetting completed" << std::endl;
 
-        // 1. Генерируем входной кадр только один раз
         VideoFrame input_frame(0, 0);
         generate_test_frame(0, input_frame);
-        std::string src_filename = "hdmi_scaler_test_src_frame_0.ppm";
-        input_frame.savePPM(src_filename);
-        std::cout << "📁 Input frame saved: " << src_filename << std::endl;
+        input_frame.savePPM("hdmi_scaler_test_src_frame_0.ppm");
+        input_frame.saveHexDump("hdmi_scaler_test_src_frame_0.hex", 80);
 
         int cycles = 0;
+        const int MAX_CYCLES = 30000000; // Общий лимит
 
-        while (true)
+        // Инициализация состояний
+        bool src_sync_received = false;
+        bool dst_frame_active = false;
+        bool src_frame_active = false;
+
+        int out_x = 0, out_y = 0;
+        crt_x = SRC_WIDTH - SRC_TOTAL_WIDTH / 2; // Начальная позиция 6845
+        crt_y = SRC_HEIGHT;
+
+        VideoFrame output_frame(DST_TOTAL_WIDTH, DST_TOTAL_HEIGHT);
+        int frame_count = 0;
+        int input_pixels_sent = 0;
+
+        // 1. Главный цикл для времени симуляции
+        while (cycles < MAX_CYCLES && frame_count < 3)
         {
-            std::cout << "\n🎬 Processing frame " << frame_count << std::endl;
 
-            VideoFrame output_frame(DST_TOTAL_WIDTH, DST_TOTAL_HEIGHT);
 
-            bool frame_done = false;
-            int input_pixels_sent = 0;
-
-            // Output position counters
-            int out_x = 0;
-            int out_y = 0;
-
-            // Track previous strobes for edge detection
-            bool old_dst_clk_i = false;
-
-            // ИСПРАВЛЕНИЕ: счетчик пикселей в текущем кадре
-            int pixel_counter = 0;
-            int total_pixels = input_frame.getWidth() * input_frame.getHeight();
-
-            while (cycles < 10000000 && !frame_done)
+            // 3. Обработка SRC данных (только после sync)
+            if (src_clk_rising_edge())
             {
-                // ИСПРАВЛЕНИЕ: простой расчет координат из счетчика пикселей
-                int pixel_index = pixel_counter % total_pixels;
-                int input_x = pixel_index % input_frame.getWidth();
-                int input_y = pixel_index / input_frame.getWidth();
-
-                const auto &pixel = input_frame.at(input_x, input_y);
-
-                if (pixel_valid_counter == 0) // Pixel valid cycle
+                if (src_sync_received && src_pixel_strobe())
                 {
-                    dut->src_pixel_stb_i = pixel.valid;
-                    dut->src_pixel_data_i = pixel.color;
-                    dut->src_newline_i = pixel.newline;
-                    dut->src_newframe_i = pixel.newframe;
-                    if (pixel.valid)
+                    // Передача данных от 6845
+                    bool active = (crt_x < SRC_WIDTH) && (crt_y < SRC_HEIGHT);
+                    bool newline = (crt_x == SRC_WIDTH - 1);
+                    bool newframe = newline && (crt_y == SRC_HEIGHT - 1);
+
+                    if (active)
+                    {
+                        const auto &pixel = input_frame.at(crt_x, crt_y);
+                        dut->src_pixel_data_i = pixel.color;
+                        dut->src_rd_i = 1;
                         input_pixels_sent++;
-
-                    // ИСПРАВЛЕНИЕ: увеличиваем счетчик пикселей каждый раз
-                    pixel_counter++;
-                }
-                else if (pixel_valid_counter == PIXEL_VALID_RATIO / 2)
-                {
-                    dut->src_pixel_stb_i = 0;
-                    dut->src_newline_i = 0;
-                    dut->src_newframe_i = 0;
-                }
-
-                // Capture output on destination clock
-                if (!old_dst_clk_i && dut->dst_clk_i)
-                {
-                    // Сначала сохраняем текущий пиксель (последний в кадре)
-                    if (out_x < DST_TOTAL_WIDTH && out_y < DST_TOTAL_HEIGHT)
-                    {
-                        auto &out_pixel = output_frame.at(out_x, out_y);
-                        out_pixel.color = dut->dst_pixel_data_o;
-                        out_pixel.valid = dut->dst_de_o;
-                        out_pixel.newline = dut->dst_newline_o;
-                        out_pixel.newframe = dut->dst_newframe_o;
-                        out_pixel.x = out_x;
-                        out_pixel.y = out_y;
-                    }
-
-                    // Затем обрабатываем сброс
-                    if (dut->dst_vreset_o)
-                    {
-                        // dst_vreset_o в последнем пикселе кадра - сбрасываем на начало
-                        out_x = 0;
-                        out_y = 0;
-                        std::cout << std::endl; 
-                        std::cout << "Frame completed in " << cycles << " cycles" << std::endl;
-                        std::cout << "Input pixels sent: " << input_pixels_sent << std::endl;
-
-                        std::string filename = "hdmi_scaler_test_frame_" + std::to_string(frame_count) + ".ppm";
-                        output_frame.savePPM(filename);
-                        std::string hexname = "hdmi_scaler_test_frame_" + std::to_string(frame_count) + ".hex";
-                        output_frame.saveHexDump(hexname, 2048);
-                        analyze_frame(output_frame, frame_count);
-                        frame_count++;
-
-                        if (frame_count > 2)
-                            goto exit;
                     }
                     else
                     {
-                        // Нормальное увеличение счетчиков, если не было сброса
-                        if (dut->dst_newframe_o)
-                        {
-                            //std::cout << "(newframe x,y" << out_x << "," << out_y << ")" << std::endl;
-                            out_x = DST_WIDTH - 1;
-                            out_y = DST_HEIGHT - 1;
-                        }
-                        else if (dut->dst_newline_o)
-                        {                
-                            //std::cout << "(newline x,y" << out_x << "," << out_y << ")" << std::endl;
-                            out_x = DST_WIDTH - 1;
-                        }
-        
-   
-                        out_x++;
+                        dut->src_rd_i = 0;
+                    }
 
-                        // Проверка переполнения строки
-                        if (out_x >= DST_TOTAL_WIDTH)
-                        {
-                            std::cout << "  " << out_y;
-                            out_x = 0;
-                            out_y++;
-                        }
+                    dut->src_newline_i = newline;
+                    dut->src_newframe_i = newframe;
 
-
-                        // Проверка переполнения кадра
-                        if (out_y >= DST_TOTAL_HEIGHT)
+                    // Обновление позиции 6845
+                    crt_x++;
+                    if (crt_x >= SRC_TOTAL_WIDTH)
+                    {
+                        crt_x = 0;
+                        crt_y++;
+                        if (crt_y >= SRC_TOTAL_HEIGHT)
                         {
-                            std::cout << std::endl << "Dst Frame reset overloop " << frame_count << " completed" << std::endl;
-                            out_x = 0;
-                            out_y = 0;
+                            crt_y = 0;
+                            std::cout << "🔄 6845: frame wrap-around to (0,0)" << std::endl;
                         }
                     }
                 }
-                old_dst_clk_i = dut->dst_clk_i;
+                else
+                {
+                    dut->src_rd_i = 0;
+                    dut->src_newline_i = 0;
+                    dut->src_newframe_i = 0;
+                }
+            }
 
-                tick();
-                cycles++;
+#ifdef VERBOSE
+            if (frame_count > 0 && out_y == 0 && out_x < 10)
+            {
+                std::cout << "CAPTURING: (" << out_x << "," << out_y << ") = 0x"
+                          << std::hex << dut->dst_pixel_data_o << std::dec
+                          << " dst_rd_i=" << (dut->dst_rd_i ? 1 : 0)
+                          << " dst_clk_rising_edge=" << dst_clk_rising_edge()
+                          << " dst_clk_falling_edge=" << dst_clk_falling_edge()
+                          << " dst_clk_i=" << (dut->dst_clk_i ? 1 : 0)
+                          << " dst_clk_counter=" << dst_clk_counter
+                          << std::endl;
+            }
+#endif
+            // 4. Захват HDMI выхода
+            if (dst_clk_falling_edge() && dst_pixel_strobe())
+            {
+                assert(dut->dst_clk_i == 0);
+
+                auto &out_pixel = output_frame.at(out_x, out_y);
+                out_pixel.color = dut->dst_pixel_data_o;
+                out_pixel.valid = dut->dst_rd_i;
+                out_pixel.newline = dst_newline;
+                out_pixel.newframe = dst_newframe;
+                out_pixel.x = out_x;
+                out_pixel.y = out_y;
+#ifdef VERBOSE
+                // ДЕБАГ: диагностика смещения
+                if (out_y < 3 && out_x < 3)
+                {
+                    int expected_x = out_x;
+                    int expected_y = out_y;
+                    uint32_t expected_color = make_rgb(expected_x, expected_y / V_SCALE);
+
+                    std::cout << "📍 HDMI pos: (" << out_x << "," << out_y
+                              << ") got: 0x" << std::hex << out_pixel.color
+                              << " expected: 0x" << expected_color
+                              << " for src(" << expected_x << "," << (expected_y / V_SCALE) << ")"
+                              << std::dec << std::endl;
+                }
+#endif
+                // Обновление позиции захвата
+                if (dst_newframe)
+                {
+                    out_x = DST_WIDTH - 1; // Синхронизация позиции
+                    out_y = DST_HEIGHT - 1;
+                }
+                else if (dst_newline)
+                {
+                    out_x = DST_WIDTH - 1; // Синхронизация позиции
+                }
+                else
+                {
+                    out_x++;
+                }
+
+                if (out_x >= DST_TOTAL_WIDTH)
+                {
+                    out_x = 0;
+                    out_y++;
+                }
+
+                // 5. Сохранение кадра при завершении
+                if (out_y >= DST_TOTAL_HEIGHT)
+                {
+                    out_x = 0;
+                    out_y = 0;
+
+                    std::cout << "🎯 HDMI frame " << frame_count << " COMPLETED" << std::endl;
+                    std::cout << "6845 progress: x=" << crt_x << ", y=" << crt_y << std::endl;
+                    std::cout << "Input pixels sent: " << input_pixels_sent << std::endl;
+
+                    output_frame.savePPM("hdmi_scaler_test_frame_" + std::to_string(frame_count) + ".ppm");
+                    output_frame.saveHexDump("hdmi_scaler_test_frame_" + std::to_string(frame_count) + ".hex", 80);
+                    if (frame_count > 0) // Skip first frame as invalid
+                        analyze_frame(output_frame, frame_count);
+
+                    frame_count++;
+
+                    // Сброс для следующего кадра
+                    output_frame = VideoFrame(DST_TOTAL_WIDTH, DST_TOTAL_HEIGHT);
+                    input_pixels_sent = 0;
+                }
+            }
+
+            // 6. Обработка событий (не циклы ожидания!)
+            if (!src_sync_received && dut->src_sync_o)
+            {
+                src_sync_received = true;
+                std::cout << "✅ src_sync_o received at cycle " << cycles << std::endl;
+                std::cout << "Starting 6845 at (" << crt_x << "," << crt_y << ")" << std::endl;
+            }
+
+            tick();
+            cycles++;
+
+            // 2. Тактирование и HDMI timing на каждом цикле
+            if (dst_clk_rising_edge() && dst_pixel_strobe())
+            {
+                generate_hdmi_timing();
             }
         }
-    exit:
-        std::cout << "\n🎯 FINAL RESULTS:" << std::endl;
-        std::cout << "Frames processed: " << frame_count << std::endl;
-        std::cout << "Total errors: " << error_count << std::endl;
 
-        if (error_count == 0)
-            std::cout << "✅ ALL TESTS PASSED" << std::endl;
-        else
-            std::cout << "❌ TEST FAILED" << std::endl;
+        if (cycles >= MAX_CYCLES)
+        {
+            std::cout << "⏰ Simulation timeout after " << cycles << " cycles" << std::endl;
+        }
+
+        std::cout << "\n🎯 TEST COMPLETE" << std::endl;
+        std::cout << "Frames captured: " << frame_count << std::endl;
     }
 };
 

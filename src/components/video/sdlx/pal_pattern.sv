@@ -38,6 +38,21 @@
 `default_nettype none
 
 module pal_pattern #(
+    // =========================================================================
+    // Screen Parameters (adapted for 640x240 @ 16MHz)
+    // =========================================================================
+         
+    // Параметры для PAL 720x288 (активная область может быть меньше)
+    parameter H_VISIBLE       = 720,    // Активная часть строки PAL
+    parameter H_FRONT_PORCH   = 12,
+    parameter H_SYNC_PULSE    = 228,    // Длительность синхроимпульса
+    parameter H_BACK_PORCH    = 64,     // Back porch
+    
+    parameter V_VISIBLE       = 288,    // Активные строки PAL
+    parameter V_FRONT_PORCH   = 2,
+    parameter V_SYNC_PULSE    = 3,      // Синхроимпульс по вертикали  
+    parameter V_BACK_PORCH    = 19,     // Back porch
+
     parameter BITS_PER_COLOR = 4,    // Bits per color channel (R, G, or B)
     parameter H_WIDTH        = 10,   // Bit width for horizontal counter (640 max)
     parameter V_WIDTH        = 8,    // Bit width for vertical counter (240 max)
@@ -56,17 +71,14 @@ module pal_pattern #(
     output reg  [3*BITS_PER_COLOR-1:0] pixel_o
 );
 
-    // =========================================================================
-    // Screen Parameters (adapted for 640x240 @ 16MHz)
-    // =========================================================================
-    localparam H_TOTAL   = 1024;    // Total pixels per line (64µs × 16MHz)
-    localparam H_ACTIVE  = 720;     // Active pixels per line (40µs × 16MHz)
-    localparam V_TOTAL   = 312;     // Total lines per frame (for 50Hz)
-    localparam V_ACTIVE  = 288;     // Active lines per frame
+
 
     // =========================================================================
     // Local Parameters
     // =========================================================================
+
+    localparam H_TOTAL   = H_VISIBLE + H_FRONT_PORCH + H_SYNC_PULSE + H_BACK_PORCH;  // 800   
+    localparam V_TOTAL   = V_VISIBLE + V_FRONT_PORCH + V_SYNC_PULSE + V_BACK_PORCH;  // 281
     localparam BPC = BITS_PER_COLOR;
     localparam BPP = 3 * BPC;  // Total bits per pixel (R+G+B)
 
@@ -293,8 +305,8 @@ module pal_pattern #(
             pixel_o <= WHITE;
         end else if (rd_i) begin
             // Draw borders and content
-            if ((h_pos == 0) || (h_pos == H_ACTIVE - 1) ||  // Left/right borders
-                (v_pos == 0) || (v_pos == V_ACTIVE - 1))    // Top/bottom borders
+            if ((h_pos == 0) || (h_pos == H_VISIBLE - 1) ||  // Left/right borders
+                (v_pos == 0) || (v_pos == V_VISIBLE - 1))    // Top/bottom borders
             begin
                 pixel_o <= WHITE;  // White border
             end else begin

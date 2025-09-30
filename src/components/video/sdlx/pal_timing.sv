@@ -1,6 +1,18 @@
+`default_nettype none
+
 module pal_timing #(
     parameter H_WIDTH = 11,
-    parameter V_WIDTH = 9
+    parameter V_WIDTH = 9,
+    // Параметры для PAL 720x288 (активная область может быть меньше)
+    parameter H_VISIBLE       = 720,    // Активная часть строки PAL
+    parameter H_FRONT_PORCH   = 12,
+    parameter H_SYNC_PULSE    = 228,    // Длительность синхроимпульса
+    parameter H_BACK_PORCH    = 64,     // Back porch
+    
+    parameter V_VISIBLE       = 288,    // Активные строки PAL
+    parameter V_FRONT_PORCH   = 2,
+    parameter V_SYNC_PULSE    = 3,      // Синхроимпульс по вертикали  
+    parameter V_BACK_PORCH    = 19     // Back porch
 )(
     input  logic clk_i,
     input  logic pixclk_i,
@@ -16,19 +28,10 @@ module pal_timing #(
     output logic vsync_o
 );
 
-    // Параметры для PAL 720x288 (активная область может быть меньше)
-    localparam H_ACTIVE  = 720;    // Активная часть строки PAL
-    localparam H_FRONT   = 12;
-    localparam H_BACK    = 64;     // Back porch
-    localparam H_SYNC    = 228;    // Длительность синхроимпульса
-    
-    localparam V_ACTIVE  = 288;    // Активные строки PAL
-    localparam V_FRONT   = 2;
-    localparam V_SYNC    = 3;      // Синхроимпульс по вертикали  
-    localparam V_BACK    = 19;     // Back porch
 
-    localparam H_TOTAL   = H_ACTIVE + H_FRONT + H_SYNC + H_BACK;  // 800   
-    localparam V_TOTAL   = V_ACTIVE + V_FRONT + V_SYNC + V_BACK;  // 281
+
+    localparam H_TOTAL   = H_VISIBLE + H_FRONT_PORCH + H_SYNC_PULSE + H_BACK_PORCH;  // 800   
+    localparam V_TOTAL   = V_VISIBLE + V_FRONT_PORCH + V_SYNC_PULSE + V_BACK_PORCH;  // 281
 
     logic [H_WIDTH-1:0] hpos;
     logic [V_WIDTH-1:0] vpos;
@@ -69,17 +72,17 @@ module pal_timing #(
     end
 
     // Управляющие сигналы
-    assign rd_o       = (hpos < H_ACTIVE) && (vpos < V_ACTIVE);
-    assign newline_o  = (hpos == H_ACTIVE - 1);
-    assign newframe_o = (vpos == V_ACTIVE - 1) && (hpos == H_ACTIVE - 1);
+    assign rd_o       = (hpos < H_VISIBLE) && (vpos < V_VISIBLE);
+    assign newline_o  = (hpos == H_VISIBLE - 1);
+    assign newframe_o = (vpos == V_VISIBLE - 1) && (hpos == H_VISIBLE - 1);
     assign resline_o  = (hpos == H_TOTAL - 1);
     assign resframe_o = (vpos == V_TOTAL - 1) && (hpos == H_TOTAL - 1);
 
     // Синхроимпульсы (отрицательные для VGA)
-    assign hsync_o = !((hpos >= H_ACTIVE + H_FRONT) && 
-                       (hpos < H_ACTIVE + H_FRONT + H_SYNC));
-    assign vsync_o = !((vpos >= V_ACTIVE + V_FRONT) && 
-                       (vpos < V_ACTIVE + V_FRONT + V_SYNC));
+    assign hsync_o = !((hpos >= H_VISIBLE + H_FRONT_PORCH) && 
+                       (hpos < H_VISIBLE + H_FRONT_PORCH + H_SYNC_PULSE));
+    assign vsync_o = !((vpos >= V_VISIBLE + V_FRONT_PORCH) && 
+                       (vpos < V_VISIBLE + V_FRONT_PORCH + V_SYNC_PULSE));
 
     assign hpos_o = hpos;
     assign vpos_o = vpos;
