@@ -7,7 +7,7 @@ VERILATOR_FLAGS = -Wall --cc --exe --build --trace-fst -I. \
 	-Wno-UNUSEDSIGNAL \
 	-Wno-CASEINCOMPLETE
 	
-RTL_PATH = ../../../../src/components/video/sdlx
+RTL_PATH = ../../../../src/components/video/sdoubler
 SOURCES = \
     $(RTL_PATH)/hdmi_scaler.sv \
     $(RTL_PATH)/dual_port_ram.sv \
