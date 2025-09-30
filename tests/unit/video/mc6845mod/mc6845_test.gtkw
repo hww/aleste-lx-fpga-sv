@@ -1,0 +1,26 @@
+[*
+* GTKWave Analyzer v3.3.108
+*
+[timestamp] 2024-01-01
+[savefile] mc6845_test.fst
+*
+
+[@28]
+-9
+mc6845_mod.wb_clk_i
+mc6845_mod.wb_rst_i
+mc6845_mod.pix_clk_i
+mc6845_mod.pix_en_i
+mc6845_mod.sync_i
+mc6845_mod.de_o
+mc6845_mod.hsync_o
+mc6845_mod.vsync_o
+mc6845_mod.newline_o
+mc6845_mod.newframe_o
+mc6845_mod.cursor_o
+mc6845_mod.ma_o
+mc6845_mod.ra_o
+mc6845_mod.wb_adr_i
+mc6845_mod.wb_dat_i
+mc6845_mod.wb_dat_o
+mc6845_mod.wb_ack_o

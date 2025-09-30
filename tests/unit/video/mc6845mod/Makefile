@@ -27,6 +27,9 @@ run: $(TARGET)
 wave: run
 	gtkwave mc6845_test.fst &
 
+simulation: run
+	gtkwave mc6845_test.fst mc6845_test.gtkw &
+
 clean:
 	rm -rf obj_dir mc6845_test.fst
 

@@ -24,12 +24,12 @@ private:
     // Test state
     int frame_count;
     int error_count;
-
+    u_int32_t base_address;
 public:
-    MC6845_Test() : dut(new Vmc6845mod), tfp(nullptr), sim_time(0),
+    MC6845_Test(u_int32_t base_address) : dut(new Vmc6845mod), tfp(nullptr), sim_time(0),
                    wb_clk_counter(0), pix_clk_counter(0), pix_en_counter(0),
                    wb_clk_prev(false), pix_clk_prev(false),
-                   frame_count(0), error_count(0) {
+                   frame_count(0), error_count(0), base_address(base_address) {
         Verilated::traceEverOn(true);
     }
 
@@ -44,29 +44,22 @@ public:
         dut->trace(tfp, 99);
         tfp->open("mc6845_test.fst");
     }
+void tick() {
+    static int tick_count = 0;
+    
+    // pix_clk - основная тактовая
+    dut->pix_clk_i = (tick_count % 2) == 0;
+    
+    // pix_en_i = pix_clk, деленный на 2 (совпадающие фронты)
+    dut->pix_en_i = (tick_count % 4) < 2;
+    
+    // wb_clk - независимая
+    dut->wb_clk_i = (tick_count % 3) == 0;
 
-    void tick() {
-        wb_clk_prev = dut->wb_clk_i;
-        pix_clk_prev = dut->pix_clk_i;
-
-        // Generate clocks (WB: 100MHz, Pixel: 32MHz)
-        dut->wb_clk_i = (wb_clk_counter < 5);
-        dut->pix_clk_i = (pix_clk_counter < 16);
-        
-        // Pixel enable (8 MHz strobe)
-        dut->pix_en_i = (pix_en_counter == 0);
-
-        wb_clk_counter++;
-        pix_clk_counter++;
-        pix_en_counter++;
-
-        if (wb_clk_counter >= 10) wb_clk_counter = 0;
-        if (pix_clk_counter >= 50) pix_clk_counter = 0;  // 32 MHz
-        if (pix_en_counter >= 4) pix_en_counter = 0;     // 8 MHz enable
-
-        dut->eval();
-        tfp->dump(sim_time++);
-    }
+    tick_count++;
+    dut->eval();
+    tfp->dump(sim_time++);
+}
 
     bool wb_clk_rising_edge() const {
         return !wb_clk_prev && dut->wb_clk_i;
@@ -97,7 +90,7 @@ public:
         dut->wb_cyc_i = 1;
         dut->wb_stb_i = 1;
         dut->wb_we_i = 1;
-        dut->wb_adr_i = addr;
+        dut->wb_adr_i = base_address+addr;
         dut->wb_dat_i = data;
         dut->wb_sel_i = 0xF;
 
@@ -123,7 +116,7 @@ public:
         dut->wb_cyc_i = 1;
         dut->wb_stb_i = 1;
         dut->wb_we_i = 0;
-        dut->wb_adr_i = addr;
+        dut->wb_adr_i = base_address+addr;
         dut->wb_sel_i = 0xF;
 
         int timeout = 100;
@@ -151,12 +144,12 @@ public:
         std::cout << "🧪 Testing register access..." << std::endl;
 
         // Test address register write
-        wb_write(0x6840, 0x01);  // Write to address register (R1 - HDISPLAY)
-        wb_write(0x6841, 80);    // Write 80 chars to R1
+        wb_write(0x00, 0x01);  // Write to address register (R1 - HDISPLAY)
+        wb_write(0x01, 80);    // Write 80 chars to R1
 
         // Verify write
         wb_write(0x6840, 0x01);  // Select R1
-        uint8_t readback = wb_read(0x6841);  // Read R1
+        uint8_t readback = wb_read(0x01);  // Read R1
         if (readback == 80) {
             std::cout << "✅ Register write/read test PASSED" << std::endl;
         } else {
@@ -165,11 +158,11 @@ public:
         }
 
         // Test multiple registers
-        wb_write(0x6840, 0x02); wb_write(0x6841, 90);  // HSYNCPOS
-        wb_write(0x6840, 0x06); wb_write(0x6841, 25);  // VDISPLAY
-        wb_write(0x6840, 0x07); wb_write(0x6841, 26);  // VSYNCPOS
-        wb_write(0x6840, 0x0A); wb_write(0x6841, 6);   // CURSOR START
-        wb_write(0x6840, 0x0B); wb_write(0x6841, 7);   // CURSOR END
+        wb_write(0x00, 0x02); wb_write(0x01, 90);  // HSYNCPOS
+        wb_write(0x00, 0x06); wb_write(0x01, 25);  // VDISPLAY
+        wb_write(0x00, 0x07); wb_write(0x01, 26);  // VSYNCPOS
+        wb_write(0x00, 0x0A); wb_write(0x01, 6);   // CURSOR START
+        wb_write(0x00, 0x0B); wb_write(0x01, 7);   // CURSOR END
 
         std::cout << "📝 Register test complete" << std::endl;
     }
@@ -231,8 +224,10 @@ public:
         frame_count = 0;
 
         while (sim_time < max_cycles && frame_count < 3) {
-            // Random sync pulses
-            if (rand() % 5000 == 0) {
+            //  sync pulses
+            if (dut->newframe_o) {
+                // Через некоторое время после конца кадела - sync
+                for (int i = 0; i < 10; i++) tick();
                 dut->sync_i = 1;
                 tick();
                 dut->sync_i = 0;
@@ -290,7 +285,7 @@ public:
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     
-    MC6845_Test test;
+    MC6845_Test test = MC6845_Test(0x684500);
     test.run_all_tests();
     
     return 0;

@@ -159,9 +159,9 @@ always @(posedge pix_clk_i) begin
 end
 
 // Active area calculation based on sync positions
-logic [10:0] h_active_start = {regs[REG_HSYNCPOS], 3'b0}; // Convert chars to pixels
+logic [10:0] h_active_start = '0; // Convert chars to pixels
 logic [10:0] h_active_end = h_active_start + ({regs[REG_HDISPLAY], 3'b0} - 1);
-logic [10:0] v_active_start = {regs[REG_VSYNCPOS], 3'b0}; // Convert rows to lines  
+logic [10:0] v_active_start = '0; // Convert rows to lines  
 logic [10:0] v_active_end = v_active_start + ({regs[REG_VDISPLAY], 3'b0} - 1);
 
 // Output signals
