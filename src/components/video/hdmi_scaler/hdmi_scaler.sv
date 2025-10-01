@@ -41,9 +41,9 @@ module hdmi_scaler #(
     // INPUT DOMAIN (src_clk_i) - ПРОСТАЯ ЗАПИСЬ
     // ============================================================================
     
-    logic src_buf_sel;
-    logic [ADDR_WIDTH-1:0] src_buf_addr;
-    logic src_line_valid; // Флаг, что строка была записана (не используется)
+    logic src_buf_sel = 0;
+    logic [ADDR_WIDTH-1:0] src_buf_addr = 0;
+    logic src_line_valid = 0; // Флаг, что строка была записана (не используется)
 
     // Счетчик адреса для записи
     always_ff @(posedge src_clk_i) begin
@@ -70,10 +70,10 @@ module hdmi_scaler #(
     // OUTPUT DOMAIN (dst_clk_i) - С ПОВТОРЕНИЕМ СТРОК
     // ============================================================================
     
-    logic dst_buf_sel;
-    logic [ADDR_WIDTH-1:0] dst_buf_addr;
-    logic dst_line_repeat; // Флаг повторения строки
-    logic [1:0] dst_line_counter; // Счетчик повторений строки
+    logic dst_buf_sel = 0;
+    logic [ADDR_WIDTH-1:0] dst_buf_addr = 0;
+    logic dst_line_repeat = 0;          // Флаг повторения строки
+    logic [1:0] dst_line_counter = 0;   // Счетчик повторений строки
     
     // Счетчик адреса для чтения и управление повторением строк
     always_ff @(posedge dst_clk_i) begin
@@ -112,7 +112,7 @@ module hdmi_scaler #(
     // ПРОСТАЯ СИНХРОНИЗАЦИАЦИЯ
     // ============================================================================
     
-    logic [1:0] dst_newframe_sync;
+    logic [1:0] dst_newframe_sync = 0;
 
     always_ff @(posedge src_clk_i) begin
         if (src_rst_i) begin
@@ -123,7 +123,8 @@ module hdmi_scaler #(
     end
 
     // Детектор фронта для src_sync_o
-    logic dst_newframe_sync_prev;
+    logic dst_newframe_sync_prev = 0;
+
     always_ff @(posedge src_clk_i) begin
         if (src_rst_i) begin
             dst_newframe_sync_prev <= 1'b0;

@@ -42,7 +42,7 @@ module dual_port_ram #(
     logic [DATA_WIDTH-1:0] mem [0:DATA_LENGTH-1];
     
     initial begin
-        dst_rd_data_o = 0;
+
     end
 
     // =========================================================================

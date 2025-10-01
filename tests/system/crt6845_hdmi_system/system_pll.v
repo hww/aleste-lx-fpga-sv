@@ -28,6 +28,9 @@ module system_pll(
     
     // Симуляция locked сигнала
     initial begin
+        clk_100M_reg = 0;
+        clk_32M_reg = 0; 
+        clk_16M_reg = 0;        
         locked_reg = 0;
         #1000 locked_reg = 1; // Lock после 1us
     end

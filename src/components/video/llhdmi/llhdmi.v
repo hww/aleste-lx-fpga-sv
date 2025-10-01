@@ -58,13 +58,13 @@ module llhdmi #(
 
 
   // Pixel position counters
-  reg [10:0] CounterX;  // Needs to count up to 799
-  reg [9:0]  CounterY;  // Needs to count up to 524
+  reg [10:0] CounterX = 0;  // Needs to count up to 799
+  reg [9:0]  CounterY = 0;  // Needs to count up to 524
 
   // Sync and control signals
-  reg hSync;
-  reg vSync;
-  reg DrawArea;
+  reg hSync = 0;
+  reg vSync = 0;
+  reg DrawArea = 0;
 
   // Horizontal counter
   always @(posedge i_pixclk) begin
@@ -92,10 +92,16 @@ module llhdmi #(
     end
   end
 
+  reg newline = 0;
+  reg newframe = 0;
+
+  assign o_newline = newframe;
+  assign o_newframe = newline;
+
   // New line/frame detection
   always @(posedge i_pixclk) begin
-    o_newline  <= (CounterX == H_VISIBLE - 1) ? 1'b1 : 1'b0;
-    o_newframe <= (CounterX == H_VISIBLE - 1) && (CounterY == V_VISIBLE - 1) ? 1'b1 : 1'b0;
+    newline  <= (CounterX == H_VISIBLE - 1) ? 1'b1 : 1'b0;
+    newframe <= (CounterX == H_VISIBLE - 1) && (CounterY == V_VISIBLE - 1) ? 1'b1 : 1'b0;
   end
 
   // Draw area detection
