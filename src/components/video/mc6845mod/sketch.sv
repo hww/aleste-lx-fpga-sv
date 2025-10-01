@@ -229,7 +229,6 @@ assign wb_dat_o = {24'b0, wb_data_out};
 logic [10:0] hdmi_h_count = 0;
 logic [10:0] hdmi_v_count = 0;
 logic hdmi_frame_reset = 0;
-logic hdmi_extra_row = 0;
 
 // HDMI timing counters
 always_ff @(posedge pix_clk_i) begin
@@ -237,7 +236,6 @@ always_ff @(posedge pix_clk_i) begin
         hdmi_h_count <= 0;
         hdmi_v_count <= 0;
         hdmi_frame_reset <= 0;
-        hdmi_extra_row <= 0;
     end else begin
         hdmi_frame_reset <= 0;
         
@@ -248,30 +246,23 @@ always_ff @(posedge pix_clk_i) begin
                 hdmi_v_count <= PIX_HEIGHT;
                 hdmi_frame_reset <= 1;
             end else begin
-                // Check for half-line reset condition FIRST
-                if (hdmi_extra_row && (hdmi_h_count >= (PIX_TOTAL_W/2) - 1)) begin
-                    // Half-line reached - reset frame
+                if (hdmi_h_count >= PIX_TOTAL_W - 1) begin
                     hdmi_h_count <= 0;
-                    hdmi_v_count <= 0;
-                    hdmi_frame_reset <= 1;
-                    hdmi_extra_row <= 0;
-                end else begin
-                    // Normal counting
-                    if (hdmi_h_count >= PIX_TOTAL_W - 1) begin
-                        hdmi_h_count <= 0;
-                        hdmi_v_count <= hdmi_v_count + 1;
-                        hdmi_extra_row <= hdmi_v_count == PIX_TOTAL_H-1;
+                    // Additional half line for scandoubler
+                    if (hdmi_v_count >= PIX_TOTAL_H && hdmi_h_count >= (PIX_TOTAL_W/2)-1) begin
+                        hdmi_v_count <= 0;
+                        hdmi_frame_reset <= 1;
                     end else begin
-                        hdmi_h_count <= hdmi_h_count + 1;
+                        hdmi_v_count <= hdmi_v_count + 1;
                     end
+                end else begin
+                    hdmi_h_count <= hdmi_h_count + 1;
                 end
             end
         end
     end
 end
 
-// Extra row for scandoubler
-assign extra_row_o = hdmi_extra_row;
 assign de_hdmi_o = (hdmi_h_count < PIX_WIDTH) && (hdmi_v_count < PIX_HEIGHT);
 assign newline_o = (hdmi_h_count == PIX_WIDTH - 1) && pix_en_i;
 assign newframe_o = (hdmi_v_count == PIX_HEIGHT - 1) && newline_o;
@@ -525,9 +516,11 @@ end
 assign de_skew_o = de_skew_delayed;
 assign cursor_skew_o = cursor_skew_delayed;
 
+// Extra row for 226.5 lines
+assign extra_row_o = (hdmi_v_count >= PIX_TOTAL_H); // Пол-строки для скандаблера
+
 // Memory address outputs
 assign ma_o = crtc_ma_addr;
 assign ra_o = crtc_scan_line;
 
 endmodule
-

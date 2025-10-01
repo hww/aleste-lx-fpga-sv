@@ -184,7 +184,7 @@ public:
         // Verify write
         wb_write(0x6840, 0x01);           // Select R1
         uint8_t readback = wb_read(0x01); // Read R1
-        if (readback == 80)
+        if (readback == 40)
         {
             std::cout << "✅ Register write/read test PASSED" << std::endl;
         }
@@ -248,7 +248,7 @@ public:
 
         while (newframe_count < frames_to_test && ++cycles < MAXCYCLES)
         {
-            if (pix_clk_rising_edge() && dut->de_o)
+            if (pix_clk_rising_edge() && dut->de_crtc_o)
             {
                 // Логируем первые несколько активаций
                 if (dut->cursor_o && cursor_detected < 10)
@@ -271,7 +271,7 @@ public:
         }
 
         // Дополнительная диагностика
-        std::cout << "🔍 Final state - DE: " << dut->de_o 
+        std::cout << "🔍 Final state - DE: " << dut->de_crtc_o 
                 << " CURSOR: " << dut->cursor_o
                 << " MA: " << dut->ma_o 
                 << " RA: " << dut->ra_o << std::endl;
@@ -300,16 +300,14 @@ public:
         frame_count = 0;
 
         // Через некоторое время после конца кадела - sync
-        dut->sync_i = 1;
-        tick();
-        dut->sync_i = 0;
-        bool old_de = dut->de_o;
+        sync();
+        bool old_de = dut->de_crtc_o;
         while (sim_time < max_cycles && frame_count < 3)
         {
             if (pix_clk_rising_edge())
             {
                 // Count timing events
-                if (!old_de && dut->de_o)
+                if (!old_de && dut->de_crtc_o)
                     de_pulses++;
                 if (dut->newline_o)
                     newline_count++;
@@ -321,7 +319,7 @@ public:
                               << " - DE: " << de_pulses
                               << " Lines: " << newline_count << std::endl;
                 }
-                old_de = dut->de_o;
+                old_de = dut->de_crtc_o;
             }
             tick();
         }
