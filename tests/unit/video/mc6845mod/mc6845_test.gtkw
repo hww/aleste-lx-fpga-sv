@@ -1,86 +1,40 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Tue Sep 30 17:24:23 2025
+[*] Thu Oct  2 14:07:26 2025
 [*]
 [dumpfile] "/home/valery/asv/tests/unit/video/mc6845mod/mc6845_test.fst"
-[dumpfile_mtime] "Tue Sep 30 17:24:07 2025"
-[dumpfile_size] 22902
+[dumpfile_mtime] "Thu Oct  2 13:57:52 2025"
+[dumpfile_size] 6667
 [savefile] "/home/valery/asv/tests/unit/video/mc6845mod/mc6845_test.gtkw"
-[timestart] 0
-[size] 1920 1110
+[timestart] 2851
+[size] 1920 1113
 [pos] -27 -24
-*0.000000 93825393020635 93825393020635 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-3.000000 2853 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [sst_width] 297
-[signals_width] 190
+[signals_width] 230
 [sst_expanded] 1
-[sst_vpaned_height] 336
-@200
--9
+[sst_vpaned_height] 337
 @22
-TOP.mc6845mod.addr_reg[4:0]
-TOP.mc6845mod.cursor_addr[13:0]
+TOP.mc6845mod.reg_start_addr_h[5:0]
+TOP.mc6845mod.reg_start_addr_l[7:0]
+TOP.mc6845mod.crtc_row_start_addr[13:0]
 @28
-TOP.mc6845mod.cursor_o
-TOP.mc6845mod.cursor_on
-TOP.mc6845mod.de_o
-@22
-TOP.mc6845mod.h_active_end[10:0]
-TOP.mc6845mod.h_active_start[10:0]
-TOP.mc6845mod.h_counter[10:0]
-@28
-TOP.mc6845mod.hsync_o
-@22
-TOP.mc6845mod.ma_o[13:0]
-TOP.mc6845mod.memory_addr[13:0]
-@28
-TOP.mc6845mod.newframe_o
-TOP.mc6845mod.newline_o
 TOP.mc6845mod.pix_clk_i
 TOP.mc6845mod.pix_en_i
+TOP.crtc_de_o
 @22
-TOP.mc6845mod.ra_o[4:0]
-TOP.mc6845mod.regs[0][7:0]
-TOP.mc6845mod.regs[1][7:0]
-TOP.mc6845mod.regs[2][7:0]
-TOP.mc6845mod.regs[3][7:0]
-TOP.mc6845mod.regs[4][7:0]
-TOP.mc6845mod.regs[5][7:0]
-TOP.mc6845mod.regs[6][7:0]
-TOP.mc6845mod.regs[7][7:0]
-TOP.mc6845mod.regs[8][7:0]
-TOP.mc6845mod.regs[9][7:0]
-TOP.mc6845mod.regs[10][7:0]
-TOP.mc6845mod.regs[11][7:0]
-TOP.mc6845mod.regs[12][7:0]
-TOP.mc6845mod.regs[13][7:0]
-TOP.mc6845mod.regs[14][7:0]
-TOP.mc6845mod.regs[15][7:0]
-TOP.mc6845mod.row_addr[4:0]
+TOP.ma_o[13:0]
+TOP.ra_o[4:0]
+@29
+TOP.mc6845mod.crtc_char_stb
 @28
-TOP.mc6845mod.sel_o
-TOP.mc6845mod.sync_i
+TOP.mc6845mod.crtc_end_of_line
 @22
-TOP.mc6845mod.v_active_end[10:0]
-TOP.mc6845mod.v_active_start[10:0]
-TOP.mc6845mod.v_counter[10:0]
+TOP.mc6845mod.crtc_h_count[7:0]
 @28
-TOP.mc6845mod.vsync_o
-TOP.mc6845mod.wb_ack_o
+TOP.mc6845mod.crtc_end_of_char_v
 @22
-TOP.mc6845mod.wb_adr_i[23:0]
-@28
-TOP.mc6845mod.wb_clk_i
-TOP.mc6845mod.wb_cyc_i
-@22
-TOP.mc6845mod.wb_dat_i[31:0]
-TOP.mc6845mod.wb_dat_o[31:0]
-@28
-TOP.mc6845mod.wb_rst_i
-@22
-TOP.mc6845mod.wb_sel_i[3:0]
-@28
-TOP.mc6845mod.wb_stb_i
-TOP.mc6845mod.wb_we_i
+TOP.mc6845mod.crtc_ma_addr[13:0]
 [pattern_trace] 1
 [pattern_trace] 0
