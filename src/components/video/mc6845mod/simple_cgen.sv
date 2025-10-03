@@ -17,7 +17,7 @@ module simple_cgen #(
     input  wire [13:0] ma_i,    // Memory Address от 6845
     input  wire [4:0]  ra_i,    // Row Address от 6845  
     input  wire        cursor_i,
-    output reg  [23:0] pixel_o  // 24-bit RGB
+    output wire  [23:0] pixel_o  // 24-bit RGB
 );
     
     // Простая визуализация адресов:

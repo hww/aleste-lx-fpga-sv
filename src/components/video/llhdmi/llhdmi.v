@@ -1,6 +1,8 @@
 `default_nettype none
 
 module llhdmi #(
+  // Register input color with latency 1
+  parameter INPUT_LATENCY = 0,
   // Timing parameters for 640x480 @ 60Hz
   parameter H_VISIBLE     = 640,
   parameter H_FRONT_PORCH = 16,
@@ -31,8 +33,8 @@ module llhdmi #(
   
   // Status outputs
   output wire o_rd,             // Ready to accept pixel data
-  output reg  o_newline,        // Last pixel of line pulse
-  output reg  o_newframe,       // Last pixel of frame pulse
+  output wire  o_newline,        // Last pixel of line pulse
+  output wire  o_newframe,       // Last pixel of frame pulse
   
   // TMDS outputs
   output wire o_red,            // Red TMDS data stream
@@ -95,14 +97,14 @@ module llhdmi #(
   reg newline = 0;
   reg newframe = 0;
 
-  assign o_newline = newframe;
-  assign o_newframe = newline;
-
   // New line/frame detection
   always @(posedge i_pixclk) begin
     newline  <= (CounterX == H_VISIBLE - 1) ? 1'b1 : 1'b0;
     newframe <= (CounterX == H_VISIBLE - 1) && (CounterY == V_VISIBLE - 1) ? 1'b1 : 1'b0;
   end
+
+  assign o_newline = newline;
+  assign o_newframe = newframe;
 
   // Draw area detection
   always @(posedge i_pixclk) begin
@@ -117,23 +119,59 @@ module llhdmi #(
     hSync <= (CounterX >= H_SYNC_START) && (CounterX < H_SYNC_END);
     vSync <= (CounterY >= V_SYNC_START) && (CounterY < V_SYNC_END);
   end
+  
+  // =================================================
+  // Added by h2w the register on input color
+  // =================================================
 
+  // There are latch registers for signals
+  reg [7:0] red_ff = 0;
+  reg [7:0] grn_ff = 0;
+  reg [7:0] blu_ff = 0;
+  reg [1:0] cd_ff = 0;
+  reg draw_area_ff = 0;
+  
+  wire [7:0] cur_red;
+  wire [7:0] cur_grn;
+  wire [7:0] cur_blu;
+  wire [1:0] cur_cd;
+  wire cur_draw_area;
+
+  // Latch colors and control signals
+  always @(posedge i_pixclk) begin
+    red_ff <= i_red;
+    grn_ff <= i_grn;
+    blu_ff <= i_blu;
+    cd_ff  <= {vSync, hSync};
+    draw_area_ff <= DrawArea;
+  end
+
+  // Select active signals
+  assign cur_red   = (INPUT_LATENCY == 1)     ? red_ff   : i_red;
+  assign cur_grn   = (INPUT_LATENCY == 1)     ? grn_ff : i_grn;
+  assign cur_blu   = (INPUT_LATENCY == 1)     ? blu_ff  : i_blu;
+  assign cur_cd    = (INPUT_LATENCY == 1)     ? cd_ff    : {vSync, hSync};
+  assign cur_draw_area = (INPUT_LATENCY == 1) ? draw_area_ff : DrawArea;
+
+  // =================================================
   // TMDS encoding
+  // =================================================
+
   wire [TMDS_WIDTH-1:0] TMDS_red, TMDS_grn, TMDS_blu;
   
   tmds_encoder #(
   ) encode_R (
     .clk(i_pixclk),
-    .VD(i_red),
+    .VD(cur_red),
     .CD(2'b00),           // Control data for red channel
-    .VDE(DrawArea),
+    .VDE(cur_draw_area),
     .TMDS(TMDS_red)
   );
   
   tmds_encoder #(
   ) encode_G (
     .clk(i_pixclk),
-    .VD(i_grn),
+    .VD(cur_grn),
     .CD(2'b00),           // Control data for green channel
     .VDE(DrawArea),
     .TMDS(TMDS_grn)
@@ -142,9 +180,9 @@ module llhdmi #(
   tmds_encoder #(
   ) encode_B (
     .clk(i_pixclk), 
-    .VD(i_blu),
-    .CD({vSync, hSync}),  // Sync signals on blue channel
-    .VDE(DrawArea),
+    .VD(cur_blu),
+    .CD(cur_cd),  // Sync signals on blue channel
+    .VDE(cur_draw_area),
     .TMDS(TMDS_blu)
   );
 

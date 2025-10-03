@@ -39,7 +39,6 @@ module crt6845_hdmi_system #(
     output logic [DATA_INDICES:0] gpdi_dn,  // Negative differential outputs
     
     // System control output
-    output logic              wifi_gpio0,
     output logic              debug_0,
     output logic              debug_1,
     output logic              debug_2
@@ -242,16 +241,16 @@ module crt6845_hdmi_system #(
         .sync_i(scaler_sync),
         
         // Video Outputs
-        .de_o(mc6845_de),
-        .hsync_o(mc6845_hsync),
-        .vsync_o(mc6845_vsync),
-        .newline_o(mc6845_newline),
-        .newframe_o(mc6845_newframe),
-        .cursor_o(mc6845_cursor),
+        .crtc_de_o(mc6845_de),
+        .crtc_hsync_o(mc6845_hsync),
+        .crtc_vsync_o(mc6845_vsync),
+        .crtc_cursor_o(mc6845_cursor),
+        .hdmi_newline_o(mc6845_newline),
+        .hdmi_newframe_o(mc6845_newframe),
         
         // Memory Address Interface
-        .ma_o(mc6845_ma),
-        .ra_o(mc6845_ra)
+        .crtc_ma_o(mc6845_ma),
+        .crtc_ra_o(mc6845_ra)
     );
 
     // Pixel strobe для скандаблера
@@ -308,11 +307,14 @@ module crt6845_hdmi_system #(
     logic [7:0] grn;
     logic [7:0] blu;
 
+
     assign red = pixel_data[23:16];
     assign grn = pixel_data[15:8];
     assign blu = pixel_data[7:0];
 
+
     llhdmi #(
+        .INPUT_LATENCY(1),
         .H_VISIBLE(HDMI_H_VISIBLE),
         .H_FRONT_PORCH(HDMI_H_FRONT_PORCH),
         .H_SYNC_PULSE(HDMI_H_SYNC_PULSE),

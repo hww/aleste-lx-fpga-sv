@@ -107,7 +107,7 @@ logic [4:0] wb_addr_reg;
 // Chip select
 assign sel_o = (wb_adr_i[23:8] == WB_ADDRESS) && wb_cyc_i && wb_stb_i;
 assign wb_ack_o = wb_ack;
-assign wb_dat_o = wb_ack ? {24'b0, wb_data_out} : 32'bz;
+assign wb_dat_o = {24'b0, wb_data_out};
 
 // Wishbone interface
 always_ff @(posedge wb_clk_i) begin
@@ -277,8 +277,8 @@ end
 // Extra row for scandoubler
 assign extra_row_o = hdmi_extra_row;
 assign hdmi_de_o = (hdmi_h_count < PIX_WIDTH) && (hdmi_v_count < PIX_HEIGHT);
-assign hdmi_newline_o = (hdmi_h_count == PIX_WIDTH - 1) && pix_en_i;
-assign hdmi_newframe_o = (hdmi_v_count == PIX_HEIGHT - 1) && hdmi_newline_o;
+assign hdmi_newline_o = ((hdmi_h_count == PIX_WIDTH - 1) && pix_en_i);
+assign hdmi_newframe_o = ((hdmi_v_count == PIX_HEIGHT - 1) && hdmi_newline_o) || sync_i;
 
 // ============================================================================
 // БЛОК 2: ЦЕНТРИРОВАНИЕ И ОБЛАСТЬ CRTC
@@ -433,7 +433,7 @@ end
 // БЛОК 6: КУРСОР ЛОГИКА  
 // ============================================================================
 
-logic [13:0] crtc_cursor_ma_addr = 0;
+logic [13:0] crtc_cursor_ma_addr;
 logic crtc_cursor_ma_active;
 logic crtc_cursor_ra_active;
 logic crtc_cursor_blinking;

@@ -47,7 +47,7 @@ module tb_crt6845_hdmi_system;
         $display("PLL should be locked by now");
         
         // Симуляция 5ms для проверки работы
-        #50_000_000; // 5ms
+        #25_000_000; // 5ms
         
         $display("Simulation finished at %t ns", $time);
         $finish;
@@ -113,7 +113,7 @@ module tb_crt6845_hdmi_system;
         
         // Повторяем каждые 100us
         forever begin
-            #100000;
+            #500000;
             $display("=== Status at %t ns ===", $time);
             $display("Debug: newline=%b, newframe=%b, rd=%b", 
                      debug_0, debug_1, debug_2);

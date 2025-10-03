@@ -1,8 +1,0 @@
-read_verilog -DCONFIG_27MHZ ../../src/systems/sdlx_llhdmi/sdlx_llhdmi_system.v
-read_verilog ../../src/components/video/llhdmi/llhdmi.v ../../src/components/video/llhdmi/vgatestsrc.v
-read_verilog ../../src/components/video/llhdmi/tmds_encoder.v
-read_verilog ../../src/components/video/llhdmi/clock.v ../../src/platforms/icesugar_pro/clocks/video_pll.v ../../src/platforms/icesugar_pro/clocks/system_pll.v
-read_verilog ../../src/components/video/llhdmi/OBUFDS.v
-read_verilog -sv ../../src/components/video/sdlx/dual_port_ram.sv ../../src/components/video/sdlx/hdmi_scaler.sv ../../src/components/video/sdlx/pal_pattern.sv ../../src/components/video/sdlx/pal_timing.sv
-hierarchy -top sdlx_llhdmi_system
-synth_ecp5 -json sdlx_llhdmi_system.json

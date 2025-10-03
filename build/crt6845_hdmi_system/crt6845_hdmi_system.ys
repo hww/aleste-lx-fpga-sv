@@ -1,0 +1,9 @@
+read_verilog -I. -DCONFIG_27MHZ -I../../src/config -sv ../../src/systems/crt6845_hdmi_system/crt6845_hdmi_system.sv
+read_verilog ../../src/components/video/llhdmi/llhdmi.v
+read_verilog ../../src/components/video/llhdmi/tmds_encoder.v
+read_verilog ../../src/platforms/icesugar_pro/clocks/video_pll.v ../../src/platforms/icesugar_pro/clocks/system_pll.v
+read_verilog ../../src/components/video/llhdmi/OBUFDS.v
+read_verilog -sv ../../src/components/video/mc6845mod/mc6845mod.sv ../../src/components/video/mc6845mod/simple_cgen.sv
+read_verilog -sv ../../src/components/video/hdmi_scaler/dual_port_ram.sv ../../src/components/video/hdmi_scaler/hdmi_scaler.sv
+hierarchy -top crt6845_hdmi_system
+synth_ecp5 -json crt6845_hdmi_system.json
