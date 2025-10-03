@@ -39,9 +39,14 @@ module crt6845_hdmi_system #(
     output logic [DATA_INDICES:0] gpdi_dn,  // Negative differential outputs
     
     // System control output
-    output logic              debug_0,
-    output logic              debug_1,
-    output logic              debug_2
+    output logic              debug_0,  // E1
+    output logic              debug_1,  // F2
+    output logic              debug_2,  // C2
+    output logic              debug_3,  // D1
+    output logic              debug_4,  // B2
+    output logic              debug_5,  // C1
+    output logic              debug_6,  // A2
+    output logic              debug_7,  // B1
 );       
 
     // ===========================================
@@ -120,7 +125,7 @@ module crt6845_hdmi_system #(
     // ===========================================
     // Инициализация MC6845
     // ===========================================
-    
+
     // Программирование регистров MC6845 при сбросе
     logic [4:0] init_addr = 0;
     logic [7:0] init_data = 0;
@@ -134,6 +139,7 @@ module crt6845_hdmi_system #(
     logic wb_we;
     logic wb_ack;
 
+`ifdef INIT_CRTC
     always_ff @(posedge clk_32m) begin
         if (system_reset) begin
             init_state <= 0;
@@ -212,7 +218,14 @@ module crt6845_hdmi_system #(
     assign wb_dat = {24'b0, init_data};
     assign wb_sel = 4'b1111;
     assign wb_we = init_we;
-
+`elsif 
+    assign wb_cyc = 0;
+    assign wb_stb = 0;
+    assign wb_adr = '0;
+    assign wb_dat = '0;
+    assign wb_sel = 4'b0000;
+    assign wb_we = '0;
+`endif 
     // ===========================================
     // MC6845 instance
     // ===========================================
@@ -260,6 +273,9 @@ module crt6845_hdmi_system #(
     // Скандаблер
     // ===========================================
 
+    logic src_buffer;
+    logic dst_buffer;
+
     hdmi_scaler #(
         .SRC_H_VISIBLE(720),
         .DATA_WIDTH(24),
@@ -275,6 +291,7 @@ module crt6845_hdmi_system #(
         .src_newline_i(mc6845_newline),
         .src_newframe_i(mc6845_newframe),
         .src_sync_o(scaler_sync),
+        .src_buffer_o(src_buffer),
         
         // Destination domain (27MHz - HDMI)
         .dst_clk_i(clk_tdms_pixel),
@@ -282,7 +299,8 @@ module crt6845_hdmi_system #(
         .dst_newline_i(o_newline),
         .dst_newframe_i(o_newframe),
         .dst_rd_i(o_rd),
-        .dst_pixel_data_o(pixel_data)
+        .dst_pixel_data_o(pixel_data),
+        .dst_buffer_o(dst_buffer)
     );
 
     // ===========================================
@@ -295,7 +313,7 @@ module crt6845_hdmi_system #(
         .de_i(mc6845_de),
         .ma_i(mc6845_ma),
         .ra_i(mc6845_ra),
-        .cursor_i(mc6845_cursor),
+        .cursor_i(mc6845_cursor || scaler_sync),
         .pixel_o(cgen_pixel)
     );
 
@@ -350,8 +368,22 @@ module crt6845_hdmi_system #(
     // ===========================================
     // Отладка
     // ===========================================
-    assign debug_0 = mc6845_newline;  // или другой интересный сигнал
-    assign debug_1 = mc6845_newframe;
-    assign debug_2 = mc6845_de;
+    // LOCATION OF DEBUG PINS ON THE PCB
+    // --------------------------------------+
+    //    |          | F2 D1 C1 B1 GND       |  
+    //    | HDMI CON | E1 C2 B2 A2 GND       |
+    //    +----------+                       |
+    //                                       |
+    // --------------------------------------+
+    
+    assign debug_0 = mc6845_newline;    // E1 
+    assign debug_1 = mc6845_newframe;   // F2
+    assign debug_2 = mc6845_de;         // C2
+    assign debug_3 = scaler_sync;       // D1 
+    assign debug_4 = o_newline;         // B2
+    assign debug_5 = o_newframe;        // C1
+    assign debug_6 = src_buffer;        // A2
+    assign debug_7 = dst_buffer;        // B1
+
 
 endmodule

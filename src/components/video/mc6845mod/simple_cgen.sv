@@ -29,12 +29,17 @@ module simple_cgen #(
     always @(posedge clk_i) begin
         if (reset_i) begin
             pixel <= 24'h000000;
+        end else  if (cursor_i) begin
+            // Cursor make red
+            pixel <= {8'hFF, 8'h0, 8'h0 }; 
         end else if (de_i) begin
-            pixel <= {ma_i[13:6],    // Red: старшие биты MA
-                       ma_i[5:0], 2'b00, // Green: младшие биты MA  
-                       ra_i, 3'b000};    // Blue: RA + курсор место
+            pixel <= {ma_i[5:0], 2'b00,     // Red: младшие биты MA   
+                      ma_i[13:6],           // Green: старшие биты MA
+                      ra_i, 3'b000};        // Blue: RA + курсор место
         end else begin
-            pixel <= BORDER_COLOR; // Черный за активной областью
+            pixel <= {ma_i[5:0], 2'b00,     // Red: младшие биты MA   
+                      ma_i[13:6],           // Green: старшие биты MA
+                      ra_i, 3'b111};        // Blue: RA + курсор место пометим бордюр легкой подстветкой
         end
     end
     

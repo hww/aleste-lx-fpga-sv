@@ -33,8 +33,8 @@ module llhdmi #(
   
   // Status outputs
   output wire o_rd,             // Ready to accept pixel data
-  output wire  o_newline,        // Last pixel of line pulse
-  output wire  o_newframe,       // Last pixel of frame pulse
+  output wire o_newline,        // Last pixel of line pulse
+  output wire o_newframe,       // Last pixel of frame pulse
   
   // TMDS outputs
   output wire o_red,            // Red TMDS data stream

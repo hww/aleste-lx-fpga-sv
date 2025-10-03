@@ -24,9 +24,9 @@ run: $(TARGET)
 	./obj_dir/$(TARGET)
 
 wave: run
-	gtkwave waveform.vcd &
+	gtkwave hdmi_scaler_test.fst &
 
 clean:
-	rm -rf obj_dir waveform.vcd
+	rm -rf obj_dir hdmi_scaler_test.fst
 
 .PHONY: all run wave clean

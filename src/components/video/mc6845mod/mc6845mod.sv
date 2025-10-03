@@ -232,7 +232,7 @@ end
 
 logic [10:0] hdmi_h_count = 0;
 logic [10:0] hdmi_v_count = 0;
-logic hdmi_frame_reset = 0;
+logic hdmi_frame_reset = 0; // UNUSED
 logic hdmi_extra_row = 0;
 
 // HDMI timing counters
@@ -248,8 +248,9 @@ always_ff @(posedge pix_clk_i) begin
         if (pix_en_i) begin
             if (sync_i) begin
                 // Reset at end of visible area
-                hdmi_h_count <= PIX_WIDTH;
-                hdmi_v_count <= PIX_HEIGHT;
+                hdmi_h_count <= PIX_WIDTH; // the next pixel after sync
+                // CRTC should produce line before the HDMI will read it
+                hdmi_v_count <= PIX_HEIGHT; // the next line after sync !
                 hdmi_frame_reset <= 1;
             end else begin
                 // Check for half-line reset condition FIRST
