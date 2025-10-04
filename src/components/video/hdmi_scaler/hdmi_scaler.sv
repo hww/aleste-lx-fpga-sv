@@ -19,7 +19,8 @@ module hdmi_scaler #(
     
     // Входной видеоинтерфейс от 6845
     input  logic [DATA_WIDTH-1:0] src_pixel_data_i,
-    input  logic src_wr_i,
+    input  logic src_de_i,              // строб пикселов идет пока они передаются
+    input  logic src_pix_en_i,              // строб пикселов идет непрерывно
     input  logic src_newline_i,
     input  logic src_newframe_i,
     output logic src_sync_o,
@@ -53,7 +54,7 @@ module hdmi_scaler #(
             src_buf_addr <= '0;
             src_buf_sel <= 1'b0;
             src_line_valid <= 1'b0;
-        end else if (src_wr_i) begin
+        end else if (src_pix_en_i) begin
             if (src_newframe_i) begin
                 src_buf_addr <= '0;
                 src_buf_sel <= 1'b0;
@@ -62,7 +63,7 @@ module hdmi_scaler #(
                 src_buf_addr <= '0;
                 src_buf_sel <= ~src_buf_sel; // Переключаем буфер
                 src_line_valid <= 1'b1; // Помечаем строку как валидную
-            end else begin
+            end else if (src_de_i) begin
                 src_buf_addr <= src_buf_addr + 1;
             end
         end
@@ -114,29 +115,39 @@ module hdmi_scaler #(
     // ============================================================================
     // ПРОСТАЯ СИНХРОНИЗАЦИАЦИЯ
     // ============================================================================
-    
-    logic [1:0] dst_newframe_sync = 0;
+        
+    logic [2:0] dst_newframe_sync = 0;
+    logic [1:0] src_newframe_sync = 0;
+    logic src_sync_strobed = 0;
 
+    // Синхронизация dst_newframe_i в домен src_clk_i
     always_ff @(posedge src_clk_i) begin
         if (src_rst_i) begin
-            dst_newframe_sync <= 2'b00;
+            dst_newframe_sync <= 3'b000;
         end else begin
-            dst_newframe_sync <= {dst_newframe_sync[0], dst_newframe_i};
+            if (dst_newframe_i) begin
+                dst_newframe_sync <= 3'b111;
+            end else begin
+                dst_newframe_sync <= {dst_newframe_sync[1:0], 1'b0};
+            end
         end
     end
 
-    // Детектор фронта для src_sync_o
-    logic dst_newframe_sync_prev = 0;
-
+    // Стробирование с помощью src_pix_en_i
     always_ff @(posedge src_clk_i) begin
         if (src_rst_i) begin
-            dst_newframe_sync_prev <= 1'b0;
-        end else begin
-            dst_newframe_sync_prev <= dst_newframe_sync[1];
+            src_newframe_sync <= 2'b00;
+            src_sync_strobed <= 1'b0;
+        end else if (src_pix_en_i) begin
+            // Сдвиговый регистр для детектора фронта
+            src_newframe_sync <= {src_newframe_sync[0], dst_newframe_sync[2]};
+            
+            // Детектор фронта - импульс на один такт
+            src_sync_strobed <= src_newframe_sync[0] && !src_newframe_sync[1];
         end
     end
 
-    assign src_sync_o = dst_newframe_sync[1] && !dst_newframe_sync_prev;
+    assign src_sync_o = src_sync_strobed;
 
     // ============================================================================
     // БУФЕРЫ (с подключением всех сигналов)

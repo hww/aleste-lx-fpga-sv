@@ -307,6 +307,7 @@ private:
             src_clk_counter = 0;
         if (dst_clk_counter >= CLK_RATIO)
             dst_clk_counter = 0;
+        dut->src_pix_en_i = src_pixel_strobe();
 
         // Счетчики пикселей увеличиваются ТОЛЬКО на rising edge
         if (src_clk_rising_edge())
@@ -499,7 +500,8 @@ public:
         dut->src_rst_i = 1;
         dut->dst_rst_i = 1;
         dut->src_pixel_data_i = 0;
-        dut->src_wr_i = 0;
+        dut->src_de_i = 0;
+        dut->src_pix_en_i = 0;
         dut->src_newline_i = 0;
         dut->src_newframe_i = 0;
         dut->dst_rd_i = 0;
@@ -576,7 +578,7 @@ public:
 
                     const auto &pixel = input_frame.at(crt_x, crt_y);
                     dut->src_pixel_data_i = pixel.color;
-                    dut->src_wr_i = active;
+                    dut->src_de_i = active;
                     dut->src_newline_i = newline;
                     dut->src_newframe_i = newframe;
     
@@ -603,7 +605,7 @@ public:
                 }
                 else
                 {
-                    dut->src_wr_i = 0;
+                    dut->src_de_i = 0;
                     dut->src_newline_i = 0;
                     dut->src_newframe_i = 0;
                 }

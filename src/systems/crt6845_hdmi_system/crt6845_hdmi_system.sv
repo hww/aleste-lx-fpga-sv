@@ -46,7 +46,7 @@ module crt6845_hdmi_system #(
     output logic              debug_4,  // B2
     output logic              debug_5,  // C1
     output logic              debug_6,  // A2
-    output logic              debug_7,  // B1
+    output logic              debug_7  // B1
 );       
 
     // ===========================================
@@ -131,6 +131,7 @@ module crt6845_hdmi_system #(
     logic [7:0] init_data = 0;
     logic [3:0] init_state = 0;
     logic init_we = 0;
+    // Wishbone
     logic wb_cyc;
     logic wb_stb; 
     logic [23:0] wb_adr;
@@ -218,7 +219,7 @@ module crt6845_hdmi_system #(
     assign wb_dat = {24'b0, init_data};
     assign wb_sel = 4'b1111;
     assign wb_we = init_we;
-`elsif 
+`else 
     assign wb_cyc = 0;
     assign wb_stb = 0;
     assign wb_adr = '0;
@@ -266,9 +267,6 @@ module crt6845_hdmi_system #(
         .crtc_ra_o(mc6845_ra)
     );
 
-    // Pixel strobe для скандаблера
-    assign mc6845_pix_stb = mc6845_de; // В 16MHz домене
-
     // ===========================================
     // Скандаблер
     // ===========================================
@@ -284,10 +282,11 @@ module crt6845_hdmi_system #(
         .HDMI_V_VISIBLE(480)
     ) scaler_inst (
         // Source domain (16MHz - MC6845)
-        .src_clk_i(clk_16m),
+        .src_clk_i(clk_32m),
+        .src_pix_en_i(clk_16m),
         .src_rst_i(system_reset),
         .src_pixel_data_i(cgen_pixel),
-        .src_rd_i(mc6845_pix_stb),
+        .src_de_i(mc6845_de),
         .src_newline_i(mc6845_newline),
         .src_newframe_i(mc6845_newframe),
         .src_sync_o(scaler_sync),
@@ -375,7 +374,7 @@ module crt6845_hdmi_system #(
     //    +----------+                       |
     //                                       |
     // --------------------------------------+
-    
+
     assign debug_0 = mc6845_newline;    // E1 
     assign debug_1 = mc6845_newframe;   // F2
     assign debug_2 = mc6845_de;         // C2

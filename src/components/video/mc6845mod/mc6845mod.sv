@@ -3,8 +3,7 @@
 // =============================================================================
 // For Aleste LX project by H2W
 // =============================================================================
-// Аналог MC6845 с возможностью синхронизации с HDMI выходом.
-// 100% совместимость с оригинальным MC6845 кроме light pen и vertical adjust
+// Аналог MC6845 с фиксированной высотой символа 8 строк
 // =============================================================================
 
 `default_nettype none
@@ -16,8 +15,8 @@ module mc6845mod #(
     parameter PIX_HEIGHT = 240,          // Fixed HDMI active height divided by 2  
     parameter PIX_TOTAL_W = 1024,        // Fixed HDMI total width 
     parameter PIX_TOTAL_H = 262,         // Fixed HDMI total height divided by 2
-    parameter PIX_PER_CHAR = 8,          // Pixels per character
-    parameter LINES_PER_ROW = 8          // Lines per text row
+    parameter PIX_PER_CHAR = 16,         // 16 pixels per character
+    parameter LINES_PER_CHAR = 8         // Fixed: 8 lines per character
 )(
     // Wishbone Slave Interface
     input logic wb_clk_i,
@@ -49,7 +48,7 @@ module mc6845mod #(
     output logic crtc_hsync_o, // CRTC hsync for interrupts
     output logic crtc_vsync_o, // CRTC vsync for interrupts
     output logic crtc_cursor_o,
-    output logic crtc_char_o, // End of character
+    output logic crtc_char_o, // Character strobe (every 16 pixels)
     
     // Memory Address Interface
     output logic [13:0] crtc_ma_o,
@@ -109,7 +108,7 @@ assign sel_o = (wb_adr_i[23:8] == WB_ADDRESS) && wb_cyc_i && wb_stb_i;
 assign wb_ack_o = wb_ack;
 assign wb_dat_o = {24'b0, wb_data_out};
 
-// Wishbone interface
+// Wishbone interface (остается без изменений)
 always_ff @(posedge wb_clk_i) begin
     if (wb_rst_i) begin
         wb_ack <= 1'b0;
@@ -129,7 +128,7 @@ always_ff @(posedge wb_clk_i) begin
             reg_v_sync_pos <= 7'd30;
             reg_interlace <= 2'd0;
             reg_skew <= 2'd0;
-            reg_max_scan <= 5'd15;
+            reg_max_scan <= 5'd7;
             reg_cursor_start <= 5'd0;
             reg_cursor_mode <= 2'd0;
             reg_cursor_end <= 5'd0;
@@ -150,7 +149,7 @@ always_ff @(posedge wb_clk_i) begin
             reg_v_sync_pos <= 0;    
             reg_interlace <= 0;
             reg_skew <= 0;
-            reg_max_scan <= 0;     
+            reg_max_scan <= 5'd7;
             reg_cursor_start <= 0;
             reg_cursor_mode <= 0;
             reg_cursor_end <= 0;
@@ -182,7 +181,7 @@ always_ff @(posedge wb_clk_i) begin
                         REG_VDISPLAY:   reg_v_displayed <= wb_dat_i[6:0];
                         REG_VSYNCPOS:   reg_v_sync_pos <= wb_dat_i[6:0];
                         REG_INTERLACE:  {reg_skew, reg_interlace} <= {wb_dat_i[5:4], wb_dat_i[1:0]};
-                        REG_MAXSCAN:    reg_max_scan <= wb_dat_i[4:0];
+                        REG_MAXSCAN:    reg_max_scan <= 5'd7; // Fixed: ignore writes
                         REG_CURSTART:   {reg_cursor_mode, reg_cursor_start} <= wb_dat_i[6:0];
                         REG_CUREND:     reg_cursor_end <= wb_dat_i[4:0];
                         REG_STARTH:     reg_start_addr_h <= wb_dat_i[5:0];
@@ -208,7 +207,7 @@ always_ff @(posedge wb_clk_i) begin
                         REG_VDISPLAY:   wb_data_out <= {1'b0, reg_v_displayed};
                         REG_VSYNCPOS:   wb_data_out <= {1'b0, reg_v_sync_pos};
                         REG_INTERLACE:  wb_data_out <= {reg_skew, 2'b00, reg_interlace};
-                        REG_MAXSCAN:    wb_data_out <= {3'b0, reg_max_scan};
+                        REG_MAXSCAN:    wb_data_out <= {3'b0, 5'd7};
                         REG_CURSTART:   wb_data_out <= {1'b0, reg_cursor_mode, reg_cursor_start};
                         REG_CUREND:     wb_data_out <= {3'b0, reg_cursor_end};
                         REG_STARTH:     wb_data_out <= {2'b0, reg_start_addr_h};
@@ -232,7 +231,6 @@ end
 
 logic [10:0] hdmi_h_count = 0;
 logic [10:0] hdmi_v_count = 0;
-logic hdmi_frame_reset = 0; // UNUSED
 logic hdmi_extra_row = 0;
 
 // HDMI timing counters
@@ -240,25 +238,18 @@ always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i) begin
         hdmi_h_count <= 0;
         hdmi_v_count <= 0;
-        hdmi_frame_reset <= 0;
         hdmi_extra_row <= 0;
     end else begin
-        hdmi_frame_reset <= 0;
-        
         if (pix_en_i) begin
             if (sync_i) begin
                 // Reset at end of visible area
-                hdmi_h_count <= PIX_WIDTH; // the next pixel after sync
-                // CRTC should produce line before the HDMI will read it
-                hdmi_v_count <= PIX_HEIGHT; // the next line after sync !
-                hdmi_frame_reset <= 1;
+                hdmi_h_count <= PIX_WIDTH;
+                hdmi_v_count <= PIX_HEIGHT;
             end else begin
-                // Check for half-line reset condition FIRST
+                // Check for half-line reset condition
                 if (hdmi_extra_row && (hdmi_h_count >= (PIX_TOTAL_W/2) - 1)) begin
-                    // Half-line reached - reset frame
                     hdmi_h_count <= 0;
                     hdmi_v_count <= 0;
-                    hdmi_frame_reset <= 1;
                     hdmi_extra_row <= 0;
                 end else begin
                     // Normal counting
@@ -275,267 +266,221 @@ always_ff @(posedge pix_clk_i) begin
     end
 end
 
-// Extra row for scandoubler
 assign extra_row_o = hdmi_extra_row;
-assign hdmi_de_o = (hdmi_h_count < PIX_WIDTH) && (hdmi_v_count < PIX_HEIGHT);
+assign hdmi_de_o = (hdmi_h_count < PIX_WIDTH) && (hdmi_v_count < PIX_HEIGHT) && pix_en_i;
 assign hdmi_newline_o = ((hdmi_h_count == PIX_WIDTH - 1) && pix_en_i);
 assign hdmi_newframe_o = ((hdmi_v_count == PIX_HEIGHT - 1) && hdmi_newline_o) || sync_i;
 
-// ============================================================================
-// БЛОК 2: ЦЕНТРИРОВАНИЕ И ОБЛАСТЬ CRTC
-// ============================================================================
-
-logic [10:0] crtc_start_value_h;
-logic [10:0] crtc_start_value_v;
-logic [10:0] crtc_width_pixels;
-logic [10:0] crtc_height_pixels;
-
-
-// Calculate CRTC display size in pixels
-assign crtc_width_pixels = reg_h_displayed * PIX_PER_CHAR;
-assign crtc_height_pixels = reg_v_displayed * LINES_PER_ROW;
-
-// Center in HDMI frame
-assign crtc_start_value_h = (PIX_WIDTH - crtc_width_pixels) / 2;
-assign crtc_start_value_v = (PIX_HEIGHT - crtc_height_pixels) / 2;
 
 // ============================================================================
-// БЛОК 3: СИНХРОНИЗАЦИЯ CRTC
+// БЛОК 2: CRTC СИМВОЛЬНЫЕ СЧЕТЧИКИ С ЦЕНТРИРОВАНИЕМ
 // ============================================================================
 
-// This function will produce three signals for crtc synchronization
-logic crtc_start_h; // First pixel CRTC
-logic crtc_start_v; // First pixel of CRTC frame
+// CRTC символьные счетчики
+logic [7:0] crtc_h_char = 0;   // Character counter horizontal (0-255)
+logic [6:0] crtc_v_row = 0;    // Character row counter vertical (0-127)  
+logic [2:0] crtc_scan_line = 0; // Scan line within character (0-7) FIXED!
 
-// CRTC active area (combinatorial)
-assign crtc_start_h = (hdmi_h_count == crtc_start_value_h);
-assign crtc_start_v = (hdmi_v_count == crtc_start_value_v) && crtc_start_h;
+// Пиксельный счетчик для генерации char strobe (0-15)
+logic [3:0] pixel_counter = 0;
+
+// Control signals
+logic crtc_active = 0;
+wire crtc_end_of_char = (pixel_counter == 4'b1111); // Every 16 pixels
+wire crtc_end_of_line = (crtc_h_char == reg_h_total) && crtc_end_of_char;
+wire crtc_end_of_frame = (crtc_v_row == reg_v_total) && (crtc_scan_line == 3'b111);
+
+// Display enable based on CRTC registers
+wire crtc_h_display = (crtc_h_char < reg_h_displayed);
+wire crtc_v_display = (crtc_v_row < reg_v_displayed);
+wire crtc_de = crtc_h_display && crtc_v_display;
+
+// Calculate centering start position
+wire [10:0] crtc_display_width = reg_h_displayed * PIX_PER_CHAR;
+wire [10:0] crtc_display_height = reg_v_displayed * LINES_PER_CHAR;
+wire [10:0] start_h_pixel = (PIX_WIDTH - crtc_display_width) / 2;
+wire [10:0] start_v_line = (PIX_HEIGHT - crtc_display_height) / 2;
+
+// Start CRTC when HDMI reaches centered position
+wire start_trigger = (hdmi_h_count == start_h_pixel) && 
+                    (hdmi_v_count == start_v_line) &&
+                    pix_en_i;
+
+// Character strobe generation and counters
+always_ff @(posedge pix_clk_i) begin
+    if (wb_rst_i) begin
+        crtc_h_char <= 0;
+        crtc_v_row <= 0;
+        crtc_scan_line <= 0;
+        pixel_counter <= 0;
+        crtc_active <= 0;
+    end else if (pix_en_i) begin
+        // Start CRTC at calculated position
+        if (start_trigger) begin
+            crtc_h_char <= 0;
+            crtc_v_row <= 0; 
+            crtc_scan_line <= 0;
+            pixel_counter <= 0;
+            crtc_active <= 1;
+        end else if (crtc_active) begin
+            // Пиксельный счетчик для char strobe
+            pixel_counter <= pixel_counter + 1;
+            
+            if (crtc_end_of_char) begin
+                pixel_counter <= 0;
+                crtc_h_char <= crtc_h_char + 1;
+                
+                if (crtc_end_of_line) begin
+                    crtc_h_char <= 0;
+                    crtc_scan_line <= crtc_scan_line + 1;
+                    
+                    if (crtc_scan_line == 3'b111) begin
+                        crtc_scan_line <= 0;
+                        crtc_v_row <= crtc_v_row + 1;
+                        
+                        if (crtc_end_of_frame) begin
+                            crtc_v_row <= 0;
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
 
 // ============================================================================
-// БЛОК 5: CRTC СИМВОЛЬНАЯ ЛОГИКА (УПРОЩЕННАЯ ВЕРСИЯ)
+// БЛОК 3: АДРЕСНЫЙ ГЕНЕРАТОР
 // ============================================================================
 
-// CRTC internal counters - ПРОСТЫЕ СЧЕТЧИКИ вместо каскадных
-logic [10:0] crtc_pixel_x = 0;  // Пиксельный счетчик по горизонтали
-logic [10:0] crtc_pixel_y = 0;  // Пиксельный счетчик по вертикали
-
-// Символьные координаты получаются БЕСПЛАТНО из старших битов
-logic [7:0] crtc_h_count;  // Символьный счетчик по горизонтали
-logic [6:0] crtc_v_count;  // Символьный счетчик по вертикали  
-logic [4:0] crtc_ra_addr; // Строка сканирования внутри символа
-
-// Memory address logic
 logic [13:0] crtc_ma_addr = 0;
 logic [13:0] crtc_row_start_addr = 0;
 
-
-// Control signals
-logic crtc_hblank;
-logic crtc_vblank;
-logic crtc_end_of_line;
-logic crtc_end_of_char_h;
-logic crtc_end_of_char_v;
-logic crtc_end_of_frame;
-logic crtc_de;
-
-// Получаем символьные координаты из пиксельных (игнорируем младшие 3 бита)
-assign crtc_h_count = crtc_pixel_x[10:3];  // Деление на 8 бесплатно!
-assign crtc_v_count = crtc_pixel_y[10:4];  // Деление на 16 бесплатно!
-assign crtc_ra_addr = crtc_pixel_y[3:0]; // Младшие 4 бита = строка сканирования
-
-// Конец символа
-assign crtc_end_of_char_h = (crtc_pixel_x[2:0] == 3'b111);
-assign crtc_end_of_char_v = (crtc_ra_addr == reg_max_scan);
-
-// Конец строки и кадра
-assign crtc_end_of_line = (crtc_h_count == reg_h_total)  && crtc_end_of_char_h;
-assign crtc_end_of_frame = (crtc_v_count == reg_v_total) && crtc_end_of_char_v;
-
-// Blabj signals
-assign crtc_hblank = (crtc_h_count >= reg_h_displayed);
-assign crtc_vblank = (crtc_v_count >= reg_v_displayed); // Простое сравнение!
-
-// Display enable
-assign crtc_de = !crtc_hblank && !crtc_vblank;
-
-// ============================================================================
-// ПРОСТЫЕ ПИКСЕЛЬНЫЕ СЧЕТЧИКИ (вместо каскадных)
-// ============================================================================
-
-// Горизонтальный пиксельный счетчик
+// Memory address generation
 always_ff @(posedge pix_clk_i) begin
-    if (wb_rst_i) begin
-        crtc_pixel_x <= 0;
-    end else if (pix_en_i) begin
-        if (crtc_start_h) begin
-            crtc_pixel_x <= 0;  // Старт в заданной позиции
-        end else begin
-            // Сброс при достижении конца строки (в символьных единицах)
-            if (crtc_end_of_line) begin
-                crtc_pixel_x <= 0;
-            end else begin
-                crtc_pixel_x <= crtc_pixel_x + 1;  // Просто инкремент!
-            end
-        end
-    end
-end
-
-// Вертикальный пиксельный счетчик - НЕ СБРАСЫВАЕТСЯ в 0!
-always_ff @(posedge pix_clk_i) begin
-    if (wb_rst_i) begin
-        crtc_pixel_y <= 0;
-    end else if (pix_en_i) begin
-        if (crtc_start_v) begin
-            crtc_pixel_y <= 0;  // Старт кадра
-        end else if (crtc_end_of_line) begin
-            // Конец строки - обрабатываем вертикальный инкремент
-            if (crtc_end_of_char_v) begin
-                // Конец символьной строки - переходим к следующей
-                if (crtc_v_count != reg_v_total) begin
-                    crtc_pixel_y <= {crtc_v_count + 1'b1, 4'b0}; // Следующая символьная строка
-                end
-                // Если crtc_v_count == reg_v_total - остаемся на месте (НЕ сбрасываем!)
-            end else begin
-                // Следующая строка сканирования в том же символе
-                crtc_pixel_y <= crtc_pixel_y + 1;
-            end
-        end
-    end
-end
-
-// ============================================================================
-// АДРЕСНЫЙ ГЕНЕРАТОР (адаптированный под новые счетчики)
-// ============================================================================
-
-logic after_visible_line;
-assign after_visible_line = crtc_h_count == reg_h_displayed;
-
-// Character clock для обратной совместимости (если нужен для skew)
-always_ff @(posedge pix_clk_i) begin
-    if (wb_rst_i || crtc_start_v) begin
+    if (wb_rst_i || start_trigger) begin
         crtc_ma_addr <= {reg_start_addr_h, reg_start_addr_l};
         crtc_row_start_addr <= {reg_start_addr_h, reg_start_addr_l};
-    end else if (pix_en_i && crtc_end_of_char_h) begin
-        
+    end else if (pix_en_i && crtc_end_of_char && crtc_active) begin
         if (crtc_end_of_line) begin
-            crtc_ma_addr <= crtc_row_start_addr;  // восстановление
+            crtc_ma_addr <= crtc_row_start_addr;
         end else begin
-            crtc_ma_addr <= crtc_ma_addr + 1;  // инкремент
+            crtc_ma_addr <= crtc_ma_addr + 1;
         end
         
-        // Сохранение адреса (отдельная операция) 
-        if (after_visible_line && crtc_end_of_char_v) begin
-            crtc_row_start_addr <= crtc_ma_addr; // начала новой строки
+        // Save row start address at end of displayed line
+        if ((crtc_h_char == reg_h_displayed) && (crtc_scan_line == 3'b111)) begin
+            crtc_row_start_addr <= crtc_ma_addr;
         end
     end
 end
 
 // ============================================================================
-// БЛОК 6: КУРСОР ЛОГИКА  
+// БЛОК 4: КУРСОР ЛОГИКА
 // ============================================================================
 
 logic [13:0] crtc_cursor_ma_addr;
 logic crtc_cursor_ma_active;
-logic crtc_cursor_ra_active;
+logic crtc_cursor_line_active;
 logic crtc_cursor_blinking;
 logic crtc_cursor;
 
-// Cursor activation by the MA address
 assign crtc_cursor_ma_addr = {reg_cursor_addr_h, reg_cursor_addr_l};
 assign crtc_cursor_ma_active = crtc_ma_addr == crtc_cursor_ma_addr;
-assign crtc_cursor = crtc_cursor_ma_active && crtc_cursor_ra_active && crtc_cursor_blinking && crtc_de_o;
 
-// Cursor activation by the row address
+// Cursor line activation
 always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i) begin
-        crtc_cursor_ra_active <= 0;
-    end else if (pix_en_i && crtc_end_of_char_h) begin
-        if (crtc_ra_addr == reg_cursor_start) begin
-            crtc_cursor_ra_active <= 1;
-        end else if (crtc_ra_addr == reg_cursor_end) begin
-            crtc_cursor_ra_active <= 0;
+        crtc_cursor_line_active <= 0;
+    end else if (pix_en_i && crtc_end_of_char) begin
+        if (crtc_scan_line == reg_cursor_start[2:0]) begin
+            crtc_cursor_line_active <= 1;
+        end else if (crtc_scan_line == reg_cursor_end[2:0]) begin
+            crtc_cursor_line_active <= 0;
         end
     end
 end
 
-// Cursor display (with blink modes)
+// Cursor blink modes
 always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i) begin
         crtc_cursor_blinking <= 0;
     end else if (pix_en_i) begin
         case (reg_cursor_mode)
-            2'b00: crtc_cursor_blinking <= 1; // Always on
-            2'b01: crtc_cursor_blinking <= hdmi_v_count[4]; // Slow blink
-            2'b10: crtc_cursor_blinking <= hdmi_v_count[5]; // Fast blink  
-            2'b11: crtc_cursor_blinking <= 0; // Always off
+            2'b00: crtc_cursor_blinking <= 1;
+            2'b01: crtc_cursor_blinking <= hdmi_v_count[4];
+            2'b10: crtc_cursor_blinking <= hdmi_v_count[5];
+            2'b11: crtc_cursor_blinking <= 0;
         endcase
     end
 end
 
+assign crtc_cursor = crtc_cursor_ma_active && crtc_cursor_line_active && 
+                    crtc_cursor_blinking && crtc_de;
+
 // ============================================================================
-// БЛОК 7: SKEW ЛОГИКА
+// БЛОК 5: SKEW ЛОГИКА И ВЫХОДНЫЕ СИГНАЛЫ
 // ============================================================================
 
 logic de_delayed_1, de_delayed_2;
 logic cursor_delayed_1, cursor_delayed_2;
-/* verilator lint_off UNOPTFLAT */
 logic de_skewed;
 logic cursor_skewed;
 
-// Реальная задержка на 1-2 такта
+// Skew delays
 always_ff @(posedge pix_clk_i) begin
-    if (pix_en_i && crtc_end_of_char_h) begin
-        de_delayed_1 <= crtc_de;           // Используем НЕзадержанный crtc_de
+    if (pix_en_i && crtc_end_of_char) begin
+        de_delayed_1 <= crtc_de;
         de_delayed_2 <= de_delayed_1;
-        
-        cursor_delayed_1 <= crtc_cursor;   // Используем НЕзадержанный crtc_cursor  
+        cursor_delayed_1 <= crtc_cursor;
         cursor_delayed_2 <= cursor_delayed_1;
     end
 end
 
-// Выбор задержки через регистр skew
+// Skew selection
 always_comb begin
     case (reg_skew)
         2'b00: begin 
-            de_skewed = crtc_de;           // 0 задержка
-            cursor_skewed = crtc_cursor;   // 0 задержка
+            de_skewed = crtc_de;
+            cursor_skewed = crtc_cursor;
         end
         2'b01: begin 
-            de_skewed = de_delayed_1;      // Задержка 1 символ
+            de_skewed = de_delayed_1;
             cursor_skewed = cursor_delayed_1;
         end
         2'b10: begin 
-            de_skewed = de_delayed_2;      // Задержка 2 символа
+            de_skewed = de_delayed_2;
             cursor_skewed = cursor_delayed_2;
         end
         2'b11: begin 
-            de_skewed = de_delayed_2;      // Задержка 2 символа
+            de_skewed = de_delayed_2;
             cursor_skewed = cursor_delayed_2;
         end
     endcase
 end
 
 // ============================================================================
-// УПРАВЛЯЮЩИЕ СИГНАЛЫ (адаптированные)
+// ВЫХОДНЫЕ СИГНАЛЫ
 // ============================================================================
 
-// Character clock output для обратной совместимости
-assign crtc_char_o = crtc_end_of_char_h;
+// Character strobe output
+assign crtc_char_o = crtc_end_of_char && crtc_active;
+// Display enable (with skew)
+assign crtc_de_o = de_skewed && crtc_active;
 
-// Display enable
-assign crtc_de_o = de_skewed;
+// Cursor output (with skew)
+assign crtc_cursor_o = cursor_skewed && crtc_active;
 
-// Cursor output (с skew)
-assign crtc_cursor_o = cursor_skewed;
+// Sync signals based on CRTC registers
+assign crtc_hsync_o = (crtc_h_char >= reg_h_sync_pos) && 
+                     (crtc_h_char < reg_h_sync_pos + reg_h_sync_width) &&
+                     crtc_active;
 
-// Sync signals
-assign crtc_hsync_o = (crtc_h_count >= reg_h_sync_pos) && 
-                     (crtc_h_count < reg_h_sync_pos + reg_h_sync_width);
+assign crtc_vsync_o = (crtc_v_row >= reg_v_sync_pos) && 
+                     (crtc_v_row < reg_v_sync_pos + reg_v_sync_width) &&
+                     crtc_active;
 
-assign crtc_vsync_o = (crtc_v_count >= reg_v_sync_pos) && 
-                     (crtc_v_count < reg_v_sync_pos + reg_v_sync_width);
-
+// Memory interface
 assign crtc_ma_o = crtc_ma_addr;
-assign crtc_ra_o = crtc_ra_addr;
+assign crtc_ra_o = {2'b0, crtc_scan_line};
 
 endmodule

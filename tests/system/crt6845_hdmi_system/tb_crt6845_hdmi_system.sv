@@ -9,7 +9,7 @@ module tb_crt6845_hdmi_system;
     logic [3:0] gpdi_dp;
     logic [3:0] gpdi_dn;
     logic wifi_gpio0;
-    logic debug_0, debug_1, debug_2;
+    logic debug_0, debug_1, debug_2, debug_3, debug_4, debug_5, debug_6, debug_7;
     
     // Мониторинг сигналов
     integer newline_count = 0;
@@ -31,7 +31,6 @@ module tb_crt6845_hdmi_system;
         .clk_25mhz(clk_25mhz),
         .gpdi_dp(gpdi_dp),
         .gpdi_dn(gpdi_dn),
-        .wifi_gpio0(wifi_gpio0),
         .debug_0(debug_0),
         .debug_1(debug_1), 
         .debug_2(debug_2)
