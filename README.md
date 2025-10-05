@@ -127,54 +127,111 @@ The links below point to the finalized and versioned documentation for this proj
 This is a clean project structure for SystemVerilog/Verilog development with Verilator integration, following modern best practices while keeping things simple.
 
 ```
-project_root/
-│
-├── .editorconfig
-├── .gitignore
-├── foldersinit.sh
-├── README.md
-│
-├── rtl/                          # Main RTL code
-│   ├── core/                     # Core project-specific modules
-│   │   ├── alesta/               # Уникальная логика Alesta
-│   │   ├── clock/                # Все генераторы тактов, PLL (clk_gen.v)
-│   │   ├── memory/               # Контроллеры памяти (sdram_controller.v)
-│   │   ├── video/                # Видеоконтроллер, скалер
-│   │   ├── sound/                # Интерфейсы для звука (YM2149)
-│   │   ├── io/                   # Порты, UART, интерфейсы (i8251, i8255)
-│   │   └── fdc/                  # Контроллер дисковода (u765)
-│   ├── third_party/              # Third-party IP cores (немодифицированные)
-│   │   ├── cpu/                  # z80_top_direct_n.v и ВСЕ файлы ядра Z80
-│   │   ├── crtc/                 # UM6845R.v
-│   │   ├── sound/                # YM2149.sv
-│   │   ├── fdc/                  # u765/ (весь каталог)
-│   │   └── ...                   # Другие ядра
-│   ├── interfaces/               # Общие шины, арбитры, адаптеры
-│   └── top.sv                    # Top-level module
-│
-├── sim/
-│   ├── tests/
-│   │   ├── unit/
-│   │   │   ├── clock/            # Тесты clk_gen
-│   │   │   ├── memory/           # Тесты sdram_controller
-│   │   │   ├── video/
-│   │   │   ├── sound/
-│   │   │   ├── io/               # i8251, i8255
-│   │   │   └── third_party/      # zexall, тесты ядер (z80, ym2149, um6845, u765)
-│   │   └── system/               # System-level tests
-│   ├── verilator/
-│   │   ├── obj_dir/              # .gitignore
-│   │   └── main.cpp
-│   └── modelsim/                 # Optional
-│
-├── constr/                       # CONSTRAINTS (важно!)
-│   ├── ice_sugar_pro.lpf         # Основной файл констрейнов
-│   └── ...                       # Возможно, другие для разных плат
-│
-├── docs/
-├── scripts/                      # Utility scripts
-└── Makefile
+project/
+├── build/                 # Build outputs and compilation artifacts
+├── docs/                  # Project documentation
+├── scripts/               # Utility scripts
+├── src/                   # Source code
+├── tests/                 # All test suites
+└── tools/                 # Support tools and utilities
 ```
+
+Source files 
+
+```
+src/
+├── components/          # System components (modules)
+│   ├── clocs/           # Clock signals and synchronization
+│   ├── controllers/     # Peripheral controllers
+│   │   ├── dma/         # Direct Memory Access controller
+│   │   ├── ipc/         # Inter-Processor Communication
+│   │   ├── nmi/         # Non-Maskable Interrupts
+│   │   └── pic/         # Programmable Interrupt Controller
+│   ├── cpu/             # CPU cores and adapters
+│   ├── graphics/        # Graphics components
+│   ├── interconnect/    # System bus and interconnections
+│   ├── io/              # Input/Output devices
+│   ├── memory/          # Memory and memory management
+│   ├── primitives/      # Primitives and basic components
+│   ├── sound/           # Audio components
+│   └── video/           # Video components
+├── platforms/           # Platform-specific code
+│   └── icesugar_pro/    # Specific platform implementation
+│       ├── clocks/      # Platform clocking
+│       ├── constrains/  # Constraints and configurations
+│       └── primitives/  # Platform-specific primitives
+└── systems/             # System configurations
+    ├── aleste_computer/
+    ├── crt6845_hdmi_system/
+    └── llhdmi/
+```
+
+Test files
+
+```
+tests/
+├── system/              # System tests (integration)
+│   ├── crt6845_hdmi_system/
+│   ├── graphic_accelerator_simple/
+│   ├── hdmi_kiss_test/
+│   ├── io/
+│   ├── llhdmi/
+│   └── tv80_wb/
+└── unit/                # Unit tests
+    ├── aleste_clk/
+    ├── clock/
+    ├── controllers/
+    ├── cpu/
+    ├── graphics/
+    ├── io/
+    ├── memory/
+    ├── sound/
+    ├── verilator/
+    └── video/
+```
+
+### Naming Conventions
+
+**Folders**
+
+-    lowercase_with_underscores for all folders
+-    Meaningful names that reflect content
+-    Group by functionality
+
+**Files**
+
+-    module_name_tb.v - testbench files
+-    component_name.v - main module files
+-    platform_constraints.ld - constraint files
+
+### File Type Specific Conventions
+
+**Test Directories**
+
+-   Each test in separate folder
+-   obj_dir/ - auto-generated Verilator files
+-   work/ - simulator working files
+-   scripts/ - test execution scripts
+
+**Platform-Specific Code**
+
+-    Isolate platform-dependent code in platforms/
+-    Clear separation between common components and platform implementations
+
+**Usage Guidelines**
+
+-    New components should be placed in appropriate subfolders of src/components/
+-    Tests should be created in parallel structure under tests/unit/ or tests/system/
+-    Platform-specific code should be isolated in platforms/
+-    System configurations should be defined in src/systems/
+-    Build artifacts should be auto-generated in build/
+
+**Exclusions**
+
+-   obj_dir/, work/, @_opt/, _temp/ folders are auto-generated and should not be committed to repository
+-    Temporary files and simulation results should be stored in respective test folders
+
+This convention ensures project scalability and clear separation of concerns between components.
 
 
 ## 📞 Contact & Discussion
