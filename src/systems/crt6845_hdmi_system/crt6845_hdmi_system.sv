@@ -77,7 +77,8 @@ module crt6845_hdmi_system #(
     logic mc6845_newframe;
     logic mc6845_cursor;
     logic mc6845_pix_stb;  // Pixel strobe
-    
+    logic mc6845_hdmi_de;
+
     // Скандаблер сигналы
     logic scaler_sync;
     
@@ -233,6 +234,7 @@ module crt6845_hdmi_system #(
 
     mc6845mod #(
         .WB_ADDRESS(16'h6845)
+        ,.PIX_TOTAL_W(1018)
     ) mc6845_inst (
         // Wishbone Interface
         .wb_clk_i(clk_32m),
@@ -261,7 +263,7 @@ module crt6845_hdmi_system #(
         .crtc_cursor_o(mc6845_cursor),
         .hdmi_newline_o(mc6845_newline),
         .hdmi_newframe_o(mc6845_newframe),
-        
+        .hdmi_de_o(mc6845_hdmi_de),
         // Memory Address Interface
         .crtc_ma_o(mc6845_ma),
         .crtc_ra_o(mc6845_ra)
@@ -286,7 +288,7 @@ module crt6845_hdmi_system #(
         .src_pix_en_i(clk_16m),
         .src_rst_i(system_reset),
         .src_pixel_data_i(cgen_pixel),
-        .src_de_i(mc6845_de),
+        .src_de_i(mc6845_hdmi_de),
         .src_newline_i(mc6845_newline),
         .src_newframe_i(mc6845_newframe),
         .src_sync_o(scaler_sync),

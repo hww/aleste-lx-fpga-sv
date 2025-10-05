@@ -2,6 +2,7 @@
 YOSYS      := yosys
 NEXTPNR    := nextpnr-ecp5
 ECPPACK    := ecppack
+YOSYS_DIR  := ~/oss-cad-suite/share/yosys/
 
 # Source directories
 SRC_DIR    := ../../src
@@ -19,6 +20,7 @@ CLOCK      := $(TARGET_DIR)/clocks/video_pll.v $(TARGET_DIR)/clocks/system_pll.v
 SCALER     := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
 CRTC       := $(CRTC_DIR)/mc6845mod.sv $(CRTC_DIR)/simple_cgen.sv
 TOP_MODULE := $(SYSTEM_DIR)/crt6845_hdmi_system.sv
+
 
 # Generated files
 YOSYS_SCRIPT := crt6845_hdmi_system.ys
@@ -49,7 +51,7 @@ $(YOSYS_SCRIPT): $(TOP_MODULE) $(HDMICODE) $(ENCODER) $(CLOCK) $(OBUFDS) $(SCALE
 	echo "read_verilog -sv $(CRTC)" >> $@
 	echo "read_verilog -sv $(SCALER)" >> $@
 	echo "hierarchy -top crt6845_hdmi_system" >> $@
-	echo "synth_ecp5 -json $(JSON_FILE)" >> $@
+	echo "synth_ecp5 -json $(JSON_FILE) -no-rw-check " >> $@
 
 # Synthesis with Yosys
 $(JSON_FILE): $(YOSYS_SCRIPT)
@@ -80,6 +82,17 @@ program: $(BITSTREAM)
 .PHONY: clean
 clean:
 	rm -f $(YOSYS_SCRIPT) $(JSON_FILE) $(CONFIG_FILE) $(BITSTREAM) $(SVF_FILE)
+
+# 1. Сравните отчеты utilization до и после изменений
+# 2. Проверьте timing отчеты
+reports: $(JSON_FILE)
+	$(NEXTPNR) \
+		--$(DEVICE) \
+		--package $(PACKAGE) \
+		--json $< \
+		--textcfg design.config \
+		--lpf $(CONSTRAINTS) 
+##		--pack-only
 
 # Debug target to show variables
 .PHONY: debug

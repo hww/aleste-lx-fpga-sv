@@ -6,4 +6,4 @@ read_verilog ../../src/components/video/llhdmi/OBUFDS.v
 read_verilog -sv ../../src/components/video/mc6845mod/mc6845mod.sv ../../src/components/video/mc6845mod/simple_cgen.sv
 read_verilog -sv ../../src/components/video/hdmi_scaler/dual_port_ram.sv ../../src/components/video/hdmi_scaler/hdmi_scaler.sv
 hierarchy -top crt6845_hdmi_system
-synth_ecp5 -json crt6845_hdmi_system.json
+synth_ecp5 -json crt6845_hdmi_system.json -no-rw-check 

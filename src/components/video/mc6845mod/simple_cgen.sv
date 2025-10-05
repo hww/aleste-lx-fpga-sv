@@ -42,7 +42,7 @@ module simple_cgen #(
                       ra_i, 3'b111};        // Blue: RA + курсор место пометим бордюр легкой подстветкой
         end
     end
-    
+
     assign pixel_o = pixel;
 
 endmodule

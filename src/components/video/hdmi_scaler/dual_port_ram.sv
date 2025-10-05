@@ -38,13 +38,11 @@ module dual_port_ram #(
     // =========================================================================
     // MEMORY ARRAY - массив памяти
     // =========================================================================
-    
+        
+    // КРИТИЧЕСКИ ВАЖНЫЙ АТРИБУТ!
+    (* no_rw_check *)
     logic [DATA_WIDTH-1:0] mem [0:DATA_LENGTH-1];
     
-    initial begin
-
-    end
-
     // =========================================================================
     // WRITE PROCESS - процесс записи (синхронный, домен src_clk_i)
     // =========================================================================
@@ -65,7 +63,18 @@ module dual_port_ram #(
     // READ PROCESS - процесс чтения (синхронный, домен dst_clk_i)
     // =========================================================================
 
-    assign dst_rd_data_o = dst_rd_en_i ?  mem[dst_rd_addr_i] :  {DATA_WIDTH{1'b0}};
+    logic [ADDR_WIDTH-1:0] read_addr_ff;
+    logic [DATA_WIDTH-1:0] read_data_ff;
+
+    // СИНХРОННОЕ чтение с 1 тактом латентности
+    always_ff @(posedge dst_clk_i) begin
+        if (dst_clke_i) begin
+            read_addr_ff <= dst_rd_addr_i;
+            read_data_ff <= mem[read_addr_ff];
+        end
+    end
+    
+    assign dst_rd_data_o = dst_rd_en_i ? read_data_ff : {DATA_WIDTH{1'b0}};
     
     // =========================================================================
     // SIMULATION CHECKS - проверки для симуляции
@@ -88,22 +97,23 @@ module dual_port_ram #(
             mem[i] = {DATA_WIDTH{1'b0}};
         end
     end
-    
+`ifdef CHECK_BOUNDS    
     // Проверка адресов записи
     always_ff @(posedge src_clk_i) begin
         if (src_clke_i && src_wr_en_i && (src_wr_addr_i >= DATA_LENGTH)) begin
-        //    $warning("Write address out of bounds: %0d >= %0d", 
-        //             src_wr_addr_i, DATA_LENGTH);
+            $warning("Write address out of bounds: %0d >= %0d", 
+                     src_wr_addr_i, DATA_LENGTH);
         end
     end
     
     // Проверка адресов чтения
     always_ff @(posedge dst_clk_i) begin
-        //if (dst_clke_i && dst_rd_en_i && (dst_rd_addr_i >= DATA_LENGTH)) begin
-        //    $warning("Read address out of bounds: %0d >= %0d", 
-        //             dst_rd_addr_i, DATA_LENGTH);
-        //end
+        if (dst_clke_i && dst_rd_en_i && (dst_rd_addr_i >= DATA_LENGTH)) begin
+            $warning("Read address out of bounds: %0d >= %0d", 
+                     dst_rd_addr_i, DATA_LENGTH);
+        end
     end
+`endif
 `endif
     
 endmodule
