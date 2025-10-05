@@ -233,6 +233,9 @@ tests/
 
 This convention ensures project scalability and clear separation of concerns between components.
 
+## PCB
+
+- [The first version of PCB](https://github.com/hww/XiAleste_PCB)
 
 ## 📞 Contact & Discussion
 
