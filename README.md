@@ -36,9 +36,10 @@ Key aspects:
 | NMI Logic          | ✅ Works         | Read/Write/Interrupt    |       |
 | System DMA         | ✅ Works         | Read/Write              |       |
 | Magic Sound 2      | ✅ Works         | 🟡 In Progress          |       |
-| Video GPU          | 🟡 Implemented   | 🟡 In Progress          |       |
+| Scan Doubler       | ✅ Works         | Image on TV             |       |
+| HDMI Controller    | ✅ Works         | Image on TV             |       |
 | Video Core         | 🟡 In Progress   |                         |       |
-| Scan Doubler       | 🟡 In Progress   |                         |       |
+| Video GPU          | 🟡 Implemented   | 🟡 In Progress         |       |
 | MCU SPI Slave      | 🟡 In Progress   |                         |       |
 
 ---
