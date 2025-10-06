@@ -63,8 +63,8 @@ module dual_port_ram #(
     // READ PROCESS - процесс чтения (синхронный, домен dst_clk_i)
     // =========================================================================
 
-    logic [ADDR_WIDTH-1:0] read_addr_ff;
-    logic [DATA_WIDTH-1:0] read_data_ff;
+    logic [ADDR_WIDTH-1:0] read_addr_ff = 0;
+    logic [DATA_WIDTH-1:0] read_data_ff = 0;
 
     // СИНХРОННОЕ чтение с 1 тактом латентности
     always_ff @(posedge dst_clk_i) begin

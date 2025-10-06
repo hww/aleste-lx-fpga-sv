@@ -48,16 +48,24 @@ module crt6845_hdmi_system #(
     output logic              debug_6,  // A2
     output logic              debug_7  // B1
 );       
+    
+    localparam HDMI_H_TOTAL       = HDMI_H_VISIBLE + HDMI_H_FRONT_PORCH + HDMI_H_SYNC_PULSE + HDMI_H_BACK_PORCH;
+    localparam HDMI_V_TOTAL       = HDMI_V_VISIBLE + HDMI_V_FRONT_PORCH + HDMI_V_SYNC_PULSE + HDMI_V_BACK_PORCH;
 
     // ===========================================
     // Существующие сигналы
     // ===========================================
-    logic clk_100m, clk_32m, clk_16m;
-    logic clk_tdms_pixel, clk_tdms;
+
+    logic clk_27m, clk_270m, clk_54m;
     logic pll_locked;
-    logic [23:0] pixel_data;
-    logic o_rd, o_newline, o_newframe;
-    logic o_red, o_grn, o_blu;
+    logic [23:0] hdmi_pixel_data;
+    logic hdmi_rd, hdmi_newline, hdmi_newframe;
+    logic hdmi_resline, hdmi_resframe;
+    logic hdmi_red, hdmi_grn, hdmi_blu;
+    // Pixel position counters
+    logic [10:0] hdmi_x; 
+    logic [9:0]  hdmi_y; 
+    logic hdmi_de;
 
     // Reset signals
     reg [RESET_CYCLES-1:0] reset_counter = 0;
@@ -77,10 +85,6 @@ module crt6845_hdmi_system #(
     logic mc6845_newframe;
     logic mc6845_cursor;
     logic mc6845_pix_stb;  // Pixel strobe
-    logic mc6845_hdmi_de;
-
-    // Скандаблер сигналы
-    logic scaler_sync;
     
     // CGEN сигналы
     logic [23:0] cgen_pixel;
@@ -89,23 +93,14 @@ module crt6845_hdmi_system #(
     // Тактовые сигналы
     // ===========================================
 
-    // System PLL instance
-    system_pll system_pll_inst(
-        .rst(1'b0),
-        .clkin_25M(clk_25mhz),
-        .clk_100M(clk_100m),
-        .clk_32M(clk_32m),
-        .clk_16M(clk_16m),
-        .locked(pll_locked)
-    );
-    
     // Video PLL for HDMI clocks
     video_pll vid_pll_inst(
-        .rst(~pll_locked),
+        .rst(1'b0),
         .clkin_25M(clk_25mhz),
-        .clk_270M(clk_tdms),
-        .clk_27M(clk_tdms_pixel),
-        .locked()  // Можно подключить к system_reset при необходимости
+        .clk_270M(clk_270m),
+        .clk_54M(clk_54m),
+        .clk_27M(clk_27m),
+        .locked(pll_locked)  // Можно подключить к system_reset при необходимости
     );
 
     // ===========================================
@@ -115,7 +110,7 @@ module crt6845_hdmi_system #(
     // Reset generation
     assign system_reset = ~pll_locked | (reset_counter != {RESET_CYCLES{1'b1}});
     
-    always @(posedge clk_32m) begin
+    always @(posedge clk_27m) begin
         if (~pll_locked) begin
             reset_counter <= 0;
         end else if (system_reset) begin
@@ -233,11 +228,14 @@ module crt6845_hdmi_system #(
     // ===========================================
 
     mc6845mod #(
-        .WB_ADDRESS(16'h6845)
-        ,.PIX_TOTAL_W(1018)
+        .WB_ADDRESS(16'h6845),
+        .HDMI_H_VISIBLE(HDMI_H_VISIBLE),
+        .HDMI_V_VISIBLE(HDMI_V_VISIBLE),
+        .HDMI_H_TOTAL(HDMI_H_TOTAL),
+        .HDMI_V_TOTAL(HDMI_V_TOTAL)
     ) mc6845_inst (
         // Wishbone Interface
-        .wb_clk_i(clk_32m),
+        .wb_clk_i(clk_54m),
         .wb_rst_i(system_reset),
         .wb_cyc_i(wb_cyc),
         .wb_stb_i(wb_stb),
@@ -250,20 +248,24 @@ module crt6845_hdmi_system #(
         .sel_o(),
         
         // Pixel Clock Domain  
-        .pix_clk_i(clk_32m),
-        .pix_en_i(clk_16m),
+        .pix_clk_i(clk_54m),
+        .pix_en_i(clk_27m),
 
-        // Sync Input от скандаблера
-        .sync_i(scaler_sync),
-        
         // Video Outputs
-        .crtc_de_o(mc6845_de),
+        .crtc_de_o(mc6845_de), // 320x200
         .crtc_hsync_o(mc6845_hsync),
         .crtc_vsync_o(mc6845_vsync),
         .crtc_cursor_o(mc6845_cursor),
-        .hdmi_newline_o(mc6845_newline),
-        .hdmi_newframe_o(mc6845_newframe),
-        .hdmi_de_o(mc6845_hdmi_de),
+        .crtc_newline_o(mc6845_newline),
+        .crtc_newframe_o(mc6845_newframe),
+
+        // HDMI 
+        .hdmi_x_i(hdmi_x),
+        .hdmi_y_i(hdmi_y),
+        .hdmi_de_o(hdmi_de), // 720x480
+        .hdmi_newline_i(hdmi_newline),
+        .hdmi_newframe_i(hdmi_newframe),
+
         // Memory Address Interface
         .crtc_ma_o(mc6845_ma),
         .crtc_ra_o(mc6845_ra)
@@ -281,26 +283,26 @@ module crt6845_hdmi_system #(
         .DATA_WIDTH(24),
         .V_SCALE(2),
         .HDMI_H_VISIBLE(720),
-        .HDMI_V_VISIBLE(480)
+        .HDMI_V_VISIBLE(480),
+        .PIX_TOTAL_W()
     ) scaler_inst (
         // Source domain (16MHz - MC6845)
-        .src_clk_i(clk_32m),
-        .src_pix_en_i(clk_16m),
+        .src_clk_i(clk_54m),
+        .src_pix_en_i(clk_27m),
         .src_rst_i(system_reset),
         .src_pixel_data_i(cgen_pixel),
-        .src_de_i(mc6845_hdmi_de),
         .src_newline_i(mc6845_newline),
         .src_newframe_i(mc6845_newframe),
-        .src_sync_o(scaler_sync),
         .src_buffer_o(src_buffer),
+        .src_de_i(hdmi_de), // whole 720x480
         
         // Destination domain (27MHz - HDMI)
-        .dst_clk_i(clk_tdms_pixel),
+        .dst_clk_i(clk_27m),
         .dst_rst_i(system_reset),
-        .dst_newline_i(o_newline),
-        .dst_newframe_i(o_newframe),
-        .dst_rd_i(o_rd),
-        .dst_pixel_data_o(pixel_data),
+        .dst_newline_i(hdmi_newline),
+        .dst_newframe_i(hdmi_newframe),
+        .dst_rd_i(hdmi_rd),
+        .dst_pixel_data_o(hdmi_pixel_data),
         .dst_buffer_o(dst_buffer)
     );
 
@@ -309,12 +311,13 @@ module crt6845_hdmi_system #(
     // ===========================================
     
     simple_cgen cgen_inst (
-        .clk_i(clk_16m),
+        .clk_i(clk_54m),
+        .pix_en_i(clk_27m),
         .reset_i(system_reset),
         .de_i(mc6845_de),
         .ma_i(mc6845_ma),
         .ra_i(mc6845_ra),
-        .cursor_i(mc6845_cursor || scaler_sync),
+        .cursor_i(mc6845_cursor),
         .pixel_o(cgen_pixel)
     );
 
@@ -326,11 +329,9 @@ module crt6845_hdmi_system #(
     logic [7:0] grn;
     logic [7:0] blu;
 
-
-    assign red = pixel_data[23:16];
-    assign grn = pixel_data[15:8];
-    assign blu = pixel_data[7:0];
-
+    assign red = hdmi_pixel_data[23:16];
+    assign grn = hdmi_pixel_data[15:8];
+    assign blu = hdmi_pixel_data[7:0];
 
     llhdmi #(
         .INPUT_LATENCY(1),
@@ -343,28 +344,32 @@ module crt6845_hdmi_system #(
         .V_SYNC_PULSE(HDMI_V_SYNC_PULSE),
         .V_BACK_PORCH(HDMI_V_BACK_PORCH)
     ) llhdmi_encoder (
-        .i_tmdsclk(clk_tdms),
-        .i_pixclk(clk_tdms_pixel),
+        .i_tmdsclk(clk_270m),
+        .i_pixclk(clk_27m),
         .i_reset(system_reset),
         .i_red(red),
         .i_grn(grn),
         .i_blu(blu),
-        .o_rd(o_rd),
-        .o_newline(o_newline),
-        .o_newframe(o_newframe),
-        .o_red(o_red),
-        .o_grn(o_grn),
-        .o_blu(o_blu)
+        .o_rd(hdmi_rd),
+        .o_newline(hdmi_newline),
+        .o_newframe(hdmi_newframe),
+        .o_resline(hdmi_resline),
+        .o_resframe(hdmi_resframe),
+        .o_red(hdmi_red),
+        .o_grn(hdmi_grn),
+        .o_blu(hdmi_blu),
+        .o_x(hdmi_x),
+        .o_y(hdmi_y)
     );
 
     // ===========================================
     // Дифференциальные выходы (оставить как есть)
     // ===========================================
     
-    OBUFDS OBUFDS_red( .I(o_red), .O(gpdi_dp[2]), .OB(gpdi_dn[2]) );
-    OBUFDS OBUFDS_grn( .I(o_grn), .O(gpdi_dp[1]), .OB(gpdi_dn[1]) );
-    OBUFDS OBUFDS_blu( .I(o_blu), .O(gpdi_dp[0]), .OB(gpdi_dn[0]) );
-    OBUFDS OBUFDS_clock( .I(clk_tdms_pixel), .O(gpdi_dp[3]), .OB(gpdi_dn[3]) );
+    OBUFDS OBUFDS_red( .I(hdmi_red), .O(gpdi_dp[2]), .OB(gpdi_dn[2]) );
+    OBUFDS OBUFDS_grn( .I(hdmi_grn), .O(gpdi_dp[1]), .OB(gpdi_dn[1]) );
+    OBUFDS OBUFDS_blu( .I(hdmi_blu), .O(gpdi_dp[0]), .OB(gpdi_dn[0]) );
+    OBUFDS OBUFDS_clock( .I(clk_27m), .O(gpdi_dp[3]), .OB(gpdi_dn[3]) );
         
     // ===========================================
     // Отладка
@@ -380,9 +385,9 @@ module crt6845_hdmi_system #(
     assign debug_0 = mc6845_newline;    // E1 
     assign debug_1 = mc6845_newframe;   // F2
     assign debug_2 = mc6845_de;         // C2
-    assign debug_3 = scaler_sync;       // D1 
-    assign debug_4 = o_newline;         // B2
-    assign debug_5 = o_newframe;        // C1
+    assign debug_3 = hdmi_rd;           // D1 
+    assign debug_4 = hdmi_newline;      // B2
+    assign debug_5 = hdmi_newframe;     // C1
     assign debug_6 = src_buffer;        // A2
     assign debug_7 = dst_buffer;        // B1
 

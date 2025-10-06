@@ -23,7 +23,6 @@ module hdmi_scaler #(
     input  logic src_pix_en_i,              // строб пикселов идет непрерывно
     input  logic src_newline_i,
     input  logic src_newframe_i,
-    output logic src_sync_o,
     output logic src_buffer_o,
 
     // Тактирование и сброс выходного домена
@@ -113,43 +112,6 @@ module hdmi_scaler #(
     end
 
     // ============================================================================
-    // ПРОСТАЯ СИНХРОНИЗАЦИАЦИЯ
-    // ============================================================================
-        
-    logic [2:0] dst_newframe_sync = 0;
-    logic [1:0] src_newframe_sync = 0;
-    logic src_sync_strobed = 0;
-
-    // Синхронизация dst_newframe_i в домен src_clk_i
-    always_ff @(posedge src_clk_i) begin
-        if (src_rst_i) begin
-            dst_newframe_sync <= 3'b000;
-        end else begin
-            if (dst_newframe_i) begin
-                dst_newframe_sync <= 3'b111;
-            end else begin
-                dst_newframe_sync <= {dst_newframe_sync[1:0], 1'b0};
-            end
-        end
-    end
-
-    // Стробирование с помощью src_pix_en_i
-    always_ff @(posedge src_clk_i) begin
-        if (src_rst_i) begin
-            src_newframe_sync <= 2'b00;
-            src_sync_strobed <= 1'b0;
-        end else if (src_pix_en_i) begin
-            // Сдвиговый регистр для детектора фронта
-            src_newframe_sync <= {src_newframe_sync[0], dst_newframe_sync[2]};
-            
-            // Детектор фронта - импульс на один такт
-            src_sync_strobed <= src_newframe_sync[0] && !src_newframe_sync[1];
-        end
-    end
-
-    assign src_sync_o = src_sync_strobed;
-
-    // ============================================================================
     // БУФЕРЫ (с подключением всех сигналов)
     // ============================================================================
     
@@ -197,6 +159,7 @@ module hdmi_scaler #(
 
     // Мультиплексирование данных из буферов
     assign dst_pixel_data_o =  (dst_buf_sel == 1'b0) ? dst_buf_data_0 : dst_buf_data_1;
-    assign src_buffer_o = (src_buf_sel == 1'b1);
+    //assign src_buffer_o = (src_buf_sel == 1'b1);
+    assign src_buffer_o = !dst_buffer_o;
     assign dst_buffer_o = (dst_buf_sel == 1'b1);
 endmodule

@@ -18,6 +18,24 @@ FREQUENCY NET "i_tmdsclk" 270 MHZ;
 FREQUENCY NET "i_pixclk" 27 MHZ;
 FREQUENCY NET "video_pll_inst.*" 270 MHZ;
 
+# Критические пути между clock domains
+CLOCKDOMAIN NET "clk_54m" NET "clk_27m" TIG;
+CLOCKDOMAIN NET "clk_27m" NET "clk_54m" TIG;
+
+# HDMI data path timing
+TIMING GROUP "hdmi_path" INCLUDEPORTS "hdmi_pixel_data[*]" "hdmi_rd" "hdmi_newline" "hdmi_newframe";
+FMAX GROUP "hdmi_path" 27.0 MHZ;
+
+# MC6845 timing
+TIMING GROUP "crtc_path" INCLUDEPORTS "mc6845_ma[*]" "mc6845_ra[*]" "mc6845_de" "mc6845_hsync" "mc6845_vsync";
+FMAX GROUP "crtc_path" 54.0 MHZ;
+
+# Скандаблер timing
+TIMING GROUP "scaler_path" INCLUDEPORTS "src_pixel_data_i[*]" "dst_pixel_data_o[*]" "src_buffer_o" "dst_buffer_o";
+FMAX GROUP "scaler_path" 54.0 MHZ;
+
+
+
 #iCESugar-pro HDMI
 LOCATE COMP "gpdi_dp[0]" SITE "G1"; # Blue +
 LOCATE COMP "gpdi_dn[0]" SITE "F1"; # Blue -

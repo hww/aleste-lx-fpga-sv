@@ -9,7 +9,6 @@ module llhdmi #(
   parameter H_SYNC_PULSE  = 96,
   parameter H_BACK_PORCH  = 48,
 
-  
   parameter V_VISIBLE     = 480,
   parameter V_FRONT_PORCH = 10,
   parameter V_SYNC_PULSE  = 2,
@@ -35,12 +34,16 @@ module llhdmi #(
   output wire o_rd,             // Ready to accept pixel data
   output wire o_newline,        // Last pixel of line pulse
   output wire o_newframe,       // Last pixel of frame pulse
-  
+  output wire o_resline,        // Last pixel of line pulse
+  output wire o_resframe,       // Last pixel of frame pulse
+
   // TMDS outputs
   output wire o_red,            // Red TMDS data stream
   output wire o_grn,            // Green TMDS data stream
-  output wire o_blu             // Blue TMDS data stream
-  
+  output wire o_blu,            // Blue TMDS data stream
+  output wire [10:0] o_x,       // Needs to count up to 799
+  output wire [9:0]  o_y        // Needs to count up to 524
+
   // Debug outputs (Verilator only)
 `ifdef VERILATOR
   ,                             // Blue TMDS data stream
@@ -63,17 +66,21 @@ module llhdmi #(
   reg [10:0] CounterX = 0;  // Needs to count up to 799
   reg [9:0]  CounterY = 0;  // Needs to count up to 524
 
+  assign o_x = CounterX;
+  assign o_y = CounterY;
+  
   // Sync and control signals
   reg hSync = 0;
   reg vSync = 0;
   reg DrawArea = 0;
 
+  assign o_resline = CounterX == H_TOTAL - 1;
   // Horizontal counter
   always @(posedge i_pixclk) begin
     if (i_reset) begin
       CounterX <= 0;
     end else begin
-      if (CounterX == H_TOTAL - 1) begin
+      if (o_resline) begin
         CounterX <= 0;
       end else begin
         CounterX <= CounterX + 1;
@@ -81,12 +88,13 @@ module llhdmi #(
     end
   end
 
+  assign o_resframe = CounterY == V_TOTAL - 1;
   // Vertical counter (increments at end of each line)
   always @(posedge i_pixclk) begin
     if (i_reset) begin
       CounterY <= 0;
-    end else if (CounterX == H_TOTAL - 1) begin
-      if (CounterY == V_TOTAL - 1) begin
+    end else if (o_resline) begin
+      if (o_resframe) begin
         CounterY <= 0;
       end else begin
         CounterY <= CounterY + 1;

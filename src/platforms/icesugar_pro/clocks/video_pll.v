@@ -3,6 +3,7 @@ module video_pll
   input rst,
   input  clkin_25M,    // 
   output clk_270M,     // Для TMDS сериализации
+  output clk_54M,      // 2xПиксельная частота HDMI
   output clk_27M,      // Пиксельная частота HDMI
   output locked
 );
@@ -50,6 +51,7 @@ module video_pll
                               // Далее для VCO равное 540 Mhz (можно использовать VCO 270M)
         .CLKOP_DIV(2),        // 540 MHz / 2 = 270 MHz 
         .CLKOS_DIV(20),       // 540 MHz / 20 = 27 MHz
+        .CLKOS2_DIV(10),      // 540 MHz / 10 = 54 MHz
     )
     pll_video
     (
@@ -57,7 +59,7 @@ module video_pll
         .CLKFB(clk_270M),
         .CLKOP(clk_270M),
         .CLKOS(clk_27M),
-        .CLKOS2(),
+        .CLKOS2(clk_54M),
         .CLKOS3(),
         .RST(1'b0),
         .STDBY(1'b0),
