@@ -1,0 +1,70 @@
+BLOCK RESETPATHS;
+BLOCK ASYNCPATHS;
+
+#i5-v6.0
+LOCATE COMP "clk_25mhz" SITE "P6";
+IOBUF  PORT "clk_25mhz" PULLMODE=NONE IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clk_25mhz" 25 MHZ;
+
+# Правильные frequency constraints
+FREQUENCY NET "clk_tmds" 270 MHZ;
+FREQUENCY NET "clk_tmds_pixel" 27 MHZ;  # Исправлено: tdms -> tmds
+FREQUENCY NET "clk_32m" 32 MHZ;
+FREQUENCY NET "clk_16m" 16 MHZ;
+FREQUENCY NET "clk_100m" 100 MHZ;
+
+# Добавьте constraints для ВСЕХ clock сетей которые видит nextpnr
+FREQUENCY NET "i_tmdsclk" 270 MHZ;
+FREQUENCY NET "i_pixclk" 27 MHZ;
+FREQUENCY NET "video_pll_inst.*" 270 MHZ;
+
+# Критические пути между clock domains
+CLOCKDOMAIN NET "clk_54m" NET "clk_27m" TIG;
+CLOCKDOMAIN NET "clk_27m" NET "clk_54m" TIG;
+
+# HDMI data path timing
+TIMING GROUP "hdmi_path" INCLUDEPORTS "hdmi_pixel_data[*]" "hdmi_rd" "hdmi_newline" "hdmi_newframe";
+FMAX GROUP "hdmi_path" 27.0 MHZ;
+
+# MC6845 timing
+TIMING GROUP "crtc_path" INCLUDEPORTS "mc6845_ma[*]" "mc6845_ra[*]" "mc6845_de" "mc6845_hsync" "mc6845_vsync";
+FMAX GROUP "crtc_path" 54.0 MHZ;
+
+# Скандаблер timing
+TIMING GROUP "scaler_path" INCLUDEPORTS "src_pixel_data_i[*]" "dst_pixel_data_o[*]" "src_buffer_o" "dst_buffer_o";
+FMAX GROUP "scaler_path" 54.0 MHZ;
+
+
+
+#iCESugar-pro HDMI
+LOCATE COMP "gpdi_dp[0]" SITE "G1"; # Blue +
+LOCATE COMP "gpdi_dn[0]" SITE "F1"; # Blue -
+LOCATE COMP "gpdi_dp[1]" SITE "J1"; # Green +
+LOCATE COMP "gpdi_dn[1]" SITE "H2"; # Green -
+LOCATE COMP "gpdi_dp[2]" SITE "L1"; # Red +
+LOCATE COMP "gpdi_dn[2]" SITE "K2"; # Red -
+LOCATE COMP "gpdi_dp[3]" SITE "E2"; # Clock +
+LOCATE COMP "gpdi_dn[3]" SITE "D3"; # Clock -
+
+IOBUF PORT "gpdi_dp[0]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "gpdi_dn[0]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "gpdi_dp[1]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "gpdi_dn[1]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "gpdi_dp[2]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "gpdi_dn[2]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "gpdi_dp[3]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "gpdi_dn[3]" IO_TYPE=LVCMOS33 DRIVE=4;
+
+LOCATE COMP "wifi_gpio0" SITE "A11";
+IOBUF  PORT "wifi_gpio0" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+
+LOCATE COMP "debug_0" SITE "E1";
+LOCATE COMP "debug_1" SITE "F2";
+LOCATE COMP "debug_2" SITE "C2";
+LOCATE COMP "debug_3" SITE "D1";
+LOCATE COMP "debug_4" SITE "B2";
+LOCATE COMP "debug_5" SITE "C1";
+LOCATE COMP "debug_6" SITE "A2";
+LOCATE COMP "debug_7" SITE "B1";
+
+

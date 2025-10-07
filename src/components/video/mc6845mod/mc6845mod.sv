@@ -60,7 +60,12 @@ module mc6845mod #(
     // Memory Address Interface
     output logic [13:0] crtc_ma_o,
     output logic [4:0] crtc_ra_o,
-    output logic crtc_halt_o
+    output logic crtc_halt_o,
+
+    // Expansion
+    output logic [1:0] crtc_bpp_mode,       // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
+    output logic       crtc_tetrad_mode,    // 0=CPC-style, 1=тетрадный  
+    output logic       crtc_use_cpc_modes   // 0=extended, 1=legacy CPC
 );
 
 
@@ -85,6 +90,7 @@ localparam REG_STARTH     = 5'h0C;
 localparam REG_STARTL     = 5'h0D;
 localparam REG_CURH       = 5'h0E;
 localparam REG_CURL       = 5'h0F;
+localparam REG_VIDEO_CONTROL = 5'h12;
 
 // Internal registers
 logic [7:0] reg_h_total = 0;
@@ -106,6 +112,8 @@ logic [5:0] reg_start_addr_h = 0;
 logic [7:0] reg_start_addr_l = 0;
 logic [5:0] reg_cursor_addr_h = 0;
 logic [7:0] reg_cursor_addr_l = 0;
+logic [7:0] reg_video_control = 8'b0000_0100; // Register 18: Reset = use CPC modes, 2bpp
+
 
 logic wb_ack = 0;
 logic [7:0] wb_data_out;
@@ -144,6 +152,7 @@ always_ff @(posedge wb_clk_i) begin
             reg_start_addr_l <= 8'd0;
             reg_cursor_addr_h <= 6'd0;
             reg_cursor_addr_l <= 8'd0;
+            reg_video_control <= 8'b0000_0100; // use_cpc_modes=1, bpp_mode=01
         end else begin
             // Reset to defaults
             reg_h_total <= 0;
@@ -165,6 +174,7 @@ always_ff @(posedge wb_clk_i) begin
             reg_start_addr_l <= 0;
             reg_cursor_addr_h <= 0;
             reg_cursor_addr_l <= 0;
+            reg_video_control <= 8'b0000_0100; // use_cpc_modes=1, bpp_mode=01
         end
     end else begin
         // Default assignments
@@ -196,6 +206,7 @@ always_ff @(posedge wb_clk_i) begin
                         REG_STARTL:     reg_start_addr_l <= wb_dat_i[7:0];
                         REG_CURH:       reg_cursor_addr_h <= wb_dat_i[5:0];
                         REG_CURL:       reg_cursor_addr_l <= wb_dat_i[7:0];
+                        REG_VIDEO_CONTROL: reg_video_control <= wb_dat_i[7:0];
                     endcase
                 end else begin
                     // Address register write
@@ -222,6 +233,7 @@ always_ff @(posedge wb_clk_i) begin
                         REG_STARTL:     wb_data_out <= reg_start_addr_l;
                         REG_CURH:       wb_data_out <= {2'b0, reg_cursor_addr_h};
                         REG_CURL:       wb_data_out <= reg_cursor_addr_l;
+                        REG_VIDEO_CONTROL: wb_data_out <= reg_video_control;
                         default:        wb_data_out <= 8'hFF;
                     endcase
                 end else begin
@@ -531,5 +543,10 @@ assign crtc_newframe_o = hdmi_newframe_i;
 assign crtc_halt_o = crtc_halt_frame || crtc_halt_line;
 
 assign hdmi_de_o = hdmi_de && !hdmi_y_i[0];
+
+// Expansion
+assign crtc_bpp_mode = reg_video_control[1:0];
+assign crtc_tetrad_mode = reg_video_control[3]; 
+assign crtc_use_cpc_modes = reg_video_control[4];
 
 endmodule

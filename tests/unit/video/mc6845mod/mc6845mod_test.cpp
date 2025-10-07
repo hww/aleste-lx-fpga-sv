@@ -9,10 +9,15 @@
 class MC6845_Test
 {
 private:
+    // Добавляем в private секцию
+    static const int FRAME_TIMEOUT = 2000000;  // 2M cycles для полного кадра
+    static const int LINE_TIMEOUT = 100000;    // 100K cycles для строки  
+    static const int SYNC_TIMEOUT = 50000;     // 50K cycles для синхронизации
+    
     Vmc6845mod *dut;
     VerilatedFstC *tfp;
     vluint64_t sim_time;
-    vluint64_t sim_time_started;
+
     // Clock counters
     int wb_clk_counter;
     int pix_clk_counter;
@@ -75,7 +80,7 @@ public:
         dut->eval();
         tfp->dump(sim_time++);
     }
-
+            
     bool wb_clk_rising_edge() const
     {
         return !wb_clk_prev && dut->wb_clk_i;
@@ -94,7 +99,7 @@ public:
         dut->wb_stb_i = 0;
         dut->wb_we_i = 0;
         dut->sync_i = 0;
-        std::cout << "RESET CRTC" << std::endl;
+
         for (int i = 0; i < 10; i++)
             tick();
 
@@ -118,136 +123,128 @@ public:
         tick();
         dut->sync_i = 0;
     }
-    void wb_write(uint32_t addr, uint8_t data)
-    {
-        // Устанавливаем сигналы по заднему фронту wb_clk
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
-        dut->wb_cyc_i = 1;
-        dut->wb_stb_i = 1;
-        dut->wb_we_i = 1;
-        dut->wb_adr_i = base_address + addr;
-        dut->wb_dat_i = data;
-        dut->wb_sel_i = 0xF;
-
-        tick(); // Переходим к переднему фронту
-
-        // Ждем ACK (появляется на переднем фронте после установки сигналов)
-        int timeout = 100;
-        while (!dut->wb_ack_o && timeout > 0)
-        {
-            tick();
-            timeout--;
-        }
-
-        if (!dut->wb_ack_o)
-        {
-            std::cout << "❌ WB write timeout at address 0x" << std::hex << addr << std::dec << std::endl;
-            error_count++;
-            return;
-        }
-
-        // ACK получен - снимаем STB по заднему фронту
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
-        dut->wb_stb_i = 0;
-        dut->wb_we_i = 0;
-
-        tick(); // Переходим к переднему фронту
-
-        // Ждем снятия ACK
-        timeout = 100;
-        while (dut->wb_ack_o && timeout > 0)
-        {
-            tick();
-            timeout--;
-        }
-
-        // Снимаем CYC по заднему фронту
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
-        dut->wb_cyc_i = 0;
-
-        // Даем еще один такт для завершения
+void wb_write(uint32_t addr, uint8_t data)
+{
+    // Устанавливаем сигналы по заднему фронту wb_clk
+    while (dut->wb_clk_i) {
         tick();
     }
-
-    // Wishbone read operation - CORRECTED
-    uint8_t wb_read(uint32_t addr)
+    
+    dut->wb_cyc_i = 1;
+    dut->wb_stb_i = 1;
+    dut->wb_we_i = 1;
+    dut->wb_adr_i = base_address + addr;
+    dut->wb_dat_i = data;
+    dut->wb_sel_i = 0xF;
+    
+    tick(); // Переходим к переднему фронту
+    
+    // Ждем ACK (появляется на переднем фронте после установки сигналов)
+    int timeout = 100;
+    while (!dut->wb_ack_o && timeout > 0)
     {
-        // Устанавливаем сигналы по заднему фронту wb_clk
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
-        dut->wb_cyc_i = 1;
-        dut->wb_stb_i = 1;
-        dut->wb_we_i = 0;
-        dut->wb_adr_i = base_address + addr;
-        dut->wb_sel_i = 0xF;
-
-        tick(); // Переходим к переднему фронту
-
-        // Ждем ACK и валидные данные
-        int timeout = 100;
-        while (!dut->wb_ack_o && timeout > 0)
-        {
-            tick();
-            timeout--;
-        }
-
-        uint8_t data = 0;
-        if (dut->wb_ack_o)
-        {
-            data = dut->wb_dat_o & 0xFF;
-        }
-        else
-        {
-            std::cout << "❌ WB read timeout at address 0x" << std::hex << addr << std::dec << std::endl;
-            error_count++;
-        }
-
-        // ACK получен - снимаем STB по заднему фронту
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
-        dut->wb_stb_i = 0;
-
-        tick(); // Переходим к переднему фронту
-
-        // Ждем снятия ACK
-        timeout = 100;
-        while (dut->wb_ack_o && timeout > 0)
-        {
-            tick();
-            timeout--;
-        }
-
-        // Снимаем CYC по заднему фронту
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
-        dut->wb_cyc_i = 0;
-
-        // Даем еще один такт для завершения
         tick();
-
-        return data;
+        timeout--;
     }
+
+    if (!dut->wb_ack_o)
+    {
+        std::cout << "❌ WB write timeout at address 0x" << std::hex << addr << std::dec << std::endl;
+        error_count++;
+        return;
+    }
+    
+    // ACK получен - снимаем STB по заднему фронту
+    while (dut->wb_clk_i) {
+        tick();
+    }
+    
+    dut->wb_stb_i = 0;
+    dut->wb_we_i = 0;
+    
+    tick(); // Переходим к переднему фронту
+    
+    // Ждем снятия ACK
+    timeout = 100;
+    while (dut->wb_ack_o && timeout > 0) {
+        tick();
+        timeout--;
+    }
+    
+    // Снимаем CYC по заднему фронту
+    while (dut->wb_clk_i) {
+        tick();
+    }
+    
+    dut->wb_cyc_i = 0;
+    
+    // Даем еще один такт для завершения
+    tick();
+}
+
+// Wishbone read operation - CORRECTED  
+uint8_t wb_read(uint32_t addr)
+{
+    // Устанавливаем сигналы по заднему фронту wb_clk
+    while (dut->wb_clk_i) {
+        tick();
+    }
+    
+    dut->wb_cyc_i = 1;
+    dut->wb_stb_i = 1;
+    dut->wb_we_i = 0;
+    dut->wb_adr_i = base_address + addr;
+    dut->wb_sel_i = 0xF;
+    
+    tick(); // Переходим к переднему фронту
+    
+    // Ждем ACK и валидные данные
+    int timeout = 100;
+    while (!dut->wb_ack_o && timeout > 0)
+    {
+        tick();
+        timeout--;
+    }
+
+    uint8_t data = 0;
+    if (dut->wb_ack_o)
+    {
+        data = dut->wb_dat_o & 0xFF;
+    }
+    else
+    {
+        std::cout << "❌ WB read timeout at address 0x" << std::hex << addr << std::dec << std::endl;
+        error_count++;
+    }
+    
+    // ACK получен - снимаем STB по заднему фронту
+    while (dut->wb_clk_i) {
+        tick();
+    }
+    
+    dut->wb_stb_i = 0;
+    
+    tick(); // Переходим к переднему фронту
+    
+    // Ждем снятия ACK
+    timeout = 100;
+    while (dut->wb_ack_o && timeout > 0) {
+        tick();
+        timeout--;
+    }
+    
+    // Снимаем CYC по заднему фронту
+    while (dut->wb_clk_i) {
+        tick();
+    }
+    
+    dut->wb_cyc_i = 0;
+    
+    // Даем еще один такт для завершения
+    tick();
+
+    return data;
+}
 
     void test_registers()
     {
@@ -255,11 +252,11 @@ public:
 
         uint8_t test_value = 32;
         // Test address register write
-        wb_write(0x00, 0x01);       // Write to address register (R1 - HDISPLAY)
-        wb_write(0x01, test_value); // Write 80 chars to R1
+        wb_write(0x00, 0x01); // Write to address register (R1 - HDISPLAY)
+        wb_write(0x01, test_value);   // Write 80 chars to R1
 
         // Verify write
-        wb_write(0x00, 0x01);             // Select R1
+        wb_write(0x00, 0x01);           // Select R1
         uint8_t readback = wb_read(0x01); // Read R1
         if (readback == test_value)
         {
@@ -285,28 +282,7 @@ public:
 
         std::cout << "📝 Register test complete" << std::endl;
     }
-    // 💡 ДОБАВЛЯЕМ недостающую функцию синхронизации
-    bool wait_for_vsync()
-    {
-        std::cout << "⏳ Synchronizing to VBLANK..." << std::endl;
-        const int TIMEOUT = 10000000;
-        int cycles = 0;
 
-        // Ждем любой VSYNC
-        while (cycles < TIMEOUT)
-        {
-            if (pix_clk_rising_edge() && dut->crtc_vsync_o)
-            {
-                std::cout << "✅ In VBLANK" << std::endl;
-                return true;
-            }
-            tick();
-            cycles++;
-        }
-
-        std::cout << "❌ Cannot find VBLANK" << std::endl;
-        return false;
-    }
     void test_video_timing()
     {
         std::cout << "📺 Testing video timing..." << std::endl;
@@ -364,6 +340,7 @@ public:
             error_count++;
         }
     }
+
     void test_detailed_address_sequence()
     {
         std::cout << "🔍 Detailed address sequence test..." << std::endl;
@@ -499,6 +476,22 @@ public:
     {
         std::cout << "🎯 Testing cursor movement..." << std::endl;
 
+        // Setup
+        wb_write(0x00, 0x01);
+        wb_write(0x01, 40);
+        wb_write(0x00, 0x06);
+        wb_write(0x01, 25);
+        wb_write(0x00, 0x09);
+        wb_write(0x01, 7);
+        wb_write(0x00, 0x0A);
+        wb_write(0x01, 6); // Cursor lines 6-7
+        wb_write(0x00, 0x0B);
+        wb_write(0x01, 7);
+        wb_write(0x00, 0x0C);
+        wb_write(0x01, 0x00);
+        wb_write(0x00, 0x0D);
+        wb_write(0x01, 0x00);
+
         // Test cursor positions
         int test_positions[] = {10, 45, 100, 500};
         int total_cursor_detections = 0;
@@ -508,31 +501,32 @@ public:
         {
             std::cout << "  Waiting VSYNC..." << std::endl;
 
-            if (!wait_for_vsync())
+
+            int MAXCYCLES = 10000000; // enought for frame
+            int samples = 0;
+            while (samples < MAXCYCLES)
             {
+                if (pix_clk_rising_edge())
+                {
+                    if (!dut->crtc_vsync_o)
+                        break;
+                    samples++;
+                }
+                tick();
+            }
+
+            if (samples >= MAXCYCLES)
+            {
+                std::cout << "❌ Did not receive a crtc_vsync_o signal equals 0" << std::endl;
                 error_count++;
                 return;
             }
 
+
             std::cout << "📍 Setting cursor to line 6-7 and position 0x" << std::hex << pos
                       << " (" << std::dec << pos << ")" << std::endl;
-            reset();
-            // Setup
-            wb_write(0x00, 0x01);
-            wb_write(0x01, 40);
-            wb_write(0x00, 0x06);
-            wb_write(0x01, 25);
-            wb_write(0x00, 0x09);
-            wb_write(0x01, 7);
-            wb_write(0x00, 0x0A);
-            wb_write(0x01, 6); // Cursor lines 6-7
-            wb_write(0x00, 0x0B);
-            wb_write(0x01, 7);
-            wb_write(0x00, 0x0C);
-            wb_write(0x01, 0x00);
-            wb_write(0x00, 0x0D);
-            wb_write(0x01, 0x00);
 
+   
             wb_write(0x00, 0x0E);
             wb_write(0x01, (pos >> 8) & 0x3F);
             wb_write(0x00, 0x0F);
@@ -543,8 +537,7 @@ public:
             int cursor_detections = 0;
             std::vector<std::pair<uint16_t, uint8_t>> wrong_positions;
 
-            int MAXCYCLES = 10000000; // enought for frame
-            int samples = 0;
+            samples = 0;
             while (samples < MAXCYCLES)
             {
                 if (pix_clk_rising_edge())
@@ -579,15 +572,15 @@ public:
 
                                 if (wrong_positions.size() <= 10)
                                 {
-                                    std::cout << "   ❌ Cursor at WRONG position: MA=0x"
-                                              << std::hex
-                                              << (int)dut->crtc_ma_o
-                                              << " RA=0x"
-                                              << (int)dut->crtc_ra_o
-                                              << " Expected: MA=0x"
-                                              << pos
-                                              << " RA=6 or RA=7"
-                                              << std::dec << std::endl;
+                                    std::cout << "   ❌ Cursor at WRONG position: MA=0x" 
+                                        << std::hex 
+                                        << (int)dut->crtc_ma_o
+                                        << " RA=0x" 
+                                        << (int)dut->crtc_ra_o
+                                        << " Expected: MA=0x" 
+                                        << pos 
+                                        << " RA=6 or RA=7" 
+                                        << std::dec << std::endl;
                                 }
                             }
                         }
@@ -698,9 +691,9 @@ public:
 
         test_registers();
         debug_ma_behavior();
+        test_cursor_movement();           // ← Новый тест движения курсора
         test_detailed_address_sequence(); // ← Вместо test_address_generation
         test_video_timing();
-        test_cursor_movement(); // ← Новый тест движения курсора
 
         for (int i = 0; i < 100; i++)
             tick();

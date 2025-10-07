@@ -390,3 +390,42 @@ his is a general purpose register responsible for the graphics mode and the ROM 
 | C000-FFFF | 3     | bbb*4 + 3 | bbb*4 + 3 | bbb*4 + 3 | 3         | 3         | 3         | 3         |
 
 ---
+
+Perfect! This is a clean and practical implementation. Here's the refined description:
+
+## Address Space Architecture Description
+
+### Overview
+In this FPGA retro-computing platform (Aliste EX, Xeste LX, Amstrad CPC), the memory mapping system uses a streamlined approach where:
+
+- **Master devices** only output raw addresses without additional decoding
+- **Slave devices** utilize TAG signals for address space identification  
+- **Interconnect system** performs centralized address-to-TAG conversion
+
+### Address-to-TAG Mapping
+The interconnect system converts address ranges into 2-bit TAG signals as follows:
+
+```
+TAG[1:0] Encoding:
+00 - Memory space        (0x0000-0xFFFF) - 64KB main memory
+01 - Native IO System    (0x0000-0x01FF) - First 512 bytes (MMU, palette, system)
+10 - Native IO Extended  (0x0200-0x7FFF) - Remaining 32KB minus 512 bytes
+11 - Legacy IO           (0x8000-0xFFFF) - Upper 32KB for legacy devices
+```
+
+### Address Decoding Logic
+```
+IF a[23:16] == 8'hFF THEN       -> IO Space
+    IF a[15:9] == 7'b0000000 THEN    -> Native IO System (TAG = 01)
+    ELSE IF a[15] == 1'b0 THEN       -> Native IO Extended (TAG = 10)  
+    ELSE                             -> Legacy IO (TAG = 11)
+ELSE                                 -> Memory Space (TAG = 00)
+```
+
+### Key Benefits
+- **Critical System Access**: MMU and palette registers always accessible via fast TAG=01 decoding
+- **Efficient Peripheral Scaling**: 192-byte blocks for modern devices in Native IO Extended space
+- **Legacy Compatibility**: Full Amstrad CPC IO space preservation in Legacy IO
+- **Optimized Decoding**: Slaves use simple TAG comparisons instead of complex address range checks
+
+This architecture maintains backward compatibility while providing an optimized, scalable IO mapping system for modern peripherals.
