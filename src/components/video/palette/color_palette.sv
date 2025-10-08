@@ -46,7 +46,8 @@ cpc_colors u_cpc_colors (
 assign native_access = (tag_i == 2'b01) && (wb_adr_i[15:0] >= NATIVE_BASE) && 
                       (wb_adr_i[15:0] < (NATIVE_BASE + 32));
 assign legacy_access = (tag_i == 2'b11) && (wb_adr_i[15:0] == LEGACY_GA);
-assign reg_address = wb_adr_i[4:0];  // Локальный адрес внутри модуля
+assign reg_address = wb_adr_i[4:0];
+wire access_valid = native_access || legacy_access;
 
 // Control register outputs
 always @(*) begin
@@ -56,6 +57,7 @@ always @(*) begin
 end
 
 // Wishbone write handling
+// Wishbone write handling - FIXED VERSION
 always @(posedge wb_clk_i or posedge wb_rst_i) begin
     if (wb_rst_i) begin
         palette_index <= 8'h00;
@@ -65,24 +67,25 @@ always @(posedge wb_clk_i or posedge wb_rst_i) begin
     end else begin
         wb_ack_o <= 1'b0;
         
-        if (wb_stb_i && wb_cyc_i) begin
+        if (wb_stb_i && wb_cyc_i && access_valid) begin  // Added access_valid check
             wb_ack_o <= 1'b1;
             
             if (wb_we_i) begin
-                // Write operations
+                // Write operations with priority
                 if (legacy_access && legacy_mode_i) begin
-                    // Legacy CPC Gate Array access
+                    // Legacy CPC Gate Array access (highest priority when enabled)
                     case (wb_dat_i[7:6])
                         2'b00: begin
-                            // Gate Array Register 0 - Palette index
-                            palette_index <= wb_dat_i[3:0]; // Only 4 bits for 16 colors
+                            palette_index <= {4'b0000, wb_dat_i[3:0]}; // Extend to 8 bits
                         end
                         2'b01: begin
-                            // Gate Array Register 1 - Palette data
-                            palette_ram[palette_index] <= cpc_converted_color;
+                            palette_ram[palette_index[3:0]] <= cpc_converted_color; // Use only lower 4 bits for 16-color CPC
+                        end
+                        default: begin
+                            // Ignore other legacy writes
                         end
                     endcase
-                end else if (native_access && !legacy_mode_i) begin
+                end else if (native_access) begin
                     // Native register access
                     case (reg_address)
                         5'h00: palette_index <= wb_dat_i;
@@ -94,17 +97,23 @@ always @(posedge wb_clk_i or posedge wb_rst_i) begin
                         end
                         5'h02: begin
                             palette_ram[palette_index][11:8] <= wb_dat_i[3:0];
-                            // Auto-increment only on high byte for 12-bit mode
                             if (control_reg[6] && (control_reg[5:4] == 2'b11)) begin
                                 palette_index <= palette_index + 1;
                             end
                         end
                         5'h03: control_reg <= wb_dat_i;
+                        default: begin
+                            // Ignore writes to undefined registers
+                        end
                     endcase
                 end
             end else begin
-                // Read operations (native mode only)
-                if (native_access && !legacy_mode_i) begin
+                // Read operations
+                if (legacy_access && legacy_mode_i) begin
+                    // Legacy reads return 0 (CPC behavior)
+                    wb_dat_o <= 8'h00;
+                end else if (native_access) begin
+                    // Native register reads
                     case (reg_address)
                         5'h00: wb_dat_o <= palette_index;
                         5'h01: wb_dat_o <= palette_ram[palette_index][7:0];
@@ -112,8 +121,6 @@ always @(posedge wb_clk_i or posedge wb_rst_i) begin
                         5'h03: wb_dat_o <= control_reg;
                         default: wb_dat_o <= 8'h00;
                     endcase
-                end else begin
-                    wb_dat_o <= 8'h00; // Legacy read returns 0
                 end
             end
         end
@@ -125,9 +132,9 @@ function [11:0] cpc_to_rgb(input [7:0] cpc_color);
     reg [2:0] r, g, b;
     begin
         // Extract CPC color components (simplified)
-        r = {cpc_color[1:0], 1'b0}; // 2->3 bits
-        g = {cpc_color[3:2], 1'b0}; // 2->3 bits  
-        b = {cpc_color[5:4], 1'b0}; // 2->3 bits
+        r <= {cpc_color[1:0], 1'b0}; // 2->3 bits
+        g <= {cpc_color[3:2], 1'b0}; // 2->3 bits  
+        b <= {cpc_color[5:4], 1'b0}; // 2->3 bits
         
         // Scale 3-bit to 4-bit for 12-bit RGB
         cpc_to_rgb = {r, r[2], g, g[2], b, b[2]};

@@ -9,12 +9,13 @@ VERILATOR_FLAGS = -Wall --cc --exe --build --trace-fst -I. --trace \
 	-Wno-CASEINCOMPLETE \
 	-CFLAGS "-g -O0"
 
-RTL_PATH = ../../../../src/components/video/mc6845mod
+RTL_PATH = ../../../../src/components/video/palette
 SOURCES = \
-    $(RTL_PATH)/mc6845mod.sv \
-    mc6845mod_test.cpp
+    $(RTL_PATH)/color_palette.sv \
+    $(RTL_PATH)/cpc_colors.sv \
+    tb_color_palette.cpp
 
-TARGET = Vmc6845mod
+TARGET = Vcolor_palette
 
 all: $(TARGET)
 
@@ -25,12 +26,12 @@ run: $(TARGET)
 	./obj_dir/$(TARGET)
 
 wave: run
-	gtkwave mc6845_test.fst &
+	gtkwave color_palette.fst &
 
 simulation: run
-	gtkwave mc6845_test.fst mc6845_test.gtkw &
+	gtkwave color_palette.fst color_palette.gtkw &
 
 clean:
-	rm -rf obj_dir mc6845_test.fst
+	rm -rf obj_dir color_palette.fst
 
 .PHONY: all run wave clean
