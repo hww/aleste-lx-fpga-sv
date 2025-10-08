@@ -1,291 +1,474 @@
+#include <verilated.h>
+#include <verilated_fst_c.h>
+#include "Vpixel_pipeline.h"
 #include <iostream>
-#include <cstdint>
 #include <vector>
-#include <cassert>
+#include <string>
+#include <iomanip>
 
-class PixelPipeline {
+class PixelPipelineTest
+{
+private:
+    Vpixel_pipeline *dut;
+    VerilatedFstC *vcd;
+    vluint64_t sim_time;
+    int failed_tests;
+    int total_tests;
+
 public:
-    // Configuration
-    struct Config {
-        uint8_t bpp_mode;      // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
-        bool tetrad_mode;      // 0=CPC-style, 1=tetrad
-        bool use_cpc_modes;    // 0=extended, 1=legacy CPC
-        uint8_t cpc_graphic_mode; // CPC mode when use_cpc_modes=1
-    };
+    PixelPipelineTest() : sim_time(0), failed_tests(0), total_tests(0)
+    {
+        Verilated::traceEverOn(true);
+        dut = new Vpixel_pipeline;
+        vcd = new VerilatedFstC;
+        dut->trace(vcd, 99);
+        vcd->open("pixel_pipeline.fst");
+    }
 
-    PixelPipeline() {
+    ~PixelPipelineTest()
+    {
+        vcd->close();
+        delete dut;
+        delete vcd;
+    }
+
+    void reset()
+    {
+        dut->rst_i = 1;
+        dut->clk_i = 0;
+        dut->pix_ena_i = 1;
+        tick();
+        tick();
+        dut->rst_i = 0;
+        tick();
+    }
+
+    void tick()
+    {
+        dut->clk_i = 0;
+        eval();
+        dut->clk_i = 1;
+        eval();
+    }
+
+    void eval()
+    {
+        dut->eval();
+        vcd->dump(sim_time);
+        sim_time++;
+    }
+
+    void set_inputs(uint8_t data, uint8_t bpp_mode, bool continuous_mode, bool byte_select)
+    {
+        dut->vmem_data_i = data;
+        dut->bpp_mode_i = bpp_mode;
+        dut->continuous_mode_i = continuous_mode;
+        dut->byte_select_i = byte_select;
+        dut->pix_ena_i = 1;
+    }
+
+    void strobe_word(uint16_t data, uint8_t byte_selectum)
+    {
+        dut->byte_strobe_i = 1;
+        dut->vmem_data_i = data;
+        dut->byte_select_i = byte_selectum;
+        tick();
+        dut->byte_strobe_i = 0;
+    }
+
+    void pulse_pix_shift(int cycles = 1)
+    {
+        for (int i = 0; i < cycles; i++)
+        {
+            dut->pix_shift_i = 1;
+            tick();
+            dut->pix_shift_i = 0;
+            if (i < cycles - 1)
+                tick(); // Пропускаем такты между стробами
+        }
+    }
+    void print_vector_hex(const std::vector<uint8_t> &vec)
+    {
+        std::cout << "[";
+        for (size_t i = 0; i < vec.size(); i++)
+        {
+            std::cout << "0x" << std::hex << std::setw(2) << std::setfill('0')
+                      << static_cast<int>(vec[i]);
+            if (i < vec.size() - 1)
+            {
+                std::cout << ", ";
+            }
+        }
+        std::cout << "]" << std::dec;
+    }
+    void print_pixels_hex(const std::vector<uint8_t> &pixels, int hex_digits = 1)
+    {
+        std::cout << "[";
+        for (size_t i = 0; i < pixels.size(); i++)
+        {
+            std::cout << "0x" << std::hex << std::setw(hex_digits) << std::setfill('0')
+                      << static_cast<int>(pixels[i]);
+            if (i < pixels.size() - 1)
+            {
+                std::cout << ", ";
+            }
+        }
+        std::cout << "]" << std::dec;
+    }
+
+    bool validate_pixel_count(const std::vector<uint8_t> &pixels, int expected_count, const std::string &test_name)
+    {
+        if (pixels.size() != expected_count)
+        {
+            std::cout << "❌ " << test_name << " - WRONG PIXEL COUNT: expected "
+                      << expected_count << " got " << pixels.size() << "\n";
+            return false;
+        }
+        return true;
+    }
+
+    bool validate_expected_pattern(const std::vector<uint8_t> &actual, const std::vector<uint8_t> &expected, const std::string &test_name)
+    {
+        if (actual != expected)
+        {
+            std::cout << "❌ " << test_name << " - PATTERN MISMATCH\n";
+            std::cout << "   Expected: ";
+            print_pixels_hex(expected, expected.size() > 0 ? (expected[0] > 3 ? 4 : 2) : 2);
+            std::cout << "\n   Got:      ";
+            print_pixels_hex(actual, actual.size() > 0 ? (actual[0] > 3 ? 4 : 2) : 2);
+            std::cout << "\n";
+            return false;
+        }
+        return true;
+    }
+
+    bool test_1bpp_continuous()
+    {
+        std::cout << "🧪 1bpp Continuous: ";
+        total_tests++;
         reset();
-    }
 
-    void reset() {
-        shift_reg = 0;
-        bit_counter = 0;
-        data_latch = 0;
-        processing = false;
-    }
+        // Загружаем байт 0xAA (10101010)
+        strobe_word(0xAA, 0);
 
-    // Process 16-bit word from video memory
-    std::vector<uint8_t> process_word(uint16_t vmem_data, bool vmem_valid) {
-        std::vector<uint8_t> pixels;
-        
-        if (vmem_valid) {
-            // New data arrived
-            data_latch = vmem_data;
-            shift_reg = vmem_data;
-            bit_counter = 0;
-            processing = true;
-        }
+        std::vector<uint8_t> expected = {1, 0, 1, 0, 1, 0, 1, 0};
+        std::vector<uint8_t> actual;
 
-        if (!processing) {
-            return pixels;
-        }
-
-        // Calculate actual bpp mode
-        uint8_t actual_bpp = calculate_actual_bpp();
-        bool actual_tetrad = config.use_cpc_modes ? false : config.tetrad_mode;
-
-        // Extract pixels based on mode
-        while (bit_counter < 16) {
-            uint8_t pixel = extract_pixel(actual_bpp, actual_tetrad);
-            if (pixel != 0xFF) { // 0xFF indicates no pixel this cycle
-                pixels.push_back(pixel);
+        // Выдаем 8 пикселей
+        for (int i = 0; i < 10; i++)
+        {
+            pulse_pix_shift(1);
+            if (dut->pixel_valid_o)
+            {
+                actual.push_back(dut->pixel_index_o & 1);
             }
-            
-            // Break if we've processed all possible pixels for this mode
-            if ((actual_bpp == 2'b11 && bit_counter >= 8) || // 8bpp: 2 pixels
-                (actual_bpp == 2'b10 && bit_counter >= 12) || // 4bpp: 4 pixels  
-                (actual_bpp == 2'b01 && bit_counter >= 8) ||  // 2bpp: 8 pixels
-                (actual_bpp == 2'b00 && bit_counter >= 16)) { // 1bpp: 16 pixels
+            if (actual.size() >= 8)
                 break;
-            }
         }
 
-        // If we processed all pixels, reset for next word
-        if (bit_counter >= 16) {
-            processing = false;
+        bool pass = validate_pixel_count(actual, 8, "1bpp Continuous") &&
+                    validate_expected_pattern(actual, expected, "1bpp Continuous");
+
+        if (pass)
+        {
+            std::cout << "✅ PASSED\n";
+        }
+        else
+        {
+            failed_tests++;
+        }
+        return pass;
+    }
+
+    bool test_2bpp_continuous()
+    {
+        std::cout << "🧪 2bpp Continuous: ";
+        total_tests++;
+        reset();
+
+        // Загружаем байт 0x12 (00010010)
+        strobe_word(0x12, 0);
+        dut->bpp_mode_i = 1;
+        dut->continuous_mode_i = 1;
+
+        // Expected: [00 01 00 10] = 0, 1, 0, 2
+        std::vector<uint8_t> expected = {0, 1, 0, 2};
+        std::vector<uint8_t> actual;
+
+        // Выдаем 4 пикселя (каждый второй pix_shift)
+        for (int i = 0; i < 12; i++)
+        {
+            if (i % 2 == 0)
+                pulse_pix_shift(1);
+            else
+                tick();
+
+            if (dut->pixel_valid_o)
+            {
+                actual.push_back(dut->pixel_index_o & 3);
+            }
+            if (actual.size() >= 4)
+                break;
         }
 
-        return pixels;
-    }
+        bool pass = validate_pixel_count(actual, 4, "2bpp Continuous") &&
+                    validate_expected_pattern(actual, expected, "2bpp Continuous");
 
-    void set_config(const Config& new_config) {
-        config = new_config;
-    }
-
-    bool is_ready() const {
-        return !processing;
-    }
-
-private:
-    Config config;
-    uint16_t shift_reg;
-    uint16_t data_latch;
-    uint8_t bit_counter;
-    bool processing;
-
-    uint8_t calculate_actual_bpp() {
-        if (config.use_cpc_modes) {
-            // Legacy CPC modes
-            switch (config.cpc_graphic_mode) {
-                case 0b00: return 0b01; // 16 colors -> 2bpp
-                case 0b01: return 0b10; // 4 colors -> 4bpp
-                case 0b10: return 0b00; // 2 colors -> 1bpp
-                case 0b11: return 0b01; // 16 colors -> 2bpp
-                default: return 0b01;
-            }
-        } else {
-            // Extended modes
-            return config.bpp_mode;
+        if (pass)
+        {
+            std::cout << "✅ PASSED\n";
         }
+        else
+        {
+            failed_tests++;
+        }
+        return pass;
     }
 
-    uint8_t extract_pixel(uint8_t bpp_mode, bool tetrad) {
-        uint8_t pixel = 0xFF; // No pixel extracted
+    bool test_4bpp_continuous()
+    {
+        std::cout << "🧪 4bpp Continuous: "; // Исправлено название
+        total_tests++;
+        reset();
 
-        switch (bpp_mode) {
-            case 0b00: { // 1 bpp - 16 pixels per word
-                pixel = (shift_reg >> 15) & 0x01;
-                shift_reg = (shift_reg << 1) & 0xFFFF;
-                bit_counter++;
-                break;
-            }
+        // 4bpp = 2 пикселя на байт (4 бита на пиксель)
+        // Загружаем байт 0x12 = 00010010 binary
+        // Разбиваем на 4-битные пиксели: [0001, 0010] = 1, 2
+        strobe_word(0x12, 0);
+        dut->bpp_mode_i = 2; // 4bpp = mode 2 (2^2 = 4 бита)
+        dut->continuous_mode_i = 1;
 
-            case 0b01: { // 2 bpp - 8 pixels per word
-                if (tetrad) {
-                    // Tetrad mode: groups of 2 bits
-                    switch (bit_counter & 0x06) { // Mask to 0,2,4,6
-                        case 0: pixel = (shift_reg >> 14) & 0x03; break;
-                        case 2: pixel = (shift_reg >> 12) & 0x03; break;
-                        case 4: pixel = (shift_reg >> 10) & 0x03; break;
-                        case 6: pixel = (shift_reg >> 8) & 0x03; break;
-                    }
-                    shift_reg = (shift_reg << 2) & 0xFFFF;
-                    bit_counter += 2;
-                } else {
-                    // CPC-style: interleaved bits
-                    uint8_t bit_pos = 15 - (bit_counter / 2) * 2 - (bit_counter % 2);
-                    uint8_t bit0 = (shift_reg >> (bit_pos)) & 1;
-                    uint8_t bit1 = (shift_reg >> (bit_pos - 1)) & 1;
-                    pixel = (bit0 << 1) | bit1;
-                    bit_counter++;
-                    // Only shift after both bits are used
-                    if (bit_counter % 2 == 0) {
-                        shift_reg = (shift_reg << 1) & 0xFFFF;
-                    }
-                }
-                break;
-            }
+        std::vector<uint8_t> expected = {1, 2}; // 2 пикселя для 4bpp
+        std::vector<uint8_t> actual;
 
-            case 0b10: { // 4 bpp - 4 pixels per word
-                switch (bit_counter & 0x0C) { // Mask to 0,4,8,12
-                    case 0:  pixel = (shift_reg >> 12) & 0x0F; break;
-                    case 4:  pixel = (shift_reg >> 8) & 0x0F; break;
-                    case 8:  pixel = (shift_reg >> 4) & 0x0F; break;
-                    case 12: pixel = shift_reg & 0x0F; break;
-                }
-                bit_counter += 4;
-                // All pixels extracted at once
-                if (bit_counter >= 16) {
-                    shift_reg = 0;
-                }
-                break;
-            }
+        for (int i = 0; i < 8; i++)
+        {
+            if (i % 2 == 0)
+                pulse_pix_shift(1);
+            else
+                tick();
 
-            case 0b11: { // 8 bpp - 2 pixels per word
-                switch (bit_counter & 0x08) { // Mask to 0,8
-                    case 0: pixel = (shift_reg >> 8) & 0xFF; break;
-                    case 8: pixel = shift_reg & 0xFF; break;
-                }
-                bit_counter += 8;
-                // All pixels extracted at once
-                if (bit_counter >= 16) {
-                    shift_reg = 0;
-                }
-                break;
+            if (dut->pixel_valid_o)
+            {
+                actual.push_back(dut->pixel_index_o & 15); // Маска 4 бита (0-15)
             }
+            if (actual.size() >= 2)
+                break;
         }
 
-        return pixel;
+        bool pass = validate_pixel_count(actual, 2, "4bpp Continuous") &&
+                    validate_expected_pattern(actual, expected, "4bpp Continuous");
+
+        if (pass)
+        {
+            std::cout << "✅ PASSED - Data: ";
+            print_pixels_hex(actual, 1); // 1 hex digit для 4bpp
+            std::cout << "\n";
+        }
+        else
+        {
+            failed_tests++;
+            std::cout << "❌ FAILED\n";
+            std::cout << "   Expected: ";
+            print_vector_hex(expected);
+            std::cout << "   Actual: ";
+            print_vector_hex(actual);
+        }
+        return pass;
+    }
+
+    bool test_8bpp_continuous()
+    {
+        std::cout << "🧪 8bpp Continuous: "; // Исправлено название
+        total_tests++;
+        reset();
+
+        // 8bpp = 1 пиксель на байт (8 бит на пиксель)
+        // Загружаем байт 0x12 = 00010010 binary = 18 decimal
+        strobe_word(0x12, 0);
+        dut->bpp_mode_i = 3; // 8bpp = mode 3 (2^3 = 8 бит)
+        dut->continuous_mode_i = 1;
+
+        std::vector<uint8_t> expected = {0x12}; // 1 пиксель для 8bpp
+        std::vector<uint8_t> actual;
+
+        for (int i = 0; i < 4; i++)
+        {
+            if (i % 2 == 0)
+                pulse_pix_shift(1);
+            else
+                tick();
+
+            if (dut->pixel_valid_o)
+            {
+                actual.push_back(dut->pixel_index_o); // Полные 8 бит
+            }
+            if (actual.size() >= 1)
+                break;
+        }
+
+        bool pass = validate_pixel_count(actual, 1, "8bpp Continuous") &&
+                    validate_expected_pattern(actual, expected, "8bpp Continuous");
+
+        if (pass)
+        {
+            std::cout << "✅ PASSED - Data: ";
+            print_pixels_hex(actual, 2); // 2 hex digits для 8bpp
+            std::cout << "\n";
+        }
+        else
+        {
+            failed_tests++;
+            std::cout << "❌ FAILED\n";
+            std::cout << "   Expected: ";
+            print_vector_hex(expected);
+            std::cout << "   Actual: ";
+            print_vector_hex(actual);
+        }
+        return pass;
+    }
+
+    bool test_cpc_mode1()
+    {
+        std::cout << "🧪 CPC Mode1 (2bpp): ";
+        total_tests++;
+        reset();
+
+        // CPC Mode1 = 2bpp = 4 цвета = 4 пикселя на байт
+        // Загружаем байт 0x12 = 00010010 binary
+        // В нашем железе порядок: [bit1:bit0], [bit3:bit2], [bit5:bit4], [bit7:bit6]
+        // 0x12 = bits: 7-0: [0,0,0,1,0,0,1,0]
+        // Пары: [1:0]=00, [3:2]=00, [5:4]=10, [7:6]=01 → 0, 0, 2, 1
+
+        strobe_word(0x12, 0);
+        dut->bpp_mode_i = 1; // 2bpp
+        dut->continuous_mode_i = 0;
+
+        std::vector<uint8_t> expected = {0, 0, 2, 1}; // Порядок нашего железа!
+        std::vector<uint8_t> actual;
+
+        for (int i = 0; i < 12; i++)
+        {
+            if (i % 2 == 0)
+                pulse_pix_shift(1);
+            else
+                tick();
+
+            if (dut->pixel_valid_o)
+            {
+                actual.push_back(dut->pixel_index_o & 3);
+            }
+            if (actual.size() >= 4)
+                break;
+        }
+
+        bool pass = validate_pixel_count(actual, 4, "CPC Mode1") &&
+                    (actual == expected);
+
+        if (!pass)
+        {
+            failed_tests++;
+            std::cout << "❌ FAILED\n";
+            std::cout << "   Expected: ";
+            print_vector_hex(expected);
+            std::cout << "   Actual:   ";
+            print_vector_hex(actual);
+        }
+        else
+        {
+            std::cout << "✅ PASSED - Data: ";
+            print_pixels_hex(actual, 1);
+            std::cout << "\n";
+        }
+        return pass;
+    }
+
+    bool test_cpc_mode2()
+    {
+        std::cout << "🧪 CPC Mode2 (1bpp): ";
+        total_tests++;
+        reset();
+
+        // CPC Mode2 = 1bpp = 2 цвета = 8 пикселей на байт
+        // Загружаем байт 0x12 = 00010010 binary
+        // Разбиваем на отдельные биты: [0,0,0,1,0,0,1,0] = 0,0,0,1,0,0,1,0
+
+        strobe_word(0x12, 0);
+        dut->bpp_mode_i = 0; // 1bpp
+        dut->continuous_mode_i = 0;
+
+        std::vector<uint8_t> expected = {0, 0, 0, 1, 0, 0, 1, 0};
+        std::vector<uint8_t> actual;
+
+        for (int i = 0; i < 20; i++)
+        {
+            if (i % 2 == 0)
+                pulse_pix_shift(1);
+            else
+                tick();
+
+            if (dut->pixel_valid_o)
+            {
+                actual.push_back(dut->pixel_index_o & 1); // Маска 1 бит
+            }
+            if (actual.size() >= 8)
+                break;
+        }
+
+        bool pass = validate_pixel_count(actual, 8, "CPC Mode2") &&
+                    (actual == expected);
+
+        if (!pass)
+        {
+            failed_tests++;
+            std::cout << "❌ FAILED\n";
+            std::cout << "   Expected: ";
+            print_vector_hex(expected);
+            std::cout << "   Actual:   ";
+            print_vector_hex(actual);
+            std::cout << "\n";
+        }
+        else
+        {
+            std::cout << "✅ PASSED - Data: ";
+            print_pixels_hex(actual, 1);
+            std::cout << "\n";
+        }
+        return pass;
+    }
+    void run_all_tests()
+    {
+        std::cout << "🚀 Starting NEW Pixel Pipeline Tests\n";
+        std::cout << "====================================\n";
+
+        test_1bpp_continuous();
+        test_2bpp_continuous();
+        test_4bpp_continuous();
+        test_8bpp_continuous();
+        test_cpc_mode1();
+        test_cpc_mode2();
+
+        std::cout << "====================================\n";
+        std::cout << "📊 Test Results: "
+                  << (total_tests - failed_tests) << "/" << total_tests
+                  << " tests passed\n";
+
+        if (failed_tests == 0)
+        {
+            std::cout << "🎉 All tests PASSED!\n";
+        }
+        else
+        {
+            std::cout << "💥 " << failed_tests << " tests FAILED!\n";
+        }
+        std::cout << "💾 Waveform saved to pixel_pipeline.fst\n";
     }
 };
 
-// Test suite
-class PixelPipelineTest {
-public:
-    void run_all_tests() {
-        test_1bpp_mode();
-        test_2bpp_cpc_mode();
-        test_2bpp_tetrad_mode();
-        test_4bpp_mode();
-        test_8bpp_mode();
-        test_cpc_compatibility();
-        std::cout << "All pixel pipeline tests passed!" << std::endl;
-    }
-
-private:
-    void test_1bpp_mode() {
-        PixelPipeline pp;
-        PixelPipeline::Config config = {0b00, false, false, 0};
-        pp.set_config(config);
-
-        // Test data: 0xAAAA = 1010101010101010
-        auto pixels = pp.process_word(0xAAAA, true);
-        
-        assert(pixels.size() == 16);
-        assert(pixels[0] == 1);
-        assert(pixels[1] == 0);
-        assert(pixels[2] == 1);
-        assert(pixels[3] == 0);
-        
-        std::cout << "1bpp mode test: PASSED" << std::endl;
-    }
-
-    void test_2bpp_cpc_mode() {
-        PixelPipeline pp;
-        PixelPipeline::Config config = {0b01, false, false, 0};
-        pp.set_config(config);
-
-        // Test data: 0xA5A5 = 1010010110100101
-        auto pixels = pp.process_word(0xA5A5, true);
-        
-        assert(pixels.size() == 8);
-        // Should extract interleaved: bits 15,13,11,9,7,5,3,1
-        assert(pixels[0] == 0b10); // bits 15,14? Wait, let me check...
-        
-        std::cout << "2bpp CPC mode test: PASSED" << std::endl;
-    }
-
-    void test_2bpp_tetrad_mode() {
-        PixelPipeline pp;
-        PixelPipeline::Config config = {0b01, true, false, 0};
-        pp.set_config(config);
-
-        // Test data: 0x1234 = 0001001000110100
-        auto pixels = pp.process_word(0x1234, true);
-        
-        assert(pixels.size() == 4);
-        assert(pixels[0] == 0b01); // bits [15:14]
-        assert(pixels[1] == 0b00); // bits [13:12]
-        assert(pixels[2] == 0b10); // bits [11:10]
-        assert(pixels[3] == 0b11); // bits [9:8]
-        
-        std::cout << "2bpp tetrad mode test: PASSED" << std::endl;
-    }
-
-    void test_4bpp_mode() {
-        PixelPipeline pp;
-        PixelPipeline::Config config = {0b10, false, false, 0};
-        pp.set_config(config);
-
-        // Test data: 0x1234
-        auto pixels = pp.process_word(0x1234, true);
-        
-        assert(pixels.size() == 4);
-        assert(pixels[0] == 0x1);
-        assert(pixels[1] == 0x2);
-        assert(pixels[2] == 0x3);
-        assert(pixels[3] == 0x4);
-        
-        std::cout << "4bpp mode test: PASSED" << std::endl;
-    }
-
-    void test_8bpp_mode() {
-        PixelPipeline pp;
-        PixelPipeline::Config config = {0b11, false, false, 0};
-        pp.set_config(config);
-
-        // Test data: 0x1234
-        auto pixels = pp.process_word(0x1234, true);
-        
-        assert(pixels.size() == 2);
-        assert(pixels[0] == 0x12);
-        assert(pixels[1] == 0x34);
-        
-        std::cout << "8bpp mode test: PASSED" << std::endl;
-    }
-
-    void test_cpc_compatibility() {
-        PixelPipeline pp;
-        
-        // Test CPC mode 0 (16 colors -> 2bpp)
-        PixelPipeline::Config config1 = {0b00, false, true, 0b00};
-        pp.set_config(config1);
-        auto pixels1 = pp.process_word(0xA5A5, true);
-        assert(pixels1.size() == 8);
-        
-        // Test CPC mode 1 (4 colors -> 4bpp)
-        PixelPipeline::Config config2 = {0b00, false, true, 0b01};
-        pp.set_config(config2);
-        auto pixels2 = pp.process_word(0x1234, true);
-        assert(pixels2.size() == 4);
-        
-        std::cout << "CPC compatibility test: PASSED" << std::endl;
-    }
-};
-
-// Main test runner
-int main() {
-    PixelPipelineTest tester;
-    tester.run_all_tests();
+int main(int argc, char **argv)
+{
+    Verilated::commandArgs(argc, argv);
+    PixelPipelineTest test;
+    test.run_all_tests();
     return 0;
 }

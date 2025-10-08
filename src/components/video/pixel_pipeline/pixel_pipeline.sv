@@ -1,131 +1,93 @@
 module pixel_pipeline (
-    input wire clk,
-    input wire rst,
+    input wire clk_i,
+    input wire rst_i,
     
-    // Input from video memory
-    input wire [15:0] vmem_data,
-    input wire vmem_valid,
+    // Timing from CRT
+    input wire pix_ena_i,        // Основной пиксельный такт (фиксированная частота)
+    input wire pix_shift_i,      // Строб сдвига (разная частота в разных режимах)
+    input wire byte_strobe_i,    // Загрузка байта
+    input wire byte_select_i,    // 0=младший байт, 1=старший байт
     
-    // Configuration from palette control register
-    input wire [1:0] bpp_mode,    // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
-    input wire tetrad_mode,       // 0=CPC-style, 1=тетрадный
-    input wire cpc_override,      // 0=legacy CPC modes, 1=extended
+    // Data input
+    input wire [15:0] vmem_data_i,
+    
+    // Configuration
+    input wire [1:0] bpp_mode_i,
+    input wire continuous_mode_i,
     
     // Output to palette
-    output reg [7:0] pixel_index,
-    output reg pixel_valid
+    output wire [7:0] pixel_index_o,
+    output wire pixel_valid_o
 );
 
-// Internal registers
-reg [15:0] shift_reg;
-reg [3:0] bit_counter;
-reg [15:0] data_latch;
-reg processing;
+reg [7:0] shift_reg;
+reg [7:0] pixel_index_latch;
+reg pixel_valid;
 
-// FSM states
-localparam IDLE = 1'b0;
-localparam PROCESSING = 1'b1;
-reg state;
-
-// Main pipeline
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        shift_reg <= 16'b0;
-        bit_counter <= 4'b0;
-        data_latch <= 16'b0;
-        pixel_valid <= 1'b0;
-        pixel_index <= 8'b0;
-        state <= IDLE;
-        processing <= 1'b0;
-    end else begin
-        pixel_valid <= 1'b0;
-        
-        case (state)
-            IDLE: begin
-                if (vmem_valid) begin
-                    // Latch new data and start processing
-                    data_latch <= vmem_data;
-                    shift_reg <= vmem_data;
-                    bit_counter <= 4'b0;
-                    state <= PROCESSING;
-                    processing <= 1'b1;
+// Вся логика ТОЛЬКО по pix_ena_i для фиксированной латентности
+always @(posedge clk_i or posedge rst_i) begin
+    if (rst_i) begin
+        shift_reg <= 8'b0;
+        pixel_index_latch <= 8'b0;
+    end else if (pix_ena_i) begin
+        // Загрузка байта (имеет приоритет над сдвигом)
+        if (byte_strobe_i) begin
+            shift_reg <= byte_select_i ? vmem_data_i[15:8] : vmem_data_i[7:0];
+        end
+        // Вычисление пикселя по pix_shift_i (если не было загрузки)
+        else if (pix_shift_i) begin
+            case (bpp_mode_i)
+                2'b00: begin // 1bpp - 8 пикселей из байта
+                    // Continuous: [7], [6], [5], [4], [3], [2], [1], [0]
+                    pixel_index_latch <= {7'b0, shift_reg[7]};
+                    shift_reg <= {shift_reg[6:0], 1'b0};
                 end
-            end
-            
-            PROCESSING: begin
-                if (bit_counter < 16) begin
-                    // Extract next pixel based on mode
-                    case (bpp_mode)
-                        2'b00: begin // 1 bpp - 16 pixels per word
-                            pixel_index <= {7'b0, shift_reg[15]};
-                            shift_reg <= {shift_reg[14:0], 1'b0};
-                            bit_counter <= bit_counter + 1;
-                            pixel_valid <= 1'b1;
-                        end
-                        
-                        2'b01: begin // 2 bpp - 8 pixels per word
-                            if (tetrad_mode) begin
-                                // Тетрадный режим: группы по 2 бита
-                                case (bit_counter[2:0])
-                                    3'b000: pixel_index <= {6'b0, shift_reg[15:14]};
-                                    3'b010: pixel_index <= {6'b0, shift_reg[13:12]};
-                                    3'b100: pixel_index <= {6'b0, shift_reg[11:10]};
-                                    3'b110: pixel_index <= {6'b0, shift_reg[9:8]};
-                                    default: pixel_index <= 8'b0;
-                                endcase
-                                shift_reg <= {shift_reg[13:0], 2'b0};
-                                bit_counter <= bit_counter + 2;
-                            end else begin
-                                // CPC-style: чередование битов
-                                // pixel0: bits 7,5,3,1; pixel1: bits 6,4,2,0
-                                case (bit_counter[2:0])
-                                    3'b000: pixel_index <= {6'b0, shift_reg[15], shift_reg[13]};
-                                    3'b010: pixel_index <= {6'b0, shift_reg[11], shift_reg[9]};
-                                    3'b100: pixel_index <= {6'b0, shift_reg[7], shift_reg[5]};
-                                    3'b110: pixel_index <= {6'b0, shift_reg[3], shift_reg[1]};
-                                    default: pixel_index <= 8'b0;
-                                endcase
-                                shift_reg <= {shift_reg[14:0], 1'b0}; // Shift by 1 for interleaved
-                                bit_counter <= bit_counter + 1;
-                            end
-                            pixel_valid <= 1'b1;
-                        end
-                        
-                        2'b10: begin // 4 bpp - 4 pixels per word
-                            case (bit_counter[1:0])
-                                2'b00: pixel_index <= {4'b0, shift_reg[15:12]};
-                                2'b01: pixel_index <= {4'b0, shift_reg[11:8]};
-                                2'b10: pixel_index <= {4'b0, shift_reg[7:4]};
-                                2'b11: pixel_index <= {4'b0, shift_reg[3:0]};
-                            endcase
-                            shift_reg <= 16'b0; // All pixels extracted at once
-                            bit_counter <= 4'b1111; // Mark as completed
-                            pixel_valid <= 1'b1;
-                        end
-                        
-                        2'b11: begin // 8 bpp - 2 pixels per word
-                            case (bit_counter[0])
-                                1'b0: pixel_index <= shift_reg[15:8];
-                                1'b1: pixel_index <= shift_reg[7:0];
-                            endcase
-                            shift_reg <= 16'b0; // All pixels extracted at once  
-                            bit_counter <= 4'b1111; // Mark as completed
-                            pixel_valid <= 1'b1;
-                        end
-                    endcase
-                end else begin
-                    // All pixels extracted from current word
-                    state <= IDLE;
-                    processing <= 1'b0;
+                
+                2'b01: begin // 2bpp - 4 пикселя из байта
+                    if (continuous_mode_i) begin
+                        // Continuous: красивые последовательные пары [7:6], [5:4], [3:2], [1:0]
+                        pixel_index_latch <= {6'b0, shift_reg[7:6]};
+                        shift_reg <= {shift_reg[5:0], 2'b0};
+                    end else begin
+                        // CPC Mode 1: [3,7], [2,6], [1,5], [0,4]
+                        pixel_index_latch <= {6'b0, shift_reg[3], shift_reg[7]};
+                        shift_reg <= {shift_reg[6:0], 1'b0};
+                    end
                 end
-            end
-        endcase
+                
+                2'b10: begin // 4bpp - 2 пикселя из байта
+                    if (continuous_mode_i) begin
+                        // Continuous: красивые тетрады [7:4], [3:0]
+                        pixel_index_latch <= {4'b0, shift_reg[7:4]};
+                        shift_reg <= {shift_reg[3:0], 4'b0};
+                    end else begin
+                        // CPC Mode 0: [1,5,3,7], [0,4,2,6]
+                        pixel_index_latch <= {4'b0, shift_reg[1], shift_reg[5], shift_reg[3], shift_reg[7]};
+                        shift_reg <= {shift_reg[6:0], 1'b0};
+                    end
+                end
+                
+                2'b11: begin // 8bpp - 1 пиксель из байта
+                    // Весь байт = один пиксель, биты не перепутаны
+                    pixel_index_latch <= shift_reg;
+                    // Сдвиг не нужен - всегда загружаем новый байт
+                    shift_reg <= 8'b0; // Очищаем после использования
+                end
+            endcase
+        end
     end
 end
 
-// Optional: Output ready signal for flow control
-wire ready_for_data;
-assign ready_for_data = (state == IDLE) || (bit_counter >= 16);
+always_ff @(posedge clk_i or posedge rst_i) begin
+    if (rst_i) begin
+        pixel_valid <= 0;
+    end else if (pix_ena_i) begin
+        pixel_valid <= pix_shift_i;
+    end
+end
+ 
+assign pixel_index_o = pixel_index_latch;
+assign pixel_valid_o = pixel_valid;
+
 
 endmodule
-

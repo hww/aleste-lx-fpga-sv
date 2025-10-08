@@ -14,7 +14,7 @@ SOURCES = \
     $(RTL_PATH)/pixel_pipeline.sv \
     tb_pixel_pipeline.cpp
 
-TARGET = Vmc6845mod
+TARGET = Vpixel_pipeline
 
 all: $(TARGET)
 
@@ -25,7 +25,7 @@ run: $(TARGET)
 	./obj_dir/$(TARGET)
 
 wave: run
-	gtkwave pixel_pipeline.fst &
+	gtkwave pixel_pipeline.vcd &
 
 simulation: run
 	gtkwave pixel_pipeline.fst pixel_pipeline.gtkw &
