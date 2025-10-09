@@ -152,7 +152,7 @@ always @(posedge wb_clk_i or posedge wb_rst_i) begin
                                     palette_ram[palette_index] <= convert_8to12(wb_dat_i);
                                 end
                                 2'b11: begin // Native 12-bit (low byte)
-                            palette_ram[palette_index][7:0] <= wb_dat_i;
+                                    palette_ram[palette_index][7:0] <= wb_dat_i;
                                 end
                             endcase
                             if (control_reg[5]) begin // auto_inc
