@@ -1,3 +1,12 @@
+// =============================================================================
+// VIDEO_SUBSYSTEM - Complete Video Pipeline
+// =============================================================================
+// For Aleste LX project by H2W
+// =============================================================================
+// AGU → VBUF → PPU → PAL video processing chain
+// Implements Aleste 8-bit computer video compatibility
+// =============================================================================
+
 `default_nettype none
 
 // Include configuration

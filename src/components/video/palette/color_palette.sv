@@ -1,3 +1,12 @@
+// =============================================================================
+// PAL - Color Palette Unit
+// =============================================================================
+// For Aleste LX project by H2W
+// =============================================================================
+// Color Look-Up Table with 256 entries, 12-bit RGB output
+// Supports dynamic palette switching and color blending
+// =============================================================================
+
 module color_palette (
     // Wishbone interface
     input wire        wb_clk_i, wb_rst_i,
