@@ -157,7 +157,7 @@ always_ff @(posedge wb_clk_i) begin
             reg_v_sync_pos <= 7'd30;
             reg_interlace <= 2'd0;
             reg_skew <= 2'd0;
-            reg_max_scan <= 5'd15;
+            reg_max_scan <= 5'd07;
             reg_cursor_start <= 5'd0;
             reg_cursor_mode <= 2'd0;
             reg_cursor_end <= 5'd0;
@@ -432,22 +432,15 @@ always_ff @(posedge pix_clk_i) begin
 end
 
 // ============================================================================
-// АДРЕСНЫЙ ГЕНЕРАТОР (адаптированный под новые счетчики)
+// АДРЕСНЫЙ ГЕНЕРАТОР (адаптированный под новые счетчики) - ПЕРЕМЕЩЕН ВПЕРЕД
 // ============================================================================
 
-// Linear address counter - ОТДЕЛЬНЫЙ блок для линейной адресации
-logic [15:0] linear_addr = 0;
+// Display enable
+logic crtc_de;
+assign crtc_de = (crtc_h_count < reg_h_displayed) && 
+                 (crtc_v_count < reg_v_displayed);
 
-always_ff @(posedge pix_clk_i) begin
-    if (wb_rst_i || start_v_trigger) begin
-        linear_addr <= {reg_start_addr_h, reg_start_addr_l}; // ×4 for byte address
-    end else if (pix_en_i && char_inc && addr_mode[2]) begin
-        // Linear addressing: +2 bytes normal, +4 bytes burst
-        linear_addr <= linear_addr + (crtc_burst_req_o ? 16'd4 : 16'd2);
-    end
-end
-
-// Traditional CRTC address - ОТДЕЛЬНЫЙ блок для совместимости
+// Traditional CRTC address - ОБЪЯВЛЕН ДО ИСПОЛЬЗОВАНИЯ
 logic [13:0] crtc_ma_addr = 0;
 logic [13:0] crtc_row_start_addr = 0;
 logic after_visible_line;
@@ -473,6 +466,18 @@ always_ff @(posedge pix_clk_i) begin
     end
 end
 
+// Linear address counter - ОТДЕЛЬНЫЙ блок для линейной адресации
+logic [15:0] linear_addr = 0;
+
+always_ff @(posedge pix_clk_i) begin
+    if (wb_rst_i || start_v_trigger) begin
+        linear_addr <= {reg_start_addr_h, reg_start_addr_l}; // ×4 for byte address
+    end else if (pix_en_i && char_inc && addr_mode[2]) begin
+        // Linear addressing: +2 bytes normal, +4 bytes burst
+        linear_addr <= linear_addr + (crtc_burst_req_o ? 16'd4 : 16'd2);
+    end
+end
+
 // Extended address output with proper mode selection
 always_comb begin
     if (addr_mode[2]) begin
@@ -494,13 +499,48 @@ always_comb begin
 end
 
 // ============================================================================
-// БЛОК 6: КУРСОР ЛОГИКА  
+// БЛОК 6: КУРСОР ЛОГИКА - ТЕПЕРЬ ПОСЛЕ АДРЕСНОГО ГЕНЕРАТОРА
 // ============================================================================
 
-// Display enable
-logic crtc_de;
-assign crtc_de = (crtc_h_count < reg_h_displayed) && 
-                 (crtc_v_count < reg_v_displayed);
+// Cursor logic - ТЕПЕРЬ crtc_ma_addr ОБЪЯВЛЕН
+logic [13:0] crtc_cursor_ma_addr;
+logic crtc_cursor_ma_active;
+logic crtc_cursor_ra_active = 0;
+logic crtc_cursor_blinking = 0;
+
+assign crtc_cursor_ma_addr = {reg_cursor_addr_h, reg_cursor_addr_l};
+assign crtc_cursor_ma_active = crtc_ma_addr == crtc_cursor_ma_addr;
+
+// Cursor row address active
+always_ff @(posedge pix_clk_i) begin
+    if (wb_rst_i || start_v_trigger) begin
+        crtc_cursor_ra_active <= 0;
+    end else if (pix_en_i && char_inc) begin
+        if (crtc_pix_y == reg_cursor_start) begin
+            crtc_cursor_ra_active <= 1;
+        end else if (crtc_pix_y == reg_cursor_end) begin
+            crtc_cursor_ra_active <= 0;
+        end
+    end
+end
+
+// Cursor blinking
+always_ff @(posedge pix_clk_i) begin
+    if (wb_rst_i) begin
+        crtc_cursor_blinking <= 0;
+    end else if (pix_en_i) begin
+        case (reg_cursor_mode)
+            2'b00: crtc_cursor_blinking <= 1;
+            2'b01: crtc_cursor_blinking <= hdmi_y_i[5];
+            2'b10: crtc_cursor_blinking <= hdmi_y_i[6];
+            2'b11: crtc_cursor_blinking <= 0;
+        endcase
+    end
+end
+
+// ============================================================================
+// SKEW ЛОГИКА - ИСПОЛЬЗУЕТ ОБЪЯВЛЕННЫЕ ВЫШЕ СИГНАЛЫ КУРСОРА
+// ============================================================================
 
 // Skew logic
 logic de_delayed_1 = 0;
@@ -509,7 +549,7 @@ logic cursor_delayed_1, cursor_delayed_2;
 logic de_skewed;
 logic cursor_skewed;
 
-// Вычисление курсора ДО skew логики
+// Вычисление курсора ДО skew логики - ТЕПЕРЬ ИСПОЛЬЗУЕТ ОБЪЯВЛЕННЫЕ СИГНАЛЫ
 logic crtc_cursor_raw;
 assign crtc_cursor_raw = crtc_cursor_ma_active && crtc_cursor_ra_active && crtc_cursor_blinking && crtc_de;
 
@@ -542,40 +582,6 @@ always_comb begin
                 cursor_skewed = cursor_delayed_2;
             end
         endcase
-end
-
-// Cursor logic
-logic [13:0] crtc_cursor_ma_addr;
-logic crtc_cursor_ma_active;
-logic crtc_cursor_ra_active = 0;
-logic crtc_cursor_blinking = 0;
-
-assign crtc_cursor_ma_addr = {reg_cursor_addr_h, reg_cursor_addr_l};
-assign crtc_cursor_ma_active = crtc_ma_addr == crtc_cursor_ma_addr;
-
-always_ff @(posedge pix_clk_i) begin
-    if (wb_rst_i || start_v_trigger) begin
-        crtc_cursor_ra_active <= 0;
-    end else if (pix_en_i && char_inc) begin
-        if (crtc_pix_y == reg_cursor_start) begin
-            crtc_cursor_ra_active <= 1;
-        end else if (crtc_pix_y == reg_cursor_end) begin
-            crtc_cursor_ra_active <= 0;
-        end
-    end
-end
-
-always_ff @(posedge pix_clk_i) begin
-    if (wb_rst_i) begin
-        crtc_cursor_blinking <= 0;
-    end else if (pix_en_i) begin
-        case (reg_cursor_mode)
-            2'b00: crtc_cursor_blinking <= 1;
-            2'b01: crtc_cursor_blinking <= hdmi_y_i[5];
-            2'b10: crtc_cursor_blinking <= hdmi_y_i[6];
-            2'b11: crtc_cursor_blinking <= 0;
-        endcase
-    end
 end
 
 // ============================================================================
