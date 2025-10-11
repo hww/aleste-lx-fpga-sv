@@ -1,6 +1,8 @@
 // sdram_wb_controller.v
 // Based on proven MiST SDRAM controller, adapted for Wishbone Classic
 
+`include "sdram_config.vh"
+
 module sdram_ctrl_wb #(
     parameter CLK_FREQ = 100_000_000,          // Frequency of the clock input
     parameter SDRAM_FREQ = 100_000_000,        // Frequency of SDRAM operation
