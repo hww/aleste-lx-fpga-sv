@@ -30,8 +30,7 @@ module pixel_pipeline (
     // Output to palette
     output wire [7:0] pixel_index_o,
     output wire pixel_valid_o,
-    output wire de_o,            // Display Enable к палитре (1=active, 0=border)
-    output wire is_border_o      // 1 когда бордюр
+    output wire de_o            // Display Enable к палитре (1=active, 0=border)
 );
 
 reg [1:0] bpp_mode_latched;
@@ -116,6 +115,5 @@ end
 assign pixel_index_o = pixel_index_latch;
 assign pixel_valid_o = pixel_valid;
 assign de_o = de_ff;
-assign is_border_o = ~de_ff;  // 1 когда бордюр
 
 endmodule

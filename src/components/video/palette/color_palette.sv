@@ -108,12 +108,12 @@ always @(posedge wb_clk_i or posedge wb_rst_i) begin
         palette_index <= 8'h00;
         control_reg <= 8'h00;
         palette_modifier <= 8'h00;
-        border_color <= 12'h000;
+        border_color <= 12'hF00;
         wb_ack_o <= 1'b0;
         wb_dat_o <= 8'h00;
-        // Инициализируем палитру в чёрный
+        // Инициализация при сбросе
         for (int i = 0; i < 256; i++) begin
-            palette_ram[i] <= 12'h000;
+            palette_ram[i] <= {i[7:4], i[3:0], i[7:4]}; // Градиент
         end
     end else begin
         wb_ack_o <= 1'b0;

@@ -2,25 +2,31 @@
 YOSYS      := yosys
 NEXTPNR    := nextpnr-ecp5
 ECPPACK    := ecppack
-YOSYS_DIR  := ~/oss-cad-suite/share/yosys/
 
 # Source directories
 SRC_DIR    := ../../src
+SYSTEM_DIR := $(SRC_DIR)/systems/aleste_video
+TARGET_DIR := $(SRC_DIR)/platforms/icesugar_pro
+SDRAM_DIR  := $(SRC_DIR)/components/memory/sdram
 LLHDMI_DIR := $(SRC_DIR)/components/video/llhdmi
 SCALER_DIR := $(SRC_DIR)/components/video/hdmi_scaler
 CRTC_DIR   := $(SRC_DIR)/components/video/mc6845mod
-SYSTEM_DIR := $(SRC_DIR)/systems/aleste_video
-TARGET_DIR := $(SRC_DIR)/platforms/icesugar_pro
+PALETTE_DIR := $(SRC_DIR)/components/video/palette
+PIXPIPE_DIR := $(SRC_DIR)/components/video/pixel_pipeline
+VIDBUF_DIR := $(SRC_DIR)/components/video/video_buffer
 
-# Source files
-HDMICODE   := $(LLHDMI_DIR)/llhdmi.v
-ENCODER    := $(LLHDMI_DIR)/tmds_encoder.v
-OBUFDS     := $(LLHDMI_DIR)/OBUFDS.v
-CLOCK      := $(TARGET_DIR)/clocks/video_pll.v $(TARGET_DIR)/clocks/system_pll.v
-SCALER     := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
+# Source files для aleste_video
+CLOCK      := $(TARGET_DIR)/clocks/system_pll.v $(TARGET_DIR)/clocks/video_pll.v
+SDRAM_CTRL := $(SDRAM_DIR)/sdram_ctrl_wb.sv
+HDMI       := $(LLHDMI_DIR)/llhdmi.v $(LLHDMI_DIR)/tmds_encoder.v $(LLHDMI_DIR)/OBUFDS.v
 CRTC       := $(CRTC_DIR)/mc6845mod.sv $(CRTC_DIR)/simple_cgen.sv
+SCALER     := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
+PALETTE    := $(PALETTE_DIR)/cpc_colors.sv $(PALETTE_DIR)/color_palette.sv
+MEM_ARBITER := $(SYSTEM_DIR)/memory_arbiter.sv
+PIXPIPE	   := $(PIXPIPE_DIR)/pixel_pipeline.sv
+RESET_CTRL := $(SYSTEM_DIR)/reset_controller.sv
 TOP_MODULE := $(SYSTEM_DIR)/aleste_video.sv
-
+VIDBUF     := $(VIDBUF_DIR)/video_buffer.sv
 
 # Generated files
 YOSYS_SCRIPT := aleste_video.ys
@@ -34,7 +40,7 @@ DEVICE      := 25k
 PACKAGE     := CABGA256
 CONSTRAINTS := icesugar_pro.lpf
 
-# Configuration - только 27MHz режим
+# Configuration
 YOSYS_DEFINE := -DCONFIG_27MHZ -I../../src/config
 YOSYS_INCLUDE := -I.
 
@@ -42,24 +48,31 @@ YOSYS_INCLUDE := -I.
 all: $(BITSTREAM)
 
 # Generate Yosys script
-$(YOSYS_SCRIPT): $(TOP_MODULE) $(HDMICODE) $(ENCODER) $(CLOCK) $(OBUFDS) $(SCALER) $(CRTC)
+$(YOSYS_SCRIPT): $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) $(PALETTE) $(MEM_ARBITER) $(VIDEO_PIPE) $(RESET_CTRL)
+	@echo "Generating Yosys script for aleste_video..."
 	echo "read_verilog $(YOSYS_INCLUDE) $(YOSYS_DEFINE) -sv $(TOP_MODULE)" > $@
-	echo "read_verilog $(HDMICODE)" >> $@
-	echo "read_verilog $(ENCODER)" >> $@
 	echo "read_verilog $(CLOCK)" >> $@
-	echo "read_verilog $(OBUFDS)" >> $@
+	echo "read_verilog $(HDMI)" >> $@
+	echo "read_verilog $(VIDBUF)" >> $@
+	echo "read_verilog -sv $(SDRAM_CTRL)" >> $@
 	echo "read_verilog -sv $(CRTC)" >> $@
 	echo "read_verilog -sv $(SCALER)" >> $@
-	echo "hierarchy -top crt6845_hdmi_system" >> $@
-	echo "synth_ecp5 -json $(JSON_FILE) -no-rw-check " >> $@
+	echo "read_verilog -sv $(PALETTE)" >> $@
+	echo "read_verilog -sv $(MEM_ARBITER)" >> $@
+	echo "read_verilog -sv $(PIXPIPE)" >> $@
+	echo "read_verilog -sv $(RESET_CTRL)" >> $@
+	echo "hierarchy -top aleste_video" >> $@
+	echo "synth_ecp5 -json $(JSON_FILE) -no-rw-check" >> $@
 
 # Synthesis with Yosys
 $(JSON_FILE): $(YOSYS_SCRIPT)
+	@echo "Running Yosys synthesis..."
 	$(YOSYS) -V
 	$(YOSYS) -q $<
 
 # Place and route with nextpnr
 $(CONFIG_FILE): $(JSON_FILE)
+	@echo "Running place and route..."
 	$(NEXTPNR) \
 		--$(DEVICE) \
 		--package $(PACKAGE) \
@@ -69,6 +82,7 @@ $(CONFIG_FILE): $(JSON_FILE)
 
 # Generate bitstream
 $(BITSTREAM): $(CONFIG_FILE)
+	@echo "Generating bitstream..."
 	$(ECPPACK) \
 		--input $< \
 		--bit $@ \
@@ -76,37 +90,58 @@ $(BITSTREAM): $(CONFIG_FILE)
 
 # Programming target
 program: $(BITSTREAM)
+	@echo "Programming board..."
 	openocd -f icelink.cfg
 
 # Clean build artifacts
 .PHONY: clean
 clean:
+	@echo "Cleaning build artifacts..."
 	rm -f $(YOSYS_SCRIPT) $(JSON_FILE) $(CONFIG_FILE) $(BITSTREAM) $(SVF_FILE)
-
-# 1. Сравните отчеты utilization до и после изменений
-# 2. Проверьте timing отчеты
-reports: $(JSON_FILE)
-	$(NEXTPNR) \
-		--$(DEVICE) \
-		--package $(PACKAGE) \
-		--json $< \
-		--textcfg design.config \
-		--lpf $(CONSTRAINTS) 
-##		--pack-only
 
 # Debug target to show variables
 .PHONY: debug
 debug:
+	@echo "=== aleste_video Build Configuration ==="
 	@echo "Source files:"
 	@echo "  Top: $(TOP_MODULE)"
-	@echo "  HDMI: $(HDMICODE)"
-	@echo "  Encoder: $(ENCODER)"
 	@echo "  Clock: $(CLOCK)"
-	@echo "  SDLX (SV): $(SDLX_SV)"
+	@echo "  SDRAM Ctrl: $(SDRAM_CTRL)"
+	@echo "  HDMI: $(HDMI)"
+	@echo "  CRTC: $(CRTC)"
+	@echo "  Scaler: $(SCALER)"
+	@echo "  Palette: $(PALETTE)"
+	@echo "  Memory Arbiter: $(MEM_ARBITER)"
+	@echo "  Video Pipeline: $(VIDEO_PIPE)"
+	@echo "  Reset Controller: $(RESET_CTRL)"
 	@echo "Generated files:"
 	@echo "  Script: $(YOSYS_SCRIPT)"
 	@echo "  JSON: $(JSON_FILE)"
 	@echo "  Config: $(CONFIG_FILE)"
 	@echo "  Bitstream: $(BITSTREAM)"
-	@echo "Configuration:"
-	@echo "  Defines: $(YOSYS_DEFINE)"
+
+# Check if source files exist
+.PHONY: check
+check:
+	@echo "Checking source files for aleste_video..."
+	@for file in $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) $(PALETTE) $(MEM_ARBITER) $(VIDEO_PIPE) $(RESET_CTRL); do \
+		if [ -f "$$file" ]; then \
+			echo "✓ $$file"; \
+		else \
+			echo "✗ $$file (MISSING)"; \
+		fi \
+	done
+
+# Quick build test
+.PHONY: test
+test: clean
+	@echo "Testing aleste_video build..."
+	@make $(JSON_FILE) --no-print-directory || (echo "Build failed"; exit 1)
+	@echo "Build successful!"
+
+# Create project structure
+.PHONY: init
+init:
+	@echo "Creating aleste_video project structure..."
+	mkdir -p $(SYSTEM_DIR)
+	@echo "Now copy your source files to $(SYSTEM_DIR)/"
