@@ -136,7 +136,7 @@ logic [23:0] crtc_ext_addr;     // 24-bit extended address
 logic        crtc_burst_req;    // 1=32-bit burst, 0=16-bit normal
 logic [2:0]  crtc_addr_mode;    // Address mode
 logic [1:0]  crtc_pixel_clock_sel; // Pixel clock selection
-logic crtc_char;
+logic crtc_char_strobe, crtc_word_strobe, crtc_pixel_strobe, crtc_byte_strobe;
 
 mc6845mod #(
     .STANDARD("cpc"),
@@ -170,8 +170,11 @@ mc6845mod #(
     .crtc_cursor_o(crtc_cursor),
     .crtc_newline_o(crtc_newline),
     .crtc_newframe_o(crtc_newframe),
-    .crtc_char_o(crtc_char),
-
+    .char_strobe_o(crtc_char_strobe),// End of character 1/16 of 27MHz
+    .word_strobe_o(crtc_word_strobe),// End of character
+    .pixel_strobe_o(crtc_pixel_strobe),// Пиксельный строб 
+    .byte_strobe_o(crtc_byte_strobe),// Загрузка байта
+           
     // HDMI timing reference
     .hdmi_x_i(hdmi_x),
     .hdmi_y_i(hdmi_y),
@@ -279,10 +282,10 @@ video_buffer vbuf (
 // Video Pipeline
 // ===========================================
 
-logic [15:0] pixel_pipeline_i;
+logic [7:0] pixel_pipeline_i;
 logic [7:0] pixel_pipeline_o;
 
-assign pixel_pipeline_i = 16'h48AF; //crtc_vmem_data;
+assign pixel_pipeline_i = 8'hAF; //crtc_vmem_data;
 
 pixel_pipeline pipeline(
     .clk_i(clk_54m),
@@ -290,21 +293,20 @@ pixel_pipeline pipeline(
     .pix_ena_i(clk_27m),
     
     // Memory interface
-    .byte_strobe_i(crtc_char),
-    .byte_select_i(1'b0),
     .vmem_data_i(pixel_pipeline_i),
     
     // Configuration
-    .bpp_mode_i(2'b00),
-    .continuous_mode_i(1'b1),
+    .bpp_mode_i(crtc_bpp_mode),
+    .continuous_mode_i(crtc_continuous_mode),
 
     // CRTC timing
     .de_i(crtc_de),
-    .next_pixel_i(clk_27m), // Упрощённо - всегда следующий пиксель
+    .char_strobe_i(crtc_char_strobe),
+    .byte_strobe_i(crtc_byte_strobe),
+    .pixel_strobe_i(crtc_pixel_strobe), // Упрощённо - всегда следующий пиксель
     
     // Pixel output
     .pixel_index_o(pixel_pipeline_o),
-    .pixel_valid_o(pixel_valid),
     .de_o(pipeline_de)
 );
    
@@ -455,9 +457,9 @@ assign debug = {
     hdmi_newline,    // LED0: Always on (тест светодиодов)
     sdram_ack,       // LED1: SDRAM access
     crtc_vmem_valid, // LED2: Memory data valid
-    crtc_hsync,      // LED3: CRTC HSync
-    crtc_vsync,      // LED4: CRTC VSync 
-    crtc_de,         // LED5: CRTC display active
-    crtc_char        // LED6: Reset active (должен погаснуть после запуска)
+    crtc_pixel_strobe,      // LED3: CRTC HSync
+    crtc_byte_strobe,      // LED4: CRTC VSync 
+    crtc_char_strobe,         // LED5: CRTC display active
+    pixel_pipeline_o[0]        // LED6: Reset active (должен погаснуть после запуска)
 };
 endmodule

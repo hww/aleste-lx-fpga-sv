@@ -7,6 +7,8 @@
 // Supports dynamic palette switching and color blending
 // =============================================================================
 
+`default_nettype none
+
 module color_palette (
     // Wishbone interface
     input wire        wb_clk_i, wb_rst_i,
@@ -113,7 +115,7 @@ always @(posedge wb_clk_i or posedge wb_rst_i) begin
         wb_dat_o <= 8'h00;
         // Инициализация при сбросе
         for (int i = 0; i < 256; i++) begin
-            palette_ram[i] <= {i[7:4], i[3:0], i[7:4]}; // Градиент
+            palette_ram[i] <= {i[0], i[0], i[0], i[0], i[3:0], i[7:4]}; // Градиент
         end
     end else begin
         wb_ack_o <= 1'b0;
