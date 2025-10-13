@@ -301,16 +301,16 @@ IOBUF PORT "spisdcard_miso" PULLMODE=UP;
 # ===========================================
 # SPI FLASH
 # ===========================================
-LOCATE COMP "spi_cs_n" SITE "N8";
-LOCATE COMP "spi_clk" SITE "N9";
-LOCATE COMP "spi_mosi" SITE "T8";
-LOCATE COMP "spi_miso" SITE "T7";
-LOCATE COMP "spi_io2" SITE "M7";
-LOCATE COMP "spi_io3" SITE "N7";
+LOCATE COMP "flash_cs_n" SITE "N8";
+LOCATE COMP "flash_clk" SITE "N9";
+LOCATE COMP "flash_mosi" SITE "T8";
+LOCATE COMP "flash_miso" SITE "T7";
+LOCATE COMP "flash_io2" SITE "M7";
+LOCATE COMP "flash_io3" SITE "N7";
 
-IOBUF PORT "spi_cs_n" IO_TYPE=LVCMOS33;
-IOBUF PORT "spi_clk" IO_TYPE=LVCMOS33;
-IOBUF PORT "spi_mosi" IO_TYPE=LVCMOS33;
-IOBUF PORT "spi_miso" IO_TYPE=LVCMOS33;
-IOBUF PORT "spi_io2" IO_TYPE=LVCMOS33;
-IOBUF PORT "spi_io3" IO_TYPE=LVCMOS33;
+IOBUF PORT "flash_cs_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "flash_clk" IO_TYPE=LVCMOS33;
+IOBUF PORT "flash_mosi" IO_TYPE=LVCMOS33;
+IOBUF PORT "flash_miso" IO_TYPE=LVCMOS33;
+IOBUF PORT "flash_io2" IO_TYPE=LVCMOS33;
+IOBUF PORT "flash_io3" IO_TYPE=LVCMOS33;

@@ -4,29 +4,31 @@ NEXTPNR    := nextpnr-ecp5
 ECPPACK    := ecppack
 
 # Source directories
-SRC_DIR    := ../../src
-SYSTEM_DIR := $(SRC_DIR)/systems/aleste_video
-TARGET_DIR := $(SRC_DIR)/platforms/icesugar_pro
-SDRAM_DIR  := $(SRC_DIR)/components/memory/sdram
-LLHDMI_DIR := $(SRC_DIR)/components/video/llhdmi
-SCALER_DIR := $(SRC_DIR)/components/video/hdmi_scaler
-CRTC_DIR   := $(SRC_DIR)/components/video/mc6845mod
+SRC_DIR     := ../../src
+SYSTEM_DIR  := $(SRC_DIR)/systems/aleste_video
+TARGET_DIR  := $(SRC_DIR)/platforms/icesugar_pro
+RESET_DIR   := $(SRC_DIR)/components/reset
+LLHDMI_DIR  := $(SRC_DIR)/components/video/llhdmi
+SCALER_DIR  := $(SRC_DIR)/components/video/hdmi_scaler
+CRTC_DIR    := $(SRC_DIR)/components/video/mc6845mod
 PALETTE_DIR := $(SRC_DIR)/components/video/palette
 PIXPIPE_DIR := $(SRC_DIR)/components/video/pixel_pipeline
-VIDBUF_DIR := $(SRC_DIR)/components/video/video_buffer
+VIDBUF_DIR  := $(SRC_DIR)/components/video/video_buffer
+SDRAM_DIR   := $(SRC_DIR)/components/memory/sdram
 
 # Source files для aleste_video
+RESET_CTRL := $(RESET_DIR)/reset_controller.sv 
 CLOCK      := $(TARGET_DIR)/clocks/system_pll.v $(TARGET_DIR)/clocks/video_pll.v
-SDRAM_CTRL := $(SDRAM_DIR)/sdram_ctrl_wb.sv
+SDRAM_CTRL := $(SDRAM_DIR)/sdram_ctrl_wb.sv $(SDRAM_DIR)/sdram_phy_ecp5.sv
 HDMI       := $(LLHDMI_DIR)/llhdmi.v $(LLHDMI_DIR)/tmds_encoder.v $(LLHDMI_DIR)/OBUFDS.v
-CRTC       := $(CRTC_DIR)/mc6845mod.sv $(CRTC_DIR)/simple_cgen.sv
+CRTC       := $(CRTC_DIR)/mc6845mod.sv 
 SCALER     := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
 PALETTE    := $(PALETTE_DIR)/cpc_colors.sv $(PALETTE_DIR)/color_palette.sv
-MEM_ARBITER := $(SYSTEM_DIR)/memory_arbiter.sv
+MEM_ARBITER :=  $(SYSTEM_DIR)/memory_arbiter.sv $(SYSTEM_DIR)/wb_arbiter_internal.sv
 PIXPIPE	   := $(PIXPIPE_DIR)/pixel_pipeline.sv
-RESET_CTRL := $(SYSTEM_DIR)/reset_controller.sv
-TOP_MODULE := $(SYSTEM_DIR)/aleste_video.sv
 VIDBUF     := $(VIDBUF_DIR)/video_buffer.sv
+TEST_GEN   := $(SYSTEM_DIR)/test_data_generator.sv
+TOP_MODULE := $(SYSTEM_DIR)/aleste_video.sv
 
 # Generated files
 YOSYS_SCRIPT := aleste_video.ys
@@ -48,13 +50,14 @@ YOSYS_INCLUDE := -I.
 all: $(BITSTREAM)
 
 # Generate Yosys script
-$(YOSYS_SCRIPT): $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) $(PALETTE) $(MEM_ARBITER) $(VIDEO_PIPE) $(RESET_CTRL)
+$(YOSYS_SCRIPT): $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) $(PALETTE) $(MEM_ARBITER) $(VIDEO_PIPE) $(RESET_CTRL) $(TEST_GEN) 
 	@echo "Generating Yosys script for aleste_video..."
 	echo "read_verilog $(YOSYS_INCLUDE) $(YOSYS_DEFINE) -sv $(TOP_MODULE)" > $@
 	echo "read_verilog $(CLOCK)" >> $@
 	echo "read_verilog $(HDMI)" >> $@
 	echo "read_verilog $(VIDBUF)" >> $@
 	echo "read_verilog -sv $(SDRAM_CTRL)" >> $@
+	echo "read_verilog -sv $(TEST_GEN)" >> $@
 	echo "read_verilog -sv $(CRTC)" >> $@
 	echo "read_verilog -sv $(SCALER)" >> $@
 	echo "read_verilog -sv $(PALETTE)" >> $@

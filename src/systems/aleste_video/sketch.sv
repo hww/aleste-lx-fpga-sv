@@ -335,7 +335,7 @@ module aleste_video #(
         // SDRAM Interface
         .sdram_addr_o(sdram_addr),
         .sdram_data_o(sdram_data_out),
-        .sdram_data_i(sdram_data_in),
+        .sdram_data_in(sdram_data_in),
         .sdram_we_o(sdram_we),
         .sdram_req_o(sdram_req),
         .sdram_ack_i(sdram_ack),

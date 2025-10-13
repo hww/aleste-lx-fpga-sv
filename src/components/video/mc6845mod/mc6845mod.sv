@@ -18,7 +18,7 @@ module mc6845mod #(
     parameter HDMI_V_VISIBLE = 480,          // Fixed HDMI active height divided by 2  
     parameter HDMI_H_TOTAL = 1024,           // Fixed HDMI total width 
     parameter HDMI_V_TOTAL = 525,            // Fixed HDMI total height divided by 2
-    parameter HDML_H_ORIGIN = HDMI_H_VISIBLE / 2 - 1 - /*One character for memory latency*/8,
+    parameter HDML_H_ORIGIN = HDMI_H_VISIBLE / 2 - 1 - /*One character for memory latency*/16,
     parameter HDML_V_ORIGIN = HDMI_V_VISIBLE / 2 - 1,
 
     localparam H_PIX_COUNTER_WIDTH = $clog2(HDMI_H_TOTAL)+1,  // 1024 -> 10 бит (for some reason LLHDMI uses 11)
@@ -75,7 +75,7 @@ module mc6845mod #(
     
     // NEW: Extended address interface
     output logic [23:0] crtc_ext_addr_o,        // 24-bit extended address
-    output logic        crtc_burst_req_o,       // 1=32-bit burst, 0=16-bit normal
+    output logic        crtc_burst_mode_o,       // 1=32-bit burst, 0=16-bit normal
     output logic [2:0]  crtc_addr_mode_o,       // Address mode
     output logic [1:0]  crtc_pixel_clock_sel_o  // Pixel clock selection
 );
@@ -534,7 +534,7 @@ always_ff @(posedge pix_clk_i) begin
         linear_addr <= {reg_start_addr_h, reg_start_addr_l}; // ×4 for byte address
     end else if (pix_en_i && char_strobe && addr_mode[2]) begin
         // Linear addressing: +2 bytes normal, +4 bytes burst
-        linear_addr <= linear_addr + (crtc_burst_req_o ? 16'd4 : 16'd2);
+        linear_addr <= linear_addr + (crtc_burst_mode_o ? 16'd4 : 16'd2);
     end
 end
 
@@ -551,7 +551,7 @@ end
 
 // Simplified burst request generation
 always_comb begin
-    crtc_burst_req_o = burst_enable && 
+    crtc_burst_mode_o = burst_enable && 
                       addr_mode[2] && // Only in linear mode
                       (crtc_h_count < reg_h_displayed) && 
                       (crtc_v_count < reg_v_displayed) &&

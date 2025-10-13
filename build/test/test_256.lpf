@@ -1,0 +1,2 @@
+LOCATE COMP "clk" SITE "A9";
+LOCATE COMP "led" SITE "N9";

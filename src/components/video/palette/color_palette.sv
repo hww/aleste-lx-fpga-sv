@@ -21,10 +21,11 @@ module color_palette (
     input wire        legacy_mode_i,   // 1=legacy CPC, 0=native
     
     // Pixel pipeline interface
+    input wire pix_clk_i,
+    input wire pix_ena_i,
     input wire [7:0]  pixel_index_i,   // от пиксель-генератора
-    input wire        is_border_i,     // флаг бордюра от пиксель-генератора
-    output reg [11:0] pixel_color_o,   // к скандаблеру (12-bit R4G4B4)
-    output reg        pixel_valid_o
+    input wire        de_i,     // флаг бордюра от пиксель-генератора
+    output reg [11:0] pixel_color_o   // к скандаблеру (12-bit R4G4B4)
 );
 
 // Параметры адресации
@@ -110,7 +111,7 @@ always @(posedge wb_clk_i or posedge wb_rst_i) begin
         palette_index <= 8'h00;
         control_reg <= 8'h00;
         palette_modifier <= 8'h00;
-        border_color <= 12'hF00;
+        border_color <= 12'h888;
         wb_ack_o <= 1'b0;
         wb_dat_o <= 8'h00;
         // Инициализация при сбросе
@@ -208,15 +209,17 @@ always @(posedge wb_clk_i or posedge wb_rst_i) begin
 end
 
 // Pixel color lookup
-always @(posedge wb_clk_i) begin
-    pixel_valid_o <= 1'b1;
-    
-    if (is_border_i) begin
-        // БОРДЮР: готовый цвет
-        pixel_color_o <= border_color;
-    end else begin
-        // ОСНОВНОЕ ИЗОБРАЖЕНИЕ: читаем из палитры с модификатором
-        pixel_color_o <= palette_ram[modified_pixel_index];
+always @(posedge pix_clk_i) begin
+    if (wb_rst_i) begin    
+        pixel_color_o <= 0;
+    end if (pix_ena_i) begin
+        if (de_i) begin
+            // ОСНОВНОЕ ИЗОБРАЖЕНИЕ: читаем из палитры с модификатором
+            pixel_color_o <= palette_ram[modified_pixel_index];
+        end else begin
+            // БОРДЮР: готовый цвет
+            pixel_color_o <= border_color;
+        end
     end
 end
 
