@@ -1,9 +1,6 @@
 // memory_arbiter.v
 `default_nettype none
 
-// memory_arbiter.v - ЧИСТЫЙ арбитр мастерами
-`default_nettype none
-
 module memory_arbiter (
     input clk, rst,
     
@@ -24,8 +21,9 @@ module memory_arbiter (
     output reg   [15:0] wb_dat_o,
     input        [1:0]  wb_sel_i,
     input        [1:0]  wb_tag_i,
-    
+
     // SDRAM Controller Interface
+    output       [1:0]  sdram_tag_o,
     output reg   [23:0] sdram_addr_o,
     output reg   [15:0] sdram_data_o,
     input        [15:0] sdram_data_i,
@@ -95,5 +93,7 @@ always @(posedge clk or posedge rst) begin
                      (wb_ack_o) ? 1'b0 : wb_pending;
     end
 end
+
+assign sdram_tag_o = wb_tag_i;
 
 endmodule

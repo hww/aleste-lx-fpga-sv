@@ -108,7 +108,8 @@ sdram_ctrl_wb #(
     .wb_dat_i(test_data_out),
     .wb_dat_o(test_data_in),
     .wb_sel_i(2'b11),  // Always 16-bit access
-    
+    .wb_tag_i(2'00),
+
     // SDRAM Physical Interface
     .sdram_dq(sdram_dq),
     .sdram_addr(sdram_a),

@@ -26,7 +26,8 @@ SCALER      := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
 PALETTE     := $(PALETTE_DIR)/cpc_colors.sv $(PALETTE_DIR)/color_palette.sv
 VIDBUF      := $(VIDBUF_DIR)/video_buffer.sv
 PIXPIPE	    := $(PIXPIPE_DIR)/pixel_pipeline.sv
-MEM_ARBITER :=  $(SYSTEM_DIR)/memory_arbiter.sv $(SYSTEM_DIR)/wb_arbiter_internal.sv
+MEM_ARBITER :=  $(SYSTEM_DIR)/memory_arbiter.sv 
+WB_ARBITER :=  $(SYSTEM_DIR)/wb_arbiter_internal.sv
 TEST_GEN    := $(SYSTEM_DIR)/test_data_generator.sv
 TOP_MODULE  := $(SYSTEM_DIR)/aleste_video.sv
 
@@ -51,7 +52,7 @@ YOSYS_INCLUDE := -I.
 all: $(BITSTREAM)
 
 # Generate Yosys script
-$(YOSYS_SCRIPT): $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) $(PALETTE) $(MEM_ARBITER) $(VIDEO_PIPE) $(RESET_CTRL) $(TEST_GEN) 
+$(YOSYS_SCRIPT): $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) $(PALETTE) $(MEM_ARBITER) $(WB_ARBITER) $(VIDEO_PIPE) $(RESET_CTRL) $(TEST_GEN) 
 	@echo "Generating Yosys script for aleste_video..."
 	echo "read_verilog $(YOSYS_INCLUDE) $(YOSYS_DEFINE) -sv $(TOP_MODULE)" > $@
 	echo "read_verilog $(CLOCK)" >> $@
@@ -63,12 +64,15 @@ $(YOSYS_SCRIPT): $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) 
 	echo "read_verilog -sv $(SCALER)" >> $@
 	echo "read_verilog -sv $(PALETTE)" >> $@
 	echo "read_verilog -sv $(MEM_ARBITER)" >> $@
+	echo "read_verilog -sv $(WB_ARBITER)" >> $@
 	echo "read_verilog -sv $(PIXPIPE)" >> $@
 	echo "read_verilog -sv $(RESET_CTRL)" >> $@
 	echo "hierarchy -top aleste_video" >> $@
 	echo "synth_ecp5 -json $(JSON_FILE) -no-rw-check" >> $@
+	echo "stat" >> $@
 
 # Synthesis with Yosys
+# -noflatten for better stats
 $(JSON_FILE): $(YOSYS_SCRIPT)
 	@echo "Running Yosys synthesis..."
 	$(YOSYS) -V
@@ -79,6 +83,7 @@ $(CONFIG_FILE): $(JSON_FILE)
 	@echo "Running place and route..."
 	$(NEXTPNR) \
 		--$(DEVICE) \
+		--speed 6 --timing-allow-fail  --seed 1 \
 		--package $(PACKAGE) \
 		--json $< \
 		--lpf $(CONSTRAINTS) \
@@ -116,6 +121,7 @@ debug:
 	@echo "  Scaler: $(SCALER)"
 	@echo "  Palette: $(PALETTE)"
 	@echo "  Memory Arbiter: $(MEM_ARBITER)"
+	@echo "  WB Memory Arbiter: $(WB_ARBITER)"
 	@echo "  Video Pipeline: $(VIDEO_PIPE)"
 	@echo "  Reset Controller: $(RESET_CTRL)"
 	@echo "Generated files:"
@@ -149,3 +155,19 @@ init:
 	@echo "Creating aleste_video project structure..."
 	mkdir -p $(SYSTEM_DIR)
 	@echo "Now copy your source files to $(SYSTEM_DIR)/"
+
+
+# Анализ ресурсов модулей
+analyze-modules:
+	@echo "=== Analyzing memory_arbiter ==="
+	yosys -p "read_verilog $(YOSYS_INCLUDE) $(YOSYS_DEFINE) -sv $(MEM_ARBITER); synth_ecp5 -top memory_arbiter; stat" | grep -A 10 "Printing statistics"
+	
+	@echo "=== Analyzing wb_arbiter_internal ==="
+	yosys -p "read_verilog $(YOSYS_INCLUDE) $(YOSYS_DEFINE) -sv $(WB_ARBITER); synth_ecp5 -top wb_arbiter_internal; stat" | grep -A 10 "Printing statistics"
+	
+	@echo "=== Analyzing mc6845mod ==="
+	yosys -p "read_verilog $(YOSYS_INCLUDE) $(YOSYS_DEFINE) -sv $(CRTC); synth_ecp5 -top mc6845mod; stat" | grep -A 10 "Printing statistics"
+
+	@echo "=== Analyzing color_palette ==="
+	yosys -p "read_verilog $(YOSYS_INCLUDE) $(YOSYS_DEFINE) -sv $(PALETTE); synth_ecp5 -top color_palette; stat" | grep -A 10 "Printing statistics"
+	
