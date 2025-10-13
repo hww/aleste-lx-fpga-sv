@@ -203,7 +203,7 @@ mc6845mod #(
 // ===========================================
 // Memory Subsystem
 // ===========================================
-
+/*
 memory_arbiter arbiter(
     .clk(clk_100m),
     .rst(system_reset),
@@ -221,7 +221,7 @@ memory_arbiter arbiter(
     .sdram_we(sdram_we),
     .sdram_req(sdram_req),
     .sdram_ack(sdram_ack)
-);
+);*/
 
 sdram_ctrl_wb sdram_controller(
     .wb_clk_i(clk_100m),

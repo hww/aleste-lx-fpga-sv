@@ -1,39 +1,98 @@
+// memory_arbiter.v
+`default_nettype none
+
+// memory_arbiter.v - ЧИСТЫЙ арбитр мастерами
 `default_nettype none
 
 module memory_arbiter (
     input clk, rst,
     
-    // CRTC - абсолютный приоритет
-    input [23:0] crtc_addr,
-    output reg [15:0] crtc_data,
-    output reg crtc_valid,
-    input crtc_req,
+    // Video Controller Interface (ВЫСШИЙ ПРИОРИТЕТ)
+    input        [23:0] video_addr_i,
+    input               video_req_i,
+    input               video_burst_i,
+    output reg   [15:0] video_data_o,
+    output reg          video_valid_o,
     
-    // SDRAM controller
-    output reg [23:0] sdram_addr,
-    output reg [15:0] sdram_data_out,
-    input [15:0] sdram_data_in,
-    output reg sdram_we,
-    output reg sdram_req,
-    input sdram_ack
+    // Wishbone Slave Interface (CPU/DMA) 
+    input               wb_cyc_i,
+    input               wb_stb_i,
+    output reg          wb_ack_o,
+    input               wb_we_i,
+    input        [23:0] wb_adr_i,
+    input        [15:0] wb_dat_i,
+    output reg   [15:0] wb_dat_o,
+    input        [1:0]  wb_sel_i,
+    input        [1:0]  wb_tag_i,
+    
+    // SDRAM Controller Interface
+    output reg   [23:0] sdram_addr_o,
+    output reg   [15:0] sdram_data_o,
+    input        [15:0] sdram_data_i,
+    output reg          sdram_we_o,
+    output reg          sdram_req_o,
+    input               sdram_ack_i,
+    output reg          sdram_burst_o,
+    output reg   [2:0]  sdram_burst_len_o
 );
+
+// Состояния только для отслеживания текущего мастера
+typedef enum logic {
+    MASTER_VIDEO,
+    MASTER_WB
+} master_t;
+
+master_t current_master;
+reg wb_pending;
 
 always @(posedge clk or posedge rst) begin
     if (rst) begin
-        crtc_valid <= 0;
-        sdram_req <= 0;
-        sdram_we <= 0;
+        current_master <= MASTER_VIDEO;
+        video_valid_o <= 1'b0;
+        wb_ack_o <= 1'b0;
+        sdram_req_o <= 1'b0;
+        wb_pending <= 1'b0;
+        video_data_o <= 16'b0;
+        wb_dat_o <= 16'b0;
     end else begin
-        // CRTC всегда получает что хочет
-        sdram_req <= crtc_req;
-        sdram_addr <= crtc_addr;
-        sdram_we <= 1'b0; // CRTC только читает
+        video_valid_o <= 1'b0;
+        wb_ack_o <= 1'b0;
+        sdram_req_o <= 1'b0;
         
-        // Данные от SDRAM → CRTC
-        crtc_valid <= sdram_ack;
-        if (sdram_ack) begin
-            crtc_data <= sdram_data_in;
+        // АРБИТРАЖ: видео имеет абсолютный приоритет
+        if (video_req_i) begin
+            current_master <= MASTER_VIDEO;
+            sdram_addr_o <= video_addr_i;
+            sdram_data_o <= 16'b0; // Видео только читает
+            sdram_we_o <= 1'b0;
+            sdram_burst_o <= video_burst_i;
+            sdram_burst_len_o <= video_burst_i ? 3'b001 : 3'b000;
+            sdram_req_o <= 1'b1;
+            
+            if (sdram_ack_i) begin
+                video_data_o <= sdram_data_i;
+                video_valid_o <= 1'b1;
+            end
+        end 
+        // WB доступ только если нет видео запроса
+        else if (wb_cyc_i && wb_stb_i) begin
+            current_master <= MASTER_WB;
+            sdram_addr_o <= wb_adr_i;
+            sdram_data_o <= wb_dat_i;
+            sdram_we_o <= wb_we_i;
+            sdram_burst_o <= 1'b0; // WB single access
+            sdram_burst_len_o <= 3'b000;
+            sdram_req_o <= 1'b1;
+            
+            if (sdram_ack_i) begin
+                wb_dat_o <= sdram_data_i;
+                wb_ack_o <= 1'b1;
+            end
         end
+        
+        // Отслеживаем pending WB запросы
+        wb_pending <= (wb_cyc_i && wb_stb_i) ? 1'b1 : 
+                     (wb_ack_o) ? 1'b0 : wb_pending;
     end
 end
 
