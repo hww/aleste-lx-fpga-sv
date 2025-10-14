@@ -16,34 +16,32 @@ module sdram_ctrl_wb #(
     parameter REFRESH_CYCLES = 7800            // Refresh cycles (64ms @ 100MHz)
 )(
     // Wishbone Classic Interface
-    input                           wb_clk_i,        // Wishbone clock
-    input                           wb_rst_i,        // Wishbone reset (active high)
-    input                           wb_cyc_i,        // Cycle valid
-    input                           wb_stb_i,        // Transfer request
-    output reg                      wb_ack_o,        // Transfer acknowledge
-    input                           wb_we_i,         // Write enable
-    input       [WB_ADDR_WIDTH-1:0] wb_adr_i,        // Address
-    input       [WB_DATA_WIDTH-1:0] wb_dat_i,        // Data input
-    output reg  [WB_DATA_WIDTH-1:0] wb_dat_o,        // Data output
-    input       [WB_DATA_WIDTH/8-1:0] wb_sel_i,      // Byte select (auto-calculated)
-    
-    // ДОБАВЛЕНО: Теги и сигнал выбора устройства
-    input        [1:0]              wb_tag_i,        // Address tags
-    output reg                      wb_sel_o,        // Device selected
+    input                               wb_clk_i,        // Wishbone clock
+    input                               wb_rst_i,        // Wishbone reset (active high)
+    input                               wb_cyc_i,        // Cycle valid
+    input                               wb_stb_i,        // Transfer request
+    output reg                          wb_ack_o,        // Transfer acknowledge
+    input                               wb_we_i,         // Write enable
+    input       [WB_ADDR_WIDTH-1:0]     wb_adr_i,        // Address
+    input       [WB_DATA_WIDTH-1:0]     wb_dat_i,        // Data input
+    output reg  [WB_DATA_WIDTH-1:0]     wb_dat_o,        // Data output
+    input       [WB_DATA_WIDTH/8-1:0]   wb_sel_i,        // Byte select (auto-calculated)
+    input        [1:0]                  wb_tag_i,        // Address tags
+    output reg                          wb_grant_o,      // Device selected
     
     // SDRAM Physical Interface
-    inout       [WB_DATA_WIDTH-1:0] sdram_dq,        // Data bus
-    output reg  [SDRAM_ADDR_WIDTH-1:0] sdram_addr,   // Address bus
-    output reg  [WB_DATA_WIDTH/8-1:0] sdram_dqm,     // Data mask (auto-calculated)
-    output reg  [SDRAM_BANK_WIDTH-1:0] sdram_ba,     // Bank address
-    output reg                      sdram_cs_n,      // Chip select
-    output reg                      sdram_we_n,      // Write enable
-    output reg                      sdram_ras_n,     // Row address strobe
-    output reg                      sdram_cas_n,     // Column address strobe
-    output                          sdram_cke,       // Clock enable
+    inout       [WB_DATA_WIDTH-1:0]     sdram_dq,        // Data bus
+    output reg  [SDRAM_ADDR_WIDTH-1:0]  sdram_addr,      // Address bus
+    output reg  [WB_DATA_WIDTH/8-1:0]   sdram_dqm,       // Data mask (auto-calculated)
+    output reg  [SDRAM_BANK_WIDTH-1:0]  sdram_ba,        // Bank address
+    output reg                          sdram_cs_n,      // Chip select
+    output reg                          sdram_we_n,      // Write enable
+    output reg                          sdram_ras_n,     // Row address strobe
+    output reg                          sdram_cas_n,     // Column address strobe
+    output                              sdram_cke,       // Clock enable
     
     // Debug
-    output       [3:0] debug_state
+    output      [3:0]                   debug_state
 );
 
 // Local parameters
@@ -117,7 +115,7 @@ always @(posedge wb_clk_i) begin
         // Wishbone signals
         wb_ack_o <= 0;
         wb_dat_o <= 0;
-        wb_sel_o <= 0;  
+        wb_grant_o <= 0;  
         pending <= 0;
         we_pending <= 0;
         data_in <= 0;
@@ -126,7 +124,7 @@ always @(posedge wb_clk_i) begin
     end else begin
         // Default values
         wb_ack_o <= 0;
-        wb_sel_o <= 0;  
+        wb_grant_o <= 0;  
         {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_NOP;
         sdram_dq_oe <= 0;
         
@@ -170,7 +168,7 @@ always @(posedge wb_clk_i) begin
             STATE_IDLE: begin
                 $display("[SDRAMCTRL] STATE_IDLE");                       
                 sdram_dqm <= {BYTE_SEL_WIDTH{1'b1}};
-                wb_sel_o <= 0; 
+                wb_grant_o <= 0; 
 
                 // Accept new Wishbone commands
                 if (wb_cyc_i && wb_stb_i && !pending && (wb_tag_i == 2'b00)) begin
@@ -179,7 +177,7 @@ always @(posedge wb_clk_i) begin
                     data_in <= wb_dat_i;
                     addr_pending <= wb_adr_i;
                     state <= STATE_ACTIVATE;
-                     wb_sel_o <= 1; 
+                     wb_grant_o <= 1; 
                     
                     sdram_ba <= wb_adr_i[WB_ADDR_WIDTH-1 -: SDRAM_BANK_WIDTH];
                     sdram_addr <= wb_adr_i[WB_ADDR_WIDTH-SDRAM_BANK_WIDTH-1 -: SDRAM_ROW_WIDTH];
@@ -195,7 +193,7 @@ always @(posedge wb_clk_i) begin
             STATE_ACTIVATE: begin
                 $display("[SDRAMCTRL] STATE_ACTIVATE");                    
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_ACTIVE;
-                wb_sel_o <= 1;  
+                wb_grant_o <= 1;  
 
                 if (delay_counter == 0) begin
                     if (we_pending) begin
@@ -215,7 +213,7 @@ always @(posedge wb_clk_i) begin
                 sdram_addr <= {{(SDRAM_ADDR_WIDTH-SDRAM_COL_WIDTH){1'b0}}, 
                             addr_pending[SDRAM_COL_WIDTH-1:0]};
                 sdram_dqm <= {BYTE_SEL_WIDTH{1'b0}};
-                wb_sel_o <= 1;
+                wb_grant_o <= 1;
                 delay_counter <= CAS_LATENCY;
                 state <= STATE_READ2;
             end
@@ -224,7 +222,7 @@ always @(posedge wb_clk_i) begin
                 // В этом состоянии SDRAM ТОЛЬКО НАЧИНАЕТ выставлять данные на шину
                 // Данные еще не стабильны - фиксировать их РАНЬШЕ СЛЕДУЮЩЕГО ТАКТА НЕЛЬЗЯ
                 $display("[SDRAMCTRL] STATE_READ2 delay_counter=%d", delay_counter);
-                wb_sel_o <= 1; 
+                wb_grant_o <= 1; 
                 if (delay_counter == 0) begin
                     // Переходим в состояние фиксации
                     state <= STATE_READ3;
@@ -241,7 +239,7 @@ always @(posedge wb_clk_i) begin
 
                 // ОДНОВРЕМЕННО выдаемACK - данные УЖЕ валидны в регистре wb_dat_o
                 wb_ack_o <= 1;
-                wb_sel_o <= 1;
+                wb_grant_o <= 1;
                 pending <= 0;
 
                 state <= STATE_PRECHARGE;
@@ -256,7 +254,7 @@ always @(posedge wb_clk_i) begin
                 sdram_dq_out <= data_in;
                 sdram_dq_oe <= 1;
                 sdram_dqm <= ~wb_sel_i;
-                wb_sel_o <= 1;
+                wb_grant_o <= 1;
                 
                 // WRITE COMPLETE - acknowledge immediately!
                 wb_ack_o <= 1;
@@ -270,7 +268,7 @@ always @(posedge wb_clk_i) begin
                 $display("[SDRAMCTRL] STATE_PRECHARGE");
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_PRECHARGE;
                 sdram_addr[SDRAM_ADDR_WIDTH-1] <= 1'b1;
-                wb_sel_o <= 0;
+                wb_grant_o <= 0;
                 
                 if (delay_counter == 0) begin
                     state <= STATE_IDLE;
@@ -282,14 +280,14 @@ always @(posedge wb_clk_i) begin
             STATE_REFRESH: begin
                 $display("[SDRAMCTRL] STATE_REFRESH");
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_AUTO_REFRESH;
-                wb_sel_o <= 0;
+                wb_grant_o <= 0;
                 state <= STATE_REFRESH_WAIT;
                 delay_counter <= 7; // tRFC
             end
 
             STATE_REFRESH_WAIT: begin
                 $display("[SDRAMCTRL] STATE_REFRESH_WAIT"); 
-                wb_sel_o <= 0;               
+                wb_grant_o <= 0;               
                 if (delay_counter == 0) begin
                     state <= STATE_IDLE;
                 end else begin

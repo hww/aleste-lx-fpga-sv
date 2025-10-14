@@ -30,7 +30,7 @@ module wb_arbiter_internal (
     input  logic        palette_grant_i,    
     input  logic        palette_ack_i,
     output logic        palette_we_o,
-    output logic [15:0] palette_adr_o,
+    output logic [23:0] palette_adr_o,
     output logic [15:0] palette_dat_o,
     input  logic [15:0] palette_dat_i,
     output logic [1:0]  palette_sel_o,
@@ -42,7 +42,7 @@ module wb_arbiter_internal (
     input  logic        crtc_grant_i,
     input  logic        crtc_ack_i,
     output logic        crtc_we_o,
-    output logic [15:0] crtc_adr_o,
+    output logic [23:0] crtc_adr_o,
     output logic [15:0] crtc_dat_o,
     input  logic [15:0] crtc_dat_i,
     output logic [1:0]  crtc_sel_o,
@@ -68,7 +68,7 @@ module wb_arbiter_internal (
 assign palette_cyc_o = wb_ext_cyc_i;
 assign palette_stb_o = wb_ext_stb_i;
 assign palette_we_o  = wb_ext_we_i;
-assign palette_adr_o = wb_ext_adr_i[15:0];
+assign palette_adr_o = wb_ext_adr_i;
 assign palette_dat_o = wb_ext_dat_i;
 assign palette_sel_o = wb_ext_sel_i;
 assign palette_tag_o = wb_ext_tag_i;
@@ -77,7 +77,7 @@ assign palette_tag_o = wb_ext_tag_i;
 assign crtc_cyc_o = wb_ext_cyc_i;
 assign crtc_stb_o = wb_ext_stb_i;
 assign crtc_we_o  = wb_ext_we_i;
-assign crtc_adr_o = wb_ext_adr_i[15:0];
+assign crtc_adr_o = wb_ext_adr_i;
 assign crtc_dat_o = wb_ext_dat_i;
 assign crtc_sel_o = wb_ext_sel_i;
 assign crtc_tag_o = wb_ext_tag_i;

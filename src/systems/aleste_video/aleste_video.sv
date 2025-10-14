@@ -100,25 +100,25 @@ module aleste_video #(
     logic [23:0] sdram_addr;
     logic [15:0] sdram_data_out;
     logic [15:0] sdram_data_in; 
-    logic sdram_we, sdram_req, sdram_ack;
+    logic sdram_we, sdram_req, sdram_ack, sdram_grant;
     logic sdram_burst;
-    logic [7:0] sdram_burst_len;
+    logic [2:0] sdram_burst_len;
     logic [1:0] sdram_tag;
 
     // Video Pipeline Signals
     logic [15:0] video_data;
-    logic video_valid;
+    logic video_ack, video_grant;
     logic [7:0] pixel_index;
     logic pixel_valid;
     logic pipeline_de;
 
     // Video Buffer Signals
-    logic [15:0] buffer_pixel_i;
-    logic [7:0] buffer_pixel_o;
-    logic buffer_pixel_valid;
-    logic buffer_need_data;
-    logic buffer_burst_request;
-    logic buf_de, buf_char_strobe, buf_byte_strobe, buf_byte_select;
+    logic [15:0] vbuf_data_i;
+    logic [7:0] vbuf_data_o;
+    logic vbuf_data_valid;
+    logic vbuf_need_data;
+    logic vbuf_burst_request;
+    logic vbuf_de, vbuf_char_strobe, vbuf_byte_strobe, vbuf_byte_select;
 
     // Color Palette Signals
     logic [11:0] pixel_color;
@@ -132,23 +132,27 @@ module aleste_video #(
     logic hdmi_de;
 
     // Wishbone Signals
-    logic wb_ext_cyc, wb_ext_stb, wb_ext_ack, wb_ext_we, wb_ext_sel_o;
+    logic wb_ext_cyc, wb_ext_stb, wb_ext_ack, wb_ext_we, wb_ext_grant;
     logic [23:0] wb_ext_adr;
     logic [15:0] wb_ext_dat_i, wb_ext_dat_o;
     logic [1:0] wb_ext_sel, wb_ext_tag;
       
-    logic palette_cyc, palette_stb, palette_ack, palette_we, palette_sel_o;
-    logic [15:0] palette_adr, palette_dat_i, palette_dat_o;
+    logic palette_cyc, palette_stb, palette_ack, palette_we, palette_grant;
+    logic [23:0] palette_adr;
+    logic [15:0] palette_dat_i, palette_dat_o;
     logic [1:0] palette_sel, palette_tag;
 
-    logic crtc_cyc, crtc_stb, crtc_ack, crtc_we, crtc_sel_o;
-    logic [15:0] crtc_adr, crtc_dat_i, crtc_dat_o;
+    logic crtc_cyc, crtc_stb, crtc_ack, crtc_we, crtc_grant;
+    logic [23:0] crtc_adr;
+    logic [15:0] crtc_dat_i, crtc_dat_o;
     logic [1:0] crtc_sel, crtc_tag;
 
-    logic mem_cyc, mem_stb, mem_ack, mem_we, mem_sel_o;
+    logic mem_cyc, mem_stb, mem_ack, mem_we, mem_grant;
     logic [23:0] mem_adr;
     logic [15:0] mem_dat_i, mem_dat_o;
     logic [1:0] mem_sel, mem_tag;
+    logic [1:0] mem_arbiter_state;
+    logic mem_video_active, mem_wb_active;
 
     // CRTC Signals
     logic [13:0] crtc_ma;
@@ -176,7 +180,8 @@ module aleste_video #(
     // ===========================================
     // Test Data Generator (External WB Interface)
     // ===========================================
-    test_data_generator data_gen (
+
+    test_video_data_generator data_gen (
         .clk(clk_54m),
         .rst(system_reset),
         .wb_cyc_o(wb_ext_cyc),
@@ -191,10 +196,11 @@ module aleste_video #(
         .start_i(!boot_complete),
         .done_o(boot_complete)
     );
-
+   
     // ===========================================
     // Internal WB Arbiter
     // ===========================================
+  
     wb_arbiter_internal wb_arbiter (
         .clk(clk_54m),
         .rst(system_reset),
@@ -202,7 +208,7 @@ module aleste_video #(
         // External WB Interface
         .wb_ext_cyc_i(wb_ext_cyc),
         .wb_ext_stb_i(wb_ext_stb),
-        .wb_ext_sel_o(wb_ext_sel_o),
+        .wb_ext_grant_o(wb_ext_grant),
         .wb_ext_ack_o(wb_ext_ack),
         .wb_ext_we_i(wb_ext_we),
         .wb_ext_adr_i(wb_ext_adr),
@@ -214,7 +220,7 @@ module aleste_video #(
         // Palette Interface
         .palette_cyc_o(palette_cyc),
         .palette_stb_o(palette_stb),
-        .palette_sel_i(palette_sel_o),
+        .palette_grant_i(palette_grant),
         .palette_ack_i(palette_ack),
         .palette_we_o(palette_we),
         .palette_adr_o(palette_adr),
@@ -226,7 +232,7 @@ module aleste_video #(
         // CRTC Interface
         .crtc_cyc_o(crtc_cyc),
         .crtc_stb_o(crtc_stb),
-        .crtc_sel_i(crtc_sel_o), 
+        .crtc_grant_i(crtc_grant), 
         .crtc_ack_i(crtc_ack),
         .crtc_we_o(crtc_we),
         .crtc_adr_o(crtc_adr),
@@ -238,7 +244,7 @@ module aleste_video #(
         // Memory Interface
         .mem_cyc_o(mem_cyc),
         .mem_stb_o(mem_stb),
-        .mem_sel_i(mem_sel_o),
+        .mem_grant_i(mem_grant),
         .mem_ack_i(mem_ack),
         .mem_we_o(mem_we),
         .mem_adr_o(mem_adr),
@@ -264,14 +270,15 @@ module aleste_video #(
         .wb_rst_i(system_reset),
         .wb_cyc_i(crtc_cyc),
         .wb_stb_i(crtc_stb),
-        .wb_adr_i({8'b0, crtc_adr}),
+        .wb_adr_i(crtc_adr),
         .wb_dat_i(crtc_dat_i),
         .wb_sel_i(crtc_sel),
         .wb_we_i(crtc_we),
         .wb_ack_o(crtc_ack),
         .wb_dat_o(crtc_dat_o),
-        .sel_o(crtc_sel_o), // CRTC self-detection to arbiter
-        
+        .wb_grant_o(crtc_grant), // CRTC self-detection to arbiter
+        .wb_tag_i(crtc_tag),
+
         // Pixel Clock Domain  
         .pix_clk_i(clk_54m),
         .pix_en_i(clk_27m),
@@ -309,8 +316,8 @@ module aleste_video #(
     
         // NEW: Extended address interface
         .crtc_burst_mode_o(crtc_burst_mode),            // 1=32-bit burst, 0=16-bit normal
-        .crtc_addr_mode_o(crtc_addr_mode),            // Address mode
-        .crtc_pixel_clock_sel_o(crtc_pixel_clock_sel) // Pixel clock selection
+        .crtc_addr_mode_o(crtc_addr_mode),              // Address mode
+        .crtc_pixel_clock_sel_o(crtc_pixel_clock_sel)   // Pixel clock selection
     );
 
     // ===========================================
@@ -322,10 +329,11 @@ module aleste_video #(
         
         // Video Interface
         .video_addr_i(crtc_ext_addr),
-        .video_req_i(buffer_need_data),
+        .video_req_i(vbuf_need_data),
         .video_burst_i(crtc_burst_mode),
         .video_data_o(video_data),
-        .video_valid_o(video_valid),
+        .video_ack_o(video_ack),
+        .video_grant_o(video_grant),
         
         // System WB Interface (from internal arbiter)
         .wb_cyc_i(mem_cyc),
@@ -337,6 +345,7 @@ module aleste_video #(
         .wb_dat_o(mem_dat_o),
         .wb_sel_i(mem_sel),
         .wb_tag_i(mem_tag),
+        .wb_grant_o(mem_grant),
         
         // SDRAM Interface
         .sdram_addr_o(sdram_addr),
@@ -348,6 +357,11 @@ module aleste_video #(
         .sdram_burst_o(sdram_burst),
         .sdram_burst_len_o(sdram_burst_len),
         .sdram_tag_o(sdram_tag),
+        .sdram_grant_i(sdram_grant),
+
+        .debug_state_o(mem_arbiter_state),
+        .debug_video_active_o(mem_video_active),
+        .debug_wb_active_o(mem_wb_active)
     );
 
     // ===========================================
@@ -365,6 +379,7 @@ module aleste_video #(
         .wb_dat_o(sdram_data_in),
         .wb_sel_i(2'b11),
         .wb_tag_i(sdram_tag),
+        .wb_grant_o(sdram_grant),
 
         // SDRAM physical interface
         .sdram_dq(sdram_dq),
@@ -390,33 +405,35 @@ module aleste_video #(
     // ===========================================
     // Video Buffer
     // ===========================================
-    assign buffer_pixel_i = sdram_data_in;
+    assign vbuf_data_i = mem_dat_o;
 
     video_buffer vbuf (
         .clk_i(clk_54m),
         .rst_i(system_reset),
         .pix_ena_i(clk_27m),
-        
-        // Memory interface (16/32-bit burst)
-        .vmem_data_i(buffer_pixel_i),
-        .vmem_valid_i(sdram_ack),
+                
+        // CRTC config signals
         .burst_mode_i(crtc_burst_mode),
-        
+
         // CRTC timing signals
         .de_i(crtc_de),
         .char_strobe_i(crtc_char_strobe),
         .byte_strobe_i(crtc_byte_strobe),
-        .de_o(buf_de),
-        .char_strobe_o(buf_char_strobe),
-        .byte_strobe_o(buf_byte_strobe),
-        .byte_select_o(buf_byte_select),
+        .de_o(vbuf_de),
+        .char_strobe_o(vbuf_char_strobe),
+        .byte_strobe_o(vbuf_byte_strobe),
+        .byte_select_o(vbuf_byte_select),
+
+        // Memory interface (16/32-bit burst)
+        .vmem_data_i(video_data),
+        .vmem_valid_i(video_ack),
         
         // To pixel_pipeline (8-bit)
-        .pixel_data_o(buffer_pixel_o),
-        .pixel_valid_o(buffer_pixel_valid),
+        .pixel_data_o(vbuf_data_o),
+        .pixel_valid_o(vbuf_data_valid),
         
         // Memory control
-        .need_data_o(buffer_need_data)
+        .need_data_o(vbuf_need_data)
     );
 
     // ===========================================
@@ -429,16 +446,16 @@ module aleste_video #(
         
         // Memory interface
         //.vmem_data_i(16'h77),
-        .vmem_data_i(buffer_pixel_o),
+        .vmem_data_i(vbuf_data_o),
 
         // Configuration
         .bpp_mode_i(crtc_bpp_mode),
         .continuous_mode_i(crtc_continuous_mode),
 
         // CRTC timing
-        .de_i(buf_de),
-        .char_strobe_i(buf_char_strobe),
-        .byte_strobe_i(buf_byte_strobe),
+        .de_i(vbuf_de),
+        .char_strobe_i(vbuf_char_strobe),
+        .byte_strobe_i(vbuf_byte_strobe),
         .pixel_strobe_i(crtc_pixel_strobe),
         
         // Pixel output
@@ -459,6 +476,7 @@ module aleste_video #(
         .wb_we_i(palette_we),
         .wb_stb_i(palette_stb),
         .wb_cyc_i(palette_cyc),
+        .wb_grant_o(palette_grant),
         .wb_ack_o(palette_ack),
         .tag_i(palette_tag), // Palette tag
         .legacy_mode_i(1'b0),
@@ -576,13 +594,13 @@ module aleste_video #(
 // --------------------------------------+
 
 assign debug = {
-        sdram_data_in[1],
-        buf_byte_select,
+        video_ack,
+        vbuf_need_data,
         sdram_ack,
         sdram_req,
-        crtc_pixel_strobe,
-        crtc_byte_strobe, 
-        crtc_word_strobe,
+        sdram_grant,
+        mem_video_active, 
+        mem_arbiter_state[0],
         crtc_char_strobe
 };
 

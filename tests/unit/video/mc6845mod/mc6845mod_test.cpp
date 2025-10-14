@@ -165,136 +165,132 @@ public:
             tick();
     }
 
-    void wb_write(uint32_t addr, uint8_t data)
+void wb_write(uint32_t addr, uint8_t data)
+{
+    std::cout << "   WB WRITE: addr=0x" << std::hex << addr 
+              << " data=0x" << (int)data << std::dec << std::endl;
+
+    // Устанавливаем сигналы по заднему фронту wb_clk
+    while (dut->wb_clk_i) { tick(); }
+
+    dut->wb_cyc_i = 1;
+    dut->wb_stb_i = 1;
+    dut->wb_we_i = 1;
+    dut->wb_adr_i = base_address + addr;  // БЕЗ выравнивания!
+    dut->wb_dat_i = data;                 // Просто 8-битные данные
+    dut->wb_sel_i = 0x0F;                 // Все байты активны
+    dut->wb_tag_i = 0x3; 
+
+
+    tick();
+
+    //std::cout << "     Signals: adr_i=0x" << std::hex << dut->wb_adr_i 
+    //          << " dat_i=0x" << (int)dut->wb_dat_i 
+    //          << " tag_i=0x" << (int)dut->wb_tag_i 
+    //          << " grant_o=" << (int)dut->wb_grant_o << std::dec << std::endl;
+
+    // Ждем ACK
+    int timeout = 100;
+    while (!dut->wb_ack_o && timeout > 0)
     {
-        // Устанавливаем сигналы по заднему фронту wb_clk
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
-        dut->wb_cyc_i = 1;
-        dut->wb_stb_i = 1;
-        dut->wb_we_i = 1;
-        dut->wb_adr_i = base_address + addr;
-        dut->wb_dat_i = data;
-        dut->wb_sel_i = 0xF;
-
+        //std::cout << "     Waiting ACK... grant=" << (int)dut->wb_grant_o 
+        //          << " cyc_i=0x" << (int)dut->wb_cyc_i 
+        //          << " stb_i=0x" << (int)dut->wb_stb_i 
+        //          << " ack=" << (int)dut->wb_ack_o << std::endl;
         tick();
-
-        // Ждем ACK (появляется на переднем фронте после установки сигналов)
-        int timeout = 100;
-        while (!dut->wb_ack_o && timeout > 0)
-        {
-            tick();
-            timeout--;
-        }
-
-        if (!dut->wb_ack_o)
-        {
-            std::cout << "❌ WB write timeout at address 0x" << std::hex << addr << std::dec << std::endl;
-            error_count++;
-            return;
-        }
-
-        // ACK получен - снимаем STB по заднему фронту
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
-        dut->wb_stb_i = 0;
-        dut->wb_we_i = 0;
-
-        tick(); // Переходим к переднему фронту
-
-        // Ждем снятия ACK
-        timeout = 100;
-        while (dut->wb_ack_o && timeout > 0)
-        {
-            tick();
-            timeout--;
-        }
-
-        // Снимаем CYC по заднему фронту
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
-        dut->wb_cyc_i = 0;
-
-        // Даем еще один такт для завершения
-        tick();
+        timeout--;
     }
 
-    // Wishbone read operation - CORRECTED
-    uint8_t wb_read(uint32_t addr)
+    if (!dut->wb_ack_o)
     {
-        // Устанавливаем сигналы по заднему фронту wb_clk
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
-        dut->wb_cyc_i = 1;
-        dut->wb_stb_i = 1;
-        dut->wb_we_i = 0;
-        dut->wb_adr_i = base_address + addr;
-        dut->wb_sel_i = 0xF;
-
-        tick(); // Переходим к переднему фронту
-
-        // Ждем ACK и валидные данные
-        int timeout = 100;
-        while (!dut->wb_ack_o && timeout > 0)
-        {
-            tick();
-            timeout--;
-        }
-
-        uint8_t data = 0;
-        if (dut->wb_ack_o)
-        {
-            data = dut->wb_dat_o & 0xFF;
-        }
-        else
-        {
-            std::cout << "❌ WB read timeout at address 0x" << std::hex << addr << std::dec << std::endl;
-            error_count++;
-        }
-
-        // ACK получен - снимаем STB по заднему фронту
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
+        std::cout << "❌ WB write timeout" << std::endl;
+        error_count++;
+        
+        // Сбрасываем сигналы
         dut->wb_stb_i = 0;
-
-        tick(); // Переходим к переднему фронту
-
-        // Ждем снятия ACK
-        timeout = 100;
-        while (dut->wb_ack_o && timeout > 0)
-        {
-            tick();
-            timeout--;
-        }
-
-        // Снимаем CYC по заднему фронту
-        while (dut->wb_clk_i)
-        {
-            tick();
-        }
-
         dut->wb_cyc_i = 0;
-
-        // Даем еще один такт для завершения
-        tick();
-
-        return data;
+        return;
     }
+
+    std::cout << "     ACK received!" << std::endl;
+
+    // Снимаем STB
+    while (dut->wb_clk_i) { tick(); }
+    dut->wb_stb_i = 0;
+    dut->wb_we_i = 0;
+    tick();
+
+    // Ждем снятия ACK
+    timeout = 100;
+    while (dut->wb_ack_o && timeout > 0) { tick(); timeout--; }
+
+    // Снимаем CYC
+    while (dut->wb_clk_i) { tick(); }
+    dut->wb_cyc_i = 0;
+    tick();
+}
+
+uint8_t wb_read(uint32_t addr)
+{
+    std::cout << "   WB READ: addr=0x" << std::hex << addr << std::dec << std::endl;
+
+    // Устанавливаем сигналы по заднему фронту wb_clk
+    while (dut->wb_clk_i) { tick(); }
+
+    dut->wb_cyc_i = 1;
+    dut->wb_stb_i = 1;
+    dut->wb_we_i = 0;
+    dut->wb_adr_i = base_address + addr;  // БЕЗ выравнивания!
+    dut->wb_sel_i = 0x0F;
+    dut->wb_tag_i = 0x3; 
+
+    tick();
+
+    //std::cout << "     Signals: adr_i=0x" << std::hex << (int)dut->wb_adr_i 
+    //          << " tag_i=0x" << (int)dut->wb_tag_i 
+    //          << " grant_o=" << (int)dut->wb_grant_o << std::dec << std::endl;
+
+    // Ждем ACK
+    int timeout = 100;
+    while (!dut->wb_ack_o && timeout > 0)
+    {
+        //std::cout << "     Waiting ACK... grant=" << (int)dut->wb_grant_o 
+        //          << " cyc_i=0x" << (int)dut->wb_cyc_i 
+        //          << " stb_i=0x" << (int)dut->wb_stb_i         
+        //          << " ack=" << (int)dut->wb_ack_o << std::endl;
+        tick();
+        timeout--;
+    }
+
+    uint8_t data = 0;
+    if (dut->wb_ack_o)
+    {
+        // Берем младший байт (CRTC всегда возвращает дублированные данные)
+        data = dut->wb_dat_o & 0xFF;
+        std::cout << "     ACK received! data=0x" << std::hex << (int)data << std::dec << std::endl;
+    }
+    else
+    {
+        std::cout << "❌ WB read timeout" << std::endl;
+        error_count++;
+    }
+
+    // Снимаем STB
+    while (dut->wb_clk_i) { tick(); }
+    dut->wb_stb_i = 0;
+    tick();
+
+    // Ждем снятия ACK
+    timeout = 100;
+    while (dut->wb_ack_o && timeout > 0) { tick(); timeout--; }
+
+    // Снимаем CYC
+    while (dut->wb_clk_i) { tick(); }
+    dut->wb_cyc_i = 0;
+    tick();
+
+    return data;
+}
 
     bool wait_newframe_i(bool wait_state)
     {
@@ -750,128 +746,128 @@ public:
         }
     }
 
-void test_linear_addressing()
-{
-    std::cout << "📍 Testing linear addressing..." << std::endl;
-
-    // ==========================================================================
-    // РАСЧЕТ ОЖИДАЕМОГО АДРЕСА
-    // ==========================================================================
-    
-    // Ожидаемый адрес для линейного режима 32KB: 0x800028D0
-    uint32_t expected_addr = 0x008028D0;
-    assert(expected_addr<0x01000000);
-    // ==========================================================================
-    // ПРОГРАММИРОВАНИЕ РЕГИСТРОВ ДЛЯ ПОЛУЧЕНИЯ ОЖИДАЕМОГО АДРЕСА
-    // ==========================================================================
-    
-    // 1. Начальный адрес видеопамяти: из expected_addr получаем 0x1234
-    //    expected_addr = 0x800028D0
-    //    Для линейного режима 32KB: {A23-A16, 7'b0, A15-A13, A11-A0}
-    //    Выделяем A15-A13 и A11-A0: 0x028D0 -> преобразуем обратно в linear_addr
-    //    linear_addr[15:13] = 0x02, linear_addr[11:0] = 0x8D0
-    //    Восстанавливаем linear_addr: {0x02, 0x8D0} = 0x28D0
-    //    Начальный адрес CRTC = linear_addr / 4 = 0x28D0 / 4 = 0x0A34
-    //    Но разбиваем на STARTH и STARTL: 0x0A34 -> STARTH=0x0A, STARTL=0x34
-    
-    // Установка регистра адреса 0x00 = 0x0C (регистр STARTH)
-    wb_write(0x00, 0x0C);
-    // STARTH = биты [13:8] начального адреса = (expected_addr[15:13] и expected_addr[11:8])
-    // Из 0x028D0: биты [15:13]=001, биты [11:8]=8 -> 0x0A
-    wb_write(0x01, (expected_addr >> 8) & 0xFF);  // STARTH = 0x0A
-
-    // Установка регистра адреса 0x00 = 0x0D (регистр STARTL)  
-    wb_write(0x00, 0x0D);
-    // STARTL = биты [7:0] начального адреса = expected_addr[7:0] из восстановленного linear_addr
-    wb_write(0x01, expected_addr & 0xFF);
-
-    // 2. Старшие биты адреса A23-A16
-    wb_write(0x00, 0x19);  // REG_HIGH_ADDRESS
-    wb_write(0x01, (expected_addr >> 16) & 0xFF);  // HIGH_ADDRESS = 0x80
-
-    // 3. Базовые настройки таймингов
-    wb_write(0x00, 0x01);  // REG_HTOTAL
-    wb_write(0x01, 20);     // HTOTAL = 20
-    
-    wb_write(0x00, 0x06);  // REG_VDISPLAY
-    wb_write(0x01, 10);     // VDISPLAY = 10
-
-    // 4. Включение линейного режима 32KB
-    wb_write(0x00, 0x1A);  // REG_ADDR_MODE
-    wb_write(0x01, 0x85);  // ADDR_MODE = 0x85 (бит2=1 - линейный, биты[1:0]=01 - 32KB)
-
-    // ==========================================================================
-    // ВЫПОЛНЕНИЕ ТЕСТА
-    // ==========================================================================
-
-    if (!wait_newframe_i(false))
+    void test_linear_addressing()
     {
-        std::cout << "❌ Did not detect newframe_i == 0" << std::endl;
-        error_count++;
-        return;
-    }
+        std::cout << "📍 Testing linear addressing..." << std::endl;
 
-    if (!wait_newframe_i(true))
-    {
-        std::cout << "❌ Did not detect newframe_i == 1" << std::endl;
-        error_count++;
-        return;
-    }
+        // ==========================================================================
+        // РАСЧЕТ ОЖИДАЕМОГО АДРЕСА
+        // ==========================================================================
 
-    bool saw_ext_addr = false;
-    bool addr_correct = false;
-    int samples = 0;
-    
-    while (samples < 5000000 && !saw_ext_addr)
-    {
-        if (pix_clk_rising_edge() && dut->crtc_de_o)
+        // Ожидаемый адрес для линейного режима 32KB: 0x800028D0
+        uint32_t expected_addr = 0x008028D0;
+        assert(expected_addr < 0x01000000);
+        // ==========================================================================
+        // ПРОГРАММИРОВАНИЕ РЕГИСТРОВ ДЛЯ ПОЛУЧЕНИЯ ОЖИДАЕМОГО АДРЕСА
+        // ==========================================================================
+
+        // 1. Начальный адрес видеопамяти: из expected_addr получаем 0x1234
+        //    expected_addr = 0x800028D0
+        //    Для линейного режима 32KB: {A23-A16, 7'b0, A15-A13, A11-A0}
+        //    Выделяем A15-A13 и A11-A0: 0x028D0 -> преобразуем обратно в linear_addr
+        //    linear_addr[15:13] = 0x02, linear_addr[11:0] = 0x8D0
+        //    Восстанавливаем linear_addr: {0x02, 0x8D0} = 0x28D0
+        //    Начальный адрес CRTC = linear_addr / 4 = 0x28D0 / 4 = 0x0A34
+        //    Но разбиваем на STARTH и STARTL: 0x0A34 -> STARTH=0x0A, STARTL=0x34
+
+        // Установка регистра адреса 0x00 = 0x0C (регистр STARTH)
+        wb_write(0x00, 0x0C);
+        // STARTH = биты [13:8] начального адреса = (expected_addr[15:13] и expected_addr[11:8])
+        // Из 0x028D0: биты [15:13]=001, биты [11:8]=8 -> 0x0A
+        wb_write(0x01, (expected_addr >> 8) & 0xFF); // STARTH = 0x0A
+
+        // Установка регистра адреса 0x00 = 0x0D (регистр STARTL)
+        wb_write(0x00, 0x0D);
+        // STARTL = биты [7:0] начального адреса = expected_addr[7:0] из восстановленного linear_addr
+        wb_write(0x01, expected_addr & 0xFF);
+
+        // 2. Старшие биты адреса A23-A16
+        wb_write(0x00, 0x19);                         // REG_HIGH_ADDRESS
+        wb_write(0x01, (expected_addr >> 16) & 0xFF); // HIGH_ADDRESS = 0x80
+
+        // 3. Базовые настройки таймингов
+        wb_write(0x00, 0x01); // REG_HTOTAL
+        wb_write(0x01, 20);   // HTOTAL = 20
+
+        wb_write(0x00, 0x06); // REG_VDISPLAY
+        wb_write(0x01, 10);   // VDISPLAY = 10
+
+        // 4. Включение линейного режима 32KB
+        wb_write(0x00, 0x1A); // REG_ADDR_MODE
+        wb_write(0x01, 0x85); // ADDR_MODE = 0x85 (бит2=1 - линейный, биты[1:0]=01 - 32KB)
+
+        // ==========================================================================
+        // ВЫПОЛНЕНИЕ ТЕСТА
+        // ==========================================================================
+
+        if (!wait_newframe_i(false))
         {
-            if (dut->crtc_ext_addr_o != 0)
-            {
-                saw_ext_addr = true;
-                
-                // Проверка extended address
-                if (dut->crtc_ext_addr_o == expected_addr)
-                {
-                    std::cout << "✅ Extended address correct: 0x"
-                              << std::hex << dut->crtc_ext_addr_o << std::dec << std::endl;
-                    addr_correct = true;
-                }
-                else
-                {
-                    std::cout << "❌ Extended address wrong: expected 0x" << std::hex << expected_addr
-                              << ", got 0x" << dut->crtc_ext_addr_o << std::dec << std::endl;
-                    error_count++;
-                }
+            std::cout << "❌ Did not detect newframe_i == 0" << std::endl;
+            error_count++;
+            return;
+        }
 
-                // Проверка режима адресации
-                if ((int)dut->crtc_addr_mode_o == 5)
+        if (!wait_newframe_i(true))
+        {
+            std::cout << "❌ Did not detect newframe_i == 1" << std::endl;
+            error_count++;
+            return;
+        }
+
+        bool saw_ext_addr = false;
+        bool addr_correct = false;
+        int samples = 0;
+
+        while (samples < 5000000 && !saw_ext_addr)
+        {
+            if (pix_clk_rising_edge() && dut->crtc_de_o)
+            {
+                if (dut->crtc_ext_addr_o != 0)
                 {
-                    std::cout << "✅ Address mode output correct: 0x"
-                              << std::hex << (int)dut->crtc_addr_mode_o << std::dec << std::endl;
-                }
-                else
-                {
-                    std::cout << "❌ Address mode output wrong: expected 0x5, got 0x"
-                              << std::hex << (int)dut->crtc_addr_mode_o << std::dec << std::endl;
-                    error_count++;
+                    saw_ext_addr = true;
+
+                    // Проверка extended address
+                    if (dut->crtc_ext_addr_o == expected_addr)
+                    {
+                        std::cout << "✅ Extended address correct: 0x"
+                                  << std::hex << dut->crtc_ext_addr_o << std::dec << std::endl;
+                        addr_correct = true;
+                    }
+                    else
+                    {
+                        std::cout << "❌ Extended address wrong: expected 0x" << std::hex << expected_addr
+                                  << ", got 0x" << dut->crtc_ext_addr_o << std::dec << std::endl;
+                        error_count++;
+                    }
+
+                    // Проверка режима адресации
+                    if ((int)dut->crtc_addr_mode_o == 5)
+                    {
+                        std::cout << "✅ Address mode output correct: 0x"
+                                  << std::hex << (int)dut->crtc_addr_mode_o << std::dec << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << "❌ Address mode output wrong: expected 0x5, got 0x"
+                                  << std::hex << (int)dut->crtc_addr_mode_o << std::dec << std::endl;
+                        error_count++;
+                    }
                 }
             }
+            samples++;
+            tick();
         }
-        samples++;
-        tick();
-    }
 
-    if (!saw_ext_addr)
-    {
-        std::cout << "❌ No extended address detected" << std::endl;
-        error_count++;
+        if (!saw_ext_addr)
+        {
+            std::cout << "❌ No extended address detected" << std::endl;
+            error_count++;
+        }
+        else if (addr_correct)
+        {
+            std::cout << "🎯 Linear addressing test PASSED!" << std::endl;
+        }
     }
-    else if (addr_correct)
-    {
-        std::cout << "🎯 Linear addressing test PASSED!" << std::endl;
-    }
-}
 
     void test_pixel_clock_modes()
     {
@@ -925,7 +921,7 @@ void test_linear_addressing()
         {
             if (pix_clk_rising_edge() && dut->crtc_de_o)
             {
-                if (dut->crtc_burst_req_o)
+                if (dut->crtc_burst_mode_o)
                 {
                     burst_count++;
                     if (burst_count <= 3)
@@ -1036,7 +1032,7 @@ int main(int argc, char **argv)
 {
     Verilated::commandArgs(argc, argv);
 
-    MC6845_Test test = MC6845_Test(0x684500);
+    MC6845_Test test = MC6845_Test(0x6844);
     test.run_all_tests();
 
     return 0;

@@ -12,7 +12,7 @@
 
 module mc6845mod #(
     parameter STANDARD = "cpc",
-    parameter WB_ADDRESS  = 16'h6845,        // Bus address
+    parameter WB_ADDRESS  = 16'h6844,        // Bus address
 
     parameter HDMI_H_VISIBLE  = 720,         // Fixed HDMI active width
     parameter HDMI_V_VISIBLE = 480,          // Fixed HDMI active height divided by 2  
@@ -30,12 +30,13 @@ module mc6845mod #(
     input logic wb_cyc_i,
     input logic wb_stb_i, 
     input logic [23:0] wb_adr_i,
-    input logic [31:0] wb_dat_i,
-    input logic [3:0] wb_sel_i,
+    input logic [15:0] wb_dat_i,
+    input logic [1:0] wb_sel_i,
     input logic wb_we_i,
+    input logic [1:0] wb_tag_i,
     output logic wb_ack_o,
-    output logic [31:0] wb_dat_o,
-    output logic sel_o,
+    output logic [15:0] wb_dat_o,
+    output logic wb_grant_o,
     
     // Pixel Clock Domain  
     input logic pix_clk_i,
@@ -53,7 +54,6 @@ module mc6845mod #(
     output logic crtc_hsync_o,                  // CRTC hsync for interrupts
     output logic crtc_vsync_o,                  // CRTC vsync for interrupts
     output logic crtc_cursor_o,
-    output logic char_strobe_o,                   
     output logic crtc_newline_o,
     output logic crtc_newframe_o,
     output logic char_strobe_o,                 // End of character 1/16 of 27Mhz
@@ -135,13 +135,16 @@ logic [7:0] reg_addr_mode = 8'h00;            // Address mode control
 logic [7:0] reg_pixel_ctrl = 8'h00;           // Pixel clock control
 
 logic wb_ack = 0;
-logic [7:0] wb_data_out;
 logic [4:0] wb_addr_reg;
+logic [7:0] wb_data_in;
+logic [7:0] wb_data_out;
+
 
 // Chip select
-assign sel_o = (wb_adr_i[23:8] == WB_ADDRESS) && wb_cyc_i && wb_stb_i;
+assign wb_grant_o = (wb_tag_i == 2'b11) && (wb_adr_i[15:1] == WB_ADDRESS[15:1]) && wb_cyc_i && wb_stb_i;
 assign wb_ack_o = wb_ack;
-assign wb_dat_o = wb_ack ? {24'b0, wb_data_out} : 32'bz;
+assign wb_dat_o = {wb_data_out, wb_data_out};
+assign wb_data_in = wb_adr_i[0] ? wb_dat_i[15:8] : wb_dat_i[7:0];
 
 // Wishbone interface
 always_ff @(posedge wb_clk_i) begin
@@ -206,7 +209,7 @@ always_ff @(posedge wb_clk_i) begin
         wb_data_out <= 8'b0;
 
         // Wishbone cycle handling
-        if (wb_cyc_i && wb_stb_i && sel_o) begin
+        if (wb_cyc_i && wb_stb_i && wb_grant_o) begin
             wb_ack <= 1'b1;
 
             if (wb_we_i) begin
@@ -214,27 +217,27 @@ always_ff @(posedge wb_clk_i) begin
                 if (wb_adr_i[0]) begin
                     // Data register write
                     case (wb_addr_reg)
-                        REG_HTOTAL:     reg_h_total <= wb_dat_i[7:0];
-                        REG_HDISPLAY:   reg_h_displayed <= wb_dat_i[7:0];
-                        REG_HSYNCPOS:   reg_h_sync_pos <= wb_dat_i[7:0];
-                        REG_HSYNCWIDTH: {reg_v_sync_width, reg_h_sync_width} <= wb_dat_i[7:0];
-                        REG_VTOTAL:     reg_v_total <= wb_dat_i[6:0];
-                        REG_VADJUST:    reg_v_adjust <= wb_dat_i[4:0];
-                        REG_VDISPLAY:   reg_v_displayed <= wb_dat_i[6:0];
-                        REG_VSYNCPOS:   reg_v_sync_pos <= wb_dat_i[6:0];
-                        REG_INTERLACE:  {reg_skew, reg_interlace} <= {wb_dat_i[5:4], wb_dat_i[1:0]};
-                        REG_MAXSCAN:    reg_max_scan <= wb_dat_i[4:0];
-                        REG_CURSTART:   {reg_cursor_mode, reg_cursor_start} <= wb_dat_i[6:0];
-                        REG_CUREND:     reg_cursor_end <= wb_dat_i[4:0];
-                        REG_STARTH:     reg_start_addr_h <= wb_dat_i[5:0];
-                        REG_STARTL:     reg_start_addr_l <= wb_dat_i[7:0];
-                        REG_CURH:       reg_cursor_addr_h <= wb_dat_i[5:0];
-                        REG_CURL:       reg_cursor_addr_l <= wb_dat_i[7:0];
-                        REG_VIDEO_CONTROL: reg_video_control <= wb_dat_i[7:0];
+                        REG_HTOTAL:     reg_h_total <= wb_data_in[7:0];
+                        REG_HDISPLAY:   reg_h_displayed <= wb_data_in[7:0];
+                        REG_HSYNCPOS:   reg_h_sync_pos <= wb_data_in[7:0];
+                        REG_HSYNCWIDTH: {reg_v_sync_width, reg_h_sync_width} <= wb_data_in[7:0];
+                        REG_VTOTAL:     reg_v_total <= wb_data_in[6:0];
+                        REG_VADJUST:    reg_v_adjust <= wb_data_in[4:0];
+                        REG_VDISPLAY:   reg_v_displayed <= wb_data_in[6:0];
+                        REG_VSYNCPOS:   reg_v_sync_pos <= wb_data_in[6:0];
+                        REG_INTERLACE:  {reg_skew, reg_interlace} <= {wb_data_in[5:4], wb_data_in[1:0]};
+                        REG_MAXSCAN:    reg_max_scan <= wb_data_in[4:0];
+                        REG_CURSTART:   {reg_cursor_mode, reg_cursor_start} <= wb_data_in[6:0];
+                        REG_CUREND:     reg_cursor_end <= wb_data_in[4:0];
+                        REG_STARTH:     reg_start_addr_h <= wb_data_in[5:0];
+                        REG_STARTL:     reg_start_addr_l <= wb_data_in[7:0];
+                        REG_CURH:       reg_cursor_addr_h <= wb_data_in[5:0];
+                        REG_CURL:       reg_cursor_addr_l <= wb_data_in[7:0];
+                        REG_VIDEO_CONTROL: reg_video_control <= wb_data_in[7:0];
                         // NEW: Extended registers
-                        REG_HIGH_ADDRESS: reg_high_address <= wb_dat_i[7:0];
-                        REG_ADDR_MODE:    reg_addr_mode <= wb_dat_i[7:0];
-                        REG_PIXEL_CTRL:   reg_pixel_ctrl <= wb_dat_i[7:0];
+                        REG_HIGH_ADDRESS: reg_high_address <= wb_data_in[7:0];
+                        REG_ADDR_MODE:    reg_addr_mode <= wb_data_in[7:0];
+                        REG_PIXEL_CTRL:   reg_pixel_ctrl <= wb_data_in[7:0];
                     endcase
                 end else begin
                     // Address register write

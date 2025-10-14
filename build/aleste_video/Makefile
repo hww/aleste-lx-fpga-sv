@@ -28,7 +28,7 @@ VIDBUF      := $(VIDBUF_DIR)/video_buffer.sv
 PIXPIPE	    := $(PIXPIPE_DIR)/pixel_pipeline.sv
 MEM_ARBITER :=  $(SYSTEM_DIR)/memory_arbiter.sv 
 WB_ARBITER :=  $(SYSTEM_DIR)/wb_arbiter_internal.sv
-TEST_GEN    := $(SYSTEM_DIR)/test_data_generator.sv
+TEST_GEN    := $(SYSTEM_DIR)/test_data_generator.sv $(SYSTEM_DIR)/test_video_data_generator.sv
 TOP_MODULE  := $(SYSTEM_DIR)/aleste_video.sv
 
 
