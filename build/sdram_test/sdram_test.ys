@@ -1,5 +1,5 @@
-read_verilog -I. -DCONFIG_27MHZ -I../../src/config -sv ../../src/systems/sdram_test/sdram_test_top.sv ../../src/systems/sdram_test/sdram_test_pattern.sv
+read_verilog -I. -DCONFIG_27MHZ -I../../src/config -sv ../../src/systems/sdram_test/sdram_test_top.sv
 read_verilog ../../src/platforms/icesugar_pro/clocks/system_pll.v
-read_verilog -sv ../../src/components/memory/sdram/sdram_ctrl_wb.sv
+read_verilog -sv ../../src/components/memory/sdram/sdram_ctrl_wb.sv ../../src/components/memory/sdram/sdram_test_pattern.sv
 hierarchy -top sdram_test_top
 synth_ecp5 -json sdram_test.json -no-rw-check

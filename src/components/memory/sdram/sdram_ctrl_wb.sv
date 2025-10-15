@@ -98,6 +98,7 @@ reg [WB_DATA_WIDTH-1:0] sdram_dq_out;
 reg                     sdram_dq_oe;
 assign sdram_dq = sdram_dq_oe ? sdram_dq_out : {WB_DATA_WIDTH{1'bz}};
 
+assign wb_grant_o = (wb_tag_i == 2'b00);
 
 // Main state machine - параметризированная версия
 // Main state machine with integrated Wishbone interface
@@ -115,7 +116,6 @@ always @(posedge wb_clk_i) begin
         // Wishbone signals
         wb_ack_o <= 0;
         wb_dat_o <= 0;
-        wb_grant_o <= 0;  
         pending <= 0;
         we_pending <= 0;
         data_in <= 0;
@@ -124,7 +124,6 @@ always @(posedge wb_clk_i) begin
     end else begin
         // Default values
         wb_ack_o <= 0;
-        wb_grant_o <= 0;  
         {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_NOP;
         sdram_dq_oe <= 0;
         
@@ -168,23 +167,21 @@ always @(posedge wb_clk_i) begin
             STATE_IDLE: begin
                 $display("[SDRAMCTRL] STATE_IDLE");                       
                 sdram_dqm <= {BYTE_SEL_WIDTH{1'b1}};
-                wb_grant_o <= 0; 
 
                 // Accept new Wishbone commands
-                if (wb_cyc_i && wb_stb_i && !pending && (wb_tag_i == 2'b00)) begin
+                if (wb_cyc_i && wb_stb_i && !pending && wb_grant_o) begin
                     pending <= 1;
                     we_pending <= wb_we_i;
                     data_in <= wb_dat_i;
                     addr_pending <= wb_adr_i;
                     state <= STATE_ACTIVATE;
-                     wb_grant_o <= 1; 
                     
                     sdram_ba <= wb_adr_i[WB_ADDR_WIDTH-1 -: SDRAM_BANK_WIDTH];
                     sdram_addr <= wb_adr_i[WB_ADDR_WIDTH-SDRAM_BANK_WIDTH-1 -: SDRAM_ROW_WIDTH];
                     delay_counter <= 2; // tRCD
                     
                     $display("[SDRAMCTRL] Access granted for tag=00, addr=%h", wb_adr_i);
-                end else if (wb_cyc_i && wb_stb_i && (wb_tag_i != 2'b00)) begin
+                end else if (wb_cyc_i && wb_stb_i && !wb_grant_o) begin
                     $display("[SDRAMCTRL] Access ignored - wrong tag=%b, addr=%h", wb_tag_i, wb_adr_i);
                     // Для не-памяти игнорируем, sel_o остается 0
                 end
@@ -193,7 +190,6 @@ always @(posedge wb_clk_i) begin
             STATE_ACTIVATE: begin
                 $display("[SDRAMCTRL] STATE_ACTIVATE");                    
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_ACTIVE;
-                wb_grant_o <= 1;  
 
                 if (delay_counter == 0) begin
                     if (we_pending) begin
@@ -213,7 +209,6 @@ always @(posedge wb_clk_i) begin
                 sdram_addr <= {{(SDRAM_ADDR_WIDTH-SDRAM_COL_WIDTH){1'b0}}, 
                             addr_pending[SDRAM_COL_WIDTH-1:0]};
                 sdram_dqm <= {BYTE_SEL_WIDTH{1'b0}};
-                wb_grant_o <= 1;
                 delay_counter <= CAS_LATENCY;
                 state <= STATE_READ2;
             end
@@ -222,7 +217,6 @@ always @(posedge wb_clk_i) begin
                 // В этом состоянии SDRAM ТОЛЬКО НАЧИНАЕТ выставлять данные на шину
                 // Данные еще не стабильны - фиксировать их РАНЬШЕ СЛЕДУЮЩЕГО ТАКТА НЕЛЬЗЯ
                 $display("[SDRAMCTRL] STATE_READ2 delay_counter=%d", delay_counter);
-                wb_grant_o <= 1; 
                 if (delay_counter == 0) begin
                     // Переходим в состояние фиксации
                     state <= STATE_READ3;
@@ -239,7 +233,6 @@ always @(posedge wb_clk_i) begin
 
                 // ОДНОВРЕМЕННО выдаемACK - данные УЖЕ валидны в регистре wb_dat_o
                 wb_ack_o <= 1;
-                wb_grant_o <= 1;
                 pending <= 0;
 
                 state <= STATE_PRECHARGE;
@@ -254,7 +247,6 @@ always @(posedge wb_clk_i) begin
                 sdram_dq_out <= data_in;
                 sdram_dq_oe <= 1;
                 sdram_dqm <= ~wb_sel_i;
-                wb_grant_o <= 1;
                 
                 // WRITE COMPLETE - acknowledge immediately!
                 wb_ack_o <= 1;
@@ -268,7 +260,6 @@ always @(posedge wb_clk_i) begin
                 $display("[SDRAMCTRL] STATE_PRECHARGE");
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_PRECHARGE;
                 sdram_addr[SDRAM_ADDR_WIDTH-1] <= 1'b1;
-                wb_grant_o <= 0;
                 
                 if (delay_counter == 0) begin
                     state <= STATE_IDLE;
@@ -280,14 +271,12 @@ always @(posedge wb_clk_i) begin
             STATE_REFRESH: begin
                 $display("[SDRAMCTRL] STATE_REFRESH");
                 {sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n} <= CMD_AUTO_REFRESH;
-                wb_grant_o <= 0;
                 state <= STATE_REFRESH_WAIT;
                 delay_counter <= 7; // tRFC
             end
 
             STATE_REFRESH_WAIT: begin
                 $display("[SDRAMCTRL] STATE_REFRESH_WAIT"); 
-                wb_grant_o <= 0;               
                 if (delay_counter == 0) begin
                     state <= STATE_IDLE;
                 end else begin

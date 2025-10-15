@@ -190,11 +190,9 @@ module aleste_video #(
         .wb_we_o(wb_ext_we),
         .wb_adr_o(wb_ext_adr),
         .wb_dat_o(wb_ext_dat_i),
-        .wb_dat_i(wb_ext_dat_o),
         .wb_sel_o(wb_ext_sel),
         .wb_tag_o(wb_ext_tag),
-        .start_i(!boot_complete),
-        .done_o(boot_complete)
+        .start_i(!boot_complete)
     );
    
     // ===========================================
@@ -374,7 +372,7 @@ module aleste_video #(
         .wb_stb_i(sdram_req),
         .wb_ack_o(sdram_ack),
         .wb_we_i(sdram_we),
-        .wb_adr_i(sdram_addr),
+        .wb_adr_i(sdram_addr[3:0]),
         .wb_dat_i(sdram_data_out),
         .wb_dat_o(sdram_data_in),
         .wb_sel_i(2'b11),
@@ -485,7 +483,6 @@ module aleste_video #(
         .pix_clk_i(clk_54m),
         .pix_ena_i(clk_27m),
         .pixel_index_i(pixel_index),
- //       .pixel_index_i(8'h55),
         .de_i(pipeline_de),
         .pixel_color_o(pixel_color)
     );
@@ -593,16 +590,25 @@ module aleste_video #(
 //                                       |
 // --------------------------------------+
 
-assign debug = {
-        video_ack,
-        vbuf_need_data,
-        sdram_ack,
-        sdram_req,
-        sdram_grant,
-        mem_video_active, 
-        mem_arbiter_state[0],
-        crtc_char_strobe
-};
+// Memory arbiter
+/* 
+assign debug[0] = crtc_char_strobe;
+assign debug[1] = mem_stb;
+assign debug[2] = mem_grant;
+assign debug[3] = mem_ack;
+assign debug[4] = mem_we;
+assign debug[5] = mem_sel[0];
+assign debug[6] = mem_sel[1];
+assign debug[7] = mem_tag[1];
+*/
+assign debug[0] = sdram_cke;
+assign debug[1] = sdram_cs_n;
+assign debug[2] = sdram_ras_n;
+assign debug[3] = sdram_cas_n;
+assign debug[4] = sdram_we_n;
+assign debug[5] = sdram_dm[0];
+assign debug[6] = sdram_dm[1];
+assign debug[7] = sdram_a[0];
 
 endmodule
 

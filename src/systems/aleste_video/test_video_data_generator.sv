@@ -28,12 +28,12 @@ typedef enum logic [1:0] {
     RUNNING   = 2'b10
 } state_t;
 
-state_t current_state;
+state_t current_state = IDLE;
 
-reg [23:0] address;
-reg [23:0] next_address;
-reg [1:0] pattern_type;
-reg [15:0] frame_counter;
+reg [23:0] address = 0;
+reg [23:0] next_address = 0;
+reg [1:0] pattern_type = 0;
+reg [15:0] frame_counter = 0;
 
 // =============================================================================
 // Pattern Generators
@@ -93,6 +93,7 @@ always @(posedge clk or posedge rst) begin
                 // Обновляем адрес ТОЛЬКО при получении ack
                 if (wb_ack_i) begin
                     address <= address + 24'h2;
+                    wb_stb_o <= 1'b0; // Сбрасываем strobe
                     
                     // Проверяем достижение конца 64KB
                     if (address >= 24'hFFFE) begin
@@ -108,12 +109,18 @@ always @(posedge clk or posedge rst) begin
                     
                     // Обновляем выходные сигналы
                     wb_adr_o <= address + 24'h2;
-                    wb_dat_o <= generate_pattern(address + 24'h2, pattern_type);
+                    if (address == 24'h0000) begin
+                        wb_dat_o <= {8'h00, frame_counter[7:0]}; // Живой счётчик!
+                    end else begin
+                        wb_dat_o <= generate_pattern(address + 24'h2, pattern_type);
+                    end
+                end else begin
+                   // Поднимаем strobe для нового цикла
+                   wb_stb_o <= 1'b1;
                 end
                 
                 // Всегда активны в этих состояниях
                 wb_cyc_o <= 1'b1;
-                wb_stb_o <= 1'b1;
                 wb_we_o <= 1'b1;
             end
         endcase

@@ -11,8 +11,8 @@ SDRAM_DIR  := $(SRC_DIR)/components/memory/sdram
 
 # Source files - ТОЛЬКО необходимые для SDRAM теста
 CLOCK      := $(TARGET_DIR)/clocks/system_pll.v
-SDRAM_CTRL := $(SDRAM_DIR)/sdram_ctrl_wb.sv
-TOP_MODULE := $(SYSTEM_DIR)/sdram_test_top.sv $(SYSTEM_DIR)/sdram_test_pattern.sv
+SDRAM_CTRL := $(SDRAM_DIR)/sdram_ctrl_wb.sv $(SDRAM_DIR)/sdram_test_pattern.sv
+TOP_MODULE := $(SYSTEM_DIR)/sdram_test_top.sv
 
 # Generated files
 YOSYS_SCRIPT := sdram_test.ys
