@@ -13,8 +13,8 @@ module color_palette (
     // Wishbone interface
     input  logic            wb_clk_i, wb_rst_i,
     input  logic [23:0]     wb_adr_i,
-    input  logic [15:0]     wb_dat_i,      // 8-bit data bus for CPC compatibility
-    output logic [15:0]     wb_dat_o,
+    input  logic [7:0]      wb_dat_i,      // 8-bit data bus for CPC compatibility
+    output logic [7:0]      wb_dat_o,
     input  logic            wb_we_i, wb_stb_i, wb_cyc_i,
     output logic            wb_ack_o,
     output logic            wb_grant_o,
@@ -64,7 +64,7 @@ assign access_valid = native_access || legacy_access;
 assign wb_grant_o = access_valid;
 
 // Convert 16 to 8 bits
-assign wb_dat_in = wb_adr_i[0] ? wb_dat_i[15:0] : wb_dat_i[7:0];
+assign wb_dat_in = wb_dat_i;
 
 
 // Модификация индекса палитры
@@ -229,7 +229,7 @@ always_ff @(posedge wb_clk_i) begin
 end
 
 // Convert 8 bits to 16
-assign wb_dat_o = {wb_dat_out, wb_dat_out};
+assign wb_dat_o = wb_dat_out;
 
 // Pixel color lookup
 always_ff @(posedge pix_clk_i) begin

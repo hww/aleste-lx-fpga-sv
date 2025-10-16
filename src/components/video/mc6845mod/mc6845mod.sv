@@ -30,12 +30,12 @@ module mc6845mod #(
     input logic wb_cyc_i,
     input logic wb_stb_i, 
     input logic [23:0] wb_adr_i,
-    input logic [15:0] wb_dat_i,
+    input logic [7:0] wb_dat_i,
     input logic [1:0] wb_sel_i,
     input logic wb_we_i,
     input logic [1:0] wb_tag_i,
     output logic wb_ack_o,
-    output logic [15:0] wb_dat_o,
+    output logic [7:0] wb_dat_o,
     output logic wb_grant_o,
     
     // Pixel Clock Domain  
@@ -143,8 +143,8 @@ logic [7:0] wb_data_out;
 // Chip select
 assign wb_grant_o = (wb_tag_i == 2'b11) && (wb_adr_i[15:1] == WB_ADDRESS[15:1]) && wb_cyc_i && wb_stb_i;
 assign wb_ack_o = wb_ack;
-assign wb_dat_o = {wb_data_out, wb_data_out};
-assign wb_data_in = wb_adr_i[0] ? wb_dat_i[15:8] : wb_dat_i[7:0];
+assign wb_dat_o = wb_data_out;
+assign wb_data_in = wb_dat_i;
 
 // Wishbone interface
 always_ff @(posedge wb_clk_i) begin

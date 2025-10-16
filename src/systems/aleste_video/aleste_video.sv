@@ -89,7 +89,8 @@ module aleste_video #(
     reset_controller reset_inst(
         .clk(clk_54m),
         .pll_locked(pll_locked),
-        .system_reset(system_reset)
+        .system_reset(system_reset),
+        .boot_complete()
     );
 
     // ===========================================
@@ -176,11 +177,14 @@ module aleste_video #(
 
     // Boot Controller
     logic boot_complete;
+    assign boot_complete = !system_reset;
 
     // ===========================================
     // Test Data Generator (External WB Interface)
     // ===========================================
-
+   
+   // Graphics oriented version
+   /*
     test_video_data_generator data_gen (
         .clk(clk_54m),
         .rst(system_reset),
@@ -194,11 +198,72 @@ module aleste_video #(
         .wb_tag_o(wb_ext_tag),
         .start_i(!boot_complete)
     );
-   
+   */
+
+    // Memory testing version
+    logic [15:0] test_errors;
+    logic test_done, test_passed, test_end;
+    /*
+    sdram_test_pattern #(
+        .TEST_SIZE(24'h00FFFF) 
+    ) test_inst (
+        .clk(clk_54m),
+        .rst(system_reset),
+        
+        // Wishbone Master Interface
+        .wb_cyc_o(wb_ext_cyc),
+        .wb_stb_o(wb_ext_stb),
+        .wb_ack_i(wb_ext_ack),
+        .wb_we_o(wb_ext_we),
+        .wb_adr_o(wb_ext_adr),
+        .wb_dat_o(wb_ext_dat_i),
+        .wb_dat_i(wb_ext_dat_o),
+        .wb_sel_o(wb_ext_sel),    
+        .wb_tag_o(wb_ext_tag),   
+        
+        // Control
+        .start_i(boot_complete),
+        .done_o(test_done),
+        
+        // Results
+        .test_passed_o(test_passed),
+        .error_count_o(),
+        .test_end_o(test_end)         
+    );
+    */
+    // Direct comect to memory
+    sdram_test_pattern #(
+        .TEST_SIZE(24'h00FFFF) 
+    ) test_inst (
+        .clk(clk_54m),
+        .rst(system_reset),
+        
+        // Wishbone Master Interface
+        .wb_cyc_o(mem_cyc),
+        .wb_stb_o(mem_stb),
+        .wb_grant_i(mem_grant),
+        .wb_ack_i(mem_ack),
+        .wb_we_o(mem_we),
+        .wb_adr_o(mem_adr),
+        .wb_dat_o(mem_dat_i),
+        .wb_dat_i(mem_dat_o),
+        .wb_sel_o(mem_sel),    
+        .wb_tag_o(mem_tag),   
+        
+        // Control
+        .start_i(boot_complete),
+        .done_o(test_done),
+        
+        // Results
+        .test_passed_o(test_passed),
+        .error_count_o(test_errors),
+        .test_end_o(test_end)         
+    );
+
     // ===========================================
     // Internal WB Arbiter
     // ===========================================
-  
+    /*
     wb_arbiter_internal wb_arbiter (
         .clk(clk_54m),
         .rst(system_reset),
@@ -251,7 +316,7 @@ module aleste_video #(
         .mem_sel_o(mem_sel),
         .mem_tag_o(mem_tag)
     );
-
+    */
     // ===========================================
     // CRTC контроллер
     // ===========================================
@@ -601,6 +666,7 @@ assign debug[5] = mem_sel[0];
 assign debug[6] = mem_sel[1];
 assign debug[7] = mem_tag[1];
 */
+/*
 assign debug[0] = sdram_cke;
 assign debug[1] = sdram_cs_n;
 assign debug[2] = sdram_ras_n;
@@ -609,6 +675,15 @@ assign debug[4] = sdram_we_n;
 assign debug[5] = sdram_dm[0];
 assign debug[6] = sdram_dm[1];
 assign debug[7] = sdram_a[0];
+ */
+assign debug[0] = sdram_ras_n;
+assign debug[1] = sdram_we_n;
+assign debug[2] = test_errors[0];
+assign debug[3] = test_errors[1];
+assign debug[4] = test_errors[2];
+assign debug[5] = test_done;
+assign debug[6] = test_passed;
+assign debug[7] = test_end;
 
 endmodule
 

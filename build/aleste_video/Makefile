@@ -19,7 +19,7 @@ VIDBUF_DIR  := $(SRC_DIR)/components/video/video_buffer
 # Source files для aleste_video
 RESET_CTRL  := $(RESET_DIR)/reset_controller.sv
 CLOCK       := $(TARGET_DIR)/clocks/system_pll.v $(TARGET_DIR)/clocks/video_pll.v
-SDRAM_CTRL  := $(SDRAM_DIR)/sdram_ctrl_wb.sv 
+SDRAM_CTRL  := $(SDRAM_DIR)/sdram_ctrl_wb.sv  $(SDRAM_DIR)/sdram_test_pattern.sv
 HDMI        := $(LLHDMI_DIR)/llhdmi.v $(LLHDMI_DIR)/tmds_encoder.v $(LLHDMI_DIR)/OBUFDS.v
 CRTC        := $(CRTC_DIR)/mc6845mod.sv 
 SCALER      := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
@@ -28,7 +28,7 @@ VIDBUF      := $(VIDBUF_DIR)/video_buffer.sv
 PIXPIPE	    := $(PIXPIPE_DIR)/pixel_pipeline.sv
 MEM_ARBITER :=  $(SYSTEM_DIR)/memory_arbiter.sv 
 WB_ARBITER :=  $(SYSTEM_DIR)/wb_arbiter_internal.sv
-TEST_GEN    := $(SYSTEM_DIR)/test_data_generator.sv $(SYSTEM_DIR)/test_video_data_generator.sv
+TEST_GEN    := $(SYSTEM_DIR)/test_video_data_generator.sv
 TOP_MODULE  := $(SYSTEM_DIR)/aleste_video.sv
 
 

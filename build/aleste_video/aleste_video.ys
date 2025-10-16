@@ -2,8 +2,8 @@ read_verilog -I. -DCONFIG_27MHZ -I../../src/config -sv ../../src/systems/aleste_
 read_verilog ../../src/platforms/icesugar_pro/clocks/system_pll.v ../../src/platforms/icesugar_pro/clocks/video_pll.v
 read_verilog ../../src/components/video/llhdmi/llhdmi.v ../../src/components/video/llhdmi/tmds_encoder.v ../../src/components/video/llhdmi/OBUFDS.v
 read_verilog ../../src/components/video/video_buffer/video_buffer.sv
-read_verilog -sv ../../src/components/memory/sdram/sdram_ctrl_wb.sv 
-read_verilog -sv ../../src/systems/aleste_video/test_data_generator.sv ../../src/systems/aleste_video/test_video_data_generator.sv
+read_verilog -sv ../../src/components/memory/sdram/sdram_ctrl_wb.sv  ../../src/components/memory/sdram/sdram_test_pattern.sv
+read_verilog -sv ../../src/systems/aleste_video/test_video_data_generator.sv
 read_verilog -sv ../../src/components/video/mc6845mod/mc6845mod.sv 
 read_verilog -sv ../../src/components/video/hdmi_scaler/dual_port_ram.sv ../../src/components/video/hdmi_scaler/hdmi_scaler.sv
 read_verilog -sv ../../src/components/video/palette/cpc_colors.sv ../../src/components/video/palette/color_palette.sv

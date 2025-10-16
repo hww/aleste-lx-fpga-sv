@@ -6,6 +6,7 @@ module sdram_test_pattern #(
     // Wishbone Master Interface
     output logic        wb_cyc_o,
     output logic        wb_stb_o,
+    input  logic        wb_grant_i,
     input               wb_ack_i,
     output logic        wb_we_o,
     output logic [23:0] wb_adr_o,
@@ -39,24 +40,35 @@ state_t state;
 logic [23:0] addr;
 logic [15:0] errors;
 logic [15:0] data;  // Для хранения ожидаемых данных
+logic ack;
 
 // Direct assignments
 assign wb_adr_o = addr;
 assign wb_dat_o = data;
 assign wb_tag_o = 2'b00;
 assign wb_sel_o = 2'b11;
+assign ack = wb_grant_i && wb_ack_i;
+assign error_count_o = errors;
 
 // Test pattern functions
 wire [15:0] pattern_a = {8'hA5, addr[7:0]} ^ {addr[7:0], 8'h5A};
 wire [15:0] pattern_b = ~pattern_a;
 
-always_ff @(posedge clk or posedge rst) begin
+always_ff @(posedge clk) begin
+    if (rst) begin
+        done_o <= 0;
+    end else if (test_end_o) begin  
+        done_o <= 1;
+    end
+end
+
+always_ff @(posedge clk) begin
     if (rst) begin
         state <= IDLE;
         wb_cyc_o <= 0;
         wb_stb_o <= 0;
         wb_we_o <= 0;
-        done_o <= 0;
+
         test_passed_o <= 0;
         test_end_o <= 0;
         error_count_o <= 0;
@@ -81,7 +93,7 @@ always_ff @(posedge clk or posedge rst) begin
             end
 
             WRITE_A: begin
-                if (wb_ack_i) begin
+                if (ack) begin
                     wb_stb_o <= 0;            
                     
                     if (addr >= (TEST_SIZE-1)*2) begin
@@ -101,7 +113,7 @@ always_ff @(posedge clk or posedge rst) begin
             end
 
             VERIFY_A: begin
-                if (wb_ack_i) begin
+                if (ack) begin
                     if (wb_dat_i != data) begin
                         errors <= errors + 1;
                     end
@@ -124,7 +136,7 @@ always_ff @(posedge clk or posedge rst) begin
             end
 
             WRITE_B: begin
-                if (wb_ack_i) begin
+                if (ack) begin
                     wb_stb_o <= 0;            
                     
                     if (addr >= (TEST_SIZE-1)*2) begin
@@ -144,7 +156,7 @@ always_ff @(posedge clk or posedge rst) begin
             end
 
             VERIFY_B: begin
-                if (wb_ack_i) begin
+                if (ack) begin
                     if (wb_dat_i != data) begin
                         errors <= errors + 1;
                     end
@@ -167,10 +179,9 @@ always_ff @(posedge clk or posedge rst) begin
             end
 
             DONE: begin
-                done_o <= 1;
                 test_end_o <= 1; // Маркер цикла - устанавливаем в 1
                 test_passed_o <= (errors == 0);
-                error_count_o <= errors;
+
                 
                 // На следующий такт автоматически в IDLE
                 state <= IDLE;
