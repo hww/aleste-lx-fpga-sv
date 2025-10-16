@@ -5,6 +5,7 @@ module video_pll
   output clk_270M,     // Для TMDS сериализации
   output clk_54M,      // 2xПиксельная частота HDMI
   output clk_27M,      // Пиксельная частота HDMI
+  output clk_108M,     // Для системы 
   output locked
 );
     wire int_locked;
@@ -45,6 +46,8 @@ module video_pll
         .OUTDIVIDER_MUXC("DIVC"),
         .CLKOS_ENABLE("ENABLED"),
         .CLKOP_ENABLE("ENABLED"),
+        .CLKOS2_DIV("ENABLED"),
+        .CLKOS3_DIV("ENABLED"),
         .FEEDBK_PATH("CLKOP"),// Определяем выход испольщзуемый для обратной связщи
         .CLKI_DIV(5),         // 25 MHz / 5 = 5 Mhz
         .CLKFB_DIV(54),       // 270 MHz / 54 = 5 MHz (feedback)
@@ -52,6 +55,7 @@ module video_pll
         .CLKOP_DIV(2),        // 540 MHz / 2 = 270 MHz 
         .CLKOS_DIV(20),       // 540 MHz / 20 = 27 MHz
         .CLKOS2_DIV(10),      // 540 MHz / 10 = 54 MHz
+        .CLKOS3_DIV(5),       // 540 MHz / 5 = 108 MHz
     )
     pll_video
     (
@@ -60,7 +64,7 @@ module video_pll
         .CLKOP(clk_270M),
         .CLKOS(clk_27M),
         .CLKOS2(clk_54M),
-        .CLKOS3(),
+        .CLKOS3(clk_108M),
         .RST(1'b0),
         .STDBY(1'b0),
         .LOCK(locked),

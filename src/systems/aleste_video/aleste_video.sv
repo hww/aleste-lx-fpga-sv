@@ -66,7 +66,7 @@ module aleste_video #(
     // ===========================================
     // Clock & Reset
     // ===========================================
-    logic clk_27m, clk_270m, clk_54m, clk_100m;
+    logic clk_27m, clk_270m, clk_54m, clk_108m, clk_system;
     logic pll_locked;
     logic system_reset;
 
@@ -76,13 +76,8 @@ module aleste_video #(
         .clk_270M(clk_270m),
         .clk_54M(clk_54m), 
         .clk_27M(clk_27m),
+        .clk_108M(clk_108m),
         .locked(pll_locked)
-    );
-
-    system_pll sys_pll(
-        .clkin_25M(clk_25mhz),
-        .clk_100M(clk_100m),
-        .locked() // Используем общий locked
     );
 
     // Системный сброс
@@ -92,6 +87,8 @@ module aleste_video #(
         .system_reset(system_reset),
         .boot_complete()
     );
+
+    assign clk_system = clk_108m;
 
     // ===========================================
     // Signal Declarations
@@ -182,37 +179,20 @@ module aleste_video #(
     // ===========================================
     // Test Data Generator (External WB Interface)
     // ===========================================
-   
-   // Graphics oriented version
-   /*
-    test_video_data_generator data_gen (
-        .clk(clk_54m),
-        .rst(system_reset),
-        .wb_cyc_o(wb_ext_cyc),
-        .wb_stb_o(wb_ext_stb),
-        .wb_ack_i(wb_ext_ack),
-        .wb_we_o(wb_ext_we),
-        .wb_adr_o(wb_ext_adr),
-        .wb_dat_o(wb_ext_dat_i),
-        .wb_sel_o(wb_ext_sel),
-        .wb_tag_o(wb_ext_tag),
-        .start_i(!boot_complete)
-    );
-   */
 
-    // Memory testing version
     logic [15:0] test_errors;
     logic test_done, test_passed, test_end;
-    /*
+
     sdram_test_pattern #(
-        .TEST_SIZE(24'h00FFFF) 
+        .TEST_SIZE(24'hFFFFFF) 
     ) test_inst (
-        .clk(clk_54m),
+        .clk(clk_system),
         .rst(system_reset),
         
         // Wishbone Master Interface
         .wb_cyc_o(wb_ext_cyc),
         .wb_stb_o(wb_ext_stb),
+        .wb_grant_i(wb_ext_grant),
         .wb_ack_i(wb_ext_ack),
         .wb_we_o(wb_ext_we),
         .wb_adr_o(wb_ext_adr),
@@ -227,45 +207,16 @@ module aleste_video #(
         
         // Results
         .test_passed_o(test_passed),
-        .error_count_o(),
-        .test_end_o(test_end)         
-    );
-    */
-    // Direct comect to memory
-    sdram_test_pattern #(
-        .TEST_SIZE(24'h00FFFF) 
-    ) test_inst (
-        .clk(clk_54m),
-        .rst(system_reset),
-        
-        // Wishbone Master Interface
-        .wb_cyc_o(mem_cyc),
-        .wb_stb_o(mem_stb),
-        .wb_grant_i(mem_grant),
-        .wb_ack_i(mem_ack),
-        .wb_we_o(mem_we),
-        .wb_adr_o(mem_adr),
-        .wb_dat_o(mem_dat_i),
-        .wb_dat_i(mem_dat_o),
-        .wb_sel_o(mem_sel),    
-        .wb_tag_o(mem_tag),   
-        
-        // Control
-        .start_i(boot_complete),
-        .done_o(test_done),
-        
-        // Results
-        .test_passed_o(test_passed),
         .error_count_o(test_errors),
         .test_end_o(test_end)         
     );
-
+  
     // ===========================================
     // Internal WB Arbiter
     // ===========================================
-    /*
+ 
     wb_arbiter_internal wb_arbiter (
-        .clk(clk_54m),
+        .clk(clk_system),
         .rst(system_reset),
         
         // External WB Interface
@@ -316,12 +267,12 @@ module aleste_video #(
         .mem_sel_o(mem_sel),
         .mem_tag_o(mem_tag)
     );
-    */
+
     // ===========================================
     // CRTC контроллер
     // ===========================================
     mc6845mod #(
-        .STANDARD("cpc"),
+        .STANDARD("lx"),
         .WB_ADDRESS(16'h6845),
         .HDMI_H_VISIBLE(HDMI_H_VISIBLE),
         .HDMI_V_VISIBLE(HDMI_V_VISIBLE),
@@ -329,7 +280,7 @@ module aleste_video #(
         .HDMI_V_TOTAL(HDMI_V_TOTAL)
     ) crtc (
         // Wishbone
-        .wb_clk_i(clk_54m),
+        .wb_clk_i(clk_system),
         .wb_rst_i(system_reset),
         .wb_cyc_i(crtc_cyc),
         .wb_stb_i(crtc_stb),
@@ -373,10 +324,10 @@ module aleste_video #(
         // Extended address
         .crtc_ext_addr_o(crtc_ext_addr),
 
+        .crtc_use_cpc_modes(crtc_use_cpc_modes),        // 0=extended, 1=legacy CPC
         .crtc_bpp_mode(crtc_bpp_mode),                  // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
         .crtc_continuous_mode(crtc_continuous_mode),    // 0=CPC-style, 1=continuous  
-        .crtc_use_cpc_modes(crtc_use_cpc_modes),        // 0=extended, 1=legacy CPC
-    
+     
         // NEW: Extended address interface
         .crtc_burst_mode_o(crtc_burst_mode),            // 1=32-bit burst, 0=16-bit normal
         .crtc_addr_mode_o(crtc_addr_mode),              // Address mode
@@ -387,7 +338,7 @@ module aleste_video #(
     // Memory Arbiter (Video + System WB)
     // ===========================================
     memory_arbiter mem_arbiter (
-        .clk(clk_54m),
+        .clk(clk_system),
         .rst(system_reset),
         
         // Video Interface
@@ -431,7 +382,7 @@ module aleste_video #(
     // SDRAM Controller
     // ===========================================
     sdram_ctrl_wb sdram_controller(
-        .wb_clk_i(clk_54m),
+        .wb_clk_i(clk_system),
         .wb_rst_i(system_reset),
         .wb_cyc_i(sdram_req),
         .wb_stb_i(sdram_req),
@@ -508,11 +459,10 @@ module aleste_video #(
         .pix_ena_i(clk_27m),
         
         // Memory interface
-        //.vmem_data_i(16'h77),
         .vmem_data_i(vbuf_data_o),
 
         // Configuration
-        .bpp_mode_i(crtc_bpp_mode),
+        .bpp_mode_i(/*crtc_bpp_mode*/0),
         .continuous_mode_i(crtc_continuous_mode),
 
         // CRTC timing
@@ -647,6 +597,18 @@ module aleste_video #(
 // ===========================================
 // Отладка
 // ===========================================
+
+logic serial_debug_pin;
+
+debug_shift_reg addr_debug (
+    .rst(system_reset),
+    .clk(clk_54m),
+    .ce(clk_27m),                    // Всегда включен
+    .we(crtc_char_strobe),               // Захватываем при новом пикселе
+    .data_in(crtc_ext_addr),      // Младшие 16 бит адреса
+    .data_out(serial_debug_pin)          // На осциллограф
+);
+
 // LOCATION OF DEBUG PINS ON THE PCB
 // --------------------------------------+
 //    |          | F2 D1 C1 B1 GND       |  
@@ -676,14 +638,18 @@ assign debug[5] = sdram_dm[0];
 assign debug[6] = sdram_dm[1];
 assign debug[7] = sdram_a[0];
  */
-assign debug[0] = sdram_ras_n;
-assign debug[1] = sdram_we_n;
-assign debug[2] = test_errors[0];
-assign debug[3] = test_errors[1];
-assign debug[4] = test_errors[2];
+ /*
+assign debug[0] = crtc_de;
+assign debug[1] = crtc_char_strobe;
+assign debug[2] = crtc_newline;
+assign debug[3] = crtc_newframe;
+assign debug[4] = serial_debug_pin;
 assign debug[5] = test_done;
 assign debug[6] = test_passed;
 assign debug[7] = test_end;
+*/
+
+assign debug = vbuf_data_o;
 
 endmodule
 

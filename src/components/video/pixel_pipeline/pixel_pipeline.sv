@@ -34,15 +34,15 @@ module pixel_pipeline (
     output wire de_o            // Display Enable к палитре (1=active, 0=border)
 );
 
-reg [1:0] bpp_mode_latched;
-reg continuous_mode_latched;
-reg [7:0] shift_reg;
-reg [7:0] pixel_index_latch;
-reg de_ff1;
-reg de_ff2;
+reg [1:0] bpp_mode_latched = 0;
+reg continuous_mode_latched = 0;
+reg [7:0] shift_reg = 0;
+reg [7:0] pixel_index_latch = 0;
+reg de_ff1 = 0;
+reg de_ff2 = 0;
 
 
-always @(posedge clk_i or posedge rst_i) begin
+always @(posedge clk_i) begin
     if (rst_i) begin
         bpp_mode_latched <= 2'b0;
         continuous_mode_latched <= 1'b0;
@@ -106,7 +106,7 @@ end
 // Display Enable защёлка с той же латентностью что и пиксели
 
 
-always @(posedge clk_i or posedge rst_i) begin
+always @(posedge clk_i) begin
     if (rst_i) begin
         de_ff1 <= 1'b1; // По умолчанию display enabled
     end else if (char_strobe_i) begin
@@ -114,7 +114,7 @@ always @(posedge clk_i or posedge rst_i) begin
         de_ff1 <= de_i;
     end
 end
-always @(posedge clk_i or posedge rst_i) begin
+always @(posedge clk_i) begin
     if (rst_i) begin
         de_ff2 <= 1'b1; // По умолчанию display enabled
     end else if (pix_ena_i) begin

@@ -1,0 +1,7 @@
+read_verilog -I. -DCONFIG_27MHZ -I../../src/config -sv ../../src/systems/uart_bridge/uart_bridge_test.sv
+read_verilog ../../src/platforms/icesugar_pro/clocks/video_pll.v
+read_verilog -sv ../../src/components/reset/reset_controller.sv
+read_verilog -sv ../../src/components/memory/sdram/sdram_ctrl_wb.sv
+read_verilog -sv ../../src/components/io/uart/uart_bridge.sv ../../src/components/io/uart/uart.v ../../src/components/io/uart/receiver.v ../../src/components/io/uart/transmitter.v ../../src/components/io/uart/baud_rate_gen.v
+hierarchy -top uart_bridge_test
+synth_ecp5 -json uart_bridge_test.json -no-rw-check

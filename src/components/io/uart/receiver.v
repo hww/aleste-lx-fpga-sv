@@ -1,13 +1,17 @@
-module receiver(input wire rx,
-		output reg rdy,
-		input wire rdy_clr,
-		input wire clk_50m,
-		input wire clken,
-		output reg [7:0] data);
+`default_nettype none
+module receiver(
+	input wire rst_i,
+	input wire clk_i,
+	input wire clken_i,
+	input wire rx_i,
+	input wire ready_clr_i,
+	output reg ready_o,
+	output reg [7:0] data_o
+	);
 
 initial begin
-	rdy = 0;
-	data = 8'b0;
+	ready_o = 0;
+	data_o = 8'b0;
 end
 
 parameter RX_STATE_START	= 2'b00;
@@ -19,56 +23,61 @@ reg [3:0] sample = 0;
 reg [3:0] bitpos = 0;
 reg [7:0] scratch = 8'b0;
 
-always @(posedge clk_50m) begin
-	if (rdy_clr)
-		rdy <= 0;
+always @(posedge clk_i) begin
+	if (rst_i) begin
 
-	if (clken) begin
-		case (state)
-		RX_STATE_START: begin
-			/*
-			* Start counting from the first low sample, once we've
-			* sampled a full bit, start collecting data bits.
-			*/
-			if (!rx || sample != 0)
+	end else begin
+
+		if (ready_clr_i)
+			ready_o <= 0;
+
+		if (clken_i) begin
+			case (state)
+			RX_STATE_START: begin
+				/*
+				* Start counting from the first low sample, once we've
+				* sampled a full bit, start collecting data_o bits.
+				*/
+				if (!rx_i || sample != 0)
+					sample <= sample + 4'b1;
+
+				if (sample == 15) begin
+					state <= RX_STATE_DATA;
+					bitpos <= 0;
+					sample <= 0;
+					scratch <= 0;
+				end
+			end
+			RX_STATE_DATA: begin
 				sample <= sample + 4'b1;
-
-			if (sample == 15) begin
-				state <= RX_STATE_DATA;
-				bitpos <= 0;
-				sample <= 0;
-				scratch <= 0;
+				if (sample == 4'h8) begin
+					scratch[bitpos[2:0]] <= rx_i;
+					bitpos <= bitpos + 4'b1;
+				end
+				if (bitpos == 8 && sample == 15)
+					state <= RX_STATE_STOP;
 			end
-		end
-		RX_STATE_DATA: begin
-			sample <= sample + 4'b1;
-			if (sample == 4'h8) begin
-				scratch[bitpos[2:0]] <= rx;
-				bitpos <= bitpos + 4'b1;
+			RX_STATE_STOP: begin
+				/*
+				* Our baud clock may not be running at exactly the
+				* same rate as the transmitter.  If we thing that
+				* we're at least half way into the stop bit, allow
+				* transition into handling the next start bit.
+				*/
+				if (sample == 15 || (sample >= 8 && !rx_i)) begin
+					state <= RX_STATE_START;
+					data_o <= scratch;
+					ready_o <= 1'b1;
+					sample <= 0;
+				end else begin
+					sample <= sample + 4'b1;
+				end
 			end
-			if (bitpos == 8 && sample == 15)
-				state <= RX_STATE_STOP;
-		end
-		RX_STATE_STOP: begin
-			/*
-			 * Our baud clock may not be running at exactly the
-			 * same rate as the transmitter.  If we thing that
-			 * we're at least half way into the stop bit, allow
-			 * transition into handling the next start bit.
-			 */
-			if (sample == 15 || (sample >= 8 && !rx)) begin
+			default: begin
 				state <= RX_STATE_START;
-				data <= scratch;
-				rdy <= 1'b1;
-				sample <= 0;
-			end else begin
-				sample <= sample + 4'b1;
 			end
+			endcase
 		end
-		default: begin
-			state <= RX_STATE_START;
-		end
-		endcase
 	end
 end
 

@@ -2,57 +2,84 @@
  * Simple testbench for UART.  Loop the rx and tx pins to each other and send
  * incrementing bytes, make sure that we receive what we expected.
  */
-//`include "uart.v"
 
 module uart_tx_test();
 
-reg [7:0] data = 0;
+reg [7:0] tx_data = 0;
 reg clk = 0;
-reg enable = 0;
+reg tx_wr = 0;
+reg rst = 0;
 
 wire tx_busy;
-wire rdy;
-wire [7:0] rxdata;
+wire rx_ready;
+wire [7:0] rx_data;
 
 wire loopback;
-reg rdy_clr = 0;
+reg rx_ready_clr = 0;
 
-uart test_uart(.din(data),
-	       .wr_en(enable),
-	       .clk_50m(clk),
-	       .tx(loopback),
-	       .tx_busy(tx_busy),
-	       .rx(loopback),
-	       .rdy(rdy),
-	       .rdy_clr(rdy_clr),
-	       .dout(rxdata));
+// Новый интерфейс UART
+uart test_uart(
+    .clk_i(clk),
+    .rst_i(rst),
+    
+    // transmitter
+    .tx_data_i(tx_data),
+    .tx_wr_i(tx_wr),
+    .tx_o(loopback),
+    .tx_busy_o(tx_busy),
+    
+    // receiver  
+    .rx_i(loopback),
+    .rx_ready_o(rx_ready),
+    .rx_ready_clr_i(rx_ready_clr),
+    .rx_data_o(rx_data)
+);
 
 initial begin
-	$dumpfile("uart.vcd");
-	$dumpvars(0, uart_tx_test);
-	enable <= 1'b1;
-	#2 enable <= 1'b0;
+    $dumpfile("uart.vcd");
+    $dumpvars(0, uart_tx_test);
+    
+    // Сброс
+    #10 rst <= 1'b1;
+    #20 rst <= 1'b0;
+    #10;
+    
+    // Первая передача
+    tx_wr <= 1'b1;
+    #2 tx_wr <= 1'b0;
 end
 
 always begin
-	#1 clk = ~clk;
+    #1 clk = ~clk;  // 50MHz clock
 end
 
-always @(posedge rdy) begin
-	#2 rdy_clr <= 1;
-	#2 rdy_clr <= 0;
-	if (rxdata != data) begin
-		$display("FAIL: rx data %x does not match tx %x", rxdata, data);
-		$finish;
-	end else begin
-		if (rxdata == 8'hff) begin
-			$display("SUCCESS: all bytes verified");
-			$finish;
-		end
-		data <= data + 1'b1;
-		enable <= 1'b1;
-		#2 enable <= 1'b0;
-	end
+always @(posedge rx_ready) begin
+    #2 rx_ready_clr <= 1'b1;
+    #2 rx_ready_clr <= 1'b0;
+    
+    if (rx_data != tx_data) begin
+        $display("FAIL: rx data %x does not match tx %x", rx_data, tx_data);
+        $finish;
+    end else begin
+        if (rx_data == 8'hff) begin
+            $display("SUCCESS: all bytes verified");
+            $finish;
+        end
+        
+        // Следующий байт
+        tx_data <= tx_data + 1'b1;
+        // Ждем пока передатчик освободится
+        wait(!tx_busy);
+        #10 tx_wr <= 1'b1;
+        #2 tx_wr <= 1'b0;
+    end
+end
+
+// Таймаут на случай зависания
+initial begin
+    #10000000;
+    $display("FAIL: Test timeout");
+    $finish;
 end
 
 endmodule

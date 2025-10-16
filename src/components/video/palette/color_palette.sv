@@ -63,7 +63,7 @@ assign logic_address = wb_adr_i[4:0];
 assign access_valid = native_access || legacy_access;
 assign wb_grant_o = access_valid;
 
-// Convert 16 to 8 bits
+// Convert 16 to 8 bitsv
 assign wb_dat_in = wb_dat_i;
 
 
@@ -135,8 +135,29 @@ always_ff @(posedge wb_clk_i) begin
         wb_ack_o <= 1'b0;
         wb_dat_out <= 8'h00;
         // Инициализация при сбросе
-        for (int i = 0; i < 256; i++) begin
-            palette_ram[i] <= {i[0], i[0], i[0], i[0], i[3:0], i[7:4]}; // Градиент
+        palette_ram[0] <= 12'h000; // Градиент
+        palette_ram[1] <= 12'hf00; // Градиент
+        palette_ram[2] <= 12'h0f0; // Градиент
+        palette_ram[3] <= 12'h00f; // Градиент
+
+        palette_ram[4] <= 12'hCCC; // Градиент
+        palette_ram[5] <= 12'hC00; // Градиент
+        palette_ram[6] <= 12'h0C0; // Градиент
+        palette_ram[7] <= 12'h00C; // Градиент
+
+        palette_ram[8] <= 12'h888; // Градиент
+        palette_ram[9] <= 12'h800; // Градиент
+        palette_ram[10] <= 12'h080; // Градиент
+        palette_ram[11] <= 12'h008; // Градиент
+
+        palette_ram[12] <= 12'h444; // Градиент
+        palette_ram[13] <= 12'h400; // Градиент
+        palette_ram[14] <= 12'h040; // Градиент
+        palette_ram[15] <= 12'h004; // Градиент
+
+
+        for (int i = 4; i < 256; i++) begin
+            palette_ram[i] <= { i[3:0], i[5:2], i[7:4] }; // Градиент
         end
     end else begin
         wb_ack_o <= 1'b0;

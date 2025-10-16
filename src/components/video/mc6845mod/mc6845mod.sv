@@ -170,12 +170,42 @@ always_ff @(posedge wb_clk_i) begin
             reg_cursor_start <= 5'd0;
             reg_cursor_mode <= 2'd0;
             reg_cursor_end <= 5'd0;
-            reg_start_addr_h <= 6'h20;
+            reg_start_addr_h <= 6'h00;
             reg_start_addr_l <= 8'd0;
             reg_cursor_addr_h <= 6'd0;
             reg_cursor_addr_l <= 8'd0;
-            reg_video_control <= 8'b0000_0100; // use_cpc_modes=1, bpp_mode=01
-        end else begin
+            // Reset extended registers
+            reg_video_control <= 8'b0000_0000; // use_cpc_modes=1, bpp_mode=01
+            reg_pixel_ctrl <= 8'h00;
+            reg_addr_mode <= 8'h00;
+            reg_high_address <= 8'h00;
+        end else if (STANDARD == "lx") begin
+            // CPC default values
+            reg_h_total <= 8'd63;
+            reg_h_displayed <= 8'd40;  
+            reg_h_sync_pos <= 8'd46;
+            reg_h_sync_width <= 4'd14;
+            reg_v_sync_width <= 4'd8;
+            reg_v_total <= 7'd38;
+            reg_v_adjust <= 5'd0;
+            reg_v_displayed <= 7'd25;
+            reg_v_sync_pos <= 7'd30;
+            reg_interlace <= 2'd0;
+            reg_skew <= 2'd0;
+            reg_max_scan <= 5'd07;
+            reg_cursor_start <= 5'd0;
+            reg_cursor_mode <= 2'd0;
+            reg_cursor_end <= 5'd0;
+            reg_start_addr_h <= 6'h00;
+            reg_start_addr_l <= 8'd0;
+            reg_cursor_addr_h <= 6'd0;
+            reg_cursor_addr_l <= 8'd0;
+            // Reset extended registers
+            reg_video_control <= 8'b0000_0000; // use_cpc_modes=1, bpp_mode=01
+            reg_pixel_ctrl <= 8'h00;
+            reg_addr_mode <= 8'b0000_0100;
+            reg_high_address <= 8'h00;
+        end else begin            
             // Reset to defaults
             reg_h_total <= 0;
             reg_h_displayed <= 0;   
@@ -196,13 +226,14 @@ always_ff @(posedge wb_clk_i) begin
             reg_start_addr_l <= 0;
             reg_cursor_addr_h <= 0;
             reg_cursor_addr_l <= 0;
-            reg_video_control <= 8'b0000_0100; // use_cpc_modes=1, bpp_mode=01
+            // Reset extended registers
+            reg_video_control <= 8'b0000_0000; // use_cpc_modes=1, bpp_mode=01
+            reg_pixel_ctrl <= 8'h00;
+            reg_addr_mode <= 8'b0000_0000; 
+            reg_high_address <= 8'h00;
         end
         
-        // Reset extended registers
-        reg_high_address <= 8'h00;
-        reg_addr_mode <= 8'h00;
-        reg_pixel_ctrl <= 8'h00;
+
     end else begin
         // Default assignments
         wb_ack <= 1'b0;
@@ -283,14 +314,34 @@ end
 // ============================================================================
 // РАСШИРЕННЫЕ СИГНАЛЫ УПРАВЛЕНИЯ
 // ============================================================================
-
-// Extract control signals from registers
-wire [1:0] pixel_clock_sel = reg_pixel_ctrl[1:0];  // From new register
-wire       burst_enable    = reg_video_control[2]; // Reuse existing bit
+// Video Control Register (reg_video_control) - 8 bits
+// [7:5] - Reserved for future use
+// [4]   - use_cpc_modes: 0=Normal modes, 1=CPC-compatible video modes
+// [3]   - continuous_mode: 0=Single access, 1=Continuous memory access  
+// [2]   - burst_enable: 0=Single cycle access, 1=Burst mode access (REQUIRES SDRAM SUPPORT!)
+// [1:0] - bpp_mode: 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
 wire [1:0] bpp_mode        = reg_video_control[1:0];
+wire       burst_enable    = reg_video_control[2]; // Reuse existing bit
 wire       continuous_mode = reg_video_control[3];
 wire       use_cpc_modes   = reg_video_control[4];
-wire [2:0] addr_mode       = reg_addr_mode[2:0];   // From new register
+
+// Pixel Control Register (reg_pixel_ctrl) - 8 bits  
+// [7:2] - Reserved for future use
+// [1:0] - pixel_clock_sel: 00=27MHz, 01=54MHz, 10=74MHz, 11=108MHz
+wire [1:0] pixel_clock_sel = reg_pixel_ctrl[1:0];  // From new register
+
+// Address Mode Register (reg_addr_mode) - 8 bits
+// [7:3] - Reserved for future use
+// [2:0] - addr_mode: 
+//          000=(Main) CPC 16KB
+//          001=(Reserved) EX 32KB  
+//          010=(Reserved) LX 32KB
+//          011=(Reserved) LX 64KB
+//          100=(Main Linear) 16,32,64,...,128KB
+//          101-111=Reserved
+wire [2:0] addr_mode = reg_addr_mode[2:0];   // From new register
+wire cpc_mode =  addr_mode == 3'b000; // Linear addressing mode
+wire linear_mode =  addr_mode[2]; // Linear addressing mode
 
 // Output assignments
 assign crtc_bpp_mode = bpp_mode;
@@ -535,7 +586,7 @@ logic [15:0] linear_addr = 0;
 always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i || start_v_trigger) begin
         linear_addr <= {reg_start_addr_h, reg_start_addr_l}; // ×4 for byte address
-    end else if (pix_en_i && char_strobe && addr_mode[2]) begin
+    end else if (pix_en_i && char_strobe && linear_mode) begin
         // Linear addressing: +2 bytes normal, +4 bytes burst
         linear_addr <= linear_addr + (crtc_burst_mode_o ? 16'd4 : 16'd2);
     end
@@ -543,7 +594,7 @@ end
 
 // Extended address output with proper mode selection
 always_comb begin
-    if (addr_mode[2]) begin
+    if (linear_mode) begin
         // Linear addressing modes
         crtc_ext_addr_o = {reg_high_address, linear_addr};
     end else begin
@@ -555,7 +606,7 @@ end
 // Simplified burst request generation
 always_comb begin
     crtc_burst_mode_o = burst_enable && 
-                      addr_mode[2] && // Only in linear mode
+                      linear_mode && // Only in linear mode
                       (crtc_h_count < reg_h_displayed) && 
                       (crtc_v_count < reg_v_displayed) &&
                       (crtc_h_count[0] == 1'b0); // Burst on even character positions
