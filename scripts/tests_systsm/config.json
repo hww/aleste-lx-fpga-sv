@@ -1,0 +1,11 @@
+{
+    "serial": {
+        "port": "/dev/ttyUSB4",
+        "baudrate": 115200,
+        "timeout": 1.0
+    },
+    "protocol": {
+        "max_retries": 3,
+        "response_timeout": 0.5
+    }
+}
