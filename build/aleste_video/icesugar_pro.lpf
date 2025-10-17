@@ -82,6 +82,16 @@ LOCATE COMP "sdram_cas_n" SITE "G16"; IOBUF PORT "sdram_cas_n" PULLMODE=NONE DRI
 LOCATE COMP "sdram_we_n" SITE "A15"; IOBUF PORT "sdram_we_n" PULLMODE=NONE DRIVE=4 SLEWRATE=FAST IO_TYPE=LVCMOS33;
 
 # ===========================================
+# Serial
+# ===========================================
+
+LOCATE COMP "serial_tx" SITE "B9";
+IOBUF PORT "serial_tx" IO_TYPE=LVCMOS33;
+LOCATE COMP "serial_rx" SITE "A9";
+IOBUF PORT "serial_rx" IO_TYPE=LVCMOS33;
+LOCATE COMP "clk25" SITE "P6";
+
+# ===========================================
 # Debug Outputs
 # ===========================================
 # LOCATION OF DEBUG PINS ON THE PCB

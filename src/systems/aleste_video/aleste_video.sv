@@ -462,7 +462,7 @@ module aleste_video #(
         .vmem_data_i(vbuf_data_o),
 
         // Configuration
-        .bpp_mode_i(/*crtc_bpp_mode*/0),
+        .bpp_mode_i(/*crtc_bpp_mode*/3),
         .continuous_mode_i(crtc_continuous_mode),
 
         // CRTC timing
