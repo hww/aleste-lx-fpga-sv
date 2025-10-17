@@ -80,38 +80,37 @@ logic [4:0]  byte_counter = 0;
 logic [7:0]  data_size = 0;
 
 // Регистры управления системой
-logic [7:0] global_control_reg = 8'h00;  // R0 - Global Control
+logic [7:0] global_control_reg = 8'h80;  // R0 - Global Control
 logic [7:0] global_status_reg = 8'h00;   // Глобальный статус
 
 // Бит эхо-режима из global_control_reg
 logic echo_mode;
 assign echo_mode = global_control_reg[7];
 
-// Сигналы управления Wishbone
-logic start_wb_cycle;
-logic wb_cycle_active;
-
-// Регистр ответа
-logic [7:0] response_data = 0;
-
 // Расчет размера данных из команды
-function automatic [7:0] get_data_size(input [7:0] cmd);
-    case (cmd[3:0])
-        4'b0000: return 8'd1;
-        4'b0001: return 8'd2;
-        4'b0010: return 8'd4;
-        4'b0011: return 8'd8;
-        4'b0100: return 8'd16;
-        4'b0101: return 8'd32;
-        4'b0110: return 8'd64;
-        4'b0111: return 8'd128;
-        default: return 8'd1;
-    endcase
+function [7:0] get_data_size;
+    input [7:0] cmd;
+    begin
+        case (cmd[3:0])
+            4'b0000: get_data_size = 8'd1;
+            4'b0001: get_data_size = 8'd2;
+            4'b0010: get_data_size = 8'd4;
+            4'b0011: get_data_size = 8'd8;
+            4'b0100: get_data_size = 8'd16;
+            4'b0101: get_data_size = 8'd32;
+            4'b0110: get_data_size = 8'd64;
+            4'b0111: get_data_size = 8'd128;
+            default: get_data_size = 8'd1;
+        endcase
+    end
 endfunction
 
 // Определение типа команды
-function automatic logic [2:0] get_cmd_type(input [7:0] cmd);
-    return cmd[6:4];
+function [2:0] get_cmd_type;
+    input [7:0] cmd;
+    begin
+        get_cmd_type = cmd[6:4];
+    end
 endfunction
 
 // Обновление глобального статуса
@@ -125,6 +124,14 @@ always_comb begin
     global_status_reg[6] = sdram_calibrated_i;
     global_status_reg[7] = fpga_overload_i;
 end
+
+// Регистр ответа
+logic [7:0] response_data = 0;
+
+// Регистры для выходов Wishbone
+logic [31:0] wb_adr_reg = 0;
+logic [31:0] wb_dat_reg = 0;
+logic [1:0]  wb_sel_reg = 0;
 
 // Основной конечный автомат
 always_ff @(posedge clk_54m) begin
@@ -142,27 +149,46 @@ always_ff @(posedge clk_54m) begin
         wb_stb_o <= '0;
         wb_we_o <= '0;
         response_data <= '0;
-        global_control_reg <= '0;
+        global_control_reg <= 8'h80;
+        wb_adr_reg <= '0;
+        wb_dat_reg <= '0;
+        wb_sel_reg <= '0;
     end else begin
         // Сброс сигналов по умолчанию
         uart_rx_ready_clr <= '0;
         uart_wr <= '0;
         wb_cyc_o <= '0;
         wb_stb_o <= '0;
+        wb_we_o <= '0;
 
         case (current_state)
             STATE_IDLE: begin
                 if (uart_rx_ready) begin
-                    uart_rx_ready_clr <= 1'b1;
-                    cmd_reg <= uart_dout;
-                    byte_counter <= '0;
-                    current_state <= STATE_READ_CMD;
+                    // Эхо-режим: отправляем обратно принятые байты
+                    if (echo_mode) begin
+                        if (!uart_tx_busy && !uart_wr) begin
+                            uart_rx_ready_clr <= 1'b1;
+                            uart_wr <= 1'b1;
+                            uart_din <= uart_dout;
+                            // Отключаем эхо при получении ENTER (0x0A - LF)
+                            if (uart_dout == 8'h0D || uart_dout == 8'h0A) begin  // CR или LF
+                                global_control_reg[7] <= 1'b0;  // Также сбрасываем бит в регистре
+                            end
+                        end
+                    end else begin
+                        uart_rx_ready_clr <= 1'b1;
+                        cmd_reg <= uart_dout;
+                        byte_counter <= '0;
+                        addr_reg <= '0;
+                        data_reg <= '0;
+                        current_state <= STATE_READ_CMD;
+                        data_size <= get_data_size(uart_dout);
+                    end
                 end
             end
             
             STATE_READ_CMD: begin
                 uart_rx_ready_clr <= 1'b0;
-                data_size <= get_data_size(cmd_reg);
                 
                 case (get_cmd_type(cmd_reg))
                     // Чтение памяти - требуется адрес
@@ -174,6 +200,7 @@ always_ff @(posedge clk_54m) begin
                                 byte_counter <= byte_counter + 1;
                             end
                         end else begin
+                            wb_adr_reg <= addr_reg;
                             current_state <= STATE_WB_READ;
                         end
                     end
@@ -193,6 +220,9 @@ always_ff @(posedge clk_54m) begin
                                 byte_counter <= byte_counter + 1;
                             end
                         end else begin
+                            wb_adr_reg <= addr_reg;
+                            wb_dat_reg <= data_reg;
+                            wb_sel_reg <= 2'b11;
                             current_state <= STATE_WB_WRITE;
                         end
                     end
@@ -274,7 +304,6 @@ always_ff @(posedge clk_54m) begin
                 wb_cyc_o <= 1'b1;
                 wb_stb_o <= 1'b1;
                 wb_we_o <= 1'b0;
-                wb_adr_o <= addr_reg;
                 
                 if (wb_ack_i) begin
                     response_data <= wb_dat_i[7:0]; // Первый байт данных
@@ -286,9 +315,6 @@ always_ff @(posedge clk_54m) begin
                 wb_cyc_o <= 1'b1;
                 wb_stb_o <= 1'b1;
                 wb_we_o <= 1'b1;
-                wb_adr_o <= addr_reg;
-                wb_dat_o <= data_reg;
-                wb_sel_o <= 2'b11; // Все байты активны
                 
                 if (wb_ack_i) begin
                     response_data <= 8'h00; // Успех
@@ -309,18 +335,14 @@ always_ff @(posedge clk_54m) begin
             end
         endcase
         
-        // Эхо-режим: отправляем обратно принятые байты
-        if (echo_mode && uart_rx_ready && current_state == STATE_IDLE) begin
-            uart_rx_ready_clr <= 1'b1;
-            uart_wr <= 1'b1;
-            uart_din <= uart_dout;
-        end
+
     end
 end
 
-// Постоянные присвоения для Wishbone (когда не активны)
-assign wb_adr_o = (current_state == STATE_WB_READ || current_state == STATE_WB_WRITE) ? addr_reg : '0;
-assign wb_dat_o = (current_state == STATE_WB_WRITE) ? data_reg : '0;
+// Непрерывные присвоения для выходов Wishbone
+assign wb_adr_o = wb_adr_reg;
+assign wb_dat_o = wb_dat_reg;
+assign wb_sel_o = wb_sel_reg;
 assign state_o = current_state;
 
 endmodule
