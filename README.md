@@ -38,7 +38,7 @@ Key aspects:
 | Magic Sound 2      | ✅ Works         | 🟡 In Progress          |       |
 | Scan Doubler       | ✅ Works         | Image on TV             |       |
 | HDMI Controller    | ✅ Works         | Image on TV             |       |
-| Video Core         | 🟡 In Progress   |                         |       |
+| Video Core         | ✅ Works         | Image on TV             |       |
 | Video GPU          | 🟡 Implemented   | 🟡 In Progress         |       |
 | MCU SPI Slave      | 🟡 In Progress   |                         |       |
 
