@@ -406,7 +406,6 @@ always_ff @(posedge clk_54m) begin
         wb_rd_data <= '0;
         wb_cmd_done <= '0;
     end else begin
-        wb_rd_valid <= '0;
         wb_wr_ready <= '0;
         
         case (wb_state)
@@ -440,22 +439,27 @@ always_ff @(posedge clk_54m) begin
             
             WB_READ: begin
                 if (wb_ack_i) begin
-                    wb_rd_valid <= 1'b1;
+                    // Получили данные от Wishbone
                     wb_rd_data <= wb_dat_i;
-                    wb_stb_o <= 1'b0;
+                    wb_rd_valid <= 1'b1;  // сообщаем что данные готовы
+                    wb_stb_o <= 1'b0;     // снимаем strobe
                     wb_bytes_remaining <= wb_bytes_remaining - 1;
+                end
+                
+                // Ждем пока Command FSM примет данные и освободит буфер
+                if (wb_rd_done && wb_rd_valid) begin
+                    wb_rd_valid <= 1'b0;  // сбрасываем valid
                     
-                    if (wb_rd_done) begin
-                        wb_rd_valid <= 1'b0;
-                        
-                        if (wb_bytes_remaining == 1) begin
-                            wb_cyc_o <= 1'b0;
-                            wb_cmd_done <= 1'b1;
-                            wb_state <= WB_IDLE;
-                        end else begin
-                            wb_adr_o <= wb_adr_o + 1;
-                            wb_stb_o <= 1'b1;
-                        end
+                    // После подтверждения готовим следующий запрос
+                    if (wb_bytes_remaining == 0) begin
+                        // Все байты прочитаны
+                        wb_cyc_o <= 1'b0;
+                        wb_cmd_done <= 1'b1;
+                        wb_state <= WB_IDLE;
+                    end else begin
+                        // Запускаем чтение следующего байта
+                        wb_adr_o <= wb_adr_o + 1;
+                        wb_stb_o <= 1'b1;
                     end
                 end
             end
@@ -518,7 +522,6 @@ always_ff @(posedge clk_54m) begin
         dbg_rd_data <= '0;
         dbg_cmd_done <= '0;
     end else begin
-        dbg_rd_valid <= '0;
         dbg_wr_ready <= '0;
         
         case (dbg_state)
@@ -550,22 +553,27 @@ always_ff @(posedge clk_54m) begin
             
             DBG_READ: begin
                 if (dbg_ack_i) begin
-                    dbg_rd_valid <= 1'b1;
+                    // Получили данные от Debug Bus
                     dbg_rd_data <= dbg_dat_i;
-                    dbg_stb_o <= 1'b0;
+                    dbg_rd_valid <= 1'b1;  // сообщаем что данные готовы
+                    dbg_stb_o <= 1'b0;     // снимаем strobe
                     dbg_bytes_remaining <= dbg_bytes_remaining - 1;
+                end
+                
+                // Ждем пока Command FSM примет данные и освободит буфер
+                if (dbg_rd_done && dbg_rd_valid) begin
+                    dbg_rd_valid <= 1'b0;  // сбрасываем valid
                     
-                    if (dbg_rd_done) begin
-                        dbg_rd_valid <= 1'b0;
-                        
-                        if (dbg_bytes_remaining == 1) begin
-                            dbg_cyc_o <= 1'b0;
-                            dbg_cmd_done <= 1'b1;
-                            dbg_state <= DBG_IDLE;
-                        end else begin
-                            dbg_adr_o <= dbg_adr_o + 1;
-                            dbg_stb_o <= 1'b1;
-                        end
+                    // После подтверждения готовим следующий запрос
+                    if (dbg_bytes_remaining == 0) begin
+                        // Все байты прочитаны
+                        dbg_cyc_o <= 1'b0;
+                        dbg_cmd_done <= 1'b1;
+                        dbg_state <= DBG_IDLE;
+                    end else begin
+                        // Запускаем чтение следующего байта
+                        dbg_adr_o <= dbg_adr_o + 1;
+                        dbg_stb_o <= 1'b1;
                     end
                 end
             end

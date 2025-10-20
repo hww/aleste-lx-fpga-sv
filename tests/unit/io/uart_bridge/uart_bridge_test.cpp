@@ -20,7 +20,7 @@ private:
     const int CLOCKS_PER_BIT = CLOCK_FREQ / BAUD_RATE;
 
     // Memory arrays
-    uint8_t wb_memory[65536]; // 64KB Wishbone memory
+    uint8_t wb_memory[65536];   // 64KB Wishbone memory
     uint8_t dbg_registers[256]; // 256 bytes Debug registers
 
     // Test statistics
@@ -81,9 +81,11 @@ public:
         dut->dbg_ack_i = 0;
 
         // Reset sequence
-        for (int i = 0; i < 10; i++) tick();
+        for (int i = 0; i < 10; i++)
+            tick();
         dut->rst = 0;
-        for (int i = 0; i < 10; i++) tick();
+        for (int i = 0; i < 10; i++)
+            tick();
     }
 
     ~UARTBridgeTest()
@@ -122,19 +124,19 @@ public:
         if (dut->dbg_cyc_o && dut->dbg_stb_o && dbg_response_delay == 0)
         {
             uint8_t addr = dut->dbg_adr_o;
-            
-            if (dut->dbg_we_o) 
+
+            if (dut->dbg_we_o)
             {
                 // Write operation - store to register
                 dbg_registers[addr] = dut->dbg_dat_o;
                 dbg_response_data = 0x00; // ACK for write
-                std::cout << "DBG writing: 0x" << std::hex << addr<< " = 0x" << (int)dut->dbg_dat_o << std::dec << std::endl;
+                std::cout << "DBG writing: 0x" << std::hex << addr << " = 0x" << (int)dut->dbg_dat_o << std::dec << std::endl;
             }
-            else 
+            else
             {
                 // Read operation - read from register
                 dbg_response_data = dbg_registers[addr];
-                std::cout << "DBG reading: 0x" << std::hex << addr<< " = 0x" << (int)dbg_response_data << std::dec << std::endl;
+                std::cout << "DBG reading: 0x" << std::hex << addr << " = 0x" << (int)dbg_response_data << std::dec << std::endl;
             }
             dbg_response_delay = 2;
         }
@@ -166,19 +168,19 @@ public:
         if (dut->wb_cyc_o && dut->wb_stb_o && wb_response_delay == 0)
         {
             uint32_t addr = dut->wb_adr_o;
-            
-            if (dut->wb_we_o) 
-            {  
+
+            if (dut->wb_we_o)
+            {
                 // Write operation - store to memory
                 wb_memory[addr & 0xFFFF] = dut->wb_dat_o;
                 wb_response_data = 0x00; // ACK for write
-                std::cout << "WB writing: 0x" << std::hex << addr<< " = 0x" << (int)dut->wb_dat_o << std::dec << std::endl;
+                std::cout << "WB writing: 0x" << std::hex << addr << " = 0x" << (int)dut->wb_dat_o << std::dec << std::endl;
             }
-            else 
+            else
             {
                 // Read operation - read from memory
                 wb_response_data = wb_memory[addr & 0xFFFF];
-                std::cout << "WB reading:  0x" << std::hex << addr<< " = 0x" << (int)wb_response_data << std::dec << std::endl;
+                std::cout << "WB reading:  0x" << std::hex << addr << " = 0x" << (int)wb_response_data << std::dec << std::endl;
             }
             wb_response_delay = 2;
         }
@@ -189,7 +191,7 @@ public:
             if (wb_response_delay == 0)
             {
                 dut->wb_ack_i = 1;
-                if (!dut->wb_we_o) 
+                if (!dut->wb_we_o)
                 {
                     dut->wb_dat_i = wb_response_data;
                 }
@@ -227,7 +229,8 @@ public:
         std::cout << "Waiting for UART response..." << std::endl;
 
         int timeout = CLOCKS_PER_BIT * 20;
-        while (dut->uart_tx == 1 && timeout-- > 0) tick();
+        while (dut->uart_tx == 1 && timeout-- > 0)
+            tick();
 
         if (timeout <= 0)
         {
@@ -251,13 +254,15 @@ public:
 
     void wait_clocks(int num_clocks)
     {
-        for (int i = 0; i < num_clocks; i++) tick();
+        for (int i = 0; i < num_clocks; i++)
+            tick();
     }
 
     void debug_uart_status(const std::string &context = "")
     {
-        if (!context.empty()) std::cout << "[" << context << "] ";
-        std::cout << "state: " << (int)dut->state_o 
+        if (!context.empty())
+            std::cout << "[" << context << "] ";
+        std::cout << "state: " << (int)dut->state_o
                   << ", tx_busy: " << (int)dut->uart_tx_busy
                   << ", rx_ready: " << (int)dut->uart_rx_ready << std::endl;
     }
@@ -276,7 +281,6 @@ public:
             std::cout << "❌ " << test_name << " - " << message << std::endl;
         }
     }
-
 
     void wait_uart_ready()
     {
@@ -343,14 +347,14 @@ public:
     void test_register_read_write()
     {
         std::cout << "\n=== Testing Register Read/Write ===" << std::endl;
-        
+
         uint8_t test_cases[][2] = {{0x00, 0x55}, {0x01, 0xAA}, {0x10, 0xF0}};
 
         for (auto &test_case : test_cases)
         {
             uint8_t addr = test_case[0];
             uint8_t expected = test_case[1];
-            
+
             reset_dut();
             wait_uart_ready();
 
@@ -361,20 +365,19 @@ public:
             uart_send_byte(0x20); // Register Read
             uart_send_byte(addr);
 
-
             uint8_t response;
             bool received = uart_receive_byte(response);
 
             test_assert(received && response == expected,
-                       "Register Read 0x" + to_hex(addr),
-                       received ? "Expected 0x" + to_hex(expected) + ", got 0x" + to_hex(response) : "No response");
+                        "Register Read 0x" + to_hex(addr),
+                        received ? "Expected 0x" + to_hex(expected) + ", got 0x" + to_hex(response) : "No response");
         }
 
         for (auto &test_case : test_cases)
         {
             uint8_t addr = test_case[0];
             uint8_t expected = test_case[1];
-            
+
             reset_dut();
             wait_uart_ready();
 
@@ -385,14 +388,17 @@ public:
             uart_send_byte(0x30); // Register Write
             uart_send_byte(addr);
             uart_send_byte(expected);
-            wait_clocks(CLOCKS_PER_BIT*10);
+            wait_clocks(CLOCKS_PER_BIT * 10);
 
-            if (dbg_registers[addr] != expected) {
-                test_assert(false, 
-                            "Register Write 0x" + to_hex(addr) + " expected 0x" + to_hex(expected) + " found " + to_hex(dbg_registers[addr]), 
+            if (dbg_registers[addr] != expected)
+            {
+                test_assert(false,
+                            "Register Write 0x" + to_hex(addr) + " expected 0x" + to_hex(expected) + " found " + to_hex(dbg_registers[addr]),
                             "Write verification failed");
-            } else {
-                test_assert(true, 
+            }
+            else
+            {
+                test_assert(true,
                             "Register Write 0x" + to_hex(addr) + " = 0x" + to_hex(expected),
                             "Success");
             }
@@ -402,7 +408,7 @@ public:
     void test_memory_read_write()
     {
         std::cout << "\n=== Testing Memory Read/Write ===" << std::endl;
-        
+
         uint32_t test_addr = 0x001234;
         uint8_t expected = 0x55;
 
@@ -422,8 +428,8 @@ public:
         bool received = uart_receive_byte(response);
 
         test_assert(received && response == expected,
-                   "Memory Read 0x" + to_hex(test_addr),
-                   received ? "Expected 0x" + to_hex(expected) + ", got 0x" + to_hex(response) : "No response");
+                    "Memory Read 0x" + to_hex(test_addr),
+                    received ? "Expected 0x" + to_hex(expected) + ", got 0x" + to_hex(response) : "No response");
 
         // Test memory write
         reset_dut();
@@ -438,16 +444,19 @@ public:
         uart_send_byte(test_addr & 0xFF);
         uart_send_byte(write_data);
 
-        //received = uart_receive_byte(response);
-        //bool write_ok = (wb_memory[test_addr] == write_data);
+        // received = uart_receive_byte(response);
+        // bool write_ok = (wb_memory[test_addr] == write_data);
         wait_clocks(CLOCKS_PER_BIT * 10);
         wait_clocks(CLOCKS_PER_BIT * 10);
 
-        if (wb_memory[test_addr] != write_data) {
+        if (wb_memory[test_addr] != write_data)
+        {
             test_assert(false,
                         "Memory Write 0x" + to_hex(test_addr) + " = 0x" + to_hex(write_data),
                         "Write verification failed");
-        } else {
+        }
+        else
+        {
             test_assert(true,
                         "Memory Write 0x" + to_hex(test_addr) + " = 0x" + to_hex(write_data),
                         "Success");
@@ -469,8 +478,8 @@ public:
         bool received = uart_receive_byte(response);
 
         test_assert(received && response == 0x00,
-                   "Event 0x00 param 0x01",
-                   received ? "Expected ACK 0x00, got 0x" + to_hex(response) : "No response received");
+                    "Event 0x00 param 0x01",
+                    received ? "Expected ACK 0x00, got 0x" + to_hex(response) : "No response received");
     }
 
     void test_invalid_commands()
@@ -490,11 +499,211 @@ public:
             bool received = uart_receive_byte(response);
 
             test_assert(received && response == 0xFF,
-                       "Invalid Command 0x" + to_hex(cmd),
-                       received ? "Expected error 0xFF, got 0x" + to_hex(response) : "No response received");
+                        "Invalid Command 0x" + to_hex(cmd),
+                        received ? "Expected error 0xFF, got 0x" + to_hex(response) : "No response received");
         }
     }
+    void test_memory_block_read_write()
+    {
+        std::cout << "\n=== Testing Memory Block Read/Write ===" << std::endl;
 
+        uint32_t base_addr = 0x002000;
+        const int BLOCK_SIZE = 8;
+        std::vector<uint8_t> test_data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+
+        // Test memory block write
+        reset_dut();
+        wait_uart_ready();
+
+        // Clear memory area first
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            wb_memory[base_addr + i] = 0x00;
+        }
+
+        std::cout << "Sending memory block write command..." << std::endl;
+        uart_send_byte(0x13); // Memory Write 8 bytes (cmd[3:0]=3 means 8 bytes)
+        uart_send_byte((base_addr >> 16) & 0xFF);
+        uart_send_byte((base_addr >> 8) & 0xFF);
+        uart_send_byte(base_addr & 0xFF);
+
+        // Send all data bytes
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            uart_send_byte(test_data[i]);
+            std::cout << "Sent data byte " << i << ": 0x" << to_hex(test_data[i]) << std::endl;
+        }
+
+        // Wait for operation to complete
+        wait_clocks(CLOCKS_PER_BIT * 50);
+
+        // Verify all bytes were written
+        bool write_success = true;
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            if (wb_memory[base_addr + i] != test_data[i])
+            {
+                write_success = false;
+                std::cout << "Write mismatch at offset " << i
+                          << ": expected 0x" << to_hex(test_data[i])
+                          << ", got 0x" << to_hex(wb_memory[base_addr + i]) << std::endl;
+            }
+        }
+
+        test_assert(write_success, "Memory Block Write 8 bytes",
+                    write_success ? "All 8 bytes written correctly" : "Write verification failed");
+
+        // Test memory block read
+        reset_dut();
+        wait_uart_ready();
+
+        // Setup test data in memory
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            wb_memory[base_addr + i] = test_data[i];
+        }
+
+        std::cout << "Sending memory block read command..." << std::endl;
+        uart_send_byte(0x03); // Memory Read 8 bytes (cmd[3:0]=3 means 8 bytes)
+        uart_send_byte((base_addr >> 16) & 0xFF);
+        uart_send_byte((base_addr >> 8) & 0xFF);
+        uart_send_byte(base_addr & 0xFF);
+
+        // Receive all data bytes
+        std::vector<uint8_t> received_data;
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            uint8_t response;
+            bool received = uart_receive_byte(response);
+            if (received)
+            {
+                received_data.push_back(response);
+                std::cout << "Received data byte " << i << ": 0x" << to_hex(response) << std::endl;
+            }
+            else
+            {
+                std::cout << "Failed to receive byte " << i << std::endl;
+            }
+        }
+
+        // Verify all bytes were read correctly
+        bool read_success = (received_data.size() == BLOCK_SIZE);
+        if (read_success)
+        {
+            for (int i = 0; i < BLOCK_SIZE; i++)
+            {
+                if (received_data[i] != test_data[i])
+                {
+                    read_success = false;
+                    std::cout << "Read mismatch at offset " << i
+                              << ": expected 0x" << to_hex(test_data[i])
+                              << ", got 0x" << to_hex(received_data[i]) << std::endl;
+                }
+            }
+        }
+
+        test_assert(read_success, "Memory Block Read 8 bytes",
+                    read_success ? "All 8 bytes read correctly" : "Expected " + std::to_string(BLOCK_SIZE) + " bytes, got " + std::to_string(received_data.size()));
+    }
+
+    void test_register_block_read_write()
+    {
+        std::cout << "\n=== Testing Register Block Read/Write ===" << std::endl;
+
+        uint8_t base_addr = 0x20;
+        const int BLOCK_SIZE = 4;
+        std::vector<uint8_t> test_data = {0xA1, 0xB2, 0xC3, 0xD4};
+
+        // Test register block write
+        reset_dut();
+        wait_uart_ready();
+
+        // Clear registers first
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            dbg_registers[base_addr + i] = 0x00;
+        }
+
+        std::cout << "Sending register block write command..." << std::endl;
+        uart_send_byte(0x33); // Register Write 4 bytes (cmd[3:0]=2 means 4 bytes)
+        uart_send_byte(base_addr);
+
+        // Send all data bytes
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            uart_send_byte(test_data[i]);
+            std::cout << "Sent data byte " << i << ": 0x" << to_hex(test_data[i]) << std::endl;
+        }
+
+        // Wait for operation to complete
+        wait_clocks(CLOCKS_PER_BIT * 50);
+
+        // Verify all bytes were written
+        bool write_success = true;
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            if (dbg_registers[base_addr + i] != test_data[i])
+            {
+                write_success = false;
+                std::cout << "Write mismatch at register 0x" << to_hex(base_addr + i)
+                          << ": expected 0x" << to_hex(test_data[i])
+                          << ", got 0x" << to_hex(dbg_registers[base_addr + i]) << std::endl;
+            }
+        }
+
+        test_assert(write_success, "Register Block Write 4 bytes",
+                    write_success ? "All 4 bytes written correctly" : "Write verification failed");
+
+        // Test register block read
+        reset_dut();
+        wait_uart_ready();
+
+        // Setup test data in registers
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            dbg_registers[base_addr + i] = test_data[i];
+        }
+
+        std::cout << "Sending register block read command..." << std::endl;
+        uart_send_byte(0x23); // Register Read 4 bytes (cmd[3:0]=2 means 4 bytes)
+        uart_send_byte(base_addr);
+
+        // Receive all data bytes
+        std::vector<uint8_t> received_data;
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            uint8_t response;
+            bool received = uart_receive_byte(response);
+            if (received)
+            {
+                received_data.push_back(response);
+                std::cout << "Received data byte " << i << ": 0x" << to_hex(response) << std::endl;
+            }
+            else
+            {
+                std::cout << "Failed to receive byte " << i << std::endl;
+            }
+        }
+
+        // Verify all bytes were read correctly
+        bool read_success = (received_data.size() == BLOCK_SIZE);
+        if (read_success)
+        {
+            for (int i = 0; i < BLOCK_SIZE; i++)
+            {
+                if (received_data[i] != test_data[i])
+                {
+                    read_success = false;
+                    std::cout << "Read mismatch at register 0x" << to_hex(base_addr + i)
+                              << ": expected 0x" << to_hex(test_data[i])
+                              << ", got 0x" << to_hex(received_data[i]) << std::endl;
+                }
+            }
+        }
+
+        test_assert(read_success, "Register Block Read 4 bytes",
+                    read_success ? "All 4 bytes read correctly" : "Expected " + std::to_string(BLOCK_SIZE) + " bytes, got " + std::to_string(received_data.size()));
+    }
     std::string to_hex(uint8_t value)
     {
         std::stringstream ss;
@@ -511,6 +720,8 @@ public:
         test_global_status_command();
         test_register_read_write();
         test_memory_read_write();
+        test_memory_block_read_write(); 
+        test_register_block_read_write(); 
         test_event_commands();
         test_invalid_commands();
 
@@ -525,7 +736,8 @@ public:
             std::cout << "\n❌ " << stats.failed_tests << "/" << stats.total_tests << " TESTS FAILED!" << std::endl;
         }
 
-        for (int i = 0; i < 100; i++) tick();
+        for (int i = 0; i < 100; i++)
+            tick();
     }
 };
 
