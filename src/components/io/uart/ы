@@ -38,7 +38,7 @@ logic uart_wr;
 logic uart_rx_ready_clr;
 logic [7:0] uart_dout;
 
-// Инстанция UART (сохраняем корректную реализацию)
+// Инстанция UART
 uart uart_inst (
     .clk_i(clk_54m),
     .rst_i(rst),
@@ -61,9 +61,9 @@ uart uart_inst (
 // Main Command Processor FSM
 // ============================================================================
 
+// УПРОЩАЕМ состояния - убираем лишние START и WAIT
 typedef enum logic [3:0] {
     CMD_IDLE,
-    CMD_PARSE,
     CMD_READ_ARGS,
     CMD_MEM_READ,
     CMD_MEM_WRITE,  
@@ -81,8 +81,6 @@ logic [23:0] addr_reg;
 logic [7:0]  data_reg;
 logic [7:0]  arg_counter;
 logic [7:0]  data_size;
-logic [2:0]  args_remaining;
-
 
 // Ответы
 logic [7:0] response_data;
@@ -92,7 +90,7 @@ logic [7:0] response_data;
 // ============================================================================
 
 // Командный интерфейс
-logic        wb_cmd_active;
+logic        wb_cmd_valid;
 logic        wb_cmd_ready;
 logic        wb_cmd_read;
 logic [23:0] wb_cmd_addr;
@@ -105,35 +103,27 @@ logic [7:0]  wb_wr_data;
 
 // Интерфейс данных для чтения
 logic        wb_rd_valid;
-logic        wb_rd_done;
+logic        wb_rd_ready;
 logic [7:0]  wb_rd_data;
 
 // Статусный интерфейс
-logic        wb_cmd_done;
+logic        wb_busy;
 
 // ============================================================================
 // Протокол обмена с Debug Bus контроллером
 // ============================================================================
 
 // Командный интерфейс
-logic        dbg_cmd_active;
-logic        dbg_cmd_ready; 
+logic        dbg_cmd_valid;
+logic        dbg_cmd_ready;
 logic        dbg_cmd_read;
 logic [7:0]  dbg_cmd_addr;
-logic [7:0]  dbg_cmd_size;
+logic [7:0]  dbg_cmd_wdata;
 
-// Интерфейс данных для записи
-logic        dbg_wr_valid;
-logic        dbg_wr_ready;
-logic [7:0]  dbg_wr_data;
-
-// Интерфейс данных для чтения  
-logic        dbg_rd_valid;
-logic        dbg_rd_done;
-logic [7:0]  dbg_rd_data;
-
-// Статусный интерфейс
-logic        dbg_cmd_done;
+// Ответ
+logic        dbg_resp_valid;
+logic [7:0]  dbg_resp_rdata;
+logic        dbg_busy;
 
 // Расчет размера данных
 function [7:0] get_data_size(input [7:0] cmd);
@@ -155,197 +145,164 @@ function [2:0] get_cmd_type(input [7:0] cmd);
     get_cmd_type = cmd[6:4];
 endfunction
 
-// Main Command FSM 
+// Main Command FSM - УПРОЩЕННАЯ ВЕРСИЯ
 always_ff @(posedge clk_54m) begin
     if (rst) begin
         cmd_state <= CMD_IDLE;
         cmd_reg <= '0;
         addr_reg <= '0;
         data_reg <= '0;
-
-        args_remaining <= '0;  // ← ЗАМЕНИЛ arg_counter
+        arg_counter <= '0;
         data_size <= '0;
         uart_rx_ready_clr <= '0;
         uart_wr <= '0;
         response_data <= '0;
         
         // Сброс интерфейсов
-        wb_cmd_active <= '0;
+        wb_cmd_valid <= '0;
         wb_wr_valid <= '0;
-        wb_rd_done <= '0;
-        dbg_cmd_active <= '0;
+        wb_rd_ready <= '0;
+        dbg_cmd_valid <= '0;
     end else begin
         // Сброс импульсных сигналов по умолчанию
         uart_rx_ready_clr <= '0;
         uart_wr <= '0;
-
-        wb_rd_done <= '0;
-        dbg_cmd_active <= '0;
+        wb_cmd_valid <= '0;
+        wb_wr_valid <= '0;
+        wb_rd_ready <= '0;
+        dbg_cmd_valid <= '0;
 
         case (cmd_state)
             CMD_IDLE: begin
-                if (uart_rx_ready && !uart_rx_ready_clr) begin
+                if (uart_rx_ready) begin
                     uart_rx_ready_clr <= 1'b1;
-                    cmd_reg <= uart_dout;  // ← СОХРАНИЛИ КОМАНДУ!
                 end else if (uart_rx_ready_clr) begin
                     uart_rx_ready_clr <= 1'b0;
-                    cmd_state <= CMD_PARSE;
+                    if (uart_dout == 8'hFF) begin
+                        // Ping command - immediate response
+                        response_data <= 8'hFE;
+                        cmd_state <= CMD_SEND_RESPONSE;
+                    end else if (get_cmd_type(uart_dout) == 3'b101) begin
+                        // Global status - shortcut to read register 0
+                        cmd_reg <= uart_dout;
+                        addr_reg[7:0] <= 8'h00;
+                        data_size <= get_data_size(uart_dout);
+                        cmd_state <= CMD_REG_READ;
+                    end else begin
+                        // Normal command
+                        cmd_reg <= uart_dout;
+                        arg_counter <= '0;
+                        addr_reg <= '0;
+                        data_reg <= '0;
+                        data_size <= get_data_size(uart_dout);
+                        cmd_state <= CMD_READ_ARGS;
+                    end
                 end
             end
             
-            CMD_PARSE: begin
-                case (get_cmd_type(cmd_reg))
-                    3'b000, 3'b001: begin // Memory read/write - 3 byte address
-                        args_remaining <= 3;  // ← НУЖНО 3 БАЙТА
-                        addr_reg <= '0;
-                        data_size <= get_data_size(cmd_reg);  // ← ИСПОЛЬЗУЕМ cmd_reg!
-                        cmd_state <= CMD_READ_ARGS;
-                    end
-                    3'b010, 3'b011: begin // Register read/write - 1 byte address
-                        args_remaining <= 1;  // ← НУЖНО 1 БАЙТ
-                        addr_reg <= '0;
-                        data_size <= get_data_size(cmd_reg);
-                        cmd_state <= CMD_READ_ARGS;
-                    end
-                    3'b100: begin // Events - 2 bytes
-                        args_remaining <= 2;  // ← НУЖНО 2 БАЙТА
-                        addr_reg <= '0;
-                        data_reg <= '0;
-                        data_size <= get_data_size(cmd_reg);
-                        cmd_state <= CMD_READ_ARGS;
-                    end
-                    3'b101: begin // Global status - shortcut to read register 0
-                        addr_reg[7:0] <= 8'h00;
-                        data_size <= get_data_size(cmd_reg);
-                        cmd_state <= CMD_REG_READ;
-                    end
-                    default: begin 
-                        // Unknown command
-                        if (cmd_reg == 8'hFF) begin  // ← ИСПОЛЬЗУЕМ cmd_reg!
-                            // Ping command - immediate response
-                            response_data <= 8'hFE;
-                        end else begin
-                            response_data <= 8'hFF;
-                        end
-                        cmd_state <= CMD_SEND_RESPONSE;
-                    end
-                endcase
-            end
-            
             CMD_READ_ARGS: begin
-
-                if (uart_rx_ready && !uart_rx_ready_clr) begin
+                if (uart_rx_ready) begin
                     uart_rx_ready_clr <= 1'b1;
-                    // УНИВЕРСАЛЬНЫЙ СБОР АРГУМЕНТОВ!
-                    addr_reg <= {addr_reg[15:0], uart_dout};  // ← СДВИГАЕМ ВСЕ БАЙТЫ
-                    args_remaining <= args_remaining - 1;
                 end else if (uart_rx_ready_clr) begin
                     uart_rx_ready_clr <= 1'b0;
                     
-                    // КОГДА ВСЕ АРГУМЕНТЫ ПОЛУЧЕНЫ - ИСПОЛНЯЕМ КОМАНДУ
-                    if (args_remaining == 0) begin
-                        case (get_cmd_type(cmd_reg))
-                            3'b000: cmd_state <= CMD_MEM_READ;
-                            3'b001: cmd_state <= CMD_MEM_WRITE;
-                            3'b010: cmd_state <= CMD_REG_READ;
-                            3'b011: cmd_state <= CMD_REG_WRITE;
-                            3'b100: cmd_state <= CMD_EVENT;
-                            default: cmd_state <= CMD_IDLE;
-                        endcase
-                    end
+                    case (get_cmd_type(cmd_reg))
+                        3'b000, 3'b001: begin // Memory read/write - 3 byte address
+                            addr_reg <= {addr_reg[15:0], uart_dout};
+                            arg_counter <= arg_counter + 1;
+                            if (arg_counter == 2) begin
+                                if (get_cmd_type(cmd_reg) == 3'b000)
+                                    cmd_state <= CMD_MEM_READ;
+                                else
+                                    cmd_state <= CMD_MEM_WRITE;
+                            end
+                        end
+                        3'b010, 3'b011: begin // Register read/write - 1 byte address
+                            addr_reg[7:0] <= uart_dout;
+                            if (get_cmd_type(cmd_reg) == 3'b010)
+                                cmd_state <= CMD_REG_READ;
+                            else
+                                cmd_state <= CMD_REG_WRITE;
+                        end
+                        3'b100: begin // Events - 2 bytes
+                            if (arg_counter == 0)
+                                addr_reg[7:0] <= uart_dout; // event_id
+                            else
+                                data_reg <= uart_dout; // parameter
+                            arg_counter <= arg_counter + 1;
+                            if (arg_counter == 1)
+                                cmd_state <= CMD_EVENT;
+                        end
+                        default: begin // Unknown command
+                            response_data <= 8'hFF;
+                            cmd_state <= CMD_SEND_RESPONSE;
+                        end
+                    endcase
                 end
             end
             
             CMD_MEM_READ: begin
-                wb_rd_done <= 1'b0;
-                // 1. Запускаем операцию WB если еще не запущена
-                if (wb_cmd_ready && !wb_cmd_active) begin
-                    wb_cmd_active <= 1'b1;
+                if (!wb_busy && !wb_cmd_valid) begin
+                    wb_cmd_valid <= 1'b1;
                     wb_cmd_read <= 1'b1;
+                    wb_cmd_addr <= addr_reg;
+                    wb_cmd_size <= data_size;
                 end
-                // 2. Принимаем данные от WB и отправляем в UART
-                if (wb_rd_valid && !uart_tx_busy) begin
+                
+                if (wb_rd_valid) begin
                     uart_wr <= 1'b1;
                     uart_din <= wb_rd_data;
-                    wb_rd_done <= 1'b1;
+                    wb_rd_ready <= 1'b1;
                 end
-                // 3. Завершаем когда WB говорит что все
-                if (wb_cmd_done && wb_cmd_active) begin
-                    wb_cmd_read <= 0;
+                
+                if (!wb_busy && wb_cmd_valid) begin
                     cmd_state <= CMD_IDLE;
                 end
             end
             
             CMD_MEM_WRITE: begin
-                wb_wr_valid <= '0;
-
-                // 1. Запускаем операцию записи
-                if (wb_cmd_ready && !wb_cmd_active) begin
-                    wb_cmd_active <= 1'b1;
-                    wb_cmd_read <= 1'b0;
-                end
-                
-                // 2. Ждем данные от UART и передаем в WB
-                if (uart_rx_ready && !uart_rx_ready_clr) begin
+                if (uart_rx_ready && wb_wr_ready) begin
                     uart_rx_ready_clr <= 1'b1;
-                    data_reg <= uart_dout;  // данные для записи
-                    wb_wr_valid <= 1'b1;      // данные готовы
-                end else if (uart_rx_ready_clr) begin
-                    uart_rx_ready_clr <= 1'b0;
+                    wb_wr_valid <= 1'b1;
+                    wb_wr_data <= uart_dout;
                 end
                 
-                // 3. Завершаем когда WB подтвердил запись
-                if (wb_cmd_done && wb_cmd_active) begin
-                    wb_wr_valid <= 1'b0;
+                if (!wb_busy) begin
                     cmd_state <= CMD_IDLE;
                 end
-            end 
-                
+            end
+            
             CMD_REG_READ: begin
-                dbg_rd_done <= 1'b0;
-                // 1. Запускаем операцию DBG если еще не запущена
-                if (dbg_cmd_ready && !dbg_cmd_active) begin
-                    dbg_cmd_active <= 1'b1;
+                if (!dbg_busy && !dbg_cmd_valid) begin
+                    dbg_cmd_valid <= 1'b1;
                     dbg_cmd_read <= 1'b1;
-                end
-                // 2. Принимаем данные от DBG и отправляем в UART
-                if (dbg_rd_valid && !uart_tx_busy) begin
-                    uart_wr <= 1'b1;
-                    uart_din <= dbg_rd_data;
-                    dbg_rd_done <= 1'b1;
-                end
-                // 3. Завершаем когда DBG говорит что все
-                if (dbg_cmd_done && dbg_cmd_active) begin
-                    dbg_cmd_read <= 0;
-                    cmd_state <= CMD_IDLE;
-                end
-            end
-
-            CMD_REG_WRITE: begin
-                dbg_wr_valid <= '0;
-
-                // 1. Запускаем операцию записи
-                if (dbg_cmd_ready && !dbg_cmd_active) begin
-                    dbg_cmd_active <= 1'b1;
-                    dbg_cmd_read <= 1'b0;
+                    dbg_cmd_addr <= addr_reg[7:0];
                 end
                 
-                // 2. Ждем данные от UART и передаем в DBG
-                if (uart_rx_ready && !uart_rx_ready_clr) begin
+                if (dbg_resp_valid) begin
+                    response_data <= dbg_resp_rdata;
+                    cmd_state <= CMD_SEND_RESPONSE;
+                end
+            end
+            
+            CMD_REG_WRITE: begin
+                if (uart_rx_ready) begin
                     uart_rx_ready_clr <= 1'b1;
-                    data_reg <= uart_dout;  // данные для записи
-                    dbg_wr_valid <= 1'b1;   // данные готовы
                 end else if (uart_rx_ready_clr) begin
                     uart_rx_ready_clr <= 1'b0;
+                    if (!dbg_busy && !dbg_cmd_valid) begin
+                        dbg_cmd_valid <= 1'b1;
+                        dbg_cmd_read <= 1'b0;
+                        dbg_cmd_addr <= addr_reg[7:0];
+                        dbg_cmd_wdata <= uart_dout;
+                    end
                 end
                 
-                // 3. Завершаем когда DBG подтвердил запись
-                if (dbg_cmd_done && dbg_cmd_active) begin
-                    dbg_wr_valid <= 1'b0;
+                if (dbg_resp_valid) begin
                     cmd_state <= CMD_IDLE;
                 end
             end
-                        
+            
             CMD_EVENT: begin
                 // Event processing - for now just acknowledge
                 response_data <= 8'h00;
@@ -365,14 +322,6 @@ always_ff @(posedge clk_54m) begin
     end
 end
 
-assign dbg_wr_data = data_reg;
-assign dbg_cmd_addr = addr_reg[7:0];
-assign dbg_cmd_size = data_size;  
-
-assign wb_wr_data = data_reg;
-assign wb_cmd_addr = addr_reg;
-assign wb_cmd_size = data_size;
-
 // ============================================================================
 // Wishbone Block Controller FSM
 // ============================================================================
@@ -386,7 +335,10 @@ typedef enum logic [1:0] {
 wb_state_t wb_state = WB_IDLE;
 
 // Wishbone регистры
+logic [23:0] wb_current_addr;
 logic [7:0]  wb_bytes_remaining;
+
+assign wb_adr_o = wb_current_addr;
 
 // Wishbone FSM - УПРОЩЕННАЯ ВЕРСИЯ
 always_ff @(posedge clk_54m) begin
@@ -397,30 +349,30 @@ always_ff @(posedge clk_54m) begin
         wb_we_o <= '0;
         wb_dat_o <= '0;
         wb_sel_o <= '0;
-        wb_adr_o <= '0;
+        wb_current_addr <= '0;
         wb_bytes_remaining <= '0;
         
         wb_cmd_ready <= '0;
         wb_wr_ready <= '0;
         wb_rd_valid <= '0;
         wb_rd_data <= '0;
-        wb_cmd_done <= '0;
+        wb_busy <= '0;
     end else begin
         wb_rd_valid <= '0;
-        wb_wr_ready <= '0;
+        wb_wr_ready <= '0';
         
         case (wb_state)
             WB_IDLE: begin
                 wb_cyc_o <= '0;
                 wb_stb_o <= '0;
-                wb_we_o <= '0;
+                wb_we_o <= '0';
                 wb_cmd_ready <= 1'b1;
-                wb_cmd_done <= 1'b0;
+                wb_busy <= 1'b0;
                 
-                if (wb_cmd_active && wb_cmd_ready) begin
+                if (wb_cmd_valid && wb_cmd_ready) begin
                     wb_cmd_ready <= 1'b0;
-
-                    wb_adr_o <= wb_cmd_addr;
+                    wb_busy <= 1'b1;
+                    wb_current_addr <= wb_cmd_addr;
                     wb_bytes_remaining <= wb_cmd_size;
                     
                     if (wb_cmd_read) begin
@@ -445,15 +397,14 @@ always_ff @(posedge clk_54m) begin
                     wb_stb_o <= 1'b0;
                     wb_bytes_remaining <= wb_bytes_remaining - 1;
                     
-                    if (wb_rd_done) begin
+                    if (wb_rd_ready) begin
                         wb_rd_valid <= 1'b0;
                         
                         if (wb_bytes_remaining == 1) begin
                             wb_cyc_o <= 1'b0;
-                            wb_cmd_done <= 1'b1;
                             wb_state <= WB_IDLE;
                         end else begin
-                            wb_adr_o <= wb_adr_o + 1;
+                            wb_current_addr <= wb_current_addr + 1;
                             wb_stb_o <= 1'b1;
                         end
                     end
@@ -461,7 +412,7 @@ always_ff @(posedge clk_54m) begin
             end
             
             WB_WRITE: begin
-                if (wb_wr_valid) begin
+                if (wb_wr_valid && wb_wr_ready) begin
                     wb_wr_ready <= 1'b0;
                     wb_dat_o <= wb_wr_data;
                     wb_stb_o <= 1'b1;
@@ -473,10 +424,9 @@ always_ff @(posedge clk_54m) begin
                     
                     if (wb_bytes_remaining == 1) begin
                         wb_cyc_o <= 1'b0;
-                        wb_cmd_done <= 1'b1;                        
                         wb_state <= WB_IDLE;
                     end else begin
-                        wb_adr_o <= wb_adr_o + 1;
+                        wb_current_addr <= wb_current_addr + 1;
                         wb_wr_ready <= 1'b1;
                     end
                 end
@@ -500,26 +450,28 @@ typedef enum logic [1:0] {
 dbg_state_t dbg_state = DBG_IDLE;
 
 // Debug Bus регистры
-logic [7:0] dbg_bytes_remaining;
+logic [7:0] dbg_current_addr;
+logic [7:0] dbg_wdata_reg;
 
-// Debug Bus FSM - ПОЛНАЯ КОПИЯ WB
+assign dbg_adr_o = dbg_current_addr;
+assign dbg_dat_o = dbg_wdata_reg;
+
+// Debug Bus FSM - УПРОЩЕННАЯ ВЕРСИЯ
 always_ff @(posedge clk_54m) begin
     if (rst) begin
         dbg_state <= DBG_IDLE;
         dbg_cyc_o <= '0;
         dbg_stb_o <= '0;
         dbg_we_o <= '0;
-        dbg_adr_o <= '0;
-        dbg_bytes_remaining <= '0;
+        dbg_current_addr <= '0;
+        dbg_wdata_reg <= '0';
         
         dbg_cmd_ready <= '0;
-        dbg_wr_ready <= '0;
-        dbg_rd_valid <= '0;
-        dbg_rd_data <= '0;
-        dbg_cmd_done <= '0;
+        dbg_resp_valid <= '0';
+        dbg_resp_rdata <= '0';
+        dbg_busy <= '0';
     end else begin
-        dbg_rd_valid <= '0;
-        dbg_wr_ready <= '0;
+        dbg_resp_valid <= '0';
         
         case (dbg_state)
             DBG_IDLE: begin
@@ -527,68 +479,41 @@ always_ff @(posedge clk_54m) begin
                 dbg_stb_o <= '0;
                 dbg_we_o <= '0;
                 dbg_cmd_ready <= 1'b1;
-                dbg_cmd_done <= 1'b0;
+                dbg_busy <= 1'b0;
                 
-                if (dbg_cmd_active && dbg_cmd_ready) begin
+                if (dbg_cmd_valid && dbg_cmd_ready) begin
                     dbg_cmd_ready <= 1'b0;
-                    dbg_adr_o <= dbg_cmd_addr;
-                    dbg_bytes_remaining <= dbg_cmd_size;
+                    dbg_busy <= 1'b1;
+                    dbg_cyc_o <= 1'b1;
+                    dbg_stb_o <= 1'b1;
+                    dbg_we_o <= ~dbg_cmd_read;
+                    dbg_current_addr <= dbg_cmd_addr;
+                    dbg_wdata_reg <= dbg_cmd_wdata;
                     
                     if (dbg_cmd_read) begin
                         dbg_state <= DBG_READ;
-                        dbg_cyc_o <= 1'b1;
-                        dbg_stb_o <= 1'b1;
-                        dbg_we_o <= 1'b0;
                     end else begin
                         dbg_state <= DBG_WRITE;
-                        dbg_cyc_o <= 1'b1;
-                        dbg_we_o <= 1'b1;
-                        dbg_wr_ready <= 1'b1;
                     end
                 end
             end
             
             DBG_READ: begin
                 if (dbg_ack_i) begin
-                    dbg_rd_valid <= 1'b1;
-                    dbg_rd_data <= dbg_dat_i;
+                    dbg_resp_valid <= 1'b1;
+                    dbg_resp_rdata <= dbg_dat_i;
+                    dbg_cyc_o <= 1'b0;
                     dbg_stb_o <= 1'b0;
-                    dbg_bytes_remaining <= dbg_bytes_remaining - 1;
-                    
-                    if (dbg_rd_done) begin
-                        dbg_rd_valid <= 1'b0;
-                        
-                        if (dbg_bytes_remaining == 1) begin
-                            dbg_cyc_o <= 1'b0;
-                            dbg_cmd_done <= 1'b1;
-                            dbg_state <= DBG_IDLE;
-                        end else begin
-                            dbg_adr_o <= dbg_adr_o + 1;
-                            dbg_stb_o <= 1'b1;
-                        end
-                    end
+                    dbg_state <= DBG_IDLE;
                 end
             end
             
             DBG_WRITE: begin
-                if (dbg_wr_valid) begin
-                    dbg_wr_ready <= 1'b0;
-                    dbg_dat_o <= dbg_wr_data;
-                    dbg_stb_o <= 1'b1;
-                end
-                
                 if (dbg_ack_i) begin
+                    dbg_resp_valid <= 1'b1;
+                    dbg_cyc_o <= 1'b0;
                     dbg_stb_o <= 1'b0;
-                    dbg_bytes_remaining <= dbg_bytes_remaining - 1;
-                    
-                    if (dbg_bytes_remaining == 1) begin
-                        dbg_cyc_o <= 1'b0;
-                        dbg_cmd_done <= 1'b1;                        
-                        dbg_state <= DBG_IDLE;
-                    end else begin
-                        dbg_adr_o <= dbg_adr_o + 1;
-                        dbg_wr_ready <= 1'b1;
-                    end
+                    dbg_state <= DBG_IDLE;
                 end
             end
             

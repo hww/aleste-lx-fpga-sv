@@ -18,20 +18,22 @@ parameter STATE_START	= 2'b01;
 parameter STATE_DATA	= 2'b10;
 parameter STATE_STOP	= 2'b11;
 
-reg [7:0] data = 8'h00;
-reg [2:0] bitpos = 3'h0;
+reg [7:0] data_reg = 8'h00;
+reg [2:0] bitpos_reg = 3'h0;
 reg [1:0] state = STATE_IDLE;
 
 always @(posedge clk_i) begin
 	if (rst_i) begin 
-
+		data_reg <= '0;
+		bitpos_reg <= '0;
+		state <= STATE_IDLE;
 	end begin
 		case (state)
 		STATE_IDLE: begin
 			if (wr_i) begin
 				state <= STATE_START;
-				data <= data_i;
-				bitpos <= 3'h0;
+				data_reg <= data_i;
+				bitpos_reg <= 3'h0;
 			end
 		end
 		STATE_START: begin
@@ -42,11 +44,11 @@ always @(posedge clk_i) begin
 		end
 		STATE_DATA: begin
 			if (clken_i) begin
-				if (bitpos == 3'h7)
+				if (bitpos_reg == 3'h7)
 					state <= STATE_STOP;
 				else
-					bitpos <= bitpos + 3'h1;
-				tx_o <= data[bitpos];
+					bitpos_reg <= bitpos_reg + 3'h1;
+				tx_o <= data_reg[bitpos_reg];
 			end
 		end
 		STATE_STOP: begin
