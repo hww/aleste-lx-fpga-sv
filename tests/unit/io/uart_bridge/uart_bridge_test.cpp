@@ -704,6 +704,251 @@ public:
         test_assert(read_success, "Register Block Read 4 bytes",
                     read_success ? "All 4 bytes read correctly" : "Expected " + std::to_string(BLOCK_SIZE) + " bytes, got " + std::to_string(received_data.size()));
     }
+    void test_sequential_operations()
+    {
+        std::cout << "\n=== Testing Sequential Operations ===" << std::endl;
+        reset_dut();
+        wait_uart_ready();
+
+        // Подготовка тестовых данных
+        uint32_t addr1 = 0x001000;
+        uint32_t addr2 = 0x002000;
+        uint32_t addr3 = 0x003000;
+        uint8_t test_data1 = 0xAA;
+        uint8_t test_data2 = 0xBB;
+        uint8_t test_data3 = 0xCC;
+
+        // Установка начальных значений в память
+        wb_memory[addr1] = test_data1;
+        wb_memory[addr2] = test_data2;
+        wb_memory[addr3] = test_data3;
+
+        std::vector<std::string> operations;
+        std::vector<bool> results;
+
+        std::cout << "Testing sequential memory reads..." << std::endl;
+
+        // Последовательные чтения из памяти
+        operations.push_back("Read addr 0x" + to_hex(addr1 >> 8) + " from memory");
+        uart_send_byte(0x00); // Memory Read
+        uart_send_byte((addr1 >> 16) & 0xFF);
+        uart_send_byte((addr1 >> 8) & 0xFF);
+        uart_send_byte(addr1 & 0xFF);
+
+        uint8_t response1;
+        bool received1 = uart_receive_byte(response1);
+        bool result1 = received1 && (response1 == test_data1);
+        results.push_back(result1);
+        std::cout << "  Read 1: " << (result1 ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(test_data1)
+                  << ", got 0x" << to_hex(response1) << ")" << std::endl;
+
+        // Немедленно следующее чтение (без reset)
+        operations.push_back("Read addr 0x" + to_hex(addr2 >> 8) + " from memory");
+        uart_send_byte(0x00); // Memory Read
+        uart_send_byte((addr2 >> 16) & 0xFF);
+        uart_send_byte((addr2 >> 8) & 0xFF);
+        uart_send_byte(addr2 & 0xFF);
+
+        uint8_t response2;
+        bool received2 = uart_receive_byte(response2);
+        bool result2 = received2 && (response2 == test_data2);
+        results.push_back(result2);
+        std::cout << "  Read 2: " << (result2 ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(test_data2)
+                  << ", got 0x" << to_hex(response2) << ")" << std::endl;
+
+        // Третье чтение подряд
+        operations.push_back("Read addr 0x" + to_hex(addr3 >> 8) + " from memory");
+        uart_send_byte(0x00); // Memory Read
+        uart_send_byte((addr3 >> 16) & 0xFF);
+        uart_send_byte((addr3 >> 8) & 0xFF);
+        uart_send_byte(addr3 & 0xFF);
+
+        uint8_t response3;
+        bool received3 = uart_receive_byte(response3);
+        bool result3 = received3 && (response3 == test_data3);
+        results.push_back(result3);
+        std::cout << "  Read 3: " << (result3 ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(test_data3)
+                  << ", got 0x" << to_hex(response3) << ")" << std::endl;
+
+        // Последовательные записи в память
+        uint32_t write_addr1 = 0x004000;
+        uint32_t write_addr2 = 0x005000;
+        uint8_t write_data1 = 0x11;
+        uint8_t write_data2 = 0x22;
+
+        // Очистка области перед записью
+        wb_memory[write_addr1] = 0x00;
+        wb_memory[write_addr2] = 0x00;
+
+        std::cout << "Testing sequential memory writes..." << std::endl;
+
+        operations.push_back("Write 0x" + to_hex(write_data1) + " to addr 0x" + to_hex(write_addr1 >> 8));
+        uart_send_byte(0x10); // Memory Write
+        uart_send_byte((write_addr1 >> 16) & 0xFF);
+        uart_send_byte((write_addr1 >> 8) & 0xFF);
+        uart_send_byte(write_addr1 & 0xFF);
+        uart_send_byte(write_data1);
+
+        // Ждем завершения операции
+        wait_clocks(CLOCKS_PER_BIT * 20);
+        bool write_result1 = (wb_memory[write_addr1] == write_data1);
+        results.push_back(write_result1);
+        std::cout << "  Write 1: " << (write_result1 ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(write_data1)
+                  << ", found 0x" << to_hex(wb_memory[write_addr1]) << ")" << std::endl;
+
+        // Немедленно следующая запись
+        operations.push_back("Write 0x" + to_hex(write_data2) + " to addr 0x" + to_hex(write_addr2 >> 8));
+        uart_send_byte(0x10); // Memory Write
+        uart_send_byte((write_addr2 >> 16) & 0xFF);
+        uart_send_byte((write_addr2 >> 8) & 0xFF);
+        uart_send_byte(write_addr2 & 0xFF);
+        uart_send_byte(write_data2);
+
+        wait_clocks(CLOCKS_PER_BIT * 20);
+        bool write_result2 = (wb_memory[write_addr2] == write_data2);
+        results.push_back(write_result2);
+        std::cout << "  Write 2: " << (write_result2 ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(write_data2)
+                  << ", found 0x" << to_hex(wb_memory[write_addr2]) << ")" << std::endl;
+
+        // Проверяем все результаты
+        bool all_pass = true;
+        for (size_t i = 0; i < results.size(); i++)
+        {
+            if (!results[i])
+            {
+                all_pass = false;
+                break;
+            }
+        }
+
+        test_assert(all_pass, "Sequential Operations",
+                    all_pass ? "All " + std::to_string(results.size()) + " sequential operations completed successfully" : "Some sequential operations failed - check detailed output above");
+    }
+
+    void test_mixed_operations()
+    {
+        std::cout << "\n=== Testing Mixed Operations ===" << std::endl;
+        reset_dut();
+        wait_uart_ready();
+
+        // Подготовка тестовых данных
+        uint32_t mem_addr = 0x006000;
+        uint8_t reg_addr = 0x30;
+        uint8_t initial_mem_value = 0x77;
+        uint8_t new_mem_value = 0x88;
+        uint8_t reg_value = 0x99;
+
+        // Инициализация памяти и регистров
+        wb_memory[mem_addr] = initial_mem_value;
+        dbg_registers[reg_addr] = reg_value;
+
+        std::vector<std::string> operations;
+        std::vector<bool> results;
+
+        std::cout << "Testing mixed operation sequence..." << std::endl;
+
+        // 1. Ping команда
+        operations.push_back("Ping command");
+        uart_send_byte(0xFF); // Ping
+        uint8_t ping_response;
+        bool ping_received = uart_receive_byte(ping_response);
+        bool ping_result = ping_received && (ping_response == 0xFE);
+        results.push_back(ping_result);
+        std::cout << "  Ping: " << (ping_result ? "PASS" : "FAIL")
+                  << " (expected 0xFE, got 0x" << to_hex(ping_response) << ")" << std::endl;
+
+        // 2. Чтение из памяти
+        operations.push_back("Memory read after ping");
+        uart_send_byte(0x00); // Memory Read
+        uart_send_byte((mem_addr >> 16) & 0xFF);
+        uart_send_byte((mem_addr >> 8) & 0xFF);
+        uart_send_byte(mem_addr & 0xFF);
+
+        uint8_t mem_read_response;
+        bool mem_read_received = uart_receive_byte(mem_read_response);
+        bool mem_read_result = mem_read_received && (mem_read_response == initial_mem_value);
+        results.push_back(mem_read_result);
+        std::cout << "  Memory Read: " << (mem_read_result ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(initial_mem_value)
+                  << ", got 0x" << to_hex(mem_read_response) << ")" << std::endl;
+
+        // 3. Запись в память
+        operations.push_back("Memory write after read");
+        uart_send_byte(0x10); // Memory Write
+        uart_send_byte((mem_addr >> 16) & 0xFF);
+        uart_send_byte((mem_addr >> 8) & 0xFF);
+        uart_send_byte(mem_addr & 0xFF);
+        uart_send_byte(new_mem_value);
+
+        wait_clocks(CLOCKS_PER_BIT * 20);
+        bool mem_write_result = (wb_memory[mem_addr] == new_mem_value);
+        results.push_back(mem_write_result);
+        std::cout << "  Memory Write: " << (mem_write_result ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(new_mem_value)
+                  << ", found 0x" << to_hex(wb_memory[mem_addr]) << ")" << std::endl;
+
+        // 4. Чтение регистра
+        operations.push_back("Register read after memory operations");
+        uart_send_byte(0x20); // Register Read
+        uart_send_byte(reg_addr);
+
+        uint8_t reg_read_response;
+        bool reg_read_received = uart_receive_byte(reg_read_response);
+        bool reg_read_result = reg_read_received && (reg_read_response == reg_value);
+        results.push_back(reg_read_result);
+        std::cout << "  Register Read: " << (reg_read_result ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(reg_value)
+                  << ", got 0x" << to_hex(reg_read_response) << ")" << std::endl;
+
+        // 5. Global Status
+        operations.push_back("Global status command");
+        uart_send_byte(0x50); // Global Status
+        uint8_t status_response;
+        bool status_received = uart_receive_byte(status_response);
+        bool status_result = status_received && (status_response == dbg_registers[0x00]);
+        results.push_back(status_result);
+        std::cout << "  Global Status: " << (status_result ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(dbg_registers[0x00])
+                  << ", got 0x" << to_hex(status_response) << ")" << std::endl;
+
+        // 6. Запись регистра
+        uint8_t new_reg_value = 0x66;
+        operations.push_back("Register write to complete sequence");
+        uart_send_byte(0x30); // Register Write
+        uart_send_byte(reg_addr);
+        uart_send_byte(new_reg_value);
+
+        wait_clocks(CLOCKS_PER_BIT * 20);
+        bool reg_write_result = (dbg_registers[reg_addr] == new_reg_value);
+        results.push_back(reg_write_result);
+        std::cout << "  Register Write: " << (reg_write_result ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(new_reg_value)
+                  << ", found 0x" << to_hex(dbg_registers[reg_addr]) << ")" << std::endl;
+
+        // Финальная проверка всех операций
+        bool all_pass = true;
+        for (size_t i = 0; i < results.size(); i++)
+        {
+            if (!results[i])
+            {
+                all_pass = false;
+                std::cout << "  ❌ Failed: " << operations[i] << std::endl;
+            }
+        }
+
+        if (all_pass)
+        {
+            std::cout << "  ✅ All " << results.size() << " mixed operations completed successfully!" << std::endl;
+        }
+
+        test_assert(all_pass, "Mixed Operations Sequence",
+                    all_pass ? "All " + std::to_string(results.size()) + " mixed operations completed successfully" : "Some operations in mixed sequence failed - check detailed output above");
+    }
     std::string to_hex(uint8_t value)
     {
         std::stringstream ss;
@@ -720,10 +965,12 @@ public:
         test_global_status_command();
         test_register_read_write();
         test_memory_read_write();
-        test_memory_block_read_write(); 
-        test_register_block_read_write(); 
+        test_memory_block_read_write();
+        test_register_block_read_write();
         test_event_commands();
         test_invalid_commands();
+        test_sequential_operations();
+        test_mixed_operations();
 
         stats.print();
 

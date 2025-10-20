@@ -1,6 +1,6 @@
 {
     "serial": {
-        "port": "/dev/ttyUSB4",
+        "port": "/dev/ttyACM1",
         "baudrate": 115200,
         "timeout": 1.0
     },

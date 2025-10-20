@@ -143,9 +143,9 @@ module uart_bridge_test #(
     // ===========================================
     // Отладочные сигналы
     // ===========================================
-    assign debug_leds[0] = pll_locked;
-    assign debug_leds[1] = system_reset;
-    assign debug_leds[2] = serial_rx;
+    assign debug_leds[0] = state[0];
+    assign debug_leds[1] = state[1];
+    assign debug_leds[2] = state[2];
 
     // Отладочные пины - мониторим адресную шину
     assign debug = {

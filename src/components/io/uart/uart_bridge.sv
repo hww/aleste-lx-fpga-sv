@@ -206,7 +206,7 @@ always_ff @(posedge clk_54m) begin
         uart_rx_ack <= '0;
         uart_tx_start <= '0;
         wb_read_ack <= '0;
-        dbg_cmd_active <= '0;
+
 
         case (cmd_state)
             CMD_IDLE: begin
@@ -292,6 +292,7 @@ always_ff @(posedge clk_54m) begin
                 end
                 
                 if (wb_cmd_complete && wb_cmd_active) begin
+                    wb_cmd_active <= 0;
                     wb_cmd_read <= 0;
                     cmd_state <= CMD_IDLE;
                 end
@@ -314,7 +315,9 @@ always_ff @(posedge clk_54m) begin
                 end
                 
                 if (wb_cmd_complete && wb_cmd_active) begin
+                    wb_cmd_active <= 0;
                     wb_wr_valid <= 1'b0;
+     
                     cmd_state <= CMD_IDLE;
                 end
             end 
@@ -334,6 +337,7 @@ always_ff @(posedge clk_54m) begin
                 end
                 
                 if (dbg_cmd_complete && dbg_cmd_active) begin
+                    dbg_cmd_active <= '0;               
                     dbg_cmd_read <= 0;
                     cmd_state <= CMD_IDLE;
                 end
@@ -356,6 +360,7 @@ always_ff @(posedge clk_54m) begin
                 end
                 
                 if (dbg_cmd_complete && dbg_cmd_active) begin
+                    dbg_cmd_active <= '0;               
                     dbg_wr_valid <= 1'b0;
                     cmd_state <= CMD_IDLE;
                 end
