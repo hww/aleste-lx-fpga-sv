@@ -131,7 +131,6 @@ logic        wb_cmd_complete;
 
 // Write data interface
 logic        wb_wr_valid;
-logic        wb_wr_ready;
 logic [7:0]  wb_wr_data;
 
 // Read data interface
@@ -152,7 +151,6 @@ logic [7:0]  dbg_cmd_addr;
 
 // Write data interface
 logic        dbg_wr_valid;
-logic        dbg_wr_ready;
 logic [7:0]  dbg_wr_data;
 
 // Read data interface
@@ -204,8 +202,6 @@ always_ff @(posedge clk_54m) begin
         dbg_cmd_active <= '0;
     end else begin
         uart_rx_ack <= '0;
-        uart_tx_start <= '0;
-        wb_read_ack <= '0;
 
 
         case (cmd_state)
@@ -324,7 +320,8 @@ always_ff @(posedge clk_54m) begin
                 
             CMD_REG_READ: begin
                 dbg_read_ack <= 1'b0;
-                
+                uart_tx_start <= 1'b0;
+
                 if (dbg_cmd_ready && !dbg_cmd_active) begin
                     dbg_cmd_active <= 1'b1;
                     dbg_cmd_read <= 1'b1;
@@ -372,6 +369,7 @@ always_ff @(posedge clk_54m) begin
             end
             
             CMD_SEND_RESPONSE: begin
+                uart_tx_start <= '0;
                 if (!uart_tx_busy) begin
                     uart_tx_start <= 1'b1;
                     uart_tx_data <= response_data;
@@ -420,12 +418,10 @@ always_ff @(posedge clk_54m) begin
         wb_bytes_remaining <= '0;
         
         wb_cmd_ready <= '0;
-        wb_wr_ready <= '0;
         wb_rd_valid <= '0;
         wb_rd_data <= '0;
         wb_cmd_complete <= '0;
     end else begin
-        wb_wr_ready <= '0;
         
         case (wb_state)
             WB_IDLE: begin
@@ -439,7 +435,7 @@ always_ff @(posedge clk_54m) begin
                     wb_cmd_ready <= 1'b0;
                     wb_adr_o <= wb_cmd_addr;
                     wb_bytes_remaining <= data_size;
-                    
+                    // select read or write operation
                     if (wb_cmd_read) begin
                         wb_state <= WB_READ;
                         wb_cyc_o <= 1'b1;
@@ -450,7 +446,6 @@ always_ff @(posedge clk_54m) begin
                         wb_state <= WB_WRITE;
                         wb_cyc_o <= 1'b1;
                         wb_we_o <= 1'b1;
-                        wb_wr_ready <= 1'b1;
                     end
                 end
             end
@@ -460,13 +455,13 @@ always_ff @(posedge clk_54m) begin
                     wb_rd_data <= wb_dat_i;
                     wb_rd_valid <= 1'b1;
                     wb_stb_o <= 1'b0;
-                    wb_bytes_remaining <= wb_bytes_remaining - 1;
                 end
                 
                 if (wb_read_ack && wb_rd_valid) begin
                     wb_rd_valid <= 1'b0;
+                    wb_bytes_remaining <= wb_bytes_remaining - 1;
                     
-                    if (wb_bytes_remaining == 0) begin
+                    if (wb_bytes_remaining == 1) begin
                         wb_cyc_o <= 1'b0;
                         wb_cmd_complete <= 1'b1;
                         wb_state <= WB_IDLE;
@@ -478,8 +473,8 @@ always_ff @(posedge clk_54m) begin
             end
             
             WB_WRITE: begin
+                // данные от командного контроллера
                 if (wb_wr_valid) begin
-                    wb_wr_ready <= 1'b0;
                     wb_dat_o <= wb_wr_data;
                     wb_stb_o <= 1'b1;
                 end
@@ -494,7 +489,6 @@ always_ff @(posedge clk_54m) begin
                         wb_state <= WB_IDLE;
                     end else begin
                         wb_adr_o <= wb_adr_o + 1;
-                        wb_wr_ready <= 1'b1;
                     end
                 end
             end
@@ -528,12 +522,10 @@ always_ff @(posedge clk_54m) begin
         dbg_bytes_remaining <= '0;
         
         dbg_cmd_ready <= '0;
-        dbg_wr_ready <= '0;
         dbg_rd_valid <= '0;
         dbg_rd_data <= '0;
         dbg_cmd_complete <= '0;
     end else begin
-        dbg_wr_ready <= '0;
         
         case (dbg_state)
             DBG_IDLE: begin
@@ -557,7 +549,6 @@ always_ff @(posedge clk_54m) begin
                         dbg_state <= DBG_WRITE;
                         dbg_cyc_o <= 1'b1;
                         dbg_we_o <= 1'b1;
-                        dbg_wr_ready <= 1'b1;
                     end
                 end
             end
@@ -567,13 +558,13 @@ always_ff @(posedge clk_54m) begin
                     dbg_rd_data <= dbg_dat_i;
                     dbg_rd_valid <= 1'b1;
                     dbg_stb_o <= 1'b0;
-                    dbg_bytes_remaining <= dbg_bytes_remaining - 1;
                 end
                 
                 if (dbg_read_ack && dbg_rd_valid) begin
                     dbg_rd_valid <= 1'b0;
-                    
-                    if (dbg_bytes_remaining == 0) begin
+                    dbg_bytes_remaining <= dbg_bytes_remaining - 1;
+                               
+                    if (dbg_bytes_remaining == 1) begin
                         dbg_cyc_o <= 1'b0;
                         dbg_cmd_complete <= 1'b1;
                         dbg_state <= DBG_IDLE;
@@ -586,7 +577,6 @@ always_ff @(posedge clk_54m) begin
             
             DBG_WRITE: begin
                 if (dbg_wr_valid) begin
-                    dbg_wr_ready <= 1'b0;
                     dbg_dat_o <= dbg_wr_data;
                     dbg_stb_o <= 1'b1;
                 end
@@ -601,7 +591,6 @@ always_ff @(posedge clk_54m) begin
                         dbg_state <= DBG_IDLE;
                     end else begin
                         dbg_adr_o <= dbg_adr_o + 1;
-                        dbg_wr_ready <= 1'b1;
                     end
                 end
             end

@@ -224,11 +224,11 @@ public:
         wait_clocks(CLOCKS_PER_BIT);
     }
 
-    bool uart_receive_byte(uint8_t &data)
+    bool uart_receive_byte_timed(uint8_t &data, uint8_t time_bits)
     {
         std::cout << "Waiting for UART response..." << std::endl;
 
-        int timeout = CLOCKS_PER_BIT * 20;
+        int timeout = CLOCKS_PER_BIT * time_bits;
         while (dut->uart_tx == 1 && timeout-- > 0)
             tick();
 
@@ -250,6 +250,11 @@ public:
 
         wait_clocks(CLOCKS_PER_BIT);
         return true;
+    }
+
+    bool uart_receive_byte(uint8_t &data)
+    {
+        return uart_receive_byte_timed(data, 20);
     }
 
     void wait_clocks(int num_clocks)
@@ -949,6 +954,476 @@ public:
         test_assert(all_pass, "Mixed Operations Sequence",
                     all_pass ? "All " + std::to_string(results.size()) + " mixed operations completed successfully" : "Some operations in mixed sequence failed - check detailed output above");
     }
+
+    void test_memory_read_overflow()
+    {
+        std::cout << "\n=== Testing Memory Read Overflow ===" << std::endl;
+        reset_dut();
+        wait_uart_ready();
+
+        uint32_t addr = 0x001000;
+        uint8_t expected_data = 0x55;
+        wb_memory[addr] = expected_data;
+
+        std::cout << "Testing single byte memory read for overflow..." << std::endl;
+
+        // Отправляем команду чтения 1 байта
+        uart_send_byte(0x00); // Memory Read 1 byte
+        uart_send_byte((addr >> 16) & 0xFF);
+        uart_send_byte((addr >> 8) & 0xFF);
+        uart_send_byte(addr & 0xFF);
+
+        // Получаем ожидаемый байт
+        uint8_t response;
+        bool received = uart_receive_byte(response);
+
+        if (!received)
+        {
+            test_assert(false, "Memory Read Overflow - First Byte",
+                        "Failed to receive first byte");
+            return;
+        }
+
+        bool first_byte_correct = (response == expected_data);
+        std::cout << "  First byte: " << (first_byte_correct ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(expected_data)
+                  << ", got 0x" << to_hex(response) << ")" << std::endl;
+
+        // Теперь пытаемся получить дополнительные байты (которые не должны приходить)
+        std::vector<uint8_t> extra_bytes;
+        int timeout = CLOCKS_PER_BIT * 5; // Короткий таймаут
+        int max_extra_bytes = 10;         // Ограничим количество проверяемых лишних байт
+
+        std::cout << "Checking for overflow bytes..." << std::endl;
+
+        for (int i = 0; i < max_extra_bytes; i++)
+        {
+            uint8_t extra_byte;
+            bool extra_received = false;
+            int attempts = 0;
+
+            // Быстрая проверка на наличие данных
+            while (attempts < timeout && !extra_received)
+            {
+                if (dut->uart_tx == 0)
+                { // Start bit detected
+                    extra_received = uart_receive_byte(extra_byte);
+                    break;
+                }
+                tick();
+                attempts++;
+            }
+
+            if (extra_received)
+            {
+                extra_bytes.push_back(extra_byte);
+                std::cout << "  ❌ Overflow byte " << (i + 1) << ": 0x" << to_hex(extra_byte) << std::endl;
+            }
+            else
+            {
+                break; // Больше данных нет - это хорошо
+            }
+        }
+
+        bool no_overflow = extra_bytes.empty();
+
+        if (no_overflow)
+        {
+            std::cout << "  ✅ No overflow bytes detected" << std::endl;
+            test_assert(first_byte_correct, "Memory Read Overflow Test",
+                        "Single byte read completed without overflow");
+        }
+        else
+        {
+            std::cout << "  ❌ Detected " << extra_bytes.size() << " overflow bytes!" << std::endl;
+            test_assert(false, "Memory Read Overflow Test",
+                        "Expected 1 byte, got " + std::to_string(1 + extra_bytes.size()) +
+                            " bytes (overflow: " + std::to_string(extra_bytes.size()) + " bytes)");
+        }
+    }
+
+    void test_memory_block_read_overflow()
+    {
+        std::cout << "\n=== Testing Memory Block Read Overflow ===" << std::endl;
+        reset_dut();
+        wait_uart_ready();
+
+        uint32_t base_addr = 0x002000;
+        const int BLOCK_SIZE = 8;
+        std::vector<uint8_t> test_data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+
+        // Заполняем память тестовыми данными
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            wb_memory[base_addr + i] = test_data[i];
+        }
+
+        std::cout << "Testing 8-byte block read for overflow..." << std::endl;
+
+        // Отправляем команду чтения 8 байт
+        uart_send_byte(0x03); // Memory Read 8 bytes
+        uart_send_byte((base_addr >> 16) & 0xFF);
+        uart_send_byte((base_addr >> 8) & 0xFF);
+        uart_send_byte(base_addr & 0xFF);
+
+        // Получаем ожидаемые 8 байт
+        std::vector<uint8_t> received_data;
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            uint8_t response;
+            bool received = uart_receive_byte(response);
+            if (received)
+            {
+                received_data.push_back(response);
+                std::cout << "  Byte " << i << ": 0x" << to_hex(response)
+                          << (response == test_data[i] ? " ✅" : " ❌") << std::endl;
+            }
+            else
+            {
+                std::cout << "  ❌ Failed to receive byte " << i << std::endl;
+            }
+        }
+
+        // Проверяем корректность полученных данных
+        bool data_correct = (received_data.size() == BLOCK_SIZE);
+        if (data_correct)
+        {
+            for (int i = 0; i < BLOCK_SIZE; i++)
+            {
+                if (received_data[i] != test_data[i])
+                {
+                    data_correct = false;
+                    break;
+                }
+            }
+        }
+
+        // Теперь проверяем overflow
+        std::vector<uint8_t> overflow_bytes;
+        int max_overflow_check = 20; // Проверим на 20 лишних байт
+        int overflow_timeout = CLOCKS_PER_BIT * 3;
+
+        std::cout << "Checking for block read overflow..." << std::endl;
+
+        for (int i = 0; i < max_overflow_check; i++)
+        {
+            uint8_t extra_byte;
+            bool extra_received = false;
+            int attempts = 0;
+
+            while (attempts < overflow_timeout && !extra_received)
+            {
+                if (dut->uart_tx == 0)
+                {
+                    extra_received = uart_receive_byte(extra_byte);
+                    break;
+                }
+                tick();
+                attempts++;
+            }
+
+            if (extra_received)
+            {
+                overflow_bytes.push_back(extra_byte);
+                std::cout << "  ❌ Overflow byte " << i + 1 << ": 0x" << to_hex(extra_byte) << std::endl;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        bool no_overflow = overflow_bytes.empty();
+
+        if (data_correct && no_overflow)
+        {
+            std::cout << "  ✅ Block read completed correctly - no overflow" << std::endl;
+            test_assert(true, "Memory Block Read Overflow Test",
+                        "8 bytes read successfully without overflow");
+        }
+        else if (!no_overflow)
+        {
+            std::cout << "  ❌ Block read overflow: " << overflow_bytes.size() << " extra bytes!" << std::endl;
+            test_assert(false, "Memory Block Read Overflow Test",
+                        "Expected " + std::to_string(BLOCK_SIZE) + " bytes, got " +
+                            std::to_string(BLOCK_SIZE + overflow_bytes.size()) + " bytes");
+        }
+        else
+        {
+            test_assert(false, "Memory Block Read Overflow Test",
+                        "Data corruption: received " + std::to_string(received_data.size()) + "/8 bytes correctly");
+        }
+    }
+
+    void test_register_read_overflow()
+    {
+        std::cout << "\n=== Testing Register Read Overflow ===" << std::endl;
+        reset_dut();
+        wait_uart_ready();
+
+        uint8_t reg_addr = 0x40;
+        uint8_t expected_data = 0x99;
+        dbg_registers[reg_addr] = expected_data;
+
+        std::cout << "Testing single register read for overflow..." << std::endl;
+
+        uart_send_byte(0x20); // Register Read
+        uart_send_byte(reg_addr);
+
+        uint8_t response;
+        bool received = uart_receive_byte(response);
+
+        if (!received)
+        {
+            test_assert(false, "Register Read Overflow - First Byte",
+                        "Failed to receive register data");
+            return;
+        }
+
+        bool first_byte_correct = (response == expected_data);
+        std::cout << "  Register value: " << (first_byte_correct ? "PASS" : "FAIL")
+                  << " (expected 0x" << to_hex(expected_data)
+                  << ", got 0x" << to_hex(response) << ")" << std::endl;
+
+        // Проверяем overflow
+        std::vector<uint8_t> overflow_bytes;
+        int max_check = 10;
+        int timeout = CLOCKS_PER_BIT * 3;
+
+        std::cout << "Checking for register read overflow..." << std::endl;
+
+        for (int i = 0; i < max_check; i++)
+        {
+            uint8_t extra_byte;
+            bool extra_received = false;
+            int attempts = 0;
+
+            while (attempts < timeout && !extra_received)
+            {
+                if (dut->uart_tx == 0)
+                {
+                    extra_received = uart_receive_byte(extra_byte);
+                    break;
+                }
+                tick();
+                attempts++;
+            }
+
+            if (extra_received)
+            {
+                overflow_bytes.push_back(extra_byte);
+                std::cout << "  ❌ Overflow byte " << (i + 1) << ": 0x" << to_hex(extra_byte) << std::endl;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        bool no_overflow = overflow_bytes.empty();
+
+        if (no_overflow)
+        {
+            std::cout << "  ✅ No register read overflow" << std::endl;
+            test_assert(first_byte_correct, "Register Read Overflow Test",
+                        "Single register read completed without overflow");
+        }
+        else
+        {
+            std::cout << "  ❌ Register read overflow: " << overflow_bytes.size() << " bytes!" << std::endl;
+            test_assert(false, "Register Read Overflow Test",
+                        "Expected 1 register byte, got " + std::to_string(1 + overflow_bytes.size()));
+        }
+    }
+
+    void test_continuous_overflow_detection()
+    {
+        std::cout << "\n=== Testing Continuous Overflow Detection ===" << std::endl;
+        std::cout << "This test will detect the 130-150 byte overflow issue..." << std::endl;
+
+        reset_dut();
+        wait_uart_ready();
+
+        uint32_t addr = 0x003000;
+        uint8_t test_value = 0x42;
+        wb_memory[addr] = test_value;
+
+        // Выполняем простой read
+        uart_send_byte(0x00); // Memory Read
+        uart_send_byte((addr >> 16) & 0xFF);
+        uart_send_byte((addr >> 8) & 0xFF);
+        uart_send_byte(addr & 0xFF);
+
+        // Получаем первый (корректный) байт
+        uint8_t first_byte;
+        uart_receive_byte(first_byte);
+
+        // Теперь мониторим линию в течение длительного времени
+        std::cout << "Monitoring UART TX for overflow data (this may take a moment)..." << std::endl;
+
+        std::vector<uint8_t> overflow_data;
+        const int MONITOR_CYCLES = CLOCKS_PER_BIT * 200; // Мониторим достаточно долго
+        bool capturing = false;
+        int bit_count = 0;
+        uint8_t current_byte = 0;
+        int bytes_captured = 0;
+
+        for (int i = 0; i < MONITOR_CYCLES; i++)
+        {
+            if (dut->uart_tx == 0 && !capturing)
+            {
+                // Обнаружили start bit - начинаем захват
+                capturing = true;
+                bit_count = 0;
+                current_byte = 0;
+            }
+
+            if (capturing)
+            {
+                // Ждем середину бита
+                if (i % CLOCKS_PER_BIT == CLOCKS_PER_BIT / 2)
+                {
+                    if (bit_count >= 1 && bit_count <= 8)
+                    {
+                        // Data bits
+                        current_byte |= (dut->uart_tx << (bit_count - 1));
+                    }
+                    bit_count++;
+
+                    if (bit_count > 9)
+                    { // Start + 8 data + stop
+                        capturing = false;
+                        overflow_data.push_back(current_byte);
+                        bytes_captured++;
+
+                        if (bytes_captured % 10 == 0)
+                        {
+                            std::cout << "  Captured " << bytes_captured << " overflow bytes..." << std::endl;
+                        }
+
+                        if (bytes_captured >= 150)
+                        {
+                            std::cout << "  Reached 150 bytes - stopping capture" << std::endl;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            tick();
+        }
+
+        std::cout << "Overflow capture completed: " << overflow_data.size() << " bytes captured" << std::endl;
+
+        if (overflow_data.size() > 1)
+        {
+            std::cout << "  ❌ MAJOR OVERFLOW DETECTED: " << overflow_data.size() << " bytes!" << std::endl;
+            std::cout << "  First 10 overflow bytes: ";
+            for (int i = 0; i < std::min(10, (int)overflow_data.size()); i++)
+            {
+                std::cout << "0x" << to_hex(overflow_data[i]) << " ";
+            }
+            std::cout << std::endl;
+
+            // Анализ паттерна overflow данных
+            int zero_count = 0;
+            int pattern_count = 0;
+            for (size_t i = 0; i < overflow_data.size(); i++)
+            {
+                if (overflow_data[i] == 0x00)
+                    zero_count++;
+                if (i > 0 && overflow_data[i] == overflow_data[i - 1])
+                    pattern_count++;
+            }
+
+            std::cout << "  Overflow analysis: " << zero_count << "/" << overflow_data.size()
+                      << " zeros, " << pattern_count << " repeating patterns" << std::endl;
+        }
+
+        bool overflow_detected = (overflow_data.size() > 1);
+        test_assert(!overflow_detected, "Continuous Overflow Detection",
+                    overflow_detected ? "MAJOR OVERFLOW: " + std::to_string(overflow_data.size()) + " bytes detected after single read!" : "No significant overflow detected");
+    }
+    void test_block_size_loading()
+    {
+        std::cout << "\n=== Simple Block Reading Test ===" << std::endl;
+
+        // Простейший паттерн: значение = младший байт адреса
+        for (int i = 0; i < 256; i++)
+        {
+            wb_memory[i] = i & 0xFF; // Заполняем память: data = address
+        }
+
+        int block_sizes[] = {1, 2, 4, 8, 16, 32, 64, 128};
+
+        for (int block_size : block_sizes)
+        {
+            std::cout << "\n--- Testing " << block_size << " bytes ---" << std::endl;
+
+            reset_dut();
+            wait_uart_ready();
+
+            uint32_t base_addr = 0x000000; // Начинаем с адреса 0
+            uint8_t cmd = log2(block_size);  // Команда: 0x00=1байт, 0x01=2байта, etc.
+
+            // Отправляем команду чтения
+            uart_send_byte(cmd);
+            uart_send_byte((base_addr >> 16) & 0xFF);
+            uart_send_byte((base_addr >> 8) & 0xFF);
+            uart_send_byte(base_addr & 0xFF);
+
+            // Получаем данные
+            std::vector<uint8_t> received;
+            for (int i = 0; i < block_size; i++)
+            {
+                uint8_t byte;
+                if (uart_receive_byte_timed(byte,128))
+                {
+                    received.push_back(byte);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // Простая проверка
+            bool correct = (received.size() == block_size);
+
+            if (correct)
+            {
+                // Проверяем что данные совпадают с адресом
+                for (int i = 0; i < block_size; i++)
+                {
+                    uint8_t expected = (base_addr + i) & 0xFF; // Ожидаем: data = address
+                    if (received[i] != expected)
+                    {
+                        correct = false;
+                        std::cout << "  ❌ Byte " << i << ": expected 0x" << to_hex(expected)
+                                  << ", got 0x" << to_hex(received[i]) << std::endl;
+                        break;
+                    }
+                }
+            }
+
+            if (correct)
+            {
+                std::cout << "  ✅ Received " << received.size() << " correct bytes" << std::endl;
+            }
+            else
+            {
+                std::cout << "  ❌ Expected " << block_size << " bytes, got " << received.size() << std::endl;
+            }
+
+            // Проверяем нет ли лишних байт
+            uint8_t extra_byte;
+            if (uart_receive_byte(extra_byte))
+            {
+                std::cout << "  ❌ OVERFLOW: extra byte 0x" << to_hex(extra_byte) << std::endl;
+            }
+        }
+    }
+
     std::string to_hex(uint8_t value)
     {
         std::stringstream ss;
@@ -969,8 +1444,15 @@ public:
         test_register_block_read_write();
         test_event_commands();
         test_invalid_commands();
+        // Существующие комплексные тесты
         test_sequential_operations();
         test_mixed_operations();
+        // НОВЫЕ ТЕСТЫ ДЛЯ ОБНАРУЖЕНИЯ OVERFLOW
+        test_memory_read_overflow();
+        test_memory_block_read_overflow();
+        test_register_read_overflow();
+        test_continuous_overflow_detection(); // Главный тест для поимки 130-150 байт
+        test_block_size_loading();
 
         stats.print();
 

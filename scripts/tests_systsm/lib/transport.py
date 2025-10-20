@@ -188,22 +188,28 @@ class FPGATransport:
         return packet
     
     def _read_response(self) -> Optional[bytes]:
-        """Прочитать ответ с таймаутом"""
-        start_time = time.time()
-        timeout = self.config['protocol']['response_timeout']
+        """Прочитать ответ - ждет пока данные перестанут приходить"""
         response = b''
+        last_data_time = time.time()
+        timeout = self.config['protocol']['response_timeout']
         
-        # Ждем первый байт с более коротким таймаутом
-        first_byte_timeout = min(0.1, timeout)
-        if self.serial.read(1):
-            # Если получили первый байт, читаем остальные
-            self.serial.timeout = timeout
-            remaining = self.serial.read(self.serial.in_waiting or 1)
-            response = self.serial.read(1) + remaining if remaining else self.serial.read(1)
+        while time.time() - last_data_time < timeout:
+            if self.serial.in_waiting > 0:
+                # Читаем все доступные данные
+                chunk = self.serial.read(self.serial.in_waiting)
+                response += chunk
+                last_data_time = time.time()  # Сбрасываем таймер
+                
+                print(f"DEBUG: Got {len(chunk)} bytes, total: {len(response)}")
+            else:
+                # Небольшая пауза если данных нет
+                time.sleep(0.01)
         
-        # Восстанавливаем таймаут
-        self.serial.timeout = self.config['serial']['timeout']
-        return response if response else None
+        if response:
+            print(f"DEBUG: Complete response: {len(response)} bytes")
+            return response
+        
+        return None
 
     def close(self):
         """Закрыть соединение"""

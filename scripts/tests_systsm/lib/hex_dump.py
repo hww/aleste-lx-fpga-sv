@@ -1,60 +1,113 @@
 #!/usr/bin/env python3
-from typing import Optional, Iterable
+"""
+Hex dump module for memory visualization
+"""
+
+def hex_dump(address, data: bytes, bytes_per_line: int = 16, title: str = None):
+    """
+    Display hex dump of memory data
+    
+    Args:
+        address: Starting address (int or hex string)
+        data: Bytes to display
+        bytes_per_line: Number of bytes per line
+        title: Optional title
+    """
+    if not data:
+        print("No data to dump")
+        return
+    
+    # Convert address to int if needed
+    if isinstance(address, str):
+        if address.startswith('0x'):
+            address = int(address, 16)
+        else:
+            address = int(address)
+    address = int(address)
+    
+    bytes_per_line = int(bytes_per_line)
+    
+    if title:
+        print(title)
+    
+    print(f"Address: 0x{address:06X} - 0x{address + len(data) - 1:06X} ({len(data)} bytes)")
+    
+    for i in range(0, len(data), bytes_per_line):
+        chunk = data[i:i + bytes_per_line]
+        current_addr = address + i
+        
+        # Format address
+        line = f"0x{current_addr:06X}: "
+        
+        # Format hex bytes
+        hex_bytes = []
+        for j in range(bytes_per_line):
+            if j < len(chunk):
+                hex_bytes.append(f"{chunk[j]:02X}")
+            else:
+                hex_bytes.append("  ")
+        
+        # Group bytes by 8 for better readability
+        if bytes_per_line >= 8:
+            groups = []
+            for k in range(0, len(hex_bytes), 8):
+                groups.append(" ".join(hex_bytes[k:k+8]))
+            hex_str = "  ".join(groups)
+        else:
+            hex_str = " ".join(hex_bytes)
+        
+        line += hex_str.ljust(bytes_per_line * 3 - 1)
+        
+        # Format ASCII representation
+        line += "  |"
+        ascii_part = ""
+        for byte in chunk:
+            if 32 <= byte <= 126:  # Printable ASCII
+                ascii_part += chr(byte)
+            else:
+                ascii_part += "."
+        line += ascii_part.ljust(bytes_per_line)
+        line += "|"
+        
+        print(line)
+
 
 class HexDump:
-    """Класс для красивого вывода hex дампа памяти"""
+    """Hex dump class for more advanced usage"""
     
     def __init__(self, address_width: int = 6, bytes_per_line: int = 16, show_ascii: bool = True):
-        """
-        Args:
-            address_width: Ширина адреса в символах (6 для 24-бит = 6 hex цифр)
-            bytes_per_line: Количество байт в одной строке
-            show_ascii: Показывать ASCII представление
-        """
-        self.address_width = address_width
-        self.bytes_per_line = bytes_per_line
-        self.show_ascii = show_ascii
+        self.address_width = int(address_width)
+        self.bytes_per_line = int(bytes_per_line)
+        self.show_ascii = bool(show_ascii)
     
-    def dump(self, address: int, data: bytes, title: str = None) -> str:
-        """Сгенерировать hex dump"""
+    def dump(self, address, data: bytes, title: str = None) -> str:
+        """Generate hex dump as string"""
         if not data:
             return "No data to dump"
         
-        # Убедимся, что address - целое число
-        if not isinstance(address, int):
-            address = int(address)
+        # Convert address to int
+        address = int(address)
         
-        if title:
-            result = f"{title}\n"
-        else:
-            result = ""
-        
-        result += f"Address: 0x{address:0{self.address_width}X} - 0x{address + len(data) - 1:0{self.address_width}X} "
-        result += f"({len(data)} bytes)\n"
-        result += self._generate_dump(address, data)
-        return result
-    
-    def _generate_dump(self, base_address: int, data: bytes) -> str:
-        """Сгенерировать основной дамп"""
         lines = []
+        if title:
+            lines.append(title)
+        
+        lines.append(f"Address: 0x{address:06X} - 0x{address + len(data) - 1:06X} ({len(data)} bytes)")
         
         for i in range(0, len(data), self.bytes_per_line):
             chunk = data[i:i + self.bytes_per_line]
-            line = self._format_line(base_address + i, chunk)
-            lines.append(line)
+            lines.append(self._format_line(address + i, chunk))
         
         return '\n'.join(lines)
     
     def _format_line(self, address: int, data: bytes) -> str:
-        """Форматировать одну строку дампа"""
-        # Убедимся, что address - целое число
-        if not isinstance(address, int):
-            address = int(address)
-            
-        # Адрес
+        """Format single line of hex dump"""
+        address = int(address)
+        
+        # Address
         line = f"0x{address:0{self.address_width}X}: "
         
-        # Hex байты
+        # Hex bytes
         hex_part = []
         for i in range(self.bytes_per_line):
             if i < len(data):
@@ -62,24 +115,23 @@ class HexDump:
             else:
                 hex_part.append("  ")
         
-        # Разбиваем на группы по 8 байт для лучшей читаемости
+        # Group by 8 bytes
         if self.bytes_per_line >= 8:
             hex_groups = []
             for i in range(0, len(hex_part), 8):
-                group = hex_part[i:i + 8]
-                hex_groups.append(" ".join(group))
+                hex_groups.append(" ".join(hex_part[i:i+8]))
             hex_str = "  ".join(hex_groups)
         else:
             hex_str = " ".join(hex_part)
         
         line += hex_str.ljust(self.bytes_per_line * 3 - 1)
         
-        # ASCII представление
+        # ASCII representation
         if self.show_ascii:
             line += "  |"
             ascii_part = ""
             for byte in data:
-                if 32 <= byte <= 126:  # Printable ASCII
+                if 32 <= byte <= 126:
                     ascii_part += chr(byte)
                 else:
                     ascii_part += "."
@@ -88,13 +140,6 @@ class HexDump:
         
         return line
     
-    def print_dump(self, address: int, data: bytes, title: str = None):
-        """Напечатать hex dump"""
+    def print_dump(self, address, data: bytes, title: str = None):
+        """Print hex dump"""
         print(self.dump(address, data, title))
-
-
-# Функции для удобного использования
-def hex_dump(address: int, data: bytes, bytes_per_line: int = 16, title: str = None):
-    """Быстрый hex dump"""
-    dumper = HexDump(bytes_per_line=bytes_per_line)
-    dumper.print_dump(address, data, title)
