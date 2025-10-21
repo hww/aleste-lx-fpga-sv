@@ -11,7 +11,7 @@ def test_streaming():
     fw = FPGACommands()
     
     print("=== Streaming Problem Test ===")
-    sizes = [1, 4, 16, 32, 64, 128]
+    sizes = [1, 2, 4, 16, 32, 64, 128]
     
     for size in sizes:
         print(f"\n--- Testing {size} byte read ---")

@@ -150,11 +150,15 @@ always_ff @(posedge clk_54m) begin
     end else if (timeout_start_stb) begin
         wdt_trigger <= '0;
         wdt_counter <= TIMEOUT_UART_TX;
-    end else if (uart_tx_clk) begin
-        if (wdt_counter != 1) begin
-            wdt_counter <= wdt_counter - 1;
-        end else begin
-            wdt_trigger <= '1;
+    end else begin
+        wdt_trigger <= '0;
+        if (uart_tx_clk) begin
+            if (wdt_counter != 1) begin
+                wdt_counter <= wdt_counter - 1;
+            end else begin
+                wdt_trigger <= '1;
+                wdt_counter <= 0;
+            end
         end
     end
 end
@@ -217,13 +221,13 @@ always_ff @(posedge clk_54m) begin
                 if (uart_rx_ready && !uart_rx_ack) begin
                     uart_rx_ack <= 1'b1;
                     current_cmd <= uart_rx_data;
+                    timeout_start_stb <= '1;
                     cmd_state <= CMD_PARSE;
                 end
             end
             
             CMD_PARSE: begin
                 data_size <= get_data_size(current_cmd);
-                timeout_start_stb <= '1;
                 
                 case (get_cmd_type(current_cmd))
                     CMD_TYPE_MEM_READ: begin
@@ -285,7 +289,6 @@ always_ff @(posedge clk_54m) begin
                 bytes_remaining <= data_size;
                 bus_addr <= current_addr;
                 bus_cyc <= 1'b1;
-                timeout_start_stb <= '1;
 
                 if (bus_we) begin
                     cmd_state <= CMD_BUS_WRITE;
@@ -325,7 +328,10 @@ always_ff @(posedge clk_54m) begin
             end
             
             CMD_BUS_READ: begin
-                if (!bus_stb) begin
+                if (uart_rx_ready) begin
+                    cmd_state <= CMD_ERROR;
+                    uart_rx_ack <= '1;
+                end if (!bus_stb) begin
                     bus_stb <= 1'b1;
                 end else begin               
                     // bus_ack теперь уровень - данные гарантированно в bus_rd_data
