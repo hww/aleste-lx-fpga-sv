@@ -226,7 +226,7 @@ public:
 
     bool uart_receive_byte_timed(uint8_t &data, uint8_t time_bits)
     {
-        std::cout << "Waiting for UART response..." << std::endl;
+        //std::cout << "Waiting for UART response..." << std::endl;
 
         int timeout = CLOCKS_PER_BIT * time_bits;
         while (dut->uart_tx == 1 && timeout-- > 0)
@@ -319,17 +319,17 @@ public:
 
     void test_ping_command()
     {
-        std::cout << "\n=== Testing Ping Command (0xFF) ===" << std::endl;
+        std::cout << "\n=== Testing Ping Command (0x55) ===" << std::endl;
         reset_dut();
 
         wait_uart_ready();
         debug_uart_status("Before ping");
-        uart_send_byte(0xFF);
+        uart_send_byte(0x55);
 
         uint8_t response;
         bool received = uart_receive_byte(response);
 
-        test_assert(received && response == 0xFE, "Ping Response",
+        test_assert(received && response == 0x55, "Ping Response",
                     received ? "Expected 0xFE, got 0x" + to_hex(response) : "No response received");
     }
 
@@ -340,7 +340,7 @@ public:
 
         wait_uart_ready();
         debug_uart_status("Before global status");
-        uart_send_byte(0x50);
+        uart_send_byte(0x40);
 
         uint8_t response;
         bool received = uart_receive_byte(response);
@@ -468,24 +468,6 @@ public:
         }
     }
 
-    void test_event_commands()
-    {
-        std::cout << "\n=== Testing Event Commands ===" << std::endl;
-        reset_dut();
-
-        wait_uart_ready();
-        debug_uart_status("Before event");
-        uart_send_byte(0x40);
-        uart_send_byte(0x00);
-        uart_send_byte(0x01);
-
-        uint8_t response;
-        bool received = uart_receive_byte(response);
-
-        test_assert(received && response == 0x00,
-                    "Event 0x00 param 0x01",
-                    received ? "Expected ACK 0x00, got 0x" + to_hex(response) : "No response received");
-    }
 
     void test_invalid_commands()
     {
@@ -859,10 +841,10 @@ public:
 
         // 1. Ping команда
         operations.push_back("Ping command");
-        uart_send_byte(0xFF); // Ping
+        uart_send_byte(0x55); // Ping
         uint8_t ping_response;
         bool ping_received = uart_receive_byte(ping_response);
-        bool ping_result = ping_received && (ping_response == 0xFE);
+        bool ping_result = ping_received && (ping_response == 0x55);
         results.push_back(ping_result);
         std::cout << "  Ping: " << (ping_result ? "PASS" : "FAIL")
                   << " (expected 0xFE, got 0x" << to_hex(ping_response) << ")" << std::endl;
@@ -912,7 +894,7 @@ public:
 
         // 5. Global Status
         operations.push_back("Global status command");
-        uart_send_byte(0x50); // Global Status
+        uart_send_byte(0x40); // Global Status
         uint8_t status_response;
         bool status_received = uart_receive_byte(status_response);
         bool status_result = status_received && (status_response == dbg_registers[0x00]);
@@ -1355,6 +1337,7 @@ public:
         }
 
         int block_sizes[] = {1, 2, 4, 8, 16, 32, 64, 128};
+        bool error = false;
 
         for (int block_size : block_sizes)
         {
@@ -1405,23 +1388,25 @@ public:
                     }
                 }
             }
+            // Проверяем нет ли лишних байт
+            uint8_t extra_byte;
+            if (uart_receive_byte(extra_byte))
+            {
+                error = true;
+                std::cout << "  ❌ OVERFLOW: extra byte 0x" << to_hex(extra_byte) << std::endl;
+            }
 
             if (correct)
             {
                 std::cout << "  ✅ Received " << received.size() << " correct bytes" << std::endl;
             }
             else
-            {
+            {               
+                error = true;
                 std::cout << "  ❌ Expected " << block_size << " bytes, got " << received.size() << std::endl;
             }
-
-            // Проверяем нет ли лишних байт
-            uint8_t extra_byte;
-            if (uart_receive_byte(extra_byte))
-            {
-                std::cout << "  ❌ OVERFLOW: extra byte 0x" << to_hex(extra_byte) << std::endl;
-            }
         }
+        if (error) stats.failed_tests++;
     }
 
     std::string to_hex(uint8_t value)
@@ -1442,7 +1427,6 @@ public:
         test_memory_read_write();
         test_memory_block_read_write();
         test_register_block_read_write();
-        test_event_commands();
         test_invalid_commands();
         // Существующие комплексные тесты
         test_sequential_operations();
