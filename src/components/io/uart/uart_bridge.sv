@@ -65,6 +65,9 @@ localparam SIZE_128_BYTES = 4'b0111;
 localparam RESP_OK        = 8'h00;
 localparam RESP_ERROR     = 8'hFF;
 
+// Timeouts
+localparam TIMEOUT_UART_TX = 16'd32_768;     // ~0.6 ms
+
 // ============================================================================
 // UART Interface
 // ============================================================================
@@ -136,6 +139,25 @@ logic        bus_ready;
 logic [7:0]  bus_rd_data;
 logic        bus_error;
 
+// Счетчики таймаутов
+logic [15:0] wdt_counter;
+logic timeout_start_stb, wdt_trigger;
+
+always_ff @(posedge clk_54m) begin
+    if (rst) begin
+        wdt_trigger <= '0;
+        wdt_counter <= 0;
+    end else if (timeout_start_stb) begin
+        wdt_trigger <= '0;
+        wdt_counter <= TIMEOUT_UART_TX;
+    end else if (uart_tx_clk) begin
+        if (wdt_counter != 1) begin
+            wdt_counter <= wdt_counter - 1;
+        end else begin
+            wdt_trigger <= '1;
+        end
+    end
+end
 
 // ============================================================================
 // Helper Functions
@@ -185,6 +207,7 @@ always_ff @(posedge clk_54m) begin
     end else begin
         uart_rx_ack <= '0;
         uart_tx_start <= '0;
+        timeout_start_stb <= '0;
 
         case (cmd_state)
             CMD_IDLE: begin
@@ -200,6 +223,7 @@ always_ff @(posedge clk_54m) begin
             
             CMD_PARSE: begin
                 data_size <= get_data_size(current_cmd);
+                timeout_start_stb <= '1;
                 
                 case (get_cmd_type(current_cmd))
                     CMD_TYPE_MEM_READ: begin
@@ -246,9 +270,12 @@ always_ff @(posedge clk_54m) begin
             
             CMD_READ_ARGS: begin
                 if (uart_rx_ready && !uart_rx_ack && args_to_receive > 0) begin
+                    timeout_start_stb <= '1;
                     uart_rx_ack <= 1'b1;
                     current_addr <= {current_addr[15:0], uart_rx_data};
                     args_to_receive <= args_to_receive - 1;
+                end else if (wdt_trigger) begin
+                    cmd_state <= CMD_ERROR;
                 end else if (args_to_receive == 0) begin
                     cmd_state <= CMD_START_BUS_OP;
                 end
@@ -258,7 +285,8 @@ always_ff @(posedge clk_54m) begin
                 bytes_remaining <= data_size;
                 bus_addr <= current_addr;
                 bus_cyc <= 1'b1;
-                
+                timeout_start_stb <= '1;
+
                 if (bus_we) begin
                     cmd_state <= CMD_BUS_WRITE;
                 end else begin
@@ -268,6 +296,7 @@ always_ff @(posedge clk_54m) begin
             
             CMD_BUS_WRITE: begin
                 if (uart_rx_ready && !uart_rx_ack && bytes_remaining > 0) begin
+                    timeout_start_stb <= '1;                    
                     uart_rx_ack <= 1'b1;
                     bus_wr_data <= uart_rx_data;
                     bus_stb <= 1'b1;
@@ -288,7 +317,7 @@ always_ff @(posedge clk_54m) begin
                         bus_addr <= bus_addr + 1;
                         cmd_state <= CMD_BUS_WRITE;
                     end
-                end else if (bus_error) begin
+                end else if (bus_error || wdt_trigger) begin
                     bus_cyc <= 1'b0;
                     response_data <= RESP_ERROR;
                     cmd_state <= CMD_ERROR;
