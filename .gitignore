@@ -10,9 +10,11 @@ obj_dir
 *.vvp
 *.dump
 *.fst
+*.bit
+*.svf
 
 # Editors
 .idea/
 .vscode/
 *.bak
-tests/system/hdmi_kiss_test/hdmi_kiss_test.fst
+
