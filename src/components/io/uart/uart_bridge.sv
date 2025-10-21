@@ -36,7 +36,10 @@ module uart_bridge #(
     input  logic                       dbg_ack_i,
     input  logic                       dbg_err_i,
 
-    output logic [3:0]                 state_o
+    output logic [3:0]                 cmd_state_o,
+    output logic [3:0]                 bus_state_o,
+    output logic                       bus_stb_o,
+    output logic                       bus_ack_o
 );
 
 // ============================================================================
@@ -380,15 +383,15 @@ end
 // ============================================================================
 
 typedef enum logic [1:0] {
-    BUS_RESET,
     BUS_IDLE,
     BUS_ACTIVE,
-    BUS_WAIT_ACK
+    BUS_WAIT_ACK,
+    BUS_HANDSHAKE
 } bus_state_t;
 
 bus_state_t bus_state = BUS_IDLE;
 
-logic stb_processed;
+logic any_error = (wb_cyc_o && wb_err_i) || (dbg_cyc_o && dbg_err_i);
 
 always_ff @(posedge clk_54m) begin
     if (rst) begin
@@ -396,7 +399,6 @@ always_ff @(posedge clk_54m) begin
         bus_ready <= 1'b1;
         bus_ack <= 1'b0;
         bus_error <= 1'b0;
-        stb_processed <= 1'b0;
         
         wb_cyc_o <= '0;
         wb_stb_o <= '0;
@@ -420,7 +422,6 @@ always_ff @(posedge clk_54m) begin
             BUS_IDLE: begin
                 bus_ready <= 1'b1;
                 bus_ack <= 1'b0;
-                stb_processed <= 1'b0;
                 wb_stb_o <= 1'b0;
                 dbg_stb_o <= 1'b0;
                 
@@ -444,6 +445,7 @@ always_ff @(posedge clk_54m) begin
             BUS_ACTIVE: begin
                 // stb_processed сбрасывается только в IDLE
                 // stb_o могут держаться несколько тактов
+                bus_ack <= 1'b0;
                 if (!bus_cyc) begin
                     // Завершение цикла
                     bus_state <= BUS_IDLE;
@@ -451,22 +453,33 @@ always_ff @(posedge clk_54m) begin
                     dbg_cyc_o <= 1'b0;
                     wb_stb_o <= 1'b0;
                     dbg_stb_o <= 1'b0;
-                end else if (bus_stb && !stb_processed) begin
-                    bus_state <= BUS_WAIT_ACK;
-                    stb_processed <= 1'b1;
-                    
-                    if (bus_mem_access) begin
-                        wb_stb_o <= 1'b1;
-                        wb_adr_o <= bus_addr;
-                        if (bus_we) begin
-                            wb_dat_o <= bus_wr_data;
+                end else if (bus_stb) begin
+                    // Enable bus strobs foor the transfer
+                    if (wb_cyc_o) begin
+                        bus_state <= BUS_WAIT_ACK;
+                        if (!wb_ack_i) begin
+                            wb_stb_o <= 1'b1;
+                            wb_adr_o <= bus_addr;
+                            if (bus_we) begin
+                                wb_dat_o <= bus_wr_data;
+                            end
+                        end
+                    end else if (dbg_cyc_o) begin
+                        bus_state <= BUS_WAIT_ACK;
+                        if (!dbg_ack_i) begin
+                            dbg_stb_o <= 1'b1;
+                            dbg_adr_o <= bus_addr[7:0];
+                            if (bus_we) begin
+                                dbg_dat_o <= bus_wr_data;
+                            end
                         end
                     end else begin
-                        dbg_stb_o <= 1'b1;
-                        dbg_adr_o <= bus_addr[7:0];
-                        if (bus_we) begin
-                            dbg_dat_o <= bus_wr_data;
-                        end
+                        bus_error <= '1;
+                        wb_cyc_o <= 1'b0;
+                        dbg_cyc_o <= 1'b0;
+                        wb_stb_o <= 1'b0;
+                        dbg_stb_o <= 1'b0;
+                        bus_state <= BUS_IDLE;
                     end
                 end
             end
@@ -474,34 +487,54 @@ always_ff @(posedge clk_54m) begin
             BUS_WAIT_ACK: begin
                 // bus_ack УРОВЕНЬ - держится пока не обработаны данные
                 // stb_o уже установлены в ACTIVE и держатся
-                if (!bus_cyc) begin
+                if (!bus_cyc || any_error) begin
                     // Завершение цикла - ВЫСШИЙ ПРИОРИТЕТ
                     bus_state <= BUS_IDLE;
+                    bus_error <= any_error;
                     wb_cyc_o <= 1'b0;
                     dbg_cyc_o <= 1'b0;
                     wb_stb_o <= 1'b0;
                     dbg_stb_o <= 1'b0;
                     bus_ack <= 1'b0;
-                end else if ((bus_mem_access && wb_ack_i) || (!bus_mem_access && dbg_ack_i)) begin
-                    // Получен ACK от шины
-                    wb_stb_o <= 1'b0;
-                    dbg_stb_o <= 1'b0;
-                    
-                    if (!bus_we) begin
-                        bus_rd_data <= bus_mem_access ? wb_dat_i : dbg_dat_i;
-                    end
-                    
-                    bus_ack <= 1'b1;  // Устанавливаем УРОВЕНЬ
-
-                end else if ((bus_mem_access && wb_err_i) || (!bus_mem_access && dbg_err_i)) begin
-                    bus_error <= '1;
                 end else begin 
-                    // Ждем пока мастер подтвердит прием данных
-                    if (bus_ack && !bus_stb) begin
-                        bus_ack <= 1'b0;
-                        stb_processed <= 1'b0;
-                        bus_state <= BUS_ACTIVE;
+                    if (dbg_ack_i || wb_ack_i) begin
+                        // Получен ACK от шины
+                        bus_state <= BUS_HANDSHAKE;       
+                        wb_stb_o <= 1'b0;
+                        dbg_stb_o <= 1'b0;
+                        bus_ack <= 1'b1;  // Устанавливаем УРОВЕНЬ
+                        if (!bus_we) begin
+                            bus_rd_data <= wb_stb_o ? wb_dat_i : dbg_dat_i;
+                        end
+                    end 
+                    /*
+                    if (wb_stb_o && wb_ack_i) begin
+                        // Получен ACK от шины
+                        bus_state <= BUS_HANDSHAKE;       
+                        wb_stb_o <= 1'b0;
+                        bus_ack <= 1'b1;  // Устанавливаем УРОВЕНЬ
+                        if (!bus_we) begin
+                            bus_rd_data <= wb_dat_i;
+                        end
+                    end else if (dbg_stb_o && dbg_ack_i) begin
+                        // Получен ACK от шины
+                        bus_state <= BUS_HANDSHAKE;       
+                        dbg_stb_o <= 1'b0;
+                        bus_ack <= 1'b1;  // Устанавливаем УРОВЕНЬ
+                        if (!bus_we) begin
+                            bus_rd_data <= dbg_dat_i;
+                        end
                     end
+*/
+                end
+            end
+            BUS_HANDSHAKE: begin
+                if (/*bus_ack &&*/ !bus_stb) begin
+                    bus_ack <= '0;
+                    bus_state <= BUS_ACTIVE;       
+                end else if (!bus_cyc) begin
+                    bus_ack <= '0;
+                    bus_state <= BUS_IDLE;  
                 end
             end
             default: begin
@@ -511,6 +544,10 @@ always_ff @(posedge clk_54m) begin
     end
 end
 
-assign state_o = cmd_state;
+
+assign cmd_state_o = cmd_state;
+assign bus_state_o = { 1'b0, 1'b0, bus_state[1:0] };
+assign bus_stb_o = bus_stb;
+assign bus_ack_o = bus_ack;
 
 endmodule

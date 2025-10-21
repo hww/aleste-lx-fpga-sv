@@ -267,7 +267,7 @@ public:
     {
         if (!context.empty())
             std::cout << "[" << context << "] ";
-        std::cout << "state: " << (int)dut->state_o
+        std::cout << "state: " << (int)dut->cmd_state_o
                   << ", tx_busy: " << (int)dut->uart_tx_busy
                   << ", rx_ready: " << (int)dut->uart_rx_ready << std::endl;
     }

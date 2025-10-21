@@ -61,9 +61,16 @@ module uart_bridge_test #(
     logic [23:0] uart_wb_adr;
     logic [15:0] uart_wb_dat_o, uart_wb_dat_i;
     logic [1:0] uart_wb_sel;
+
+    logic uart_dbg_cyc, uart_dbg_stb, uart_dbg_we, uart_dbg_ack;
+    logic [7:0] uart_dbg_adr;
+    logic [7:0] uart_dbg_dat_o, uart_dbg_dat_i;
+    logic [1:0] uart_dbg_sel;
+
     logic serial_rx_clk, serial_tx_clk;
-    logic [2:0] state;
+    logic [3:0] cmd_state, bus_state;
     logic uart_rx_ready, uart_tx_busy;
+    logic bus_stb, bus_ack;
 
     uart_bridge uart_bridge_inst (
         .clk_54m(clk_54m),
@@ -84,8 +91,21 @@ module uart_bridge_test #(
         .wb_dat_i(uart_wb_dat_o),
         .wb_sel_o(uart_wb_sel),
         .wb_ack_i(uart_wb_ack),
+        .wb_err_i('0),
 
-        .state_o(state),
+        .dbg_cyc_o(uart_dbg_cyc),
+        .dbg_stb_o(uart_dbg_stb),
+        .dbg_we_o(uart_dbg_we),
+        .dbg_adr_o(uart_dbg_adr),
+        .dbg_dat_o(uart_dbg_dat_i),
+        .dbg_dat_i(uart_dbg_dat_o),
+        .dbg_ack_i('1),
+        .dbg_err_i('0),
+
+        .cmd_state_o(cmd_state),
+        .bus_state_o(bus_state),
+        .bus_ack_o(bus_ack),
+        .bus_stb_o(bus_stb),
         .uart_rx_ready(uart_rx_ready),
         .uart_tx_busy(uart_tx_busy)
     );
@@ -143,21 +163,32 @@ module uart_bridge_test #(
     // ===========================================
     // Отладочные сигналы
     // ===========================================
-    assign debug_leds[0] = state[0];
-    assign debug_leds[1] = state[1];
-    assign debug_leds[2] = state[2];
+
+
+    assign debug_leds[0] = cmd_state[0];
+    assign debug_leds[1] = cmd_state[1];
+    assign debug_leds[2] = cmd_state[2];
 
     // Отладочные пины - мониторим адресную шину
+    //assign debug = {
+    //    cmd_state[3], 
+    //    cmd_state[2],       
+    //    cmd_state[1],       
+    //    cmd_state[0],       
+    //    uart_wb_ack, 
+    //    uart_wb_stb, 
+    //    bus_ack,      
+    //    bus_stb       
+    //};
     assign debug = {
-        state[2],       
-        state[1],       
-        state[0],       
-         uart_tx_busy, 
-         uart_rx_ready, 
-                        
-        pll_locked,     
-        serial_rx,      
-        serial_tx       
+        cmd_state[3], 
+        cmd_state[2],       
+        bus_state[1],       
+        bus_state[0],       
+        uart_wb_ack, 
+        uart_wb_stb, 
+        bus_ack,      
+        bus_stb       
     };
 
 endmodule

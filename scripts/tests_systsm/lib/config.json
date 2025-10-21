@@ -6,6 +6,6 @@
     },
     "protocol": {
         "max_retries": 3,
-        "response_timeout": 0.5
+        "response_timeout": 1.5
     }
 }
