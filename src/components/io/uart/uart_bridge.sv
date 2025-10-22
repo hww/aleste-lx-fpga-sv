@@ -455,7 +455,7 @@ always_ff @(posedge clk_54m) begin
                     dbg_stb_o <= 1'b0;
                 end else if (bus_stb) begin
                     // Enable bus strobs foor the transfer
-                    if (wb_cyc_o) begin
+                    if (wb_cyc_o && !wb_stb_o && !dbg_stb_o) begin
                         bus_state <= BUS_WAIT_ACK;
                         if (!wb_ack_i) begin
                             wb_stb_o <= 1'b1;
@@ -497,17 +497,6 @@ always_ff @(posedge clk_54m) begin
                     dbg_stb_o <= 1'b0;
                     bus_ack <= 1'b0;
                 end else begin 
-                    if (dbg_ack_i || wb_ack_i) begin
-                        // Получен ACK от шины
-                        bus_state <= BUS_HANDSHAKE;       
-                        wb_stb_o <= 1'b0;
-                        dbg_stb_o <= 1'b0;
-                        bus_ack <= 1'b1;  // Устанавливаем УРОВЕНЬ
-                        if (!bus_we) begin
-                            bus_rd_data <= wb_stb_o ? wb_dat_i : dbg_dat_i;
-                        end
-                    end 
-                    /*
                     if (wb_stb_o && wb_ack_i) begin
                         // Получен ACK от шины
                         bus_state <= BUS_HANDSHAKE;       
@@ -525,16 +514,34 @@ always_ff @(posedge clk_54m) begin
                             bus_rd_data <= dbg_dat_i;
                         end
                     end
-*/
                 end
             end
             BUS_HANDSHAKE: begin
-                if (/*bus_ack &&*/ !bus_stb) begin
-                    bus_ack <= '0;
-                    bus_state <= BUS_ACTIVE;       
-                end else if (!bus_cyc) begin
-                    bus_ack <= '0;
-                    bus_state <= BUS_IDLE;  
+                // 1. ВЫСШИЙ ПРИОРИТЕТ - мастер завершил цикл (нормально или аварийно)
+                if (!bus_cyc) begin
+                    bus_ack <= 1'b0;
+                    bus_state <= BUS_IDLE;
+                    wb_cyc_o <= 1'b0;
+                    dbg_cyc_o <= 1'b0;
+                    wb_stb_o <= 1'b0;
+                    dbg_stb_o <= 1'b0;
+                end
+                
+                // 2. Нормальное завершение handshake - мастер принял данные
+                else if (!bus_stb) begin
+                    bus_ack <= 1'b0;
+                    bus_state <= BUS_ACTIVE;
+                end
+                
+                // 3. Аварийное завершение по таймауту
+                else if (wdt_trigger) begin
+                    bus_ack <= 1'b0;
+                    bus_state <= BUS_IDLE;
+                    bus_error <= 1'b1;
+                    wb_cyc_o <= 1'b0;
+                    dbg_cyc_o <= 1'b0;
+                    wb_stb_o <= 1'b0;
+                    dbg_stb_o <= 1'b0;
                 end
             end
             default: begin

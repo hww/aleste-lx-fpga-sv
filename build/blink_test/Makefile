@@ -16,8 +16,13 @@ $(TARGET).bit: $(TARGET)_out.config
 
 ${TARGET}.svf : ${TARGET}.bit
 
-program: ${TARGET}.svf
-	openFPGALoader --vid=0x1d50 --pid=0x602b --freq 500000 -c cmsisdap $(TARGET).bit
+program: $(BITSTREAM)
+	openocd -f icelink.cfg
+
+# Program to Flash (permanent)
+flash: $(BITSTREAM)
+	@echo "Programming to Flash at 0x200000..."
+	icesprog -w $(BITSTREAM) -o 0x200000
 	
 ocd: $(TARGET).bit
 	openocd -f icelink.cfg 

@@ -72,17 +72,28 @@ module uart_bridge_test #(
     logic uart_rx_ready, uart_tx_busy;
     logic bus_stb, bus_ack;
 
+   
+
     uart_bridge uart_bridge_inst (
         .clk_54m(clk_54m),
         .rst(system_reset),
         
         // UART Interface
-        .uart_rx(serial_rx),
-        .uart_tx(serial_tx),
+        //.uart_rx(serial_rx),
+        //.uart_tx(serial_tx),
         .uart_rx_clk(serial_rx_clk),
         .uart_tx_clk(serial_tx_clk),
 
         // Wishbone Master Interface
+        //.wb_cyc_o(uart_wb_cyc),
+        //.wb_stb_o(uart_wb_stb),
+        //.wb_we_o(uart_wb_we),
+        //.wb_adr_o(uart_wb_adr),
+        //.wb_dat_o(uart_wb_dat_i),
+        //.wb_dat_i(uart_wb_dat_o),
+        //.wb_sel_o(uart_wb_sel),
+        //.wb_ack_i(uart_wb_ack),
+        //.wb_err_i('0),
         .wb_cyc_o(uart_wb_cyc),
         .wb_stb_o(uart_wb_stb),
         .wb_we_o(uart_wb_we),
@@ -90,8 +101,9 @@ module uart_bridge_test #(
         .wb_dat_o(uart_wb_dat_i),
         .wb_dat_i(uart_wb_dat_o),
         .wb_sel_o(uart_wb_sel),
-        .wb_ack_i(uart_wb_ack),
+        .wb_ack_i(uart_wb_stb),
         .wb_err_i('0),
+
 
         .dbg_cyc_o(uart_dbg_cyc),
         .dbg_stb_o(uart_dbg_stb),
@@ -124,7 +136,7 @@ module uart_bridge_test #(
     assign sdram_data_out = uart_wb_dat_i;
     assign uart_wb_dat_o = sdram_data_in;
     assign uart_wb_ack = sdram_ack;
-
+/*
     sdram_ctrl_wb sdram_controller(
         .wb_clk_i(clk_system),
         .wb_rst_i(system_reset),
@@ -159,6 +171,18 @@ module uart_bridge_test #(
         .D1(1'b1),
         .Q(sdram_clock)
     );
+*/
+
+    assign sdram_clock = 0;
+    assign sdram_cke= 0;
+    assign sdram_cs_n= 1;
+    assign sdram_ras_n= 0;
+    assign sdram_cas_n= 0;
+    assign sdram_we_n= 0;
+    assign sdram_a= 0;
+    assign sdram_ba= 0;
+    assign sdram_dm= 0;
+    assign sdram_dq = 16'bZZZZ_ZZZZ_ZZZZ_ZZZZ;  // High-Z
 
     // ===========================================
     // Отладочные сигналы

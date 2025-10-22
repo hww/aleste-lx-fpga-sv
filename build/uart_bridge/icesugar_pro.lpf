@@ -85,11 +85,6 @@ LOCATE COMP "sdram_we_n" SITE "A15"; IOBUF PORT "sdram_we_n" PULLMODE=NONE DRIVE
 # Serial
 # ===========================================
 
-#LOCATE COMP "serial_tx" SITE "B9";
-#IOBUF PORT "serial_tx" IO_TYPE=LVCMOS33;
-#LOCATE COMP "serial_rx" SITE "A9";
-#IOBUF PORT "serial_rx" IO_TYPE=LVCMOS33;
-
 LOCATE      COMP "serial_tx"       SITE "E14";  
 IOBUF       PORT "serial_tx"       IO_TYPE=LVCMOS33;
 LOCATE      COMP "serial_rx"       SITE "E13";
@@ -118,6 +113,7 @@ LOCATE COMP "debug[7]" SITE "B1"; IOBUF PORT "debug[7]" IO_TYPE=LVCMOS33;
 # ===========================================
 # User LEDs
 # ===========================================
+
 LOCATE COMP "debug_leds[0]" SITE "B11"; IOBUF PORT "debug_leds[0]" IO_TYPE=LVCMOS33;
 LOCATE COMP "debug_leds[1]" SITE "A11"; IOBUF PORT "debug_leds[1]" IO_TYPE=LVCMOS33;
 LOCATE COMP "debug_leds[2]" SITE "A12"; IOBUF PORT "debug_leds[2]" IO_TYPE=LVCMOS33;
