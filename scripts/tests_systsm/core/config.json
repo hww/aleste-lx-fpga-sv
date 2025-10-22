@@ -2,10 +2,12 @@
     "serial": {
         "port": "/dev/ttyACM1",
         "baudrate": 115200,
-        "timeout": 1.0
+        "timeout": 0.1,
+        "write_timeout": 1.0
     },
     "protocol": {
         "max_retries": 3,
-        "response_timeout": 1.5
+        "response_timeout": 0.2,
+        "command_delay": 0.001
     }
 }
