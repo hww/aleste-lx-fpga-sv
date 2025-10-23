@@ -52,14 +52,14 @@ module uart_bridge_test #(
         .boot_complete()
     );
 
-    assign clk_system = clk_108m;
+    assign clk_system = clk_54m;
 
     // ===========================================
     // UART Bridge - прямой доступ к SDRAM
     // ===========================================
     logic uart_wb_cyc, uart_wb_stb, uart_wb_we, uart_wb_ack;
     logic [23:0] uart_wb_adr;
-    logic [15:0] uart_wb_dat_o, uart_wb_dat_i;
+    logic [15:0] uart_wb_dat_i, uart_wb_dat_o;
     logic [1:0] uart_wb_sel;
 
     logic uart_dbg_cyc, uart_dbg_stb, uart_dbg_we, uart_dbg_ack;
@@ -79,31 +79,21 @@ module uart_bridge_test #(
         .rst(system_reset),
         
         // UART Interface
-        //.uart_rx(serial_rx),
-        //.uart_tx(serial_tx),
+        .uart_rx(serial_rx),
+        .uart_tx(serial_tx),
         .uart_rx_clk(serial_rx_clk),
         .uart_tx_clk(serial_tx_clk),
 
         // Wishbone Master Interface
-        //.wb_cyc_o(uart_wb_cyc),
-        //.wb_stb_o(uart_wb_stb),
-        //.wb_we_o(uart_wb_we),
-        //.wb_adr_o(uart_wb_adr),
-        //.wb_dat_o(uart_wb_dat_i),
-        //.wb_dat_i(uart_wb_dat_o),
-        //.wb_sel_o(uart_wb_sel),
-        //.wb_ack_i(uart_wb_ack),
-        //.wb_err_i('0),
         .wb_cyc_o(uart_wb_cyc),
         .wb_stb_o(uart_wb_stb),
         .wb_we_o(uart_wb_we),
         .wb_adr_o(uart_wb_adr),
-        .wb_dat_o(uart_wb_dat_i),
-        .wb_dat_i(uart_wb_dat_o),
+        .wb_dat_o(uart_wb_dat_o),
+        .wb_dat_i(uart_wb_dat_i),
         .wb_sel_o(uart_wb_sel),
-        .wb_ack_i(uart_wb_stb),
+        .wb_ack_i(uart_wb_ack),
         .wb_err_i('0),
-
 
         .dbg_cyc_o(uart_dbg_cyc),
         .dbg_stb_o(uart_dbg_stb),
@@ -126,27 +116,28 @@ module uart_bridge_test #(
     // SDRAM Controller - прямой доступ от UART
     // ===========================================
     logic [23:0] sdram_addr;
-    logic [15:0] sdram_data_out, sdram_data_in;
-    logic sdram_we, sdram_req, sdram_ack;
+    logic [15:0] sdram_data_i, sdram_data_o;
+    logic sdram_we, sdram_cyc, sdram_ack;
 
     // Прямое подключение UART к SDRAM
-    assign sdram_req = uart_wb_stb;
+    assign sdram_cyc = uart_wb_stb;
     assign sdram_we = uart_wb_we;
     assign sdram_addr = uart_wb_adr;
-    assign sdram_data_out = uart_wb_dat_i;
-    assign uart_wb_dat_o = sdram_data_in;
+    assign sdram_data_i = uart_wb_dat_o;
+
+    assign uart_wb_dat_i = sdram_data_o;
     assign uart_wb_ack = sdram_ack;
-/*
+
     sdram_ctrl_wb sdram_controller(
         .wb_clk_i(clk_system),
         .wb_rst_i(system_reset),
-        .wb_cyc_i(sdram_req),
-        .wb_stb_i(sdram_req),
+        .wb_cyc_i(sdram_cyc),
+        .wb_stb_i(sdram_cyc),
         .wb_ack_o(sdram_ack),
         .wb_we_i(sdram_we),
         .wb_adr_i(sdram_addr),
-        .wb_dat_i(sdram_data_out),
-        .wb_dat_o(sdram_data_in),
+        .wb_dat_i(sdram_data_i),
+        .wb_dat_o(sdram_data_o),
         .wb_sel_i(uart_wb_sel),
         .wb_tag_i(2'b00),
         .wb_grant_o(), // Не используется при прямом доступе
@@ -171,23 +162,10 @@ module uart_bridge_test #(
         .D1(1'b1),
         .Q(sdram_clock)
     );
-*/
-
-    assign sdram_clock = 0;
-    assign sdram_cke= 0;
-    assign sdram_cs_n= 1;
-    assign sdram_ras_n= 0;
-    assign sdram_cas_n= 0;
-    assign sdram_we_n= 0;
-    assign sdram_a= 0;
-    assign sdram_ba= 0;
-    assign sdram_dm= 0;
-    assign sdram_dq = 16'bZZZZ_ZZZZ_ZZZZ_ZZZZ;  // High-Z
 
     // ===========================================
     // Отладочные сигналы
     // ===========================================
-
 
     assign debug_leds[0] = cmd_state[0];
     assign debug_leds[1] = cmd_state[1];
