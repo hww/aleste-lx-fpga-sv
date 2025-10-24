@@ -1,0 +1,132 @@
+module sdram_wishbone #(
+    parameter CLK_FREQ        = 100_000_000,
+    parameter WB_ADDR_WIDTH   = 24,
+    parameter WB_DATA_WIDTH   = 16,
+    parameter SDRAM_DATA_WIDTH = 16,  // НОВЫЙ параметр: 16 или 32 бита
+    parameter SDRAM_DQM_WIDTH = SDRAM_DATA_WIDTH / 8  // Автовычисление
+)(
+    // Wishbone Interface
+    input                           wb_clk_i,
+    input                           wb_rst_i,
+    input                           wb_cyc_i, 
+    input                           wb_stb_i,
+    output reg                      wb_ack_o,
+    input                           wb_we_i,
+    input [WB_ADDR_WIDTH-1:0]       wb_adr_i,
+    input [WB_DATA_WIDTH-1:0]       wb_dat_i,
+    output reg [WB_DATA_WIDTH-1:0]  wb_dat_o,
+    input [WB_DATA_WIDTH/8-1:0]     wb_sel_i,
+    
+    // SDRAM Physical Interface
+    inout [SDRAM_DATA_WIDTH-1:0]    SDRAM_DQ,
+    output reg [12:0]               SDRAM_A,
+    output reg [1:0]                SDRAM_BA,
+    output                          SDRAM_nCS,
+    output reg                      SDRAM_nWE,
+    output reg                      SDRAM_nRAS,
+    output reg                      SDRAM_nCAS,
+    output reg                      SDRAM_CKE,
+    output reg [SDRAM_DQM_WIDTH-1:0] SDRAM_DQM,  // Параметризовано!
+    
+    // Debug signals
+    output reg [2:0] debug_state,
+    output reg debug_init_complete,
+    output reg debug_ready,
+    output reg debug_initialized,
+    output reg debug_configured,
+    output reg [3:0] debug_cycle,
+    output reg debug_busy,
+    output reg [14:0] debug_rst_cnt,
+    output reg debug_rst_done,
+    output reg debug_cfg_busy
+);
+
+// ========== АДАПТИРУЕМ ПАРАМЕТРЫ ПОД SDRAM DATA WIDTH ==========
+
+// Внутренняя ширина данных всегда равна SDRAM_DATA_WIDTH
+localparam INTERNAL_DATA_WIDTH = SDRAM_DATA_WIDTH;
+
+// Для 16-битной SDRAM используем оригинальные тайминги Tang контроллера
+// Для 32-битной можно увеличить тайминги если нужно
+localparam [3:0] CAS  = 4'd2;
+localparam [3:0] T_WR = 4'd2;
+localparam [3:0] T_MRD= 4'd2;
+localparam [3:0] T_RP = 4'd1;
+localparam [3:0] T_RCD= 4'd1;
+localparam [3:0] T_RC = 4'd4;
+
+// ========== ВНУТРЕННИЕ СИГНАЛЫ ==========
+reg cfg_now;
+reg [3:0] cycle;
+reg [2:0] state;
+reg dq_oen;
+reg [INTERNAL_DATA_WIDTH-1:0] dq_out;
+wire [INTERNAL_DATA_WIDTH-1:0] dq_in = SDRAM_DQ;  // Прямое подключение
+
+reg [14:0] rst_cnt;
+reg rst_done, rst_done_p1, cfg_busy;
+
+// Для 16-битной SDRAM - прямое подключение, для 32-битной - мультиплексирование
+generate
+    if (SDRAM_DATA_WIDTH == 16) begin : GEN_16BIT
+        // Прямое подключение для 16-битной SDRAM
+        always @(*) begin
+            wb_dat_o = dq_in;
+        end
+        
+        // Упрощенные маски для 16-битной SDRAM
+        always @(*) begin
+            case (wb_sel_i)
+                2'b01:   SDRAM_DQM = 2'b10;  // Маска старшего байта
+                2'b10:   SDRAM_DQM = 2'b01;  // Маска младшего байта
+                default: SDRAM_DQM = 2'b00;  // Оба байта активны
+            endcase
+        end
+        
+        // Прямое подключение данных для записи
+        always @(*) begin
+            dq_out = wb_dat_i;
+        end
+        
+    end else begin : GEN_32BIT
+        // Оригинальная логика Tang для 32-битной SDRAM
+        reg [1:0] off;
+        
+        // Преобразование 16-bit → 32-bit
+        always @(*) begin
+            dq_out = {2{wb_dat_i}};  // Дублируем 16 бит в 32 бита
+        end
+        
+        // Преобразование 32-bit → 16-bit  
+        wire [15:0] data_from_sdram = 
+            off == 0 ? dq_in[7:0] :
+            off == 1 ? dq_in[15:8] :
+            off == 2 ? dq_in[23:16] : dq_in[31:24];
+        
+        always @(*) begin
+            wb_dat_o = data_from_sdram;
+        end
+        
+        // Маски для 32-битной SDRAM
+        always @(*) begin
+            SDRAM_DQM = off == 0 ? 4'b1110 :
+                       off == 1 ? 4'b1101 :
+                       off == 2 ? 4'b1011 : 4'b0111;
+        end
+    end
+endgenerate
+
+// ========== ОСТАЛЬНАЯ ЛОГИКА ОСТАЕТСЯ БЕЗ ИЗМЕНЕНИЙ ==========
+// (FSM, инициализация, команды - все как было)
+
+assign SDRAM_nCS = 1'b0;
+
+// Адаптация интерфейса
+wire original_rd = wb_cyc_i && wb_stb_i && !wb_we_i;
+wire original_wr = wb_cyc_i && wb_stb_i && wb_we_i;
+wire original_refresh = 0;
+
+// FSM, инициализация, команды - ВСЕ БЕЗ ИЗМЕНЕНИЙ
+// ...
+
+endmodule

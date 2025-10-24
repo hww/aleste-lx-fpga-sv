@@ -1,7 +1,9 @@
 module sdram_wishbone #(
     parameter CLK_FREQ        = 100_000_000,     // Hz
     parameter WB_ADDR_WIDTH   = 24,
-    parameter WB_DATA_WIDTH   = 16
+    parameter WB_DATA_WIDTH   = 16,
+    parameter SDRAM_DATA_WIDTH = 16,             // 16-bit SDRAM
+    parameter SDRAM_DQM_WIDTH = SDRAM_DATA_WIDTH / 8
 )(
     // Wishbone Interface
     input                           wb_clk_i,
@@ -16,7 +18,7 @@ module sdram_wishbone #(
     input [WB_DATA_WIDTH/8-1:0]     wb_sel_i,
     
     // SDRAM Physical Interface
-    inout [15:0]                    SDRAM_DQ,
+    inout [SDRAM_DATA_WIDTH-1:0]    SDRAM_DQ,
     output reg [12:0]               SDRAM_A,
     output reg [1:0]                SDRAM_BA,
     output                          SDRAM_nCS,
@@ -24,25 +26,23 @@ module sdram_wishbone #(
     output reg                      SDRAM_nRAS,
     output reg                      SDRAM_nCAS,
     output reg                      SDRAM_CKE,
-    output reg [3:0]                SDRAM_DQM,
+    output reg [SDRAM_DQM_WIDTH-1:0] SDRAM_DQM,
     
     // ========== DEBUG SIGNALS ==========
-    output reg [2:0]                debug_state,        // Текущее состояние FSM
-    output reg                      debug_init_complete, // Инициализация завершена
-    output reg                      debug_ready,        // Контроллер готов к работе
-    output reg                      debug_initialized,  // SDRAM проинициализирован
-    output reg                      debug_configured,   // Конфигурация завершена
-    output reg [3:0]                debug_cycle,        // Текущий цикл в состоянии
-    output reg                      debug_busy,         // Контроллер занят
-    output reg [14:0]               debug_rst_cnt,      // Счетчик сброса
-    output reg                      debug_rst_done,     // Сброс завершен
-    output reg                      debug_cfg_busy      // Конфигурация в процессе
+    output reg [2:0]                debug_state,
+    output reg                      debug_init_complete,
+    output reg                      debug_ready,
+    output reg                      debug_initialized,
+    output reg                      debug_configured,
+    output reg [3:0]                debug_cycle,
+    output reg                      debug_busy,
+    output reg [14:0]               debug_rst_cnt,
+    output reg                      debug_rst_done,
+    output reg                      debug_cfg_busy
 );
 
-// ========== СОХРАНЯЕМ ВСЮ ЛОГИКУ ИЗ VARIANT 2 ==========
-
-// Parameters from original Tang controller
-localparam DATA_WIDTH = 32;
+// ========== ПАРАМЕТРЫ ИЗ ОРИГИНАЛЬНОГО TANG КОНТРОЛЛЕРА ==========
+localparam DATA_WIDTH = SDRAM_DATA_WIDTH;
 localparam ROW_WIDTH = 11;
 localparam COL_WIDTH = 8;
 localparam BANK_WIDTH = 2;
@@ -76,23 +76,20 @@ localparam [2:0] BURST_LEN = 3'b0;
 localparam BURST_MODE = 1'b0;
 localparam [10:0] MODE_REG = {4'b0, CAS[2:0], BURST_MODE, BURST_LEN};
 
-// ========== ВНУТРЕННИЕ СИГНАЛЫ ИЗ ОРИГИНАЛА ==========
+// ========== ВНУТРЕННИЕ СИГНАЛЫ ==========
 reg cfg_now;
 reg [3:0] cycle;
 reg [2:0] state;
 reg dq_oen;
 reg [DATA_WIDTH-1:0] dq_out;
-wire [DATA_WIDTH-1:0] dq_in = {{16{SDRAM_DQ[15]}}, SDRAM_DQ};
+wire [DATA_WIDTH-1:0] dq_in = SDRAM_DQ;
 
 reg [14:0] rst_cnt;
 reg rst_done, rst_done_p1, cfg_busy;
 
+// Для 16-битной SDRAM - упрощенная логика
 reg [1:0] off;
-wire [15:0] data_from_sdram = 
-    off == 0 ? {dq_in[7:0], dq_in[7:0]} :
-    off == 1 ? {dq_in[15:8], dq_in[15:8]} :
-    off == 2 ? {dq_in[23:16], dq_in[23:16]} : 
-               {dq_in[31:24], dq_in[31:24]};
+wire [15:0] data_from_sdram = dq_in; // Прямое подключение для 16-бит
 
 assign SDRAM_nCS = 1'b0;
 
@@ -127,7 +124,7 @@ always @(*) begin
     debug_busy = (state != IDLE);
 end
 
-// ========== СОХРАНЯЕМ ОРИГИНАЛЬНЫЙ FSM БЕЗ ИЗМЕНЕНИЙ ==========
+// ========== FSM - АДАПТИРОВАНА ДЛЯ 16-БИТНОЙ SDRAM ==========
 always @(posedge wb_clk_i) begin
     cycle <= cycle == 4'd15 ? 4'd15 : cycle + 4'd1;
     
@@ -173,12 +170,12 @@ always @(posedge wb_clk_i) begin
             cycle <= 4'd1;
         end
 
-        // READ sequence - полностью из оригинала
+        // READ sequence - адаптировано для 16-бит
         {READ, T_RCD}: begin
             {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_Read;
             SDRAM_A[10] <= 1'b1;
             SDRAM_A[9:0] <= {1'b0, original_addr[COL_WIDTH-1 : 0], 1'b0};
-            SDRAM_DQM <= 4'b0;
+            SDRAM_DQM <= 2'b00; // Все байты активны для чтения
             off <= original_addr[1:0];
         end
         {READ, T_RCD+CAS}: begin
@@ -190,16 +187,21 @@ always @(posedge wb_clk_i) begin
             state <= IDLE;
         end
 
-        // WRITE sequence - полностью из оригинала  
+        // WRITE sequence - адаптировано для 16-бит  
         {WRITE, T_RCD}: begin
             {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_Write;
             SDRAM_A[10] <= 1'b1;
             SDRAM_A[9:0] <= {1'b0, original_addr[COL_WIDTH-1 : 0], 1'b0};
-            SDRAM_DQM <= original_addr[1:0] == 2'd0 ? 4'b1110 :
-                         original_addr[1:0] == 2'd1 ? 4'b1101 :
-                         original_addr[1:0] == 2'd2 ? 4'b1011 : 4'b0111;
+            
+            // Маскирование байтов для 16-битной SDRAM
+            case (wb_sel_i)
+                2'b01:   SDRAM_DQM <= 2'b10;  // Маска старшего байта
+                2'b10:   SDRAM_DQM <= 2'b01;  // Маска младшего байта  
+                default: SDRAM_DQM <= 2'b00;  // Оба байта активны
+            endcase
+            
             off <= original_addr[1:0];
-            dq_out <= {2{wb_dat_i}};
+            dq_out <= wb_dat_i; // Прямое подключение для 16-бит
             dq_oen <= 1'b1;
         end
         {WRITE, T_RCD+4'd1}: begin
@@ -208,6 +210,7 @@ always @(posedge wb_clk_i) begin
         end
         {WRITE, T_RCD+T_WR+T_RP}: begin
             wb_ack_o <= 1'b0;
+            dq_oen <= 1'b0;
             state <= IDLE;
         end
 
@@ -222,15 +225,16 @@ always @(posedge wb_clk_i) begin
     endcase
 
     if (wb_rst_i) begin
-        dq_oen <= 1'b1;
-        SDRAM_DQM <= 4'b0;
+        dq_oen <= 1'b0;
+        SDRAM_DQM <= 2'b00;
         state <= INIT;
         wb_ack_o <= 0;
         wb_dat_o <= 0;
+        cycle <= 0;
     end
 end
 
-// ========== СОХРАНЯЕМ ОРИГИНАЛЬНУЮ ИНИЦИАЛИЗАЦИЮ ==========
+// ========== ИНИЦИАЛИЗАЦИЯ - БЕЗ ИЗМЕНЕНИЙ ==========
 localparam INIT_CYCLES = (CLK_FREQ / 1000) * 200 / 1000;
 
 always @(posedge wb_clk_i) begin
@@ -250,9 +254,11 @@ always @(posedge wb_clk_i) begin
         rst_cnt  <= 15'd0;
         rst_done <= 1'b0;
         cfg_busy <= 1'b1;
+        SDRAM_CKE <= 1'b1; // Включаем clock enable
     end
 end
 
-assign SDRAM_DQ = dq_oen ? dq_out[15:0] : {16{1'bz}};
+// ========== УПРАВЛЕНИЕ ДАННЫМИ SDRAM ==========
+assign SDRAM_DQ = dq_oen ? dq_out : {SDRAM_DATA_WIDTH{1'bz}};
 
 endmodule

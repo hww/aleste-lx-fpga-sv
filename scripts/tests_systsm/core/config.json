@@ -6,7 +6,7 @@
         "write_timeout": 1.0
     },
     "protocol": {
-        "max_retries": 3,
+        "max_retries": 1,
         "response_timeout": 0.2,
         "command_delay": 0.001
     }

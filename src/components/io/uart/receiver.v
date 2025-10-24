@@ -2,7 +2,7 @@
 module receiver(
 	input wire rst_i,
 	input wire clk_i,
-	input wire clken_i,
+	input wire clke_i,
 	input wire rx_i,
 	input wire ready_clr_i,
 	output reg ready_o,
@@ -25,13 +25,16 @@ reg [7:0] scratch = 8'b0;
 
 always @(posedge clk_i) begin
 	if (rst_i) begin
-
+		state <= RX_STATE_START;
+		sample <= 0;
+		bitpos <= 0;
+		scratch <= 8'b0;
 	end else begin
 
 		if (ready_clr_i)
 			ready_o <= 0;
 
-		if (clken_i) begin
+		if (clke_i) begin
 			case (state)
 			RX_STATE_START: begin
 				/*

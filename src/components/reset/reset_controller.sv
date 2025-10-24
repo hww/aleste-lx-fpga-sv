@@ -2,6 +2,7 @@
 
 module reset_controller (
     input clk,
+    input clke,
     input pll_locked,
     output reg system_reset,
     output reg boot_complete

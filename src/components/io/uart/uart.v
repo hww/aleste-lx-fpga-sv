@@ -1,6 +1,7 @@
 `default_nettype none
 module uart(
     input wire clk_i,
+    input wire clke_i,
     input wire rst_i,  // Добавлен rst_i
     
     // transmitter
@@ -22,6 +23,7 @@ wire rx_clk_en, tx_clk_en;
 
 baud_rate_gen uart_baud(
     .rst_i(rst_i),
+    .clke_i(clke_i),
     .clk_i(clk_i),
     .rxclk_en_o(rx_clk_o),
     .txclk_en_o(tx_clk_o));
@@ -29,7 +31,7 @@ baud_rate_gen uart_baud(
 transmitter uart_tx(
     .rst_i(rst_i),
     .clk_i(clk_i),
-    .clken_i(tx_clk_o),
+    .clke_i(tx_clk_o),
 	// Serial
     .tx_o(tx_o),
 	// Bus
@@ -41,7 +43,7 @@ transmitter uart_tx(
 receiver uart_rx(
     .rst_i(rst_i),
     .clk_i(clk_i), 
-    .clken_i(rx_clk_o),
+    .clke_i(rx_clk_o),
 	// Serial	
     .rx_i(rx_i),              
 	// Bus

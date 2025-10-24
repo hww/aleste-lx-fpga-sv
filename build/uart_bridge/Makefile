@@ -16,7 +16,7 @@ RESET_DIR  := $(SRC_DIR)/components/reset
 DEBUG      := $(DEBUG_DIR)/debug_shift_reg.sv
 RESET      := $(RESET_DIR)/reset_controller.sv
 CLOCK      := $(TARGET_DIR)/clocks/video_pll.v
-SDRAM_CTRL := $(SDRAM_DIR)/sdram_ctrl_wb.sv
+SDRAM_CTRL := $(SDRAM_DIR)/sdram_wishbone.sv
 UART_BRIDGE := $(UART_DIR)/uart_bridge.sv $(UART_DIR)/uart.v $(UART_DIR)/receiver.v $(UART_DIR)/transmitter.v $(UART_DIR)/baud_rate_gen.v
 TOP_MODULE := $(SYSTEM_DIR)/uart_bridge_test.sv
 

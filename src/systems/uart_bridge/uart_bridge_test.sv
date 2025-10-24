@@ -16,7 +16,7 @@ module uart_bridge_test #(
     output logic sdram_we_n,
     output logic [12:0] sdram_a,
     output logic [1:0] sdram_ba,
-    output logic [1:0] sdram_dm,
+    output logic [1:0] sdram_dm,  
     inout  logic [15:0] sdram_dq,
     
     // UART интерфейс
@@ -46,7 +46,8 @@ module uart_bridge_test #(
     );
 
     reset_controller reset_inst(
-        .clk(clk_54m),
+        .clk(clk_system),
+        .clke(clk_54m),
         .pll_locked(pll_locked),
         .system_reset(system_reset),
         .boot_complete()
@@ -73,7 +74,6 @@ module uart_bridge_test #(
     logic bus_stb, bus_ack;
 
    
-
     uart_bridge uart_bridge_inst (
         .clk_54m(clk_54m),
         .rst(system_reset),
@@ -90,9 +90,9 @@ module uart_bridge_test #(
         .wb_we_o(uart_wb_we),
         .wb_adr_o(uart_wb_adr),
         .wb_dat_o(uart_wb_dat_o),
-        .wb_dat_i(uart_wb_dat_i),
+        .wb_dat_i(uart_wb_adr[15:0]/*uart_wb_dat_i*/),
         .wb_sel_o(uart_wb_sel),
-        .wb_ack_i(uart_wb_ack),
+        .wb_ack_i(uart_wb_stb/*uart_wb_ack*/),
         .wb_err_i('0),
 
         .dbg_cyc_o(uart_dbg_cyc),
@@ -113,84 +113,90 @@ module uart_bridge_test #(
     );
 
     // ===========================================
-    // SDRAM Controller - прямой доступ от UART
+    // НОВЫЙ SDRAM Controller - прямой доступ от UART
     // ===========================================
-    logic [23:0] sdram_addr;
-    logic [15:0] sdram_data_i, sdram_data_o;
-    logic sdram_we, sdram_cyc, sdram_ack;
+    
+    // Debug signals from new controller
+    logic [2:0] sdram_debug_state;
+    logic sdram_debug_init_complete;
+    logic sdram_debug_ready;
+    logic sdram_debug_busy;
 
-    // Прямое подключение UART к SDRAM
-    assign sdram_cyc = uart_wb_stb;
-    assign sdram_we = uart_wb_we;
-    assign sdram_addr = uart_wb_adr;
-    assign sdram_data_i = uart_wb_dat_o;
-
-    assign uart_wb_dat_i = sdram_data_o;
-    assign uart_wb_ack = sdram_ack;
-
-    sdram_ctrl_wb sdram_controller(
+    // Прямое подключение UART к НОВОМУ SDRAM контроллеру
+    sdram_wishbone #(
+        .CLK_FREQ(54_000_000),     // 54MHz системная частота
+        .WB_ADDR_WIDTH(24),
+        .WB_DATA_WIDTH(16)
+    ) sdram_controller (
+        // Wishbone Interface
         .wb_clk_i(clk_system),
         .wb_rst_i(system_reset),
-        .wb_cyc_i(sdram_cyc),
-        .wb_stb_i(sdram_cyc),
-        .wb_ack_o(sdram_ack),
-        .wb_we_i(sdram_we),
-        .wb_adr_i(sdram_addr),
-        .wb_dat_i(sdram_data_i),
-        .wb_dat_o(sdram_data_o),
+        .wb_cyc_i(uart_wb_cyc),
+        .wb_stb_i('0/*uart_wb_stb*/),
+        .wb_ack_o(uart_wb_ack),
+        .wb_we_i(uart_wb_we),
+        .wb_adr_i(uart_wb_adr),
+        .wb_dat_i(uart_wb_dat_o),
+        .wb_dat_o(uart_wb_dat_i),
         .wb_sel_i(uart_wb_sel),
-        .wb_tag_i(2'b00),
-        .wb_grant_o(), // Не используется при прямом доступе
-
-        // SDRAM physical interface
-        .sdram_dq(sdram_dq),
-        .sdram_addr(sdram_a),
-        .sdram_dqm(sdram_dm),
-        .sdram_ba(sdram_ba),
-        .sdram_cs_n(sdram_cs_n),
-        .sdram_we_n(sdram_we_n),
-        .sdram_ras_n(sdram_ras_n),
-        .sdram_cas_n(sdram_cas_n),
-        .sdram_cke(sdram_cke)
+        
+        // SDRAM Physical Interface
+        .SDRAM_DQ(sdram_dq),
+        .SDRAM_A(sdram_a),
+        .SDRAM_BA(sdram_ba),
+        .SDRAM_nCS(sdram_cs_n),
+        .SDRAM_nWE(sdram_we_n),
+        .SDRAM_nRAS(sdram_ras_n),
+        .SDRAM_nCAS(sdram_cas_n),
+        .SDRAM_CKE(sdram_cke),
+        .SDRAM_DQM(sdram_dm),      // Теперь [3:0] вместо [1:0]
+        
+        // Debug Interface
+        .debug_state(sdram_debug_state),
+        .debug_init_complete(sdram_debug_init_complete),
+        .debug_ready(sdram_debug_ready),
+        .debug_initialized(),
+        .debug_configured(),
+        .debug_cycle(),
+        .debug_busy(sdram_debug_busy),
+        .debug_rst_cnt(),
+        .debug_rst_done(),
+        .debug_cfg_busy()
     );
 
     // SDRAM clock
     ODDRX1F sdram_clk_oddr(
-        .SCLK(clk_54m),
+        .SCLK(clk_system),
         .RST(1'b0),
-        .D0(1'b0),
-        .D1(1'b1),
+        .D0(1'b1),
+        .D1(1'b0),
         .Q(sdram_clock)
     );
 
     // ===========================================
-    // Отладочные сигналы
+    // Отладочные сигналы - с мониторингом нового контроллера
     // ===========================================
 
-    assign debug_leds[0] = cmd_state[0];
-    assign debug_leds[1] = cmd_state[1];
-    assign debug_leds[2] = cmd_state[2];
+    // Светодиоды показывают состояние SDRAM контроллера
+    assign debug_leds[0] = sdram_debug_init_complete;  // Инициализация завершена
+    assign debug_leds[1] = sdram_debug_ready;          // Контроллер готов
+    assign debug_leds[2] = sdram_debug_busy;           // Контроллер занят
+    assign debug_leds[3] = uart_wb_ack;                // WB ACK
+    assign debug_leds[4] = uart_wb_stb;                // WB STB
+    assign debug_leds[5] = uart_rx_ready;              // UART RX готов
+    assign debug_leds[6] = uart_tx_busy;               // UART TX занят
+    assign debug_leds[7] = pll_locked;                 // PLL locked
 
-    // Отладочные пины - мониторим адресную шину
-    //assign debug = {
-    //    cmd_state[3], 
-    //    cmd_state[2],       
-    //    cmd_state[1],       
-    //    cmd_state[0],       
-    //    uart_wb_ack, 
-    //    uart_wb_stb, 
-    //    bus_ack,      
-    //    bus_stb       
-    //};
+    // Отладочные пины - комбинированная информация
     assign debug = {
-        cmd_state[3], 
-        cmd_state[2],       
-        bus_state[1],       
-        bus_state[0],       
-        uart_wb_ack, 
-        uart_wb_stb, 
-        bus_ack,      
-        bus_stb       
+        sdram_debug_state[2],      // Старший бит состояния SDRAM
+        sdram_debug_state[1],      // Средний бит состояния SDRAM  
+        sdram_debug_state[0],      // Младший бит состояния SDRAM
+        sdram_debug_init_complete, // Инициализация завершена
+        sdram_debug_ready,         // Контроллер готов
+        uart_wb_ack,               // WB ACK
+        uart_wb_stb,               // WB STB
+        system_reset               // Системный сброс
     };
 
 endmodule

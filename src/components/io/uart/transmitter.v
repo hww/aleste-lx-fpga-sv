@@ -2,7 +2,7 @@
 module transmitter(
 	input wire rst_i,
 	input wire clk_i,
-	input wire clken_i,
+	input wire clke_i,
 	input wire [7:0] data_i,
 	input wire wr_i,
 	output wire busy_o,
@@ -37,13 +37,13 @@ always @(posedge clk_i) begin
 			end
 		end
 		STATE_START: begin
-			if (clken_i) begin
+			if (clke_i) begin
 				tx_o <= 1'b0;
 				state <= STATE_DATA;
 			end
 		end
 		STATE_DATA: begin
-			if (clken_i) begin
+			if (clke_i) begin
 				if (bitpos_reg == 3'h7)
 					state <= STATE_STOP;
 				else
@@ -52,7 +52,7 @@ always @(posedge clk_i) begin
 			end
 		end
 		STATE_STOP: begin
-			if (clken_i) begin
+			if (clke_i) begin
 				tx_o <= 1'b1;
 				state <= STATE_IDLE;
 			end

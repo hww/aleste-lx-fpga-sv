@@ -82,6 +82,7 @@ logic       uart_rx_ack;
 
 uart uart_inst (
     .clk_i(clk_54m),
+    .clke_i('1),
     .rst_i(rst),
     
     // transmitter
