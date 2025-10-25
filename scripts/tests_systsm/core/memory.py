@@ -93,35 +93,6 @@ class FPGAMemory:
             print(f"❌ Unexpected write error: {e}")
             return False
     
-    def _write_memory_single(self, address: int, data: bytes) -> bool:
-        try:
-            size = len(data)
-            size_code = self._get_size_code(size)
-            cmd = self._encode_memory_cmd(0b001, size_code)
-            addr_data = self._encode_address(address)
-            packet = addr_data + data
-            
-            response = self.transport.send_command(cmd, packet)
-            
-            # Интерпретация ответа
-            if response == b'':
-                return True  # Молчание - знак согласия
-            elif response == b'\x00':
-                return True  # Явное подтверждение
-            elif response == b'\x01':
-                print(f"❌ Device reported write error at 0x{address:06X}")
-                return False
-            else:
-                print(f"⚠️ Unexpected response to write: {response.hex()}")
-                return True  # Но все равно считаем успехом для совместимости
-            
-        except FPGATransportError as e:
-            print(f"❌ Transport error during write: {e}")
-            return False
-        except FPGAProtocolError as e:
-            print(f"❌ Protocol error during write: {e}")
-            return False
-    
     def _write_memory_block(self, address: int, data: bytes) -> bool:
         total_size = len(data)
         remaining = total_size
@@ -130,21 +101,66 @@ class FPGAMemory:
         
         chunk_count = 0
         while remaining > 0:
-            chunk_size = min(remaining, 128)
+            chunk_size = self._get_optimal_chunk_size(remaining)
             chunk_data = data[data_offset:data_offset + chunk_size]
             
             success = self._write_memory_single(current_addr, chunk_data)
             if not success:
-                print(f"❌ Block write failed at chunk {chunk_count}, offset 0x{data_offset:04X}")
+                # ⚠️ ПОКАЗЫВАЕМ ОШИБКУ!
+                print(f"❌ Write failed at address 0x{current_addr:06X}, offset 0x{data_offset:04X}")
                 return False
             
             current_addr += chunk_size
             data_offset += chunk_size
             remaining -= chunk_size
             chunk_count += 1
+            
+            # Прогресс ТОЛЬКО для очень больших файлов и редко
+            if total_size > 10 * 1024 * 1024 and data_offset % (5 * 1024 * 1024) == 0:
+                percent = (data_offset / total_size) * 100
+                mb_written = data_offset // (1024 * 1024)
+                mb_total = total_size // (1024 * 1024)
+                print(f"📊 {mb_written}/{mb_total} MB ({percent:.1f}%)")
         
         return True
-    
+
+    def _write_memory_single(self, address: int, data: bytes) -> bool:
+        try:
+            size = len(data)
+            
+            supported_sizes = [1, 2, 4, 8, 16, 32, 64, 128]
+            if size not in supported_sizes:
+                # ⚠️ ПОКАЗЫВАЕМ ОШИБКУ РАЗМЕРА!
+                print(f"❌ Invalid data size {size} at 0x{address:06X}")
+                return False
+            
+            size_code = self._get_size_code(size)
+            cmd = self._encode_memory_cmd(0b001, size_code)
+            addr_data = self._encode_address(address)
+            packet = addr_data + data
+            
+            # Бесшумная отправка, но исключения покажут ошибки
+            self.transport.send_command(cmd, packet)
+            return True
+                
+        except FPGATransportError as e:
+            # ⚠️ ПОКАЗЫВАЕМ ТРАНСПОРТНЫЕ ОШИБКИ!
+            print(f"❌ Transport error at 0x{address:06X}: {e}")
+            return False
+        except FPGAProtocolError as e:
+            # ⚠️ ПОКАЗЫВАЕМ ПРОТОКОЛЬНЫЕ ОШИБКИ!
+            print(f"❌ Protocol error at 0x{address:06X}: {e}")
+            return False
+    def _get_optimal_chunk_size(self, remaining: int) -> int:
+        """Выбрать оптимальный размер блока из поддерживаемых"""
+        supported_sizes = [128, 64, 32, 16, 8, 4, 2, 1]
+        
+        for size in supported_sizes:
+            if remaining >= size:
+                return size
+        
+        return 1  # fallback
+
     def write_hex_string(self, address: int, hex_str: str) -> bool:
         try:
             data = HexUtils.hex_to_bytes(hex_str)

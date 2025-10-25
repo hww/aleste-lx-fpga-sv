@@ -1,7 +1,7 @@
 `default_nettype none
 
 module uart_bridge_test #(
-    parameter SYSTEM_CLK_FREQ = 54_000_000 * 2,
+    parameter SYSTEM_CLK_FREQ = 54_000_000*2,
     parameter SDRAM_ADDR_WIDTH = 24,
     parameter SDRAM_DATA_WIDTH = 16
 )(
@@ -46,7 +46,7 @@ module uart_bridge_test #(
         .locked(pll_locked)
     );
 
-    assign clk_system = SYSTEM_CLK_FREQ == (54_000_000*2) ? clk_54m : clk_108m;
+    assign clk_system = (SYSTEM_CLK_FREQ == 54_000_000) ? clk_54m : clk_108m;
 
     reset_controller reset_inst(
         .clk(clk_system),
@@ -78,7 +78,7 @@ module uart_bridge_test #(
     uart_bridge #(
         .CLK_FREQ(SYSTEM_CLK_FREQ)
     ) uart_bridge_inst (
-        .clk_54m(clk_system),
+        .clk_i(clk_system),
         .rst(system_reset),
         
         // UART Interface
@@ -171,8 +171,8 @@ module uart_bridge_test #(
     ODDRX1F sdram_clk_oddr(
         .SCLK(clk_system),
         .RST(1'b0), 
-        .D0(1'b0), //1
-        .D1(1'b1), //0
+        .D0(1'b0), 
+        .D1(1'b1), 
         .Q(sdram_clock)
     );
 
@@ -191,6 +191,7 @@ module uart_bridge_test #(
     assign debug_leds[7] = pll_locked;                 // PLL locked
 
     // Отладочные пины - комбинированная информация
+    /*
     assign debug = {
         sdram_debug_state[2],      // Старший бит состояния SDRAM
         sdram_debug_state[1],      // Средний бит состояния SDRAM  
@@ -200,6 +201,17 @@ module uart_bridge_test #(
         uart_wb_ack,               // WB ACK
         uart_wb_stb,               // WB STB
         system_reset               // Системный сброс
+    };
+*/
+    assign debug = {
+        cmd_state[3],       // Старший бит состояния SDRAM
+        cmd_state[2],       // Средний бит состояния SDRAM  
+        cmd_state[1],       // Младший бит состояния SDRAM
+        cmd_state[0],       // Инициализация завершена
+        sdram_debug_ready,         // Контроллер готов
+        uart_wb_ack,               // WB ACK
+        uart_wb_stb,               // WB STB
+        cmd_state               // Системный сброс
     };
 
 endmodule

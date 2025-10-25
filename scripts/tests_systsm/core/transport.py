@@ -157,11 +157,10 @@ class FPGATransport:
     def _is_write_command(self, command: int) -> bool:
         op_type = (command >> 4) & 0x07
         return op_type == 0b001
-    
+
     def send_command(self, command: int, data: bytes = b'') -> bytes:
         """
         Отправить команду и получить ответ
-        ТИХАЯ версия - выводит только ошибки
         """
         if not self.serial or not self.serial.is_open:
             raise FPGATransportError("Serial port not connected")
@@ -169,9 +168,7 @@ class FPGATransport:
         for attempt in range(self.config['protocol']['max_retries']):
             try:
                 # Очистка буфера перед отправкой
-                unexpected_data = self.serial.read(self.serial.in_waiting)
-                if unexpected_data:
-                    raise FPGAProtocolError(f"Unexpected data before command: {unexpected_data.hex()}")
+                self.serial.reset_input_buffer()
                 
                 # Отправка пакета
                 packet = bytes([command]) + data
@@ -181,20 +178,17 @@ class FPGATransport:
                     raise FPGATransportError(f"Write incomplete: {written}/{len(packet)} bytes")
                 
                 self.serial.flush()
-                time.sleep(self.config['protocol']['command_delay'])
                 
-                # Обработка ответа
+                # 🔴 ДЛЯ ЗАПИСИ: НЕ ЖДЕМ ОТВЕТА ВООБЩЕ
                 if self._is_write_command(command):
-                    # Для записи - проверяем не прислала ли плата мусор
-                    unexpected_response = self.serial.read(self.serial.in_waiting)
-                    if unexpected_response:
-                        raise FPGAProtocolError(f"Unexpected response to write: {unexpected_response.hex()}")
-                    return b''  # Успешная запись
-                
+                    time.sleep(0.001)  # Минимальная задержка для стабильности UART
+                    return b''  # Всегда успех
+                    
+                # ✅ ДЛЯ ЧТЕНИЯ: ждем ожидаемый ответ  
                 else:
-                    # Для чтения - ждем ответ
                     expected_size = self._get_expected_response_size(command)
                     if expected_size > 0:
+                        time.sleep(0.01)
                         response = self.serial.read(expected_size)
                         if len(response) == expected_size:
                             return response
@@ -214,11 +208,11 @@ class FPGATransport:
                 if attempt == self.config['protocol']['max_retries'] - 1:
                     raise
                 
-            # Повторная попытка
             if attempt < self.config['protocol']['max_retries'] - 1:
                 time.sleep(0.1)
         
         raise FPGATransportError("All attempts failed")
+        
 
     def close(self):
         if self.serial and self.serial.is_open:

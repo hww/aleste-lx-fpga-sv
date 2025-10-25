@@ -6,7 +6,7 @@ module uart_bridge #(
     parameter UART_DATA_WIDTH = 8,
     parameter CLK_FREQ = 54_000_000
 ) (
-    input  logic                       clk_54m,
+    input  logic                       clk_i,
     input  logic                       rst,
     // UART Interface
     input  logic                       uart_rx,
@@ -84,7 +84,7 @@ logic       uart_rx_ack;
 uart #(
     .CLK_FREQ(CLK_FREQ)
 ) uart_inst (
-    .clk_i(clk_54m),
+    .clk_i(clk_i),
     .clke_i('1),
     .rst_i(rst),
     
@@ -150,7 +150,7 @@ logic        bus_error;
 logic [15:0] wdt_counter;
 logic timeout_start_stb, wdt_trigger;
 
-always_ff @(posedge clk_54m) begin
+always_ff @(posedge clk_i) begin
     if (rst) begin
         wdt_trigger <= '0;
         wdt_counter <= 0;
@@ -196,7 +196,7 @@ endfunction
 // Main Command FSM (MASTER)
 // ============================================================================
 
-always_ff @(posedge clk_54m) begin
+always_ff @(posedge clk_i) begin
     if (rst) begin
         cmd_state <= CMD_IDLE;
         current_cmd <= '0;
@@ -321,8 +321,9 @@ always_ff @(posedge clk_54m) begin
                     
                     if (bytes_remaining == 1) begin
                         bus_cyc <= 1'b0;
-                        response_data <= RESP_OK;
-                        cmd_state <= CMD_SEND_RESPONSE;
+                        //response_data <= RESP_OK;
+                        //cmd_state <= CMD_SEND_RESPONSE;
+                        cmd_state <= CMD_IDLE;
                     end else begin
                         bus_addr <= bus_addr + 1;
                         cmd_state <= CMD_BUS_WRITE;
@@ -351,8 +352,9 @@ always_ff @(posedge clk_54m) begin
                         
                         if (bytes_remaining == 1) begin
                             bus_cyc <= 1'b0;
-                            response_data <= RESP_OK;
-                            cmd_state <= CMD_SEND_RESPONSE;
+                            //response_data <= RESP_OK;
+                            //cmd_state <= CMD_SEND_RESPONSE;
+                            cmd_state <= CMD_IDLE;
                         end else begin
                             bus_addr <= bus_addr + 1;
                             // Остаемся в CMD_BUS_READ для следующего байта
@@ -397,7 +399,7 @@ bus_state_t bus_state = BUS_IDLE;
 
 logic any_error = (wb_cyc_o && wb_err_i) || (dbg_cyc_o && dbg_err_i);
 
-always_ff @(posedge clk_54m) begin
+always_ff @(posedge clk_i) begin
     if (rst) begin
         bus_state <= BUS_IDLE;
         bus_ready <= 1'b1;
