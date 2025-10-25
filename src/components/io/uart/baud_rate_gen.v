@@ -3,7 +3,9 @@
  * rx/tx pair where the rx clcken oversamples by 16x.
  */
 `default_nettype none
-module baud_rate_gen(
+module baud_rate_gen #(
+	parameter CLK_FREQ = 54000000
+)(
 	input wire clk_i,
 	input wire clke_i,
 	input wire rst_i,
@@ -11,8 +13,8 @@ module baud_rate_gen(
 	output wire txclk_en_o
 );
 
-parameter RX_ACC_MAX = 54000000 / (115200 * 16);
-parameter TX_ACC_MAX = 54000000 / 115200;
+parameter RX_ACC_MAX = CLK_FREQ / (115200 * 16);
+parameter TX_ACC_MAX = CLK_FREQ / 115200;
 parameter RX_ACC_WIDTH = $clog2(RX_ACC_MAX);
 parameter TX_ACC_WIDTH = $clog2(TX_ACC_MAX);
 

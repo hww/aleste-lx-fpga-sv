@@ -1,6 +1,7 @@
 `default_nettype none
 
 module uart_bridge_test #(
+    parameter SYSTEM_CLK_FREQ = 54_000_000 * 2,
     parameter SDRAM_ADDR_WIDTH = 24,
     parameter SDRAM_DATA_WIDTH = 16
 )(
@@ -45,6 +46,8 @@ module uart_bridge_test #(
         .locked(pll_locked)
     );
 
+    assign clk_system = SYSTEM_CLK_FREQ == (54_000_000*2) ? clk_54m : clk_108m;
+
     reset_controller reset_inst(
         .clk(clk_system),
         .clke(clk_54m),
@@ -52,8 +55,6 @@ module uart_bridge_test #(
         .system_reset(system_reset),
         .boot_complete()
     );
-
-    assign clk_system = clk_54m;
 
     // ===========================================
     // UART Bridge - прямой доступ к SDRAM
@@ -74,8 +75,10 @@ module uart_bridge_test #(
     logic bus_stb, bus_ack;
 
    
-    uart_bridge uart_bridge_inst (
-        .clk_54m(clk_54m),
+    uart_bridge #(
+        .CLK_FREQ(SYSTEM_CLK_FREQ)
+    ) uart_bridge_inst (
+        .clk_54m(clk_system),
         .rst(system_reset),
         
         // UART Interface
@@ -90,9 +93,9 @@ module uart_bridge_test #(
         .wb_we_o(uart_wb_we),
         .wb_adr_o(uart_wb_adr),
         .wb_dat_o(uart_wb_dat_o),
-        .wb_dat_i(uart_wb_adr[15:0]/*uart_wb_dat_i*/),
+        .wb_dat_i(uart_wb_dat_i),
         .wb_sel_o(uart_wb_sel),
-        .wb_ack_i(uart_wb_stb/*uart_wb_ack*/),
+        .wb_ack_i(uart_wb_ack),
         .wb_err_i('0),
 
         .dbg_cyc_o(uart_dbg_cyc),
@@ -124,7 +127,7 @@ module uart_bridge_test #(
 
     // Прямое подключение UART к НОВОМУ SDRAM контроллеру
     sdram_wishbone #(
-        .CLK_FREQ(54_000_000),     // 54MHz системная частота
+        .CLK_FREQ(SYSTEM_CLK_FREQ),     // 54MHz системная частота
         .WB_ADDR_WIDTH(24),
         .WB_DATA_WIDTH(16)
     ) sdram_controller (
@@ -132,7 +135,7 @@ module uart_bridge_test #(
         .wb_clk_i(clk_system),
         .wb_rst_i(system_reset),
         .wb_cyc_i(uart_wb_cyc),
-        .wb_stb_i('0/*uart_wb_stb*/),
+        .wb_stb_i(uart_wb_stb),
         .wb_ack_o(uart_wb_ack),
         .wb_we_i(uart_wb_we),
         .wb_adr_i(uart_wb_adr),
@@ -167,9 +170,9 @@ module uart_bridge_test #(
     // SDRAM clock
     ODDRX1F sdram_clk_oddr(
         .SCLK(clk_system),
-        .RST(1'b0),
-        .D0(1'b1),
-        .D1(1'b0),
+        .RST(1'b0), 
+        .D0(1'b0), //1
+        .D1(1'b1), //0
         .Q(sdram_clock)
     );
 

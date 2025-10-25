@@ -3,7 +3,8 @@
 module uart_bridge #(
     parameter WB_ADDR_WIDTH = 24,
     parameter DBG_ADDR_WIDTH = 8,
-    parameter UART_DATA_WIDTH = 8
+    parameter UART_DATA_WIDTH = 8,
+    parameter CLK_FREQ = 54_000_000
 ) (
     input  logic                       clk_54m,
     input  logic                       rst,
@@ -80,7 +81,9 @@ logic       uart_tx_start;
 logic [7:0] uart_rx_data;
 logic       uart_rx_ack;
 
-uart uart_inst (
+uart #(
+    .CLK_FREQ(CLK_FREQ)
+) uart_inst (
     .clk_i(clk_54m),
     .clke_i('1),
     .rst_i(rst),

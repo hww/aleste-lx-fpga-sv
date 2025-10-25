@@ -1,5 +1,7 @@
 `default_nettype none
-module uart(
+module uart #(
+    parameter CLK_FREQ = 54_000_000
+)(
     input wire clk_i,
     input wire clke_i,
     input wire rst_i,  // Добавлен rst_i
@@ -21,7 +23,9 @@ module uart(
 
 wire rx_clk_en, tx_clk_en;
 
-baud_rate_gen uart_baud(
+baud_rate_gen #(
+    .CLK_FREQ(CLK_FREQ)
+) uart_baud(
     .rst_i(rst_i),
     .clke_i(clke_i),
     .clk_i(clk_i),
