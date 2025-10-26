@@ -4,6 +4,7 @@ module sdram_wishbone #(
     parameter WB_DATA_WIDTH   = 16,
     parameter SDRAM_DATA_WIDTH = 16,             // 16-bit SDRAM
     parameter SDRAM_DQM_WIDTH = SDRAM_DATA_WIDTH / 8
+
 )(
     // Wishbone Interface
     input                           wb_clk_i,
@@ -47,13 +48,25 @@ localparam ROW_WIDTH = 11;
 localparam COL_WIDTH = 8;
 localparam BANK_WIDTH = 2;
 
-// Time delays from original (for 66.7Mhz max clock)
-localparam [3:0] CAS  = 4'd2;
-localparam [3:0] T_WR = 4'd2;
-localparam [3:0] T_MRD= 4'd2;
-localparam [3:0] T_RP = 4'd1;
-localparam [3:0] T_RCD= 4'd1;
-localparam [3:0] T_RC = 4'd4;
+`define CLK_108MHZ
+
+`ifdef CLK_108MHZ
+    localparam [4:0] CAS  = 5'd3;
+    localparam [4:0] T_WR = 5'd2;
+    localparam [4:0] T_MRD= 5'd2;
+    localparam [4:0] T_RP = 5'd2; // 2 => 27.8 ns вместо 18.5 ns
+    localparam [4:0] T_RCD= 5'd2; // 2 => 27.8 ns вместо 18.5 ns
+    localparam [4:0] T_RC = 5'd6; // 7
+
+`else
+    // Time delays from original (for 66.7Mhz max clock)
+    localparam [4:0] CAS  = 5'd2;
+    localparam [4:0] T_WR = 5'd2;
+    localparam [4:0] T_MRD= 5'd2;
+    localparam [4:0] T_RP = 5'd1;
+    localparam [4:0] T_RCD= 5'd1;
+    localparam [4:0] T_RC = 5'd4;
+`endif
 
 // States from original Tang controller
 localparam INIT = 3'd0;
@@ -62,6 +75,7 @@ localparam IDLE = 3'd2;
 localparam READ = 3'd3;
 localparam WRITE = 3'd4;
 localparam REFRESH = 3'd5;
+
 
 // Commands from original (RAS# CAS# WE#)
 localparam CMD_SetModeReg = 3'b000;
@@ -78,7 +92,7 @@ localparam [10:0] MODE_REG = {4'b0, CAS[2:0], BURST_MODE, BURST_LEN};
 
 // ========== ВНУТРЕННИЕ СИГНАЛЫ ==========
 reg cfg_now;
-reg [3:0] cycle;
+reg [4:0] cycle;
 reg [2:0] state;
 reg dq_oen;
 reg [DATA_WIDTH-1:0] dq_out;
@@ -126,20 +140,20 @@ end
 
 // ========== FSM - АДАПТИРОВАНА ДЛЯ 16-БИТНОЙ SDRAM ==========
 always @(posedge wb_clk_i) begin
-    cycle <= cycle == 4'd15 ? 4'd15 : cycle + 4'd1;
+    cycle <= cycle == 5'd31 ? 5'd31 : cycle + 5'd1;
     
     // Defaults from original
     {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_NOP; 
     
     casez ({state, cycle})
         // INIT state - полностью из оригинала
-        {INIT, 4'b????}: if (cfg_now) begin
+        {INIT, 5'b?????}: if (cfg_now) begin
             state <= CONFIG;
             cycle <= 0;
         end
 
         // CONFIG sequence - полностью из оригинала
-        {CONFIG, 4'd0}: begin
+        {CONFIG, 5'd0}: begin
             {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_PreCharge;
             SDRAM_A[10] <= 1'b1;
         end
@@ -158,16 +172,16 @@ always @(posedge wb_clk_i) begin
         end
         
         // READ/WRITE/REFRESH - адаптируем под WB
-        {IDLE, 4'b????}: if (original_rd | original_wr) begin
+        {IDLE, 5'b?????}: if (original_rd | original_wr) begin
             {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_BankActivate;
             SDRAM_BA <= original_addr[ROW_WIDTH+COL_WIDTH+BANK_WIDTH-1 : ROW_WIDTH+COL_WIDTH];
             SDRAM_A <= {{2{1'b0}}, original_addr[ROW_WIDTH+COL_WIDTH-1 : COL_WIDTH]};
             state <= original_rd ? READ : WRITE;
-            cycle <= 4'd1;
+            cycle <= 5'd1;
         end else if (original_refresh) begin
             {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_AutoRefresh;
             state <= REFRESH;
-            cycle <= 4'd1;
+            cycle <= 5'd1;
         end
 
         // READ sequence - адаптировано для 16-бит
@@ -182,7 +196,7 @@ always @(posedge wb_clk_i) begin
             wb_dat_o <= data_from_sdram;
             wb_ack_o <= 1'b1;
         end
-        {READ, T_RCD+CAS+4'd1}: begin
+        {READ, T_RCD+CAS+5'd1}: begin
             wb_ack_o <= 1'b0;
             state <= IDLE;
         end
@@ -204,7 +218,7 @@ always @(posedge wb_clk_i) begin
             dq_out <= wb_dat_i; // Прямое подключение для 16-бит
             dq_oen <= 1'b1;
         end
-        {WRITE, T_RCD+4'd1}: begin
+        {WRITE, T_RCD+5'd1}: begin
             dq_oen <= 1'b1;
             wb_ack_o <= 1'b1;
         end

@@ -15,9 +15,9 @@ VERILATOR_FLAGS = \
 PROJECT_ROOT=../../../..
 UART_BRIDGE_SOURCES = uart_bridge.sv \
                      $(PROJECT_ROOT)/src/components/io/uart/uart.v \
-                     $(PROJECT_ROOT)/src/components/io/uart/baud_rate_gen.v \
-                     $(PROJECT_ROOT)/src/components/io/uart/receiver.v \
-                     $(PROJECT_ROOT)/src/components/io/uart/transmitter.v
+                     $(PROJECT_ROOT)/src/components/io/uart/baud_tick_gen.v \
+                     $(PROJECT_ROOT)/src/components/io/uart/uart_rx.v \
+                     $(PROJECT_ROOT)/src/components/io/uart/uart_tx.v
 
 CPP_UART_BRIDGE_SOURCES = uart_bridge_test.cpp
 

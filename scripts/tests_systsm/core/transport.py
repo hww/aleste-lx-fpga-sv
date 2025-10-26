@@ -151,7 +151,9 @@ class FPGATransport:
         if op_type == 0b000:  # Memory Read
             size_map = {0:1, 1:2, 2:4, 3:8, 4:16, 5:32, 6:64, 7:128}
             return size_map.get(size_code, 4)
-        
+        if op_type == 0b101:
+            return 6;
+
         return 1
     
     def _is_write_command(self, command: int) -> bool:
@@ -189,6 +191,7 @@ class FPGATransport:
                     expected_size = self._get_expected_response_size(command)
                     if expected_size > 0:
                         time.sleep(0.01)
+                        #self.serial.timeout = 10.0
                         response = self.serial.read(expected_size)
                         if len(response) == expected_size:
                             return response

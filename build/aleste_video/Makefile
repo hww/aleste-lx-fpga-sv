@@ -16,12 +16,15 @@ PALETTE_DIR := $(SRC_DIR)/components/video/palette
 PIXPIPE_DIR := $(SRC_DIR)/components/video/pixel_pipeline
 VIDBUF_DIR  := $(SRC_DIR)/components/video/video_buffer
 DEBUG_DIR   := $(SRC_DIR)/components/debug
+UART_DIR    := $(SRC_DIR)/components/io/uart
+
 
 # Source files для aleste_video - ИСПРАВЛЕНО!
 DEBUG       := $(DEBUG_DIR)/debug_shift_reg.sv
 RESET_CTRL  := $(RESET_DIR)/reset_controller.sv
 CLOCK       := $(TARGET_DIR)/clocks/system_pll.v $(TARGET_DIR)/clocks/video_pll.v
-SDRAM_CTRL  := $(SDRAM_DIR)/sdram_ctrl_wb.sv  $(SDRAM_DIR)/sdram_test_pattern.sv
+SDRAM_CTRL  := $(SDRAM_DIR)/sdram_wishbone.sv  
+UART_BRIDGE := $(UART_DIR)/uart_bridge.sv $(UART_DIR)/uart.v $(UART_DIR)/uart_rx.v $(UART_DIR)/uart_tx.v $(UART_DIR)/baud_tick_gen.v
 HDMI        := $(LLHDMI_DIR)/llhdmi.v $(LLHDMI_DIR)/tmds_encoder.v $(LLHDMI_DIR)/OBUFDS.v
 CRTC        := $(CRTC_DIR)/mc6845mod.sv 
 SCALER      := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
@@ -36,7 +39,7 @@ TOP_MODULE  := $(SYSTEM_DIR)/aleste_video.sv
 # ALL_SOURCES для правильных зависимостей
 ALL_SOURCES := $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) \
                $(PALETTE) $(MEM_ARBITER) $(WB_ARBITER) $(PIXPIPE) \
-               $(RESET_CTRL) $(TEST_GEN) $(DEBUG) $(VIDBUF)
+               $(RESET_CTRL) $(TEST_GEN) $(DEBUG) $(VIDBUF) $(UART_BRIDGE)
 
 # Generated files
 YOSYS_SCRIPT := aleste_video.ys
@@ -67,6 +70,7 @@ $(YOSYS_SCRIPT): $(ALL_SOURCES)
 	@echo "read_verilog $(VIDBUF)" >> $@
 	@echo "read_verilog -sv $(DEBUG)" >> $@
 	@echo "read_verilog -sv $(SDRAM_CTRL)" >> $@
+	@echo "read_verilog -sv $(UART_BRIDGE)" >> $@
 	@echo "read_verilog -sv $(TEST_GEN)" >> $@
 	@echo "read_verilog -sv $(CRTC)" >> $@
 	@echo "read_verilog -sv $(SCALER)" >> $@

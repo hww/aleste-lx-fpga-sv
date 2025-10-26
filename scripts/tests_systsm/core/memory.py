@@ -25,32 +25,6 @@ class FPGAMemory:
         size_codes = {1: 0, 2: 1, 4: 2, 8: 3, 16: 4, 32: 5, 64: 6, 128: 7}
         return size_codes.get(size, 2)
 
-    def read_memory(self, address: int, size: int = 4) -> Optional[bytes]:
-        if size <= 0:
-            return None
-        
-        try:
-            data = b''
-            remaining = size
-            current_addr = address
-            
-            while remaining > 0:
-                chunk_size = min(remaining, 128)
-                chunk = self._read_memory_single(current_addr, chunk_size)
-                
-                if not chunk:
-                    return None
-                
-                data += chunk
-                current_addr += chunk_size
-                remaining -= chunk_size
-            
-            return data
-            
-        except (FPGATransportError, FPGAProtocolError) as e:
-            print(f"❌ Read failed: {e}")
-            return None
-    
     def _read_memory_single(self, address: int, size: int) -> Optional[bytes]:
         try:
             supported_sizes = [1, 2, 4, 8, 16, 32, 64, 128]
@@ -67,12 +41,47 @@ class FPGAMemory:
             
             response = self.transport.send_command(cmd, addr_data)
             
-            if response and len(response) >= size:
-                return response[:size]
+            if response is None:
+                raise FPGAProtocolError(f"No response from transport for read at 0x{address:06X}")
+                
+            if len(response) < size:
+                raise FPGAProtocolError(f"Short response for read at 0x{address:06X}: expected {size}, got {len(response)} bytes")
             
+            return response[:size]
+            
+        except (FPGATransportError, FPGAProtocolError) as e:
+            # Добавляем контекст к ошибке
+            raise type(e)(f"Read at 0x{address:06X} (size {size}): {e}") from e
+    
+    def read_memory(self, address: int, size: int = 4) -> Optional[bytes]:
+        if size <= 0:
             return None
+        
+        try:
+            data = b''
+            remaining = size
+            current_addr = address
+            chunk_count = 0
             
-        except (FPGATransportError, FPGAProtocolError):
+            while remaining > 0:
+                chunk_size = min(remaining, 128)
+                chunk = self._read_memory_single(current_addr, chunk_size)
+                
+                if not chunk:
+                    raise FPGAProtocolError(f"Read failed at chunk {chunk_count} (address 0x{current_addr:06X}), read {len(data)}/{size} bytes so far")
+                
+                if len(chunk) != chunk_size:
+                    raise FPGAProtocolError(f"Incomplete chunk {chunk_count} at 0x{current_addr:06X}: expected {chunk_size}, got {len(chunk)} bytes")
+                
+                data += chunk
+                current_addr += chunk_size
+                remaining -= chunk_size
+                chunk_count += 1
+            
+            return data
+            
+        except (FPGATransportError, FPGAProtocolError) as e:
+            print(f"❌ Read failed: {e}")
             return None
     
     def write_memory(self, address: int, data: bytes) -> bool:
@@ -221,17 +230,16 @@ class FPGAMemory:
             print(f"❌ Get status failed: {e}")
             return None
     
-    def send_echo(self, char: int) -> Optional[int]:
-        try:
-            if char < 0 or char > 7:
-                raise ValueError("Echo character must be between 0 and 7")
-            
-            cmd = (0b101 << 4) | (char & 0b111)
-            response = self.transport.send_command(cmd)
-            return response[0] if response else None
-        except (FPGATransportError, FPGAProtocolError) as e:
-            print(f"❌ Echo failed: {e}")
-            return None
 
+    def read_state(self) -> Optional[bytes]:
+        """Прочитать состояние FPGA"""
+        try:
+            cmd = 0b101 << 4  # Новая команда состояния (бывшая echo)
+            response = self.transport.send_command(cmd)
+            return response if response and len(response) == 6 else None
+        except (FPGATransportError, FPGAProtocolError) as e:
+            print(f"❌ State read failed: {e}")
+            return None
+            
     def close(self):
         self.transport.close()

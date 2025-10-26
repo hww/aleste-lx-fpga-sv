@@ -10,9 +10,9 @@ UART_RTL  := $(PROJECT_ROOT)/src/components/io/uart
 TB_DIR    := .
 
 # Source Files
-UART_SOURCES := $(UART_RTL)/baud_rate_gen.v \
-                $(UART_RTL)/receiver.v \
-                $(UART_RTL)/transmitter.v \
+UART_SOURCES := $(UART_RTL)/baud_tick_gen.v \
+                $(UART_RTL)/uart_rx.v \
+                $(UART_RTL)/uart_tx.v \
                 $(UART_RTL)/uart.v
 
 TB_SOURCE  := $(TB_DIR)/testbench.v

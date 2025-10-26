@@ -5,6 +5,7 @@
 
 module aleste_video #(
     parameter BASE_CLOCK    = `BASE_CLOCK,
+    parameter SYSTEM_CLK_FREQ = 108_000_000,
 
     parameter SRC_H_VISIBLE      = `SRC_H_VISIBLE,
     parameter SRC_H_FRONT_PORCH  = `SRC_H_FRONT_PORCH,
@@ -25,10 +26,10 @@ module aleste_video #(
     parameter HDMI_V_FRONT_PORCH = `HDMI_V_FRONT_PORCH,
     parameter HDMI_V_SYNC_PULSE  = `HDMI_V_SYNC_PULSE,
     parameter HDMI_V_BACK_PORCH  = `HDMI_V_BACK_PORCH,
-    parameter BITS_PER_COLOR = 8,      // Bits per color channel
-    parameter RESET_CYCLES = 4,        // Reset duration in clock cycles
-    parameter CLOCK_INDEX = 3,         // GPIO index for clock output
-    parameter DATA_INDICES = 3,        // Number of data channels (R, G, B)
+    parameter BITS_PER_COLOR = 8,
+    parameter RESET_CYCLES = 4,
+    parameter CLOCK_INDEX = 3,
+    parameter DATA_INDICES = 3,
        
     // SDRAM параметры
     parameter SDRAM_ADDR_WIDTH = 24,
@@ -55,6 +56,10 @@ module aleste_video #(
     output logic [1:0] sdram_dm,
     inout  logic [15:0] sdram_dq,
     
+    // UART интерфейс
+    input  logic serial_rx,
+    output logic serial_tx,
+    
     // Отладочные выходы
     output logic [7:0] debug_leds,
     output logic [7:0] debug
@@ -80,15 +85,16 @@ module aleste_video #(
         .locked(pll_locked)
     );
 
+    assign clk_system = (SYSTEM_CLK_FREQ == 54_000_000) ? clk_54m : clk_108m;
+
     // Системный сброс
     reset_controller reset_inst(
-        .clk(clk_54m),
+        .clk(clk_system),
+        .clke(clk_54m),
         .pll_locked(pll_locked),
         .system_reset(system_reset),
         .boot_complete()
     );
-
-    assign clk_system = clk_108m;
 
     // ===========================================
     // Signal Declarations
@@ -101,7 +107,7 @@ module aleste_video #(
     logic sdram_we, sdram_req, sdram_ack, sdram_grant;
     logic sdram_burst;
     logic [2:0] sdram_burst_len;
-    logic [1:0] sdram_tag;
+    logic [1:0] sdram_sel;
 
     // Video Pipeline Signals
     logic [15:0] video_data;
@@ -177,38 +183,60 @@ module aleste_video #(
     assign boot_complete = !system_reset;
 
     // ===========================================
-    // Test Data Generator (External WB Interface)
+    // UART Bridge (заменяет тестовый генератор)
     // ===========================================
+    
+    // UART Bridge сигналы
+    logic uart_rx_ready, uart_rx_idle, uart_rx_eop;
+    logic serial_rx_clk, serial_tx_clk;
+    logic [3:0] cmd_state, bus_state;
+    logic uart_tx_busy;
+    logic bus_stb, bus_ack;
+    logic uart_dbg_cyc, uart_dbg_stb, uart_dbg_we, uart_dbg_ack;
+    logic [7:0] uart_dbg_adr;
+    logic [7:0] uart_dbg_dat_o, uart_dbg_dat_i;
+    logic [1:0] uart_dbg_sel;
 
-    logic [15:0] test_errors;
-    logic test_done, test_passed, test_end;
-
-    sdram_test_pattern #(
-        .TEST_SIZE(24'hFFFFFF) 
-    ) test_inst (
-        .clk(clk_system),
+    uart_bridge #(
+        .CLK_FREQ(SYSTEM_CLK_FREQ)
+    ) uart_bridge_inst (
+        .clk_i(clk_system),
         .rst(system_reset),
         
+        // UART Interface
+        .uart_rx(serial_rx),
+        .uart_tx(serial_tx),
+        .uart_rx_clk(serial_rx_clk),
+        .uart_tx_clk(serial_tx_clk),
+        .uart_rx_ready(uart_rx_ready),
+        .uart_rx_idle(uart_rx_idle),
+        .uart_rx_eop(uart_rx_eop),
+
         // Wishbone Master Interface
         .wb_cyc_o(wb_ext_cyc),
         .wb_stb_o(wb_ext_stb),
-        .wb_grant_i(wb_ext_grant),
-        .wb_ack_i(wb_ext_ack),
         .wb_we_o(wb_ext_we),
         .wb_adr_o(wb_ext_adr),
         .wb_dat_o(wb_ext_dat_i),
         .wb_dat_i(wb_ext_dat_o),
-        .wb_sel_o(wb_ext_sel),    
-        .wb_tag_o(wb_ext_tag),   
-        
-        // Control
-        .start_i(boot_complete),
-        .done_o(test_done),
-        
-        // Results
-        .test_passed_o(test_passed),
-        .error_count_o(test_errors),
-        .test_end_o(test_end)         
+        .wb_ack_i(wb_ext_ack),
+        .wb_err_i('0),
+
+        .dbg_cyc_o(uart_dbg_cyc),
+        .dbg_stb_o(uart_dbg_stb),
+        .dbg_we_o(uart_dbg_we),
+        .dbg_adr_o(uart_dbg_adr),
+        .dbg_dat_o(uart_dbg_dat_i),
+        .dbg_dat_i(uart_dbg_dat_o),
+        .dbg_ack_i('1),
+        .dbg_err_i('0),
+
+        .cmd_state_o(cmd_state),
+        .bus_state_o(bus_state),
+        .bus_ack_o(bus_ack),
+        .bus_stb_o(bus_stb),
+        .uart_rx_ready(uart_rx_ready),
+        .uart_tx_busy(uart_tx_busy)
     );
   
     // ===========================================
@@ -219,7 +247,7 @@ module aleste_video #(
         .clk(clk_system),
         .rst(system_reset),
         
-        // External WB Interface
+        // External WB Interface (от UART Bridge)
         .wb_ext_cyc_i(wb_ext_cyc),
         .wb_ext_stb_i(wb_ext_stb),
         .wb_ext_grant_o(wb_ext_grant),
@@ -228,8 +256,6 @@ module aleste_video #(
         .wb_ext_adr_i(wb_ext_adr),
         .wb_ext_dat_i(wb_ext_dat_i),
         .wb_ext_dat_o(wb_ext_dat_o),
-        .wb_ext_sel_i(wb_ext_sel),
-        .wb_ext_tag_i(wb_ext_tag),
         
         // Palette Interface
         .palette_cyc_o(palette_cyc),
@@ -286,7 +312,7 @@ module aleste_video #(
         .wb_stb_i(crtc_stb),
         .wb_adr_i(crtc_adr),
         .wb_dat_i(crtc_dat_i),
-        .wb_sel_i(crtc_sel),
+        .wb_sel_i(2'b11),
         .wb_we_i(crtc_we),
         .wb_ack_o(crtc_ack),
         .wb_dat_o(crtc_dat_o),
@@ -347,8 +373,7 @@ module aleste_video #(
         .video_burst_i(crtc_burst_mode),
         .video_data_o(video_data),
         .video_ack_o(video_ack),
-        .video_grant_o(video_grant),
-        
+
         // System WB Interface (from internal arbiter)
         .wb_cyc_i(mem_cyc),
         .wb_stb_i(mem_stb),
@@ -357,9 +382,7 @@ module aleste_video #(
         .wb_adr_i(mem_adr),
         .wb_dat_i(mem_dat_i),
         .wb_dat_o(mem_dat_o),
-        .wb_sel_i(mem_sel),
-        .wb_tag_i(mem_tag),
-        .wb_grant_o(mem_grant),
+
         
         // SDRAM Interface
         .sdram_addr_o(sdram_addr),
@@ -368,10 +391,7 @@ module aleste_video #(
         .sdram_we_o(sdram_we),
         .sdram_req_o(sdram_req),
         .sdram_ack_i(sdram_ack),
-        .sdram_burst_o(sdram_burst),
-        .sdram_burst_len_o(sdram_burst_len),
-        .sdram_tag_o(sdram_tag),
-        .sdram_grant_i(sdram_grant),
+        .sdram_sel_o(sdram_sel),
 
         .debug_state_o(mem_arbiter_state),
         .debug_video_active_o(mem_video_active),
@@ -379,40 +399,63 @@ module aleste_video #(
     );
 
     // ===========================================
-    // SDRAM Controller
+    // НОВЫЙ SDRAM Controller (из uart_bridge_test)
     // ===========================================
-    sdram_ctrl_wb sdram_controller(
+    
+    // Debug signals from new controller
+    logic [2:0] sdram_debug_state;
+    logic sdram_debug_init_complete;
+    logic sdram_debug_ready;
+    logic sdram_debug_busy;
+
+    // Прямое подключение к НОВОМУ SDRAM контроллеру
+    sdram_wishbone #(
+        .CLK_FREQ(SYSTEM_CLK_FREQ),     // 108MHz системная частота
+        .WB_ADDR_WIDTH(24),
+        .WB_DATA_WIDTH(16)
+    ) sdram_controller (
+        // Wishbone Interface
         .wb_clk_i(clk_system),
         .wb_rst_i(system_reset),
         .wb_cyc_i(sdram_req),
         .wb_stb_i(sdram_req),
         .wb_ack_o(sdram_ack),
         .wb_we_i(sdram_we),
-        .wb_adr_i(sdram_addr[3:0]),
+        .wb_adr_i(sdram_addr),
         .wb_dat_i(sdram_data_out),
         .wb_dat_o(sdram_data_in),
-        .wb_sel_i(2'b11),
-        .wb_tag_i(sdram_tag),
-        .wb_grant_o(sdram_grant),
-
-        // SDRAM physical interface
-        .sdram_dq(sdram_dq),
-        .sdram_addr(sdram_a),
-        .sdram_dqm(sdram_dm),
-        .sdram_ba(sdram_ba),
-        .sdram_cs_n(sdram_cs_n),
-        .sdram_we_n(sdram_we_n),
-        .sdram_ras_n(sdram_ras_n),
-        .sdram_cas_n(sdram_cas_n),
-        .sdram_cke(sdram_cke)
+        .wb_sel_i(sdram_sel),  // Всегда 16-битный доступ
+        
+        // SDRAM Physical Interface
+        .SDRAM_DQ(sdram_dq),
+        .SDRAM_A(sdram_a),
+        .SDRAM_BA(sdram_ba),
+        .SDRAM_nCS(sdram_cs_n),
+        .SDRAM_nWE(sdram_we_n),
+        .SDRAM_nRAS(sdram_ras_n),
+        .SDRAM_nCAS(sdram_cas_n),
+        .SDRAM_CKE(sdram_cke),
+        .SDRAM_DQM(sdram_dm),
+        
+        // Debug Interface
+        .debug_state(sdram_debug_state),
+        .debug_init_complete(sdram_debug_init_complete),
+        .debug_ready(sdram_debug_ready),
+        .debug_initialized(),
+        .debug_configured(),
+        .debug_cycle(),
+        .debug_busy(sdram_debug_busy),
+        .debug_rst_cnt(),
+        .debug_rst_done(),
+        .debug_cfg_busy()
     );
 
-    // SDRAM clock (clk_54m с фазовым сдвигом)
+    // SDRAM clock (используем тот же подход что в uart_bridge_test)
     ODDRX1F sdram_clk_oddr(
-        .SCLK(clk_54m),
-        .RST(1'b0),
-        .D0(1'b0),
-        .D1(1'b1),
+        .SCLK(clk_system),  // 108MHz для нового контроллера
+        .RST(1'b0), 
+        .D0(1'b0), 
+        .D1(1'b1), 
         .Q(sdram_clock)
     );
 
@@ -584,72 +627,30 @@ module aleste_video #(
     // Отладочные сигналы
     // ===========================================
     assign debug_leds = {
-        1'b1,              // LED0: Always on
-        sdram_ack,         // LED1: SDRAM access  
-        sdram_req,         // LED2: Memory request
-        crtc_hsync,        // LED3: CRTC HSync
-        crtc_vsync,        // LED4: CRTC VSync 
-        crtc_de,           // LED5: CRTC display active
-        system_reset,      // LED6: Reset active
-        pll_locked         // LED7: PLL locked
+        sdram_debug_ready,      // LED0: SDRAM ready
+        sdram_debug_init_complete, // LED1: SDRAM init complete
+        uart_rx_ready,          // LED2: UART data received
+        uart_tx_busy,           // LED3: UART transmitting  
+        crtc_hsync,             // LED4: CRTC HSync
+        crtc_vsync,             // LED5: CRTC VSync 
+        system_reset,           // LED6: Reset active
+        pll_locked              // LED7: PLL locked
     };
 
-// ===========================================
-// Отладка
-// ===========================================
+    // ===========================================
+    // Отладка
+    // ===========================================
+    logic serial_debug_pin;
 
-logic serial_debug_pin;
+    debug_shift_reg addr_debug (
+        .rst(system_reset),
+        .clk(clk_54m),
+        .ce(clk_27m),                    // Всегда включен
+        .we(crtc_char_strobe),           // Захватываем при новом пикселе
+        .data_in(crtc_ext_addr),         // Младшие 16 бит адреса
+        .data_out(serial_debug_pin)      // На осциллограф
+    );
 
-debug_shift_reg addr_debug (
-    .rst(system_reset),
-    .clk(clk_54m),
-    .ce(clk_27m),                    // Всегда включен
-    .we(crtc_char_strobe),               // Захватываем при новом пикселе
-    .data_in(crtc_ext_addr),      // Младшие 16 бит адреса
-    .data_out(serial_debug_pin)          // На осциллограф
-);
-
-// LOCATION OF DEBUG PINS ON THE PCB
-// --------------------------------------+
-//    |          | F2 D1 C1 B1 GND       |  
-//    | HDMI CON | E1 C2 B2 A2 GND       |
-//    +----------+                       |
-//                                       |
-// --------------------------------------+
-
-// Memory arbiter
-/* 
-assign debug[0] = crtc_char_strobe;
-assign debug[1] = mem_stb;
-assign debug[2] = mem_grant;
-assign debug[3] = mem_ack;
-assign debug[4] = mem_we;
-assign debug[5] = mem_sel[0];
-assign debug[6] = mem_sel[1];
-assign debug[7] = mem_tag[1];
-*/
-/*
-assign debug[0] = sdram_cke;
-assign debug[1] = sdram_cs_n;
-assign debug[2] = sdram_ras_n;
-assign debug[3] = sdram_cas_n;
-assign debug[4] = sdram_we_n;
-assign debug[5] = sdram_dm[0];
-assign debug[6] = sdram_dm[1];
-assign debug[7] = sdram_a[0];
- */
- /*
-assign debug[0] = crtc_de;
-assign debug[1] = crtc_char_strobe;
-assign debug[2] = crtc_newline;
-assign debug[3] = crtc_newframe;
-assign debug[4] = serial_debug_pin;
-assign debug[5] = test_done;
-assign debug[6] = test_passed;
-assign debug[7] = test_end;
-*/
-
-assign debug = vbuf_data_o;
+    assign debug = vbuf_data_o;
 
 endmodule
-

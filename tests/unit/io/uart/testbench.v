@@ -15,7 +15,6 @@ wire rx_ready;
 wire [7:0] rx_data;
 
 wire loopback;
-reg rx_ready_clr = 0;
 
 // Новый интерфейс UART
 uart test_uart(
@@ -31,9 +30,12 @@ uart test_uart(
     // receiver  
     .rx_i(loopback),
     .rx_ready_o(rx_ready),
-    .rx_ready_clr_i(rx_ready_clr),
     .rx_data_o(rx_data)
 );
+
+always begin
+    #1 clk = ~clk;  // 50MHz clock
+end
 
 initial begin
     $dumpfile("uart.vcd");
@@ -42,21 +44,16 @@ initial begin
     // Сброс
     #10 rst <= 1'b1;
     #20 rst <= 1'b0;
-    #10;
+    #50;
     
     // Первая передача
     tx_wr <= 1'b1;
-    #2 tx_wr <= 1'b0;
+    #1 tx_wr <= 1'b0;
 end
 
-always begin
-    #1 clk = ~clk;  // 50MHz clock
-end
 
 always @(posedge rx_ready) begin
-    #2 rx_ready_clr <= 1'b1;
-    #2 rx_ready_clr <= 1'b0;
-    
+    #4
     if (rx_data != tx_data) begin
         $display("FAIL: rx data %x does not match tx %x", rx_data, tx_data);
         $finish;
@@ -77,7 +74,7 @@ end
 
 // Таймаут на случай зависания
 initial begin
-    #10000000;
+    #30000000;
     $display("FAIL: Test timeout");
     $finish;
 end

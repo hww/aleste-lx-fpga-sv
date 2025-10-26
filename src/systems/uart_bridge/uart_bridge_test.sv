@@ -1,7 +1,7 @@
 `default_nettype none
 
 module uart_bridge_test #(
-    parameter SYSTEM_CLK_FREQ = 54_000_000*2,
+    parameter SYSTEM_CLK_FREQ = 54_000_000 * 2,
     parameter SDRAM_ADDR_WIDTH = 24,
     parameter SDRAM_DATA_WIDTH = 16
 )(
@@ -48,6 +48,7 @@ module uart_bridge_test #(
 
     assign clk_system = (SYSTEM_CLK_FREQ == 54_000_000) ? clk_54m : clk_108m;
 
+    // Системный сброс
     reset_controller reset_inst(
         .clk(clk_system),
         .clke(clk_54m),
@@ -68,6 +69,7 @@ module uart_bridge_test #(
     logic [7:0] uart_dbg_adr;
     logic [7:0] uart_dbg_dat_o, uart_dbg_dat_i;
     logic [1:0] uart_dbg_sel;
+    logic uart_rx_ready, uart_rx_idle, uart_rx_eop;
 
     logic serial_rx_clk, serial_tx_clk;
     logic [3:0] cmd_state, bus_state;
@@ -86,6 +88,9 @@ module uart_bridge_test #(
         .uart_tx(serial_tx),
         .uart_rx_clk(serial_rx_clk),
         .uart_tx_clk(serial_tx_clk),
+        .uart_rx_ready(uart_rx_ready),
+        .uart_rx_idle(uart_rx_idle),
+        .uart_rx_eop(uart_rx_eop),
 
         // Wishbone Master Interface
         .wb_cyc_o(uart_wb_cyc),
@@ -94,7 +99,6 @@ module uart_bridge_test #(
         .wb_adr_o(uart_wb_adr),
         .wb_dat_o(uart_wb_dat_o),
         .wb_dat_i(uart_wb_dat_i),
-        .wb_sel_o(uart_wb_sel),
         .wb_ack_i(uart_wb_ack),
         .wb_err_i('0),
 
@@ -141,7 +145,6 @@ module uart_bridge_test #(
         .wb_adr_i(uart_wb_adr),
         .wb_dat_i(uart_wb_dat_o),
         .wb_dat_o(uart_wb_dat_i),
-        .wb_sel_i(uart_wb_sel),
         
         // SDRAM Physical Interface
         .SDRAM_DQ(sdram_dq),
