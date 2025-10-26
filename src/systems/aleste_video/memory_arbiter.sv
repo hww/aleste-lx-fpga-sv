@@ -13,6 +13,8 @@ module memory_arbiter (
     input  logic [23:0] wb_adr_i,
     input  logic [7:0]  wb_dat_i,
     output logic [7:0]  wb_dat_o,
+    input  logic  [1:0] wb_tag_i,
+    output logic        wb_grant_o,
 
     // 16-bit Video Controller (ВЫСШИЙ ПРИОРИТЕТ)
     input  logic [23:0] video_addr_i,
@@ -46,6 +48,8 @@ module memory_arbiter (
     output              debug_gpu_active_o,
     output              debug_video_active_o    
 );
+
+assign wb_grant_o = wb_tag_i == 2'b00;
 
 // =============================================================================
 // Finite State Machine
@@ -172,7 +176,7 @@ always_comb begin
 
             if (sdram_ack_i) begin
                 video_data_o = sdram_data_i;
-                video_ack_o = 1'b1;
+                video_ack_o = sdram_ack_i;
             end
         end
         
@@ -186,7 +190,7 @@ always_comb begin
 
             if (sdram_ack_i) begin
                 wb_dat_o = wb_adr_i[0] ? sdram_data_i[15:8] : sdram_data_i[7:0]; // Младшие 8 бит для wb
-                wb_ack_o = 1'b1;
+                wb_ack_o = sdram_ack_i;
             end
         end
 
@@ -200,7 +204,7 @@ always_comb begin
 
             if (sdram_ack_i) begin
                 gpu_dat_o = sdram_data_i;
-                gpu_ack_o = 1'b1;
+                gpu_ack_o = sdram_ack_i;
             end
         end
         

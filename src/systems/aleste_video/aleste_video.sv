@@ -211,6 +211,7 @@ module aleste_video #(
         .uart_rx_ready(uart_rx_ready),
         .uart_rx_idle(uart_rx_idle),
         .uart_rx_eop(uart_rx_eop),
+        .uart_tx_busy(uart_tx_busy),
 
         // Wishbone Master Interface
         .wb_cyc_o(wb_ext_cyc),
@@ -234,15 +235,13 @@ module aleste_video #(
         .cmd_state_o(cmd_state),
         .bus_state_o(bus_state),
         .bus_ack_o(bus_ack),
-        .bus_stb_o(bus_stb),
-        .uart_rx_ready(uart_rx_ready),
-        .uart_tx_busy(uart_tx_busy)
+        .bus_stb_o(bus_stb)
     );
   
     // ===========================================
     // Internal WB Arbiter
     // ===========================================
- 
+
     wb_arbiter_internal wb_arbiter (
         .clk(clk_system),
         .rst(system_reset),
@@ -266,7 +265,6 @@ module aleste_video #(
         .palette_adr_o(palette_adr),
         .palette_dat_o(palette_dat_i),
         .palette_dat_i(palette_dat_o),
-        .palette_sel_o(palette_sel),
         .palette_tag_o(palette_tag),
 
         // CRTC Interface
@@ -278,7 +276,6 @@ module aleste_video #(
         .crtc_adr_o(crtc_adr),
         .crtc_dat_o(crtc_dat_i),
         .crtc_dat_i(crtc_dat_o),
-        .crtc_sel_o(crtc_sel),
         .crtc_tag_o(crtc_tag),
         
         // Memory Interface
@@ -290,7 +287,6 @@ module aleste_video #(
         .mem_adr_o(mem_adr),
         .mem_dat_o(mem_dat_i),
         .mem_dat_i(mem_dat_o),
-        .mem_sel_o(mem_sel),
         .mem_tag_o(mem_tag)
     );
 
@@ -312,7 +308,6 @@ module aleste_video #(
         .wb_stb_i(crtc_stb),
         .wb_adr_i(crtc_adr),
         .wb_dat_i(crtc_dat_i),
-        .wb_sel_i(2'b11),
         .wb_we_i(crtc_we),
         .wb_ack_o(crtc_ack),
         .wb_dat_o(crtc_dat_o),
@@ -424,7 +419,7 @@ module aleste_video #(
         .wb_adr_i(sdram_addr),
         .wb_dat_i(sdram_data_out),
         .wb_dat_o(sdram_data_in),
-        .wb_sel_i(sdram_sel),  // Всегда 16-битный доступ
+        .wb_sel_i(sdram_sel),  
         
         // SDRAM Physical Interface
         .SDRAM_DQ(sdram_dq),
@@ -638,6 +633,18 @@ module aleste_video #(
     };
 
     // ===========================================
+    assign debug = {
+        sdram_debug_ready,      // LED0: SDRAM ready
+        sdram_debug_init_complete, // LED1: SDRAM init complete
+        uart_rx_ready,          // LED2: UART data received
+        uart_tx_busy,           // LED3: UART transmitting  
+        uart_rx_eop,             // LED4: CRTC HSync
+        uart_rx_idle,             // LED5: CRTC VSync 
+        serial_tx_clk,           // LED6: Reset active
+        serial_rx_clk              // LED7: PLL locked
+    };
+
+    // ===========================================
     // Отладка
     // ===========================================
     logic serial_debug_pin;
@@ -651,6 +658,6 @@ module aleste_video #(
         .data_out(serial_debug_pin)      // На осциллограф
     );
 
-    assign debug = vbuf_data_o;
+    //assign debug = vbuf_data_o;
 
 endmodule

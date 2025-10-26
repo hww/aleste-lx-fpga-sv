@@ -31,7 +31,6 @@ module mc6845mod #(
     input logic wb_stb_i, 
     input logic [23:0] wb_adr_i,
     input logic [7:0] wb_dat_i,
-    input logic [1:0] wb_sel_i,
     input logic wb_we_i,
     input logic [1:0] wb_tag_i,
     output logic wb_ack_o,

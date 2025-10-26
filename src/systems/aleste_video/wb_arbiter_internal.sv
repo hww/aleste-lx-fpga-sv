@@ -16,7 +16,6 @@ module wb_arbiter_internal (
     input  logic [23:0] wb_ext_adr_i,
     input  logic [15:0] wb_ext_dat_i,
     output logic [15:0] wb_ext_dat_o,
-    input  logic [1:0]  wb_ext_sel_i,
     input  logic [1:0]  wb_ext_tag_i,
     
     // ==========================================
@@ -31,9 +30,8 @@ module wb_arbiter_internal (
     input  logic        palette_ack_i,
     output logic        palette_we_o,
     output logic [23:0] palette_adr_o,
-    output logic [15:0] palette_dat_o,
-    input  logic [15:0] palette_dat_i,
-    output logic [1:0]  palette_sel_o,
+    output logic [7:0]  palette_dat_o,
+    input  logic [7:0]  palette_dat_i,
     output logic [1:0]  palette_tag_o,
 
     // CRTClogicroller
@@ -43,9 +41,8 @@ module wb_arbiter_internal (
     input  logic        crtc_ack_i,
     output logic        crtc_we_o,
     output logic [23:0] crtc_adr_o,
-    output logic [15:0] crtc_dat_o,
-    input  logic [15:0] crtc_dat_i,
-    output logic [1:0]  crtc_sel_o,
+    output logic [7:0]  crtc_dat_o,
+    input  logic [7:0]  crtc_dat_i,
     output logic [1:0]  crtc_tag_o,
     
     // Memory Controller
@@ -55,9 +52,8 @@ module wb_arbiter_internal (
     input  logic         mem_ack_i,
     output logic         mem_we_o,
     output logic  [23:0] mem_adr_o,
-    output logic  [15:0] mem_dat_o,
-    input  logic  [15:0] mem_dat_i,
-    output logic  [1:0]  mem_sel_o,
+    output logic  [7:0]  mem_dat_o,
+    input  logic  [7:0]  mem_dat_i,
     output logic  [1:0]  mem_tag_o
 );
 // ==========================================
@@ -70,7 +66,6 @@ assign palette_stb_o = wb_ext_stb_i;
 assign palette_we_o  = wb_ext_we_i;
 assign palette_adr_o = wb_ext_adr_i;
 assign palette_dat_o = wb_ext_dat_i;
-assign palette_sel_o = wb_ext_sel_i;
 assign palette_tag_o = wb_ext_tag_i;
 
 // CRTC Controller
@@ -79,7 +74,6 @@ assign crtc_stb_o = wb_ext_stb_i;
 assign crtc_we_o  = wb_ext_we_i;
 assign crtc_adr_o = wb_ext_adr_i;
 assign crtc_dat_o = wb_ext_dat_i;
-assign crtc_sel_o = wb_ext_sel_i;
 assign crtc_tag_o = wb_ext_tag_i;
 
 // Memory Controller
@@ -88,7 +82,6 @@ assign mem_stb_o = wb_ext_stb_i;
 assign mem_we_o  = wb_ext_we_i;
 assign mem_adr_o = wb_ext_adr_i;
 assign mem_dat_o = wb_ext_dat_i;
-assign mem_sel_o = wb_ext_sel_i;
 assign mem_tag_o = wb_ext_tag_i;
 
 
