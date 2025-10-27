@@ -4,8 +4,9 @@ read_verilog ../../src/platforms/icesugar_pro/clocks/system_pll.v ../../src/plat
 read_verilog ../../src/components/video/llhdmi/llhdmi.v ../../src/components/video/llhdmi/tmds_encoder.v ../../src/components/video/llhdmi/OBUFDS.v
 read_verilog ../../src/components/video/video_buffer/video_buffer.sv
 read_verilog -sv ../../src/components/debug/debug_shift_reg.sv
+read_verilog -sv ../../src/components/interconnect/wishbone/uart_bridge.sv ../../src/components/interconnect/wishbone/wb_wdt_simple.sv
 read_verilog -sv ../../src/components/memory/sdram/sdram_wishbone.sv  
-read_verilog -sv ../../src/components/io/uart/uart_bridge.sv ../../src/components/io/uart/uart.v ../../src/components/io/uart/uart_rx.v ../../src/components/io/uart/uart_tx.v ../../src/components/io/uart/baud_tick_gen.v
+read_verilog -sv ../../src/components/io/uart/uart.v ../../src/components/io/uart/uart_rx.v ../../src/components/io/uart/uart_tx.v ../../src/components/io/uart/baud_tick_gen.v
 read_verilog -sv ../../src/systems/aleste_video/test_video_data_generator.sv
 read_verilog -sv ../../src/components/video/mc6845mod/mc6845mod.sv 
 read_verilog -sv ../../src/components/video/hdmi_scaler/dual_port_ram.sv ../../src/components/video/hdmi_scaler/hdmi_scaler.sv
@@ -17,4 +18,4 @@ read_verilog -sv ../../src/components/reset/reset_controller.sv
 hierarchy -top aleste_video
 synth_ecp5 -json aleste_video.json -no-rw-check
 stat
-# Sources: 24 files
+# Sources: 25 files

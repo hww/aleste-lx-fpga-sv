@@ -14,7 +14,7 @@ module memory_arbiter (
     input  logic [7:0]  wb_dat_i,
     output logic [7:0]  wb_dat_o,
     input  logic  [1:0] wb_tag_i,
-    output logic        wb_grant_o,
+    output logic        wb_grant_o, // valid access to memory
 
     // 16-bit Video Controller (ВЫСШИЙ ПРИОРИТЕТ)
     input  logic [23:0] video_addr_i,
@@ -163,7 +163,7 @@ always_comb begin
     wb_dat_o = 8'b0;
     gpu_dat_o = 16'b0;
     sdram_sel_o = 2'b00;
-    sdram_burst_o = 10;
+    sdram_burst_o = '0;
 
     case (current_state)
         STATE_VIDEO_READ: begin
@@ -184,7 +184,7 @@ always_comb begin
             sdram_req_o = 1'b1;
             sdram_we_o = wb_we_i;
             sdram_addr_o = wb_adr_i;
-            sdram_data_o = { sdram_data_i[7:0] , sdram_data_i[7:0] };
+            sdram_data_o = { wb_dat_i , wb_dat_i };
             sdram_sel_o = wb_adr_i[0] ? 2'b10 : 2'b01 ;
             sdram_burst_o = '0;
 

@@ -35,28 +35,28 @@ module sdram_wishbone #(
     output reg                      debug_ready,
     output reg                      debug_initialized,
     output reg                      debug_configured,
-    output reg [3:0]                debug_cycle,
+    output reg [4:0]                debug_cycle,
     output reg                      debug_busy,
     output reg [14:0]               debug_rst_cnt,
     output reg                      debug_rst_done,
     output reg                      debug_cfg_busy
 );
 
-// ========== ПАРАМЕТРЫ ИЗ ОРИГИНАЛЬНОГО TANG КОНТРОЛЛЕРА ==========
+// ========== ИСПРАВЛЕННЫЕ ПАРАМЕТРЫ ДЛЯ IS42S16160B ==========
 localparam DATA_WIDTH = SDRAM_DATA_WIDTH;
-localparam ROW_WIDTH = 11;
-localparam COL_WIDTH = 8;
+localparam ROW_WIDTH = 13;        // 8K rows (A0-A12) - ИСПРАВЛЕНО
+localparam COL_WIDTH = 9;         // 512 columns для 16-бит (A0-A8) - ИСПРАВЛЕНО  
 localparam BANK_WIDTH = 2;
 
 `define CLK_108MHZ
 
 `ifdef CLK_108MHZ
-    localparam [4:0] CAS  = 5'd3;
+    localparam [4:0] CAS  = 5'd2;
     localparam [4:0] T_WR = 5'd2;
     localparam [4:0] T_MRD= 5'd2;
-    localparam [4:0] T_RP = 5'd2; // 2 => 27.8 ns вместо 18.5 ns
-    localparam [4:0] T_RCD= 5'd2; // 2 => 27.8 ns вместо 18.5 ns
-    localparam [4:0] T_RC = 5'd6; // 7
+    localparam [4:0] T_RP = 5'd2;
+    localparam [4:0] T_RCD= 5'd2;
+    localparam [4:0] T_RC = 5'd6;
 
 `else
     // Time delays from original (for 66.7Mhz max clock)
@@ -88,7 +88,8 @@ localparam CMD_NOP         = 3'b111;
 
 localparam [2:0] BURST_LEN = 3'b0;
 localparam BURST_MODE = 1'b0;
-localparam [10:0] MODE_REG = {4'b0, CAS[2:0], BURST_MODE, BURST_LEN};
+// ========== ИСПРАВЛЕННЫЙ MODE REGISTER ДЛЯ IS42S16160B ==========
+localparam [12:0] MODE_REG = {2'b00, 3'b000, CAS[2:0], BURST_MODE, BURST_LEN}; // 13-бит
 
 // ========== ВНУТРЕННИЕ СИГНАЛЫ ==========
 reg cfg_now;
@@ -112,7 +113,13 @@ wire original_rd = wb_cyc_i && wb_stb_i && !wb_we_i;
 wire original_wr = wb_cyc_i && wb_stb_i && wb_we_i;
 wire original_refresh = 0;
 
-wire [22:0] original_addr = wb_adr_i[22:0];
+wire [22:0] original_addr = wb_adr_i[23:1];
+
+logic wb_ack = 0;
+logic [DATA_WIDTH-1:0] wb_dat;
+
+assign wb_ack_o = wb_ack;
+assign wb_dat_o = data_from_sdram;
 
 // ========== DEBUG SIGNALS ASSIGNMENT ==========
 always @(*) begin
@@ -138,7 +145,7 @@ always @(*) begin
     debug_busy = (state != IDLE);
 end
 
-// ========== FSM - АДАПТИРОВАНА ДЛЯ 16-БИТНОЙ SDRAM ==========
+// ========== FSM - ИСПРАВЛЕНА ДЛЯ IS42S16160B ==========
 always @(posedge wb_clk_i) begin
     cycle <= cycle == 5'd31 ? 5'd31 : cycle + 5'd1;
     
@@ -152,7 +159,7 @@ always @(posedge wb_clk_i) begin
             cycle <= 0;
         end
 
-        // CONFIG sequence - полностью из оригинала
+        // CONFIG sequence 
         {CONFIG, 5'd0}: begin
             {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_PreCharge;
             SDRAM_A[10] <= 1'b1;
@@ -165,17 +172,17 @@ always @(posedge wb_clk_i) begin
         end
         {CONFIG, T_RP+T_RC+T_RC}: begin
             {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_SetModeReg;
-            SDRAM_A[10:0] <= MODE_REG;
+            SDRAM_A <= MODE_REG; 
         end
         {CONFIG, T_RP+T_RC+T_RC+T_MRD}: begin
             state <= IDLE;
         end
         
-        // READ/WRITE/REFRESH - адаптируем под WB
+        // READ/WRITE/REFRESH 
         {IDLE, 5'b?????}: if (original_rd | original_wr) begin
             {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_BankActivate;
             SDRAM_BA <= original_addr[ROW_WIDTH+COL_WIDTH+BANK_WIDTH-1 : ROW_WIDTH+COL_WIDTH];
-            SDRAM_A <= {{2{1'b0}}, original_addr[ROW_WIDTH+COL_WIDTH-1 : COL_WIDTH]};
+            SDRAM_A <= {{2{1'b0}}, original_addr[ROW_WIDTH+COL_WIDTH-1 : COL_WIDTH]}; // 13-бит row address
             state <= original_rd ? READ : WRITE;
             cycle <= 5'd1;
         end else if (original_refresh) begin
@@ -184,35 +191,31 @@ always @(posedge wb_clk_i) begin
             cycle <= 5'd1;
         end
 
-        // READ sequence - адаптировано для 16-бит
+        // READ sequence
         {READ, T_RCD}: begin
             {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_Read;
             SDRAM_A[10] <= 1'b1;
-            SDRAM_A[9:0] <= {1'b0, original_addr[COL_WIDTH-1 : 0], 1'b0};
+            SDRAM_A[9:0] <= {1'b0, original_addr[COL_WIDTH-1 : 0]}; // 9-бит column address
             SDRAM_DQM <= 2'b00; // Все байты активны для чтения
             off <= original_addr[1:0];
         end
         {READ, T_RCD+CAS}: begin
-            wb_dat_o <= data_from_sdram;
-            wb_ack_o <= 1'b1;
+            wb_dat <= data_from_sdram;
+            wb_ack <= 1'b1;
         end
         {READ, T_RCD+CAS+5'd1}: begin
-            wb_ack_o <= 1'b0;
+            wb_ack <= 1'b0;
             state <= IDLE;
         end
 
-        // WRITE sequence - адаптировано для 16-бит  
+        // WRITE sequence  
         {WRITE, T_RCD}: begin
             {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_Write;
             SDRAM_A[10] <= 1'b1;
-            SDRAM_A[9:0] <= {1'b0, original_addr[COL_WIDTH-1 : 0], 1'b0};
+            SDRAM_A[9:0] <= {1'b0, original_addr[COL_WIDTH-1 : 0]}; // 9-бит column address
             
             // Маскирование байтов для 16-битной SDRAM
-            case (wb_sel_i)
-                2'b01:   SDRAM_DQM <= 2'b10;  // Маска старшего байта
-                2'b10:   SDRAM_DQM <= 2'b01;  // Маска младшего байта  
-                default: SDRAM_DQM <= 2'b00;  // Оба байта активны
-            endcase
+            SDRAM_DQM = ~wb_sel_i;
             
             off <= original_addr[1:0];
             dq_out <= wb_dat_i; // Прямое подключение для 16-бит
@@ -220,10 +223,10 @@ always @(posedge wb_clk_i) begin
         end
         {WRITE, T_RCD+5'd1}: begin
             dq_oen <= 1'b1;
-            wb_ack_o <= 1'b1;
+            wb_ack <= 1'b1;
         end
         {WRITE, T_RCD+T_WR+T_RP}: begin
-            wb_ack_o <= 1'b0;
+            wb_ack <= 1'b0;
             dq_oen <= 1'b0;
             state <= IDLE;
         end
@@ -242,8 +245,8 @@ always @(posedge wb_clk_i) begin
         dq_oen <= 1'b0;
         SDRAM_DQM <= 2'b00;
         state <= INIT;
-        wb_ack_o <= 0;
-        wb_dat_o <= 0;
+        wb_ack <= 0;
+        wb_dat <= 0;
         cycle <= 0;
     end
 end

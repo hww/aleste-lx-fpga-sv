@@ -2,7 +2,8 @@ read_verilog -I. -DCONFIG_27MHZ -I../../src/config -sv ../../src/systems/uart_br
 read_verilog ../../src/platforms/icesugar_pro/clocks/video_pll.v
 read_verilog -sv ../../src/components/reset/reset_controller.sv
 read_verilog -sv ../../src/components/debug/debug_shift_reg.sv
+read_verilog -sv ../../src/components/interconnect/wishbone/uart_bridge.sv ../../src/components/interconnect/wishbone/wb_wdt_simple.sv
 read_verilog -sv ../../src/components/memory/sdram/sdram_wishbone.sv
-read_verilog -sv ../../src/components/io/uart/uart_bridge.sv ../../src/components/io/uart/uart.v ../../src/components/io/uart/uart_rx.v ../../src/components/io/uart/uart_tx.v ../../src/components/io/uart/baud_tick_gen.v
+read_verilog -sv ../../src/components/io/uart/uart.v ../../src/components/io/uart/uart_rx.v ../../src/components/io/uart/uart_tx.v ../../src/components/io/uart/baud_tick_gen.v
 hierarchy -top uart_bridge_test
 synth_ecp5 -json uart_bridge_test.json -no-rw-check

@@ -9,6 +9,7 @@ SYSTEM_DIR  := $(SRC_DIR)/systems/aleste_video
 TARGET_DIR  := $(SRC_DIR)/platforms/icesugar_pro
 RESET_DIR   := $(SRC_DIR)/components/reset
 SDRAM_DIR   := $(SRC_DIR)/components/memory/sdram
+WB_DIR      := $(SRC_DIR)/components/interconnect/wishbone
 LLHDMI_DIR  := $(SRC_DIR)/components/video/llhdmi
 SCALER_DIR  := $(SRC_DIR)/components/video/hdmi_scaler
 CRTC_DIR    := $(SRC_DIR)/components/video/mc6845mod
@@ -24,7 +25,8 @@ DEBUG       := $(DEBUG_DIR)/debug_shift_reg.sv
 RESET_CTRL  := $(RESET_DIR)/reset_controller.sv
 CLOCK       := $(TARGET_DIR)/clocks/system_pll.v $(TARGET_DIR)/clocks/video_pll.v
 SDRAM_CTRL  := $(SDRAM_DIR)/sdram_wishbone.sv  
-UART_BRIDGE := $(UART_DIR)/uart_bridge.sv $(UART_DIR)/uart.v $(UART_DIR)/uart_rx.v $(UART_DIR)/uart_tx.v $(UART_DIR)/baud_tick_gen.v
+WB          := $(WB_DIR)/uart_bridge.sv $(WB_DIR)/wb_wdt_simple.sv
+UART_BRIDGE := $(UART_DIR)/uart.v $(UART_DIR)/uart_rx.v $(UART_DIR)/uart_tx.v $(UART_DIR)/baud_tick_gen.v
 HDMI        := $(LLHDMI_DIR)/llhdmi.v $(LLHDMI_DIR)/tmds_encoder.v $(LLHDMI_DIR)/OBUFDS.v
 CRTC        := $(CRTC_DIR)/mc6845mod.sv 
 SCALER      := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
@@ -39,7 +41,7 @@ TOP_MODULE  := $(SYSTEM_DIR)/aleste_video.sv
 # ALL_SOURCES для правильных зависимостей
 ALL_SOURCES := $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) \
                $(PALETTE) $(MEM_ARBITER) $(WB_ARBITER) $(PIXPIPE) \
-               $(RESET_CTRL) $(TEST_GEN) $(DEBUG) $(VIDBUF) $(UART_BRIDGE)
+               $(RESET_CTRL) $(TEST_GEN) $(DEBUG) $(VIDBUF) $(UART_BRIDGE) $(WB)
 
 # Generated files
 YOSYS_SCRIPT := aleste_video.ys
@@ -69,6 +71,7 @@ $(YOSYS_SCRIPT): $(ALL_SOURCES)
 	@echo "read_verilog $(HDMI)" >> $@
 	@echo "read_verilog $(VIDBUF)" >> $@
 	@echo "read_verilog -sv $(DEBUG)" >> $@
+	@echo "read_verilog -sv $(WB)" >> $@
 	@echo "read_verilog -sv $(SDRAM_CTRL)" >> $@
 	@echo "read_verilog -sv $(UART_BRIDGE)" >> $@
 	@echo "read_verilog -sv $(TEST_GEN)" >> $@

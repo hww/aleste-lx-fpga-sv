@@ -62,10 +62,10 @@ module uart_bridge_test #(
     // ===========================================
     logic uart_wb_cyc, uart_wb_stb, uart_wb_we, uart_wb_ack;
     logic [23:0] uart_wb_adr;
-    logic [15:0] uart_wb_dat_i, uart_wb_dat_o;
+    logic [7:0] uart_wb_dat_i, uart_wb_dat_o;
     logic [1:0] uart_wb_sel;
 
-    logic uart_dbg_cyc, uart_dbg_stb, uart_dbg_we, uart_dbg_ack;
+    logic uart_dbg_cyc, uart_dbg_stb, uart_dbg_we, uart_dbg_ack, uart_wb_err;
     logic [7:0] uart_dbg_adr;
     logic [7:0] uart_dbg_dat_o, uart_dbg_dat_i;
     logic [1:0] uart_dbg_sel;
@@ -100,7 +100,7 @@ module uart_bridge_test #(
         .wb_dat_o(uart_wb_dat_o),
         .wb_dat_i(uart_wb_dat_i),
         .wb_ack_i(uart_wb_ack),
-        .wb_err_i('0),
+        .wb_err_i(uart_wb_err),
 
         .dbg_cyc_o(uart_dbg_cyc),
         .dbg_stb_o(uart_dbg_stb),
@@ -108,7 +108,7 @@ module uart_bridge_test #(
         .dbg_adr_o(uart_dbg_adr),
         .dbg_dat_o(uart_dbg_dat_i),
         .dbg_dat_i(uart_dbg_dat_o),
-        .dbg_ack_i('1),
+        .dbg_ack_i(uart_dbg_stb),
         .dbg_err_i('0),
 
         .cmd_state_o(cmd_state),
@@ -128,6 +128,9 @@ module uart_bridge_test #(
     logic sdram_debug_init_complete;
     logic sdram_debug_ready;
     logic sdram_debug_busy;
+    logic [15:0] sdram_dat_o;
+
+    assign uart_wb_dat_i = uart_wb_adr[0] ? sdram_dat_o[15:8] : sdram_dat_o[7:0];
 
     // Прямое подключение UART к НОВОМУ SDRAM контроллеру
     sdram_wishbone #(
@@ -143,8 +146,9 @@ module uart_bridge_test #(
         .wb_ack_o(uart_wb_ack),
         .wb_we_i(uart_wb_we),
         .wb_adr_i(uart_wb_adr),
-        .wb_dat_i(uart_wb_dat_o),
-        .wb_dat_o(uart_wb_dat_i),
+        .wb_dat_i({uart_wb_dat_o, uart_wb_dat_o}),
+        .wb_dat_o(sdram_dat_o),
+        .wb_sel_i(uart_wb_adr[0] ? 2'b10 : 2'b01),
         
         // SDRAM Physical Interface
         .SDRAM_DQ(sdram_dq),
@@ -179,6 +183,21 @@ module uart_bridge_test #(
         .Q(sdram_clock)
     );
 
+    // ============================================================================
+    // Errors
+    // ============================================================================
+
+    wb_wdt_simple #(
+        .TIMEOUT_CYCLES(8)  // Таймаут в тактах
+    ) wb_wdt (
+        // Wishbone интерфейс
+        .clk_i(clk_system),
+        .rst_i(system_reset),
+        .cyc_i(uart_wb_cyc),
+        .stb_i(uart_wb_stb),
+        .ack_i(uart_wb_ack),     // Подтверждение от ведомого
+        .err_o(uart_wb_err)      // Сигнал ошибки
+    );
     // ===========================================
     // Отладочные сигналы - с мониторингом нового контроллера
     // ===========================================
@@ -207,14 +226,13 @@ module uart_bridge_test #(
     };
 */
     assign debug = {
-        cmd_state[3],       // Старший бит состояния SDRAM
-        cmd_state[2],       // Средний бит состояния SDRAM  
-        cmd_state[1],       // Младший бит состояния SDRAM
-        cmd_state[0],       // Инициализация завершена
-        sdram_debug_ready,         // Контроллер готов
+        0,
+        uart_wb_err,       // Инициализация завершена
         uart_wb_ack,               // WB ACK
         uart_wb_stb,               // WB STB
-        cmd_state               // Системный сброс
+        uart_wb_cyc,
+        bus_ack,
+        bus_stb               // Системный сброс
     };
 
 endmodule

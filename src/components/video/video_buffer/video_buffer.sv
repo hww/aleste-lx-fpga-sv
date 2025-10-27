@@ -17,7 +17,8 @@ module video_buffer (
 
     // Memory interface
     input wire [15:0] vmem_data_i,
-    input wire vmem_valid_i,
+    input wire vmem_ack_i,
+    output wire vmem_req_o,
     
     // CRTC timing
     input wire de_i,
@@ -32,10 +33,7 @@ module video_buffer (
     output wire pixel_valid_o,
 
     // Config
-    input wire burst_mode_i,
-    
-    // Memory control
-    output wire need_data_o
+    input wire burst_mode_i
 );
 
 // Регистры состояния
@@ -72,7 +70,7 @@ always @(posedge clk_i or posedge rst_i) begin
         if (char_strobe_i && pix_ena_i) begin
             word_select_wr <= 1'b0;
             need_data <= 1'b1;
-        end else if (vmem_valid_i) begin
+        end else if (vmem_ack_i) begin
             input_buffer[word_select_wr] <= vmem_data_i;
             word_select_wr <= ~word_select_wr;
             if (burst_mode_i) begin
@@ -116,6 +114,6 @@ assign byte_select_o = byte_select;
 assign pixel_data_o = byte_select ? output_buffer[word_select_rd][15:8] : output_buffer[word_select_rd][7:0];
 assign pixel_valid_o = byte_strobe_i;
 
-assign need_data_o = need_data; 
+assign vmem_req_o = need_data; 
 
 endmodule

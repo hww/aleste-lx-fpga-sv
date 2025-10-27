@@ -110,17 +110,15 @@ module aleste_video #(
     logic [1:0] sdram_sel;
 
     // Video Pipeline Signals
-    logic [15:0] video_data;
-    logic video_ack, video_grant;
     logic [7:0] pixel_index;
     logic pixel_valid;
     logic pipeline_de;
 
     // Video Buffer Signals
-    logic [15:0] vbuf_data_i;
+    logic [15:0] vbuf_data;
     logic [7:0] vbuf_data_o;
     logic vbuf_data_valid;
-    logic vbuf_need_data;
+    logic vbuf_req, vbuf_ack;
     logic vbuf_burst_request;
     logic vbuf_de, vbuf_char_strobe, vbuf_byte_strobe, vbuf_byte_select;
 
@@ -136,7 +134,7 @@ module aleste_video #(
     logic hdmi_de;
 
     // Wishbone Signals
-    logic wb_ext_cyc, wb_ext_stb, wb_ext_ack, wb_ext_we, wb_ext_grant;
+    logic wb_ext_cyc, wb_ext_stb, wb_ext_ack, wb_ext_we, wb_ext_grant, wb_ext_err;
     logic [23:0] wb_ext_adr;
     logic [15:0] wb_ext_dat_i, wb_ext_dat_o;
     logic [1:0] wb_ext_sel, wb_ext_tag;
@@ -198,7 +196,11 @@ module aleste_video #(
     logic [1:0] uart_dbg_sel;
 
     uart_bridge #(
-        .CLK_FREQ(SYSTEM_CLK_FREQ)
+        .CLK_FREQ(SYSTEM_CLK_FREQ),
+        .BAUD_RATE(115200),
+        .WB_ADDR_WIDTH(24),
+        .DBG_ADDR_WIDTH(8),
+        .UART_DATA_WIDTH(8)
     ) uart_bridge_inst (
         .clk_i(clk_system),
         .rst(system_reset),
@@ -221,7 +223,7 @@ module aleste_video #(
         .wb_dat_o(wb_ext_dat_i),
         .wb_dat_i(wb_ext_dat_o),
         .wb_ack_i(wb_ext_ack),
-        .wb_err_i('0),
+        .wb_err_i(wb_ext_err),
 
         .dbg_cyc_o(uart_dbg_cyc),
         .dbg_stb_o(uart_dbg_stb),
@@ -229,7 +231,7 @@ module aleste_video #(
         .dbg_adr_o(uart_dbg_adr),
         .dbg_dat_o(uart_dbg_dat_i),
         .dbg_dat_i(uart_dbg_dat_o),
-        .dbg_ack_i('1),
+        .dbg_ack_i(uart_dbg_stb),
         .dbg_err_i('0),
 
         .cmd_state_o(cmd_state),
@@ -364,10 +366,10 @@ module aleste_video #(
         
         // Video Interface
         .video_addr_i(crtc_ext_addr),
-        .video_req_i(vbuf_need_data),
         .video_burst_i(crtc_burst_mode),
-        .video_data_o(video_data),
-        .video_ack_o(video_ack),
+        .video_req_i(vbuf_req),
+        .video_data_o(vbuf_data),
+        .video_ack_o(vbuf_ack),
 
         // System WB Interface (from internal arbiter)
         .wb_cyc_i(mem_cyc),
@@ -457,7 +459,6 @@ module aleste_video #(
     // ===========================================
     // Video Buffer
     // ===========================================
-    assign vbuf_data_i = mem_dat_o;
 
     video_buffer vbuf (
         .clk_i(clk_54m),
@@ -477,15 +478,13 @@ module aleste_video #(
         .byte_select_o(vbuf_byte_select),
 
         // Memory interface (16/32-bit burst)
-        .vmem_data_i(video_data),
-        .vmem_valid_i(video_ack),
-        
+        .vmem_data_i(vbuf_data),
+        .vmem_ack_i(vbuf_ack),
+        .vmem_req_o(vbuf_req),
+
         // To pixel_pipeline (8-bit)
         .pixel_data_o(vbuf_data_o),
-        .pixel_valid_o(vbuf_data_valid),
-        
-        // Memory control
-        .need_data_o(vbuf_need_data)
+        .pixel_valid_o(vbuf_data_valid)
     );
 
     // ===========================================
@@ -618,6 +617,23 @@ module aleste_video #(
     OBUFDS OBUFDS_blu( .I(tmds_blue),  .O(gpdi_dp[0]), .OB(gpdi_dn[0]) );
     OBUFDS OBUFDS_clk( .I(clk_27m),    .O(gpdi_clock_p), .OB(gpdi_clock_n) );
 
+
+    // ============================================================================
+    // Errors
+    // ============================================================================
+
+    wb_wdt_simple #(
+        .TIMEOUT_CYCLES(8)  // Таймаут в тактах
+    ) wb_wdt (
+        // Wishbone интерфейс
+        .clk_i(clk_system),
+        .rst_i(system_reset),
+        .cyc_i(wb_ext_cyc),
+        .stb_i(wb_ext_stb),
+        .ack_i(wb_ext_ack),     // Подтверждение от ведомого
+        .err_o(wb_ext_err)      // Сигнал ошибки
+    );
+
     // ===========================================
     // Отладочные сигналы
     // ===========================================
@@ -637,11 +653,11 @@ module aleste_video #(
         sdram_debug_ready,      // LED0: SDRAM ready
         sdram_debug_init_complete, // LED1: SDRAM init complete
         uart_rx_ready,          // LED2: UART data received
-        uart_tx_busy,           // LED3: UART transmitting  
-        uart_rx_eop,             // LED4: CRTC HSync
-        uart_rx_idle,             // LED5: CRTC VSync 
-        serial_tx_clk,           // LED6: Reset active
-        serial_rx_clk              // LED7: PLL locked
+        wb_ext_err,           // LED3: UART transmitting  
+        wb_ext_ack,             // LED4: CRTC HSync
+        wb_ext_we,             // LED5: CRTC VSync 
+        wb_ext_stb,           // LED6: Reset active
+        wb_ext_cyc              // LED7: PLL locked
     };
 
     // ===========================================

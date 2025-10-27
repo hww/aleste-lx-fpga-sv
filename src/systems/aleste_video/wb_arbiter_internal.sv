@@ -14,8 +14,8 @@ module wb_arbiter_internal (
     output logic        wb_ext_ack_o,
     input  logic        wb_ext_we_i,
     input  logic [23:0] wb_ext_adr_i,
-    input  logic [15:0] wb_ext_dat_i,
-    output logic [15:0] wb_ext_dat_o,
+    input  logic [7:0]  wb_ext_dat_i,
+    output logic [7:0]  wb_ext_dat_o,
     input  logic [1:0]  wb_ext_tag_i,
     
     // ==========================================

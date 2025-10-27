@@ -4,7 +4,9 @@ module uart_bridge #(
     parameter WB_ADDR_WIDTH = 24,
     parameter DBG_ADDR_WIDTH = 8,
     parameter UART_DATA_WIDTH = 8,
-    parameter CLK_FREQ = 54_000_000
+    parameter CLK_FREQ = 54_000_000,
+    parameter BAUD_RATE = 115200,
+    parameter OVERSAMPLING = 16 // 8 does not work
 ) (
     input  logic                       clk_i,
     input  logic                       rst,
@@ -85,7 +87,8 @@ logic       uart_rx_ack;
 
 uart #(
     .CLK_FREQ(CLK_FREQ),
-    .BAUD_RATE(115200)
+    .BAUD_RATE(BAUD_RATE),
+    .OVERSAMPLING(OVERSAMPLING)
 ) uart_inst (
     .clk_i(clk_i),
     .rst_i(rst),
@@ -637,7 +640,6 @@ always_ff @(posedge clk_i) begin
         endcase
     end
 end
-
 
 assign cmd_state_o = cmd_state;
 assign bus_state_o = { 1'b0, 1'b0, bus_state[1:0] };
