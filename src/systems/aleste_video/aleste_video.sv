@@ -193,6 +193,9 @@ module aleste_video #(
     logic boot_complete;
     assign boot_complete = !system_reset;
 
+    // Legacy mode
+    logic global_legacy_mode = 1'b0;
+
     // ===========================================
     // UART Bridge (заменяет тестовый генератор)
     // ===========================================
@@ -361,6 +364,7 @@ module aleste_video #(
         .wb_dat_o(system2crtc_dat_in),
         .wb_grant_o(system2crtc_grant), // CRTC self-detection to arbiter
         .wb_tag_i(system2crtc_tag),
+        .legacy_mode_i(global_legacy_mode),
 
         // Pixel Clock Domain  
         .pix_clk_i(clk_system),
@@ -560,7 +564,7 @@ module aleste_video #(
         .vmem_data_i(vbuf_data_o),
 
         // Configuration
-        .bpp_mode_i(/*crtc_bpp_mode*/3),
+        .bpp_mode_i(crtc_bpp_mode),
         .continuous_mode_i(crtc_continuous_mode),
 
         // CRTC timing
@@ -593,7 +597,7 @@ module aleste_video #(
         .wb_grant_o(system2palette_grant),
         .wb_ack_o(system2palette_ack),
         .tag_i(system2palette_tag), // Palette tag
-        .legacy_mode_i(1'b0),
+        .legacy_mode_i(global_legacy_mode),
         
         // Pixel interface
         .pix_clk_i(clk_system),

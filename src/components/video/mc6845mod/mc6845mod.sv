@@ -37,7 +37,8 @@ module mc6845mod #(
     output logic wb_ack_o,
     output logic [7:0] wb_dat_o,
     output logic wb_grant_o,
-    
+    input  logic legacy_mode_i,
+
     // Pixel Clock Domain  
     input logic pix_clk_i,
     input logic pix_clke_i,
@@ -138,10 +139,17 @@ logic wb_ack = 0;
 logic [4:0] wb_addr_reg;
 logic [7:0] wb_data_in;
 logic [7:0] wb_data_out;
-
+logic address_lines;
 
 // Chip select
-assign wb_grant_o = (wb_tag_i == 2'b11) && (wb_adr_i[15:1] == WB_ADDRESS[15:1]) && wb_cyc_i && wb_stb_i;
+// Legacy mode   0xBCXX
+// Native mode 0xFF0110
+localparam LEGACY_ADDRESS = 16'hBC00;
+localparam MATIVE_ADDRESS = 16'h0110;
+
+assign wb_grant_o = wb_cyc_i && wb_stb_i && (legacy_mode_i ? (wb_tag_i == 2'b11) && (wb_adr_i[15:1] == WB_ADDRESS[15:1])
+                                                           : (wb_tag_i == 2'b10) && (wb_adr_i[15:4] == MATIVE_ADDRESS[15:4]));
+assign address_lines = legacy_mode_i ? wb_adr_i[8] : wb_adr_i[0];
 assign wb_ack_o = wb_ack;
 assign wb_dat_o = wb_data_out;
 assign wb_data_in = wb_dat_i;
@@ -245,7 +253,7 @@ always_ff @(posedge wb_clk_i) begin
 
             if (wb_we_i) begin
                 // Write operation
-                if (wb_adr_i[0]) begin
+                if (address_lines) begin
                     // Data register write
                     case (wb_addr_reg)
                         REG_HTOTAL:     reg_h_total <= wb_data_in[7:0];

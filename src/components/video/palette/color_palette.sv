@@ -29,9 +29,6 @@ module color_palette (
     output logic [11:0]     pixel_color_o   // к скандаблеру (12-bit R4G4B4)
 );
 
-// Параметры адресации
-parameter NATIVE_BASE = 9'h100;     // A8=1, 0x0100-0x011F
-parameter LEGACY_GA   = 16'hBC00;   // Gate Array адрес
 
 // Internal logicisters
 logic [7:0] palette_index = 0;      // Текущий индекс палитры
@@ -55,12 +52,15 @@ logic access_valid;
 // [4:3] - palette_write_mode (только для записи!)
 // [2:0] - reserved
 
-// Address decoding
-assign native_access = (tag_i == 2'b01) && (wb_adr_i[15:0] >= NATIVE_BASE) && 
-                      (wb_adr_i[15:0] < (NATIVE_BASE + 32));
-assign legacy_access = (tag_i == 2'b11) && (wb_adr_i[15:0] == LEGACY_GA) && !wb_dat_in[7];
+// Параметры адресации
+parameter NATIVE_BASE = 16'h0100;   // A8=1, 0x0100-0x011F
+parameter LEGACY_GA   = 16'h7F00;   // Gate Array адрес (detection only a[15:14])
+// Address decoding for native mode
+assign native_access = (tag_i == 2'b01) && (wb_adr_i[15:8] == NATIVE_BASE[15:8]);
+// Detect only legacy access with address and data decoding                       
+assign legacy_access = (tag_i == 2'b11) && (wb_adr_i[15:14] == LEGACY_GA[15:14]) && !wb_dat_in[7];
 assign logic_address = wb_adr_i[4:0];
-assign access_valid = native_access || legacy_access;
+assign access_valid = legacy_mode_i ? legacy_access : native_access;
 assign wb_grant_o = access_valid;
 
 // Convert 16 to 8 bitsv
