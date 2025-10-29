@@ -11,11 +11,11 @@ read_verilog -sv ../../src/systems/aleste_video/test_video_data_generator.sv
 read_verilog -sv ../../src/components/video/mc6845mod/mc6845mod.sv 
 read_verilog -sv ../../src/components/video/hdmi_scaler/dual_port_ram.sv ../../src/components/video/hdmi_scaler/hdmi_scaler.sv
 read_verilog -sv ../../src/components/video/palette/cpc_colors.sv ../../src/components/video/palette/color_palette.sv
-read_verilog -sv ../../src/systems/aleste_video/memory_arbiter.sv 
-read_verilog -sv ../../src/systems/aleste_video/wb_arbiter_internal.sv
+read_verilog -sv ../../src/systems/aleste_video/memory_arbiter.sv ../../src/systems/aleste_video/system_arbiter.sv
 read_verilog -sv ../../src/components/video/pixel_pipeline/pixel_pipeline.sv
+read_verilog -sv ../../src/components/clocks/system_clock.sv
 read_verilog -sv ../../src/components/reset/reset_controller.sv
 hierarchy -top aleste_video
 synth_ecp5 -json aleste_video.json -no-rw-check
 stat
-# Sources: 25 files
+# Sources: 26 files

@@ -2,7 +2,8 @@
 `default_nettype none
 
 module memory_arbiter (
-    input  logic        clk,
+    input  logic        clk_i,
+    input  logic        clke_i,
     input  logic        rst,
     
     // 8-bit wb System Bus
@@ -66,7 +67,7 @@ state_t current_state, next_state;
 // =============================================================================
 // State Machine Registers
 // =============================================================================
-always_ff @(posedge clk or posedge rst) begin
+always_ff @(posedge clk_i or posedge rst) begin
     if (rst) begin
         current_state <= STATE_IDLE;
     end else begin

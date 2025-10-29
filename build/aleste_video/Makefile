@@ -8,6 +8,7 @@ SRC_DIR     := ../../src
 SYSTEM_DIR  := $(SRC_DIR)/systems/aleste_video
 TARGET_DIR  := $(SRC_DIR)/platforms/icesugar_pro
 RESET_DIR   := $(SRC_DIR)/components/reset
+CLOCK_DIR   := $(SRC_DIR)/components/clocks
 SDRAM_DIR   := $(SRC_DIR)/components/memory/sdram
 WB_DIR      := $(SRC_DIR)/components/interconnect/wishbone
 LLHDMI_DIR  := $(SRC_DIR)/components/video/llhdmi
@@ -23,6 +24,7 @@ UART_DIR    := $(SRC_DIR)/components/io/uart
 # Source files для aleste_video - ИСПРАВЛЕНО!
 DEBUG       := $(DEBUG_DIR)/debug_shift_reg.sv
 RESET_CTRL  := $(RESET_DIR)/reset_controller.sv
+CLOCK_CTRL  := $(CLOCK_DIR)/system_clock.sv
 CLOCK       := $(TARGET_DIR)/clocks/system_pll.v $(TARGET_DIR)/clocks/video_pll.v
 SDRAM_CTRL  := $(SDRAM_DIR)/sdram_wishbone.sv  
 WB          := $(WB_DIR)/uart_bridge.sv $(WB_DIR)/wb_wdt_simple.sv
@@ -33,15 +35,14 @@ SCALER      := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
 PALETTE     := $(PALETTE_DIR)/cpc_colors.sv $(PALETTE_DIR)/color_palette.sv
 VIDBUF      := $(VIDBUF_DIR)/video_buffer.sv
 PIXPIPE	    := $(PIXPIPE_DIR)/pixel_pipeline.sv
-MEM_ARBITER := $(SYSTEM_DIR)/memory_arbiter.sv 
-WB_ARBITER  := $(SYSTEM_DIR)/wb_arbiter_internal.sv
+MEM_ARBITER := $(SYSTEM_DIR)/memory_arbiter.sv $(SYSTEM_DIR)/system_arbiter.sv
 TEST_GEN    := $(SYSTEM_DIR)/test_video_data_generator.sv
 TOP_MODULE  := $(SYSTEM_DIR)/aleste_video.sv
 
 # ALL_SOURCES для правильных зависимостей
 ALL_SOURCES := $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) \
-               $(PALETTE) $(MEM_ARBITER) $(WB_ARBITER) $(PIXPIPE) \
-               $(RESET_CTRL) $(TEST_GEN) $(DEBUG) $(VIDBUF) $(UART_BRIDGE) $(WB)
+               $(PALETTE) $(MEM_ARBITER) $(PIXPIPE) \
+               $(RESET_CTRL) $(TEST_GEN) $(DEBUG) $(VIDBUF) $(UART_BRIDGE) $(WB) $(CLOCK_CTRL)
 
 # Generated files
 YOSYS_SCRIPT := aleste_video.ys
@@ -79,8 +80,8 @@ $(YOSYS_SCRIPT): $(ALL_SOURCES)
 	@echo "read_verilog -sv $(SCALER)" >> $@
 	@echo "read_verilog -sv $(PALETTE)" >> $@
 	@echo "read_verilog -sv $(MEM_ARBITER)" >> $@
-	@echo "read_verilog -sv $(WB_ARBITER)" >> $@
 	@echo "read_verilog -sv $(PIXPIPE)" >> $@
+	@echo "read_verilog -sv $(CLOCK_CTRL)" >> $@
 	@echo "read_verilog -sv $(RESET_CTRL)" >> $@
 	@echo "hierarchy -top aleste_video" >> $@
 	@echo "synth_ecp5 -json $(JSON_FILE) -no-rw-check" >> $@

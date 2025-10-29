@@ -11,7 +11,7 @@
 
 module color_palette (
     // Wishbone interface
-    input  logic            wb_clk_i, wb_rst_i,
+    input  logic            wb_clk_i, wb_clke_i, wb_rst_i,
     input  logic [23:0]     wb_adr_i,
     input  logic [7:0]      wb_dat_i,      // 8-bit data bus for CPC compatibility
     output logic [7:0]      wb_dat_o,
@@ -159,7 +159,7 @@ always_ff @(posedge wb_clk_i) begin
         for (int i = 4; i < 256; i++) begin
             palette_ram[i] <= { i[3:0], i[5:2], i[7:4] }; // Градиент
         end
-    end else begin
+    end else if (wb_clke_i) begin
         wb_ack_o <= 1'b0;
         
         if (wb_stb_i && wb_cyc_i && access_valid) begin

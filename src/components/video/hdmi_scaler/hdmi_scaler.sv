@@ -14,19 +14,20 @@ module hdmi_scaler #(
     parameter int HDMI_V_VISIBLE = 480
 )(
     // Тактирование и сброс входного домена
-    input  logic src_clk_i,
-    input  logic src_rst_i,
+    input  logic src_clk_i,             // HF 54 или 108 MHz
+    input  logic src_clke_i,            // 27MHz строб пикселов идет непрерывно
+    input  logic src_rst_i,             
     
     // Входной видеоинтерфейс от 6845
     input  logic [DATA_WIDTH-1:0] src_pixel_data_i,
     input  logic src_de_i,              // строб пикселов идет пока они передаются
-    input  logic src_pix_en_i,              // строб пикселов идет непрерывно
     input  logic src_newline_i,
     input  logic src_newframe_i,
     output logic src_buffer_o,
 
     // Тактирование и сброс выходного домена
-    input  logic dst_clk_i,
+    input  logic dst_clk_i,             // Высокая частота например 108МГц
+    input  logic dst_clke_i,            // Частота шины например 54МГц
     input  logic dst_rst_i,
     
     // Выходной видеоинтерфейс к HDMI
@@ -53,7 +54,7 @@ module hdmi_scaler #(
             src_buf_addr <= '0;
             src_buf_sel <= 1'b0;
             src_line_valid <= 1'b0;
-        end else if (src_pix_en_i) begin
+        end else if (src_clke_i) begin
             if (src_newframe_i) begin
                 src_buf_addr <= '0;
                 src_buf_sel <= 1'b0;
@@ -85,28 +86,30 @@ module hdmi_scaler #(
             dst_buf_sel <= 1'b0;
             dst_line_repeat <= 1'b0;
             dst_line_counter <= '0;
-        end else if (dst_rd_i) begin
-            if (dst_newframe_i) begin
-                dst_buf_addr <= '0;
-                dst_buf_sel <= 1'b0;
-                dst_line_repeat <= 1'b0;
-                dst_line_counter <= '0;
-            end else if (dst_newline_i) begin
-                dst_buf_addr <= '0;
-                
-                // Логика повторения строк для вертикального масштабирования
-                if (dst_line_counter == V_SCALE - 1) begin
-                    // Переключаем буфер после V_SCALE повторений
-                    dst_buf_sel <= ~dst_buf_sel;
+        end else if (dst_clke_i) begin
+            if (dst_rd_i) begin
+                if (dst_newframe_i) begin
+                    dst_buf_addr <= '0;
+                    dst_buf_sel <= 1'b0;
                     dst_line_repeat <= 1'b0;
                     dst_line_counter <= '0;
+                end else if (dst_newline_i) begin
+                    dst_buf_addr <= '0;
+                    
+                    // Логика повторения строк для вертикального масштабирования
+                    if (dst_line_counter == V_SCALE - 1) begin
+                        // Переключаем буфер после V_SCALE повторений
+                        dst_buf_sel <= ~dst_buf_sel;
+                        dst_line_repeat <= 1'b0;
+                        dst_line_counter <= '0;
+                    end else begin
+                        // Повторяем текущую строку
+                        dst_line_repeat <= 1'b1;
+                        dst_line_counter <= dst_line_counter + 1;
+                    end
                 end else begin
-                    // Повторяем текущую строку
-                    dst_line_repeat <= 1'b1;
-                    dst_line_counter <= dst_line_counter + 1;
+                    dst_buf_addr <= dst_buf_addr + 1;
                 end
-            end else begin
-                dst_buf_addr <= dst_buf_addr + 1;
             end
         end
     end

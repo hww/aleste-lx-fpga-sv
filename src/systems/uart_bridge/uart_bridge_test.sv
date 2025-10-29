@@ -90,14 +90,6 @@ module uart_bridge_test #(
     logic uart_rx_ready, uart_tx_busy;
     logic bus_stb, bus_ack;
 
-    logic ackff;
-    always @(posedge clk_system) begin
-        if (system_reset) begin
-            ackff<='0;
-        end else if (clk_bus) begin
-            ackff <= uart_wb_ack;
-        end
-    end
 
     uart_bridge #(
         .CLK_FREQ(SYSTEM_CLK_FREQ),
