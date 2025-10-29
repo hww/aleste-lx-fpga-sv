@@ -181,7 +181,7 @@ module uart_bridge_test #(
         .wb_dat_o(sdram_dat_o),
         .wb_sel_i(uart_wb_adr[0] ? 2'b10 : 2'b01),
         .wb_refresh_i('0),
-        
+
         // SDRAM Physical Interface
         .SDRAM_DQ(sdram_dq),
         .SDRAM_A(sdram_a),

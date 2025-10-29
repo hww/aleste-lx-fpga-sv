@@ -46,8 +46,8 @@ class FPGAStateParser:
         bus_we = bus_ctrl_byte & 0x1
         
         # Состояния автоматов
-        cmd_state = (fsm_byte >> 4) & 0xF  # 4 бита
-        bus_state = (fsm_byte >> 2) & 0x3  # 2 бита
+        cmd_state = (fsm_byte >> 0) & 0xF  # 4 бита
+        bus_state = (fsm_byte >> 4) & 0x3  # 2 бита
         
         # Адрес (big-endian как в Verilog)
         address = (addr_byte2 << 16) | (addr_byte1 << 8) | addr_byte0

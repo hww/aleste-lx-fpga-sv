@@ -368,7 +368,7 @@ always_ff @(posedge clk_i) begin
             end
             
             CMD_BUS_READ: begin
-                if (uart_rx_ready) begin
+                if (uart_rx_ready || bus_error_stb) begin
                     cmd_error_stb <= '1;
                     cmd_state <= CMD_ERROR;
                     uart_rx_ack <= '1;
@@ -443,6 +443,9 @@ end
 // Erorrs reg
 // ============================================================================
 
+logic any_bus_error = (wb_cyc_o && wb_err_i) || (dbg_cyc_o && dbg_err_i);
+logic any_error = any_bus_error || cmd_error_stb || wdt_trigger;
+
 always_ff @(posedge clk_i) begin
     if (rst) begin
         state_reg_errors <= 8'b0000_0000;
@@ -455,10 +458,11 @@ always_ff @(posedge clk_i) begin
             state_reg_fsms <= '0;
             state_reg_bus_ctrl <= '0;
             state_reg_command <= '0;
-        end else begin
-            if (!state_reg_errors[7]) begin
+        end else if (!state_reg_errors[7]) begin
+            if (any_error) begin
                 // update every clock untill error
                 state_reg_errors   <= {5'b10000, wdt_trigger, cmd_error_stb, wb_err_i};
+            end else begin
                 state_reg_command  <= current_cmd;
                 state_reg_bus_ctrl <= {args_to_receive, bus_mem_access, bus_cyc, bus_stb, bus_ack, bus_we};
                 state_reg_fsms     <= { 2'b00, bus_state, cmd_state };
@@ -479,8 +483,6 @@ typedef enum logic [1:0] {
 } bus_state_t;
 
 bus_state_t bus_state = BUS_IDLE;
-
-logic any_error = (wb_cyc_o && wb_err_i) || (dbg_cyc_o && dbg_err_i);
 
 always_ff @(posedge clk_i) begin
     if (rst) begin
@@ -543,24 +545,28 @@ always_ff @(posedge clk_i) begin
                     dbg_stb_o <= 1'b0;
                 end else if (bus_stb) begin
                     // Enable bus strobs foor the transfer
-                    if (wb_cyc_o && !wb_stb_o && !dbg_stb_o) begin
-                        bus_state <= BUS_WAIT_ACK;
-                        if (!wb_ack_i) begin
-                            wb_stb_o <= 1'b1;
-                            wb_adr_o <= bus_addr;
-                            if (bus_we) begin
-                                wb_dat_o <= bus_wr_data;
+                    if (wb_cyc_o) begin
+                        //if  (!wb_stb_o) begin
+                            bus_state <= BUS_WAIT_ACK;
+                            if (!wb_ack_i) begin
+                                wb_stb_o <= 1'b1;
+                                wb_adr_o <= bus_addr;
+                                if (bus_we) begin
+                                    wb_dat_o <= bus_wr_data;
+                                end
                             end
-                        end
+                        //end
                     end else if (dbg_cyc_o) begin
-                        bus_state <= BUS_WAIT_ACK;
-                        if (!dbg_ack_i) begin
-                            dbg_stb_o <= 1'b1;
-                            dbg_adr_o <= bus_addr[7:0];
-                            if (bus_we) begin
-                                dbg_dat_o <= bus_wr_data;
+                        //if (!dbg_stb_o) begin
+                            bus_state <= BUS_WAIT_ACK;
+                            if (!dbg_ack_i) begin
+                                dbg_stb_o <= 1'b1;
+                                dbg_adr_o <= bus_addr[7:0];
+                                if (bus_we) begin
+                                    dbg_dat_o <= bus_wr_data;
+                                end
                             end
-                        end
+                        //end
                     end else begin
                         bus_error_stb <= '1;
                         wb_cyc_o <= 1'b0;
@@ -575,10 +581,10 @@ always_ff @(posedge clk_i) begin
             BUS_WAIT_ACK: begin
                 // bus_ack УРОВЕНЬ - держится пока не обработаны данные
                 // stb_o уже установлены в ACTIVE и держатся
-                if (!bus_cyc || any_error) begin
+                if (!bus_cyc || any_bus_error) begin
                     // Завершение цикла - ВЫСШИЙ ПРИОРИТЕТ
                     bus_state <= BUS_IDLE;
-                    bus_error_stb <= any_error;
+                    bus_error_stb <= any_bus_error;
                     wb_cyc_o <= 1'b0;
                     dbg_cyc_o <= 1'b0;
                     wb_stb_o <= 1'b0;
