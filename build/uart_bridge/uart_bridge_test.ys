@@ -1,6 +1,7 @@
 read_verilog -I. -DCONFIG_27MHZ -I../../src/config -sv ../../src/systems/uart_bridge/uart_bridge_test.sv
 read_verilog ../../src/platforms/icesugar_pro/clocks/video_pll.v
 read_verilog -sv ../../src/components/reset/reset_controller.sv
+read_verilog -sv ../../src/components/clocks/system_clock.sv
 read_verilog -sv ../../src/components/debug/debug_shift_reg.sv
 read_verilog -sv ../../src/components/interconnect/wishbone/uart_bridge.sv ../../src/components/interconnect/wishbone/wb_wdt_simple.sv
 read_verilog -sv ../../src/components/memory/sdram/sdram_wishbone.sv

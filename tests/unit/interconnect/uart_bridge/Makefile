@@ -4,6 +4,10 @@ VERILATOR_FLAGS = \
 	--Wno-UNOPTFLAT \
 	--Wno-UNUSEDSIGNAL \
 	--Wno-CASEX \
+	--Wno-WIDTHEXPAND \
+	--Wno-PROCASSINIT \
+	--Wno-UNUSEDPARAM \
+	--Wno-WIDTHTRUNC \
 	--x-assign unique \
 	--x-initial unique \
 	--trace-depth 10 \
@@ -13,7 +17,8 @@ VERILATOR_FLAGS = \
 
 # Source files
 PROJECT_ROOT=../../../..
-UART_BRIDGE_SOURCES = uart_bridge.sv \
+UART_BRIDGE_SOURCES = \
+                     $(PROJECT_ROOT)/src/components/interconnect/wishbone/uart_bridge.sv \
                      $(PROJECT_ROOT)/src/components/io/uart/uart.v \
                      $(PROJECT_ROOT)/src/components/io/uart/baud_tick_gen.v \
                      $(PROJECT_ROOT)/src/components/io/uart/uart_rx.v \

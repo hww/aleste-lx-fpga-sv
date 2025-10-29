@@ -2,11 +2,13 @@
 
 module uart #(
     parameter CLK_FREQ = 54_000_000,
+    parameter BUS_FREQ = CLK_FREQ / 2,
     parameter BAUD_RATE = 115200,
     parameter OVERSAMPLING = 16 // DOES NOT WORK IF 8 BECAUSE DEBUNCING SLOW
 )(
-    input wire clk_i,
     input wire rst_i,
+    input wire clk_i,
+    input wire clke_i,
     
     // transmitter
     input wire [7:0] tx_data_i,
@@ -31,10 +33,12 @@ module uart #(
 wire tx_busy;
 uart_tx #(
     .CLK_FREQ(CLK_FREQ),
+    .BUS_FREQ(BUS_FREQ),
     .BAUD_RATE(BAUD_RATE)
 ) uart_tx_inst (
     .rst(rst_i),
     .clk(clk_i),
+    .clke(clke_i),
     .tx_start(tx_wr_i),     // Твой tx_wr_i -> их tx_start
     .tx_data(tx_data_i),    // Прямое подключение
     .tx(tx_o),              // Выход
@@ -48,11 +52,13 @@ assign tx_busy_o = tx_busy;
 // Адаптация интерфейсов - здесь основная работа
 uart_rx #(
     .CLK_FREQ(CLK_FREQ), 
+    .BUS_FREQ(BUS_FREQ), 
     .BAUD_RATE(BAUD_RATE),
     .OVERSAMPLING(OVERSAMPLING)
 ) uart_rx_inst (
     .rst(rst_i),
     .clk(clk_i),
+    .clke(clke_i),
     .rx(rx_i),
     .rx_ready(rx_ready_o),  // Их rx_ready -> наш rx_ready_o
     .rx_data(rx_data_o),    // Прямое подключение

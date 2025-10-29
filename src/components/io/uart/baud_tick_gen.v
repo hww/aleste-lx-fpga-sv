@@ -25,30 +25,37 @@
  */
 module baud_tick_gen #(
 	parameter CLK_FREQ = 54_000_000,
+	parameter BUS_FREQ = CLK_FREQ / 2,
 	parameter BAUD_RATE = 115200,
 	parameter OVERSAMPLING = 1
 )(
 	input rst,
 	input clk, 
+	input clke,
 	input enable,
 	output tick
 );
 
 function integer log2(input integer v); begin log2=0; while(v >> log2) log2 = log2 + 1; end endfunction
 
-localparam acc_width = log2(CLK_FREQ / BAUD_RATE) + 8; // +/- 2% max timing error over a byte
+localparam acc_width = log2(BUS_FREQ / BAUD_RATE) + 8; // +/- 2% max timing error over a byte
+localparam shiftlimiter = log2((BAUD_RATE * OVERSAMPLING) >> (31 - acc_width)); // this makes sure inc calculation doesn't overflow (verilog uses 32bit variables internally)
+localparam inc = ((BAUD_RATE * OVERSAMPLING << (acc_width - shiftlimiter)) + (BUS_FREQ >> (shiftlimiter + 1))) / (BUS_FREQ >> shiftlimiter); // Calculate accumulate increment
 
 reg [acc_width:0] acc = 0;
 
-localparam shiftlimiter = log2((BAUD_RATE * OVERSAMPLING) >> (31 - acc_width)); // this makes sure inc calculation doesn't overflow (verilog uses 32bit variables internally)
-localparam inc = ((BAUD_RATE * OVERSAMPLING << (acc_width - shiftlimiter)) + (CLK_FREQ >> (shiftlimiter + 1))) / (CLK_FREQ >> shiftlimiter); // Calculate accumulate increment
-//initial $display("acc_width %d, shiftlimit %d, inc %d", acc_width, shiftlimiter, inc);
 
-always @(posedge clk) 
-	if (rst)
-		 acc <= 0;
-	else if (enable) 
-	acc <= acc[acc_width-1:0] + inc[acc_width:0]; else acc <= inc[acc_width:0];
+always @(posedge clk) begin
+    if (rst) begin
+        acc <= 0;
+	end else if (clke) begin
+		if (enable) begin
+        	acc <= acc[acc_width-1:0] + inc[acc_width:0];
+		end else begin
+        	acc <= inc[acc_width:0];
+		end
+	end
+end
 
 assign tick = acc[acc_width];
 

@@ -1,7 +1,6 @@
 `default_nettype none
 
 module uart_bridge_test #(
-    parameter SYSTEM_CLK_FREQ = 54_000_000 * 2,
     parameter SDRAM_ADDR_WIDTH = 24,
     parameter SDRAM_DATA_WIDTH = 16
 )(
@@ -32,26 +31,41 @@ module uart_bridge_test #(
     // ===========================================
     // Clock & Reset
     // ===========================================
-    logic clk_27m, clk_270m, clk_54m, clk_108m, clk_system;
+    logic clk_27m, clk_270m, clk_54m, clk_108m;
     logic pll_locked;
     logic system_reset;
+    logic clk_pixel, clk_bus, clk_system;
 
     video_pll vid_pll(
         .rst(1'b0),
         .clkin_25M(clk_25mhz),
         .clk_270M(clk_270m),
-        .clk_54M(clk_54m), 
-        .clk_27M(clk_27m),
+        .clk_54M(), 
+        .clk_27M(),
         .clk_108M(clk_108m),
         .locked(pll_locked)
     );
+   
+    system_clock system_clock(
+        .clk_108(clk_108m),      // Входной такт 108 MHz от PLL
+        .rst(!pll_locked),       // Сброс (active low)
+        .ce_54(clk_54m),         // Строб 54 MHz (регистровый!)
+        .ce_27_phase0(clk_27m),  // Строб 27 MHz фаза 0 (совпадает с ce_54)
+        .ce_27_phase2()          // Строб 27 MHz фаза 2 (сдвиг на 180°)
+    );
 
-    assign clk_system = (SYSTEM_CLK_FREQ == 54_000_000) ? clk_54m : clk_108m;
+    localparam SYSTEM_CLK_FREQ = 108_000_000;
+    localparam BUS_CLK_FREQ = 54_000_000;
+    localparam PIXEL_CLK_FREQ = 27_000_000;
+
+    assign clk_system = clk_108m;
+    assign clk_bus = clk_54m;
+    assign clk_pixel = clk_27m;
 
     // Системный сброс
     reset_controller reset_inst(
         .clk(clk_system),
-        .clke(clk_54m),
+        .clke(clk_pixel),
         .pll_locked(pll_locked),
         .system_reset(system_reset),
         .boot_complete()
@@ -76,11 +90,26 @@ module uart_bridge_test #(
     logic uart_rx_ready, uart_tx_busy;
     logic bus_stb, bus_ack;
 
-   
+    logic ackff;
+    always @(posedge clk_system) begin
+        if (system_reset) begin
+            ackff<='0;
+        end else if (clk_bus) begin
+            ackff <= uart_wb_ack;
+        end
+    end
+
     uart_bridge #(
-        .CLK_FREQ(SYSTEM_CLK_FREQ)
+        .CLK_FREQ(SYSTEM_CLK_FREQ),
+        .BUS_FREQ(BUS_CLK_FREQ),
+        .WB_ADDR_WIDTH(24),
+        .DBG_ADDR_WIDTH(8),
+        .UART_DATA_WIDTH(8),
+        .BAUD_RATE(115200),
+        .OVERSAMPLING(16) // 8 does not work        
     ) uart_bridge_inst (
         .clk_i(clk_system),
+        .clke_i(clk_bus),
         .rst(system_reset),
         
         // UART Interface
@@ -128,8 +157,9 @@ module uart_bridge_test #(
     logic sdram_debug_init_complete;
     logic sdram_debug_ready;
     logic sdram_debug_busy;
-    logic [15:0] sdram_dat_o;
+    logic [15:0] sdram_dat_o; // databus from sdram
 
+    // Convert 16 bits to 8
     assign uart_wb_dat_i = uart_wb_adr[0] ? sdram_dat_o[15:8] : sdram_dat_o[7:0];
 
     // Прямое подключение UART к НОВОМУ SDRAM контроллеру
@@ -143,12 +173,14 @@ module uart_bridge_test #(
         .wb_rst_i(system_reset),
         .wb_cyc_i(uart_wb_cyc),
         .wb_stb_i(uart_wb_stb),
-        .wb_ack_o(uart_wb_ack),
+        .wb_ack_o(),
+        .wb_ack3_o(uart_wb_ack),
         .wb_we_i(uart_wb_we),
         .wb_adr_i(uart_wb_adr),
         .wb_dat_i({uart_wb_dat_o, uart_wb_dat_o}),
         .wb_dat_o(sdram_dat_o),
         .wb_sel_i(uart_wb_adr[0] ? 2'b10 : 2'b01),
+        .wb_refresh_i('0),
         
         // SDRAM Physical Interface
         .SDRAM_DQ(sdram_dq),
@@ -188,10 +220,11 @@ module uart_bridge_test #(
     // ============================================================================
 
     wb_wdt_simple #(
-        .TIMEOUT_CYCLES(8)  // Таймаут в тактах
+        .TIMEOUT_CYCLES(16)  // Таймаут в тактах
     ) wb_wdt (
         // Wishbone интерфейс
         .clk_i(clk_system),
+        .clke_i(clk_bus),
         .rst_i(system_reset),
         .cyc_i(uart_wb_cyc),
         .stb_i(uart_wb_stb),
@@ -226,13 +259,16 @@ module uart_bridge_test #(
     };
 */
     assign debug = {
-        0,
+        sdram_dq[1],
+        sdram_dq[0],
+        sdram_dat_o[1],
+        sdram_dat_o[0],
+        uart_wb_adr[0],
         uart_wb_err,       // Инициализация завершена
         uart_wb_ack,               // WB ACK
-        uart_wb_stb,               // WB STB
-        uart_wb_cyc,
-        bus_ack,
-        bus_stb               // Системный сброс
+        uart_wb_stb               // WB STB
     };
+
+
 
 endmodule

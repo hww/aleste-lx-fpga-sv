@@ -25,7 +25,7 @@ def main():
             # Используем метод read_state из core
             state_data = fpga.read_state()
             
-            if state_data and len(state_data) >= 2:
+            if state_data and len(state_data) == 7:
                 # Парсим через core парсер
                 state = FPGAStateParser.parse_hang_state(state_data)
                 if state:

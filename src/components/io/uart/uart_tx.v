@@ -22,17 +22,19 @@
 
 module uart_tx #(
 	parameter CLK_FREQ = 54_000_000,
+	parameter BUS_FREQ = CLK_FREQ / 2,
 	parameter BAUD_RATE = 115200
 )(
 	input rst,
 	input clk,
+	input clke,
 	input tx_start,
 	input [7:0] tx_data,
 	output tx,
 	output tx_busy,
 	output bit_tick);
 
-baud_tick_gen #(.CLK_FREQ(CLK_FREQ), .BAUD_RATE(BAUD_RATE)) tickgen(.rst(rst), .clk(clk), .enable(tx_busy), .tick(bit_tick));
+baud_tick_gen #(.CLK_FREQ(CLK_FREQ), .BUS_FREQ(BUS_FREQ), .BAUD_RATE(BAUD_RATE)) tickgen(.rst(rst), .clk(clk), .clke(clke),  .enable(tx_busy), .tick(bit_tick));
 
 localparam
 	IDLE      = 4'b0000, // tx = high
@@ -57,11 +59,13 @@ always @(posedge clk) begin
 	if (rst) begin
 		tx_shift <= 0;
 		tx_state <= 0;
-	end else if (tx_ready & tx_start) begin
-		tx_shift <= tx_data;
-	end else if (tx_state[3] & bit_tick) begin
-		tx_shift <= (tx_shift >> 1);
-	end
+	end else if (clke) begin
+		if (tx_ready & tx_start) begin
+			tx_shift <= tx_data;
+		end else if (tx_state[3] & bit_tick) begin
+			tx_shift <= (tx_shift >> 1);
+		end 
+		
 		case (tx_state)
 			IDLE:      if(tx_start) tx_state <= BIT_START;
 			BIT_START: if(bit_tick) tx_state <= BIT0;
@@ -77,6 +81,7 @@ always @(posedge clk) begin
 			BIT_STOP2: if(bit_tick) tx_state <= IDLE;
 			default:   if(bit_tick) tx_state <= IDLE;
 		endcase
+	end
 end
 
 //           high if state START, STOP1, STOP2

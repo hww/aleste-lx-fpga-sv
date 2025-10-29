@@ -12,6 +12,7 @@ SDRAM_DIR  := $(SRC_DIR)/components/memory/sdram
 UART_DIR   := $(SRC_DIR)/components/io/uart
 RESET_DIR  := $(SRC_DIR)/components/reset
 WB_DIR     := $(SRC_DIR)/components/interconnect/wishbone
+CLOCKS_DIR := $(SRC_DIR)/components/clocks
 
 # Source files - для UART bridge теста
 DEBUG      := $(DEBUG_DIR)/debug_shift_reg.sv
@@ -21,6 +22,7 @@ SDRAM_CTRL := $(SDRAM_DIR)/sdram_wishbone.sv
 WB         := $(WB_DIR)/uart_bridge.sv $(WB_DIR)/wb_wdt_simple.sv
 UART_BRIDGE := $(UART_DIR)/uart.v $(UART_DIR)/uart_rx.v $(UART_DIR)/uart_tx.v $(UART_DIR)/baud_tick_gen.v
 TOP_MODULE := $(SYSTEM_DIR)/uart_bridge_test.sv
+CLOCKS     := $(CLOCKS_DIR)/system_clock.sv
 
 # Generated files
 YOSYS_SCRIPT := uart_bridge_test.ys
@@ -42,10 +44,11 @@ YOSYS_INCLUDE := -I.
 all: $(BITSTREAM)
 
 # Generate Yosys script
-$(YOSYS_SCRIPT): $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(UART_BRIDGE) $(RESET) $(DEBUG) $(WB)
+$(YOSYS_SCRIPT): $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(UART_BRIDGE) $(RESET) $(DEBUG) $(WB) $(CLOCKS)
 	echo "read_verilog $(YOSYS_INCLUDE) $(YOSYS_DEFINE) -sv $(TOP_MODULE)" > $@
 	echo "read_verilog $(CLOCK)" >> $@
 	echo "read_verilog -sv $(RESET)" >> $@
+	echo "read_verilog -sv $(CLOCKS)" >> $@
 	echo "read_verilog -sv $(DEBUG)" >> $@
 	echo "read_verilog -sv $(WB)" >> $@
 	echo "read_verilog -sv $(SDRAM_CTRL)" >> $@

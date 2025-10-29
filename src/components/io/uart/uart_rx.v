@@ -22,11 +22,13 @@
 
 module uart_rx#(
 parameter CLK_FREQ = 54_000_000,
+parameter BUS_FREQ = CLK_FREQ / 2,
 parameter BAUD_RATE = 115200,
 parameter OVERSAMPLING = 8
 )(	
 	input rst,
 	input clk,
+	input clke,
 	input rx,
 	output reg rx_ready,
 	output reg [7:0] rx_data, // data received, valid onli (for one clock cycle) when rx_read is asserted
@@ -58,14 +60,14 @@ localparam
 
 reg [3:0] rx_state = 0;
 
-baud_tick_gen #(.CLK_FREQ(CLK_FREQ), .BAUD_RATE(BAUD_RATE), .OVERSAMPLING(OVERSAMPLING)) tickgen(.rst(rst), .clk(clk), .enable(1'b1), .tick(os_tick));
+baud_tick_gen #(.CLK_FREQ(CLK_FREQ), .BUS_FREQ(BUS_FREQ), .BAUD_RATE(BAUD_RATE), .OVERSAMPLING(OVERSAMPLING)) tickgen(.rst(rst), .clk(clk), .clke(clke), .enable(1'b1), .tick(os_tick));
 
 // sync rx to our clock domain
 reg [1:0] rx_sync = 2'b11;
 always @(posedge clk) begin
 	if (rst) begin
 		rx_sync <= 0;
-	end else if(os_tick) begin 
+	end else if(clke && os_tick) begin 
 		rx_sync <= {rx_sync[0], rx};
 	end
 end
@@ -77,7 +79,7 @@ always @(posedge clk) begin
 	if (rst) begin
 		rx_bit <= 0;
 		filter_cnt <= 0;
-	end else if(os_tick) begin
+	end else if(clke && os_tick) begin
 		// increment/decrement filter_cnt
 		// the filter_cnt counts up when rx_sync is high until it reaches 2'b11
 		// the filter_cnt counts down when rx_sync is low until it reaches 2'b00
@@ -95,17 +97,35 @@ always @(posedge clk) begin
 end
 // create an appropriate oversampling counter
 // using the counter we generate a sample_now signal offset by 90deg from the rx data clock phase
-function integer log2(input integer v); begin log2 = 0; while(v >> log2) log2 = log2 + 1; end endfunction
+function integer log2(input integer v); 
+begin 
+    log2 = 0; 
+    while((v >> log2) > 0) begin  // Явное сравнение с 0
+        log2 = log2 + 1;
+    end
+    // Корректировка для v=1
+    if (v == 1) log2 = 1;
+end 
+endfunction
+
 localparam l2o = log2(OVERSAMPLING);
 reg [l2o-2:0] os_cnt = 0;
-always @(posedge clk) if(os_tick) os_cnt <= (rx_state == IDLE) ? 1'd0 : os_cnt + 1'd1;
+
+always @(posedge clk) begin
+	if (rst) begin
+		os_cnt <= 0;
+	end else if(clke && os_tick) begin
+		os_cnt <= (rx_state == IDLE) ? 1'd0 : os_cnt + 1'd1;
+	end
+end
+
 wire sample_now = os_tick && (os_cnt == ((OVERSAMPLING / 2) - 1));
 
 // rx data finite state machine
 always @(posedge clk) begin
 	if (rst) begin
 		rx_state <= 0;
-	end else begin	
+	end else if (clke) begin	
 		case(rx_state)
 			IDLE:      if(~rx_bit) rx_state <= BIT_START;
 			BIT_START: if(sample_now) rx_state <= BIT0;
@@ -128,7 +148,7 @@ end
 always @(posedge clk) begin
 	if (rst) begin
 		rx_data <= 0;
-	end else if(sample_now && rx_state[3]) begin
+	end else if(clke && sample_now && rx_state[3]) begin
 		rx_data <= {rx_bit, rx_data[7:1]};
 	end
 end
@@ -137,7 +157,7 @@ end
 always @(posedge clk) begin
 	if (rst) begin
 		rx_ready <= 0;
-	end else begin
+	end else if (clke) begin
 		rx_ready <= (sample_now && (rx_state == BIT_STOP) && rx_bit); // Stay high for the duration of stop bit
 		//rx_error <= (sample_now && (rx_state == BIT_STOP) && ~rx_bit);
 	end
@@ -149,7 +169,7 @@ reg [l2o+1:0] gap_cnt = 0;
 always @(posedge clk) begin
 	if (rst) begin
 		gap_cnt <= 0;
-	end else begin
+	end else if (clke) begin
 		if (rx_state != IDLE) 
 			gap_cnt <= 0;
 		else
@@ -157,7 +177,13 @@ always @(posedge clk) begin
 	end
 end
 assign rx_idle = gap_cnt[l2o+1];
-always @(posedge clk) rx_eop <= os_tick & ~gap_cnt[l2o+1] & &gap_cnt[l2o:0];
+always @(posedge clk) begin
+	if (rst) begin
+		rx_eop <= 0;
+	end else if (clke) begin
+		rx_eop <= os_tick & ~gap_cnt[l2o+1] & &gap_cnt[l2o:0];
+	end
+end
 
 endmodule
 

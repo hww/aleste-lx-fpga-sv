@@ -4,11 +4,13 @@ module uart_bridge #(
     parameter WB_ADDR_WIDTH = 24,
     parameter DBG_ADDR_WIDTH = 8,
     parameter UART_DATA_WIDTH = 8,
-    parameter CLK_FREQ = 54_000_000,
+    parameter CLK_FREQ = 108_000_000,
+    parameter BUS_FREQ = CLK_FREQ / 2,
     parameter BAUD_RATE = 115200,
     parameter OVERSAMPLING = 16 // 8 does not work
 ) (
     input  logic                       clk_i,
+    input  logic                       clke_i,
     input  logic                       rst,
     // UART Interface
     input  logic                       uart_rx,
@@ -41,7 +43,7 @@ module uart_bridge #(
     input  logic                       dbg_err_i,
 
     output logic [3:0]                 cmd_state_o,
-    output logic [3:0]                 bus_state_o,
+    output logic [1:0]                 bus_state_o,
     output logic                       bus_stb_o,
     output logic                       bus_ack_o
 );
@@ -87,11 +89,14 @@ logic       uart_rx_ack;
 
 uart #(
     .CLK_FREQ(CLK_FREQ),
+    .BUS_FREQ(BUS_FREQ),
     .BAUD_RATE(BAUD_RATE),
     .OVERSAMPLING(OVERSAMPLING)
 ) uart_inst (
-    .clk_i(clk_i),
+    // clocks
     .rst_i(rst),
+    .clk_i(clk_i),
+    .clke_i(clke_i),
     
     // transmitter
     .tx_data_i(uart_tx_data),
@@ -138,14 +143,12 @@ logic [7:0]  bytes_remaining;
 logic [2:0]  args_to_receive;
 logic [7:0]  response_data;
 logic        cmd_error_stb;
+logic [7:0]  state_reg_command;
 logic [7:0]  state_reg_fsms;
-logic [7:0]  state_reg_signals;
 logic [2:0]  state_reg_cnt;
-logic        state_reg_error_any;
-logic        state_reg_error_cmd;
-logic        state_reg_error_bus;
-logic        state_reg_error_wdt;
-logic        state_errors_reset_stb;
+logic [7:0]  state_reg_errors;    // Бит [2:0] - ошибки, [7:3] - резерв
+logic [7:0]  state_reg_bus_ctrl;  // Управление шиной
+logic        state_errors_reset_stb; // reset the state
 
 // Bus control signals (MASTER -> SLAVE)
 logic        bus_cyc;
@@ -169,17 +172,19 @@ always_ff @(posedge clk_i) begin
     if (rst) begin
         wdt_trigger <= '0;
         wdt_counter <= 0;
-    end else if (timeout_start_stb) begin
-        wdt_trigger <= '0;
-        wdt_counter <= TIMEOUT_UART_TX;
-    end else if (timeout_active) begin
-        wdt_trigger <= '0;
-        if (uart_tx_clk) begin
-            if (wdt_counter != 1) begin
-                wdt_counter <= wdt_counter - 1;
-            end else begin
-                wdt_trigger <= '1;
-                wdt_counter <= 0;
+    end else if (clke_i) begin
+        if (timeout_start_stb) begin
+            wdt_trigger <= '0;
+            wdt_counter <= TIMEOUT_UART_TX;
+        end else if (timeout_active) begin
+            wdt_trigger <= '0;
+            if (uart_tx_clk) begin
+                if (wdt_counter != 1) begin
+                    wdt_counter <= wdt_counter - 1;
+                end else begin
+                    wdt_trigger <= '1;
+                    wdt_counter <= 0;
+                end
             end
         end
     end
@@ -233,7 +238,7 @@ always_ff @(posedge clk_i) begin
         state_errors_reset_stb <= '0;
         timeout_active <= '0;
 
-    end else begin
+    end else if (clke_i) begin
         uart_rx_ack <= '0;
         uart_tx_start <= '0;
         timeout_start_stb <= '0;
@@ -244,7 +249,7 @@ always_ff @(posedge clk_i) begin
             CMD_IDLE: begin
                 bus_cyc <= '0;
                 timeout_active <= '0; // do not allow to trigger
-                
+
                 if (uart_rx_ready && !uart_rx_ack) begin
                     uart_rx_ack <= 1'b1;
                     current_cmd <= uart_rx_data;
@@ -398,13 +403,14 @@ always_ff @(posedge clk_i) begin
                     uart_tx_start <= 1'b1;  // Импульс на 1 такт
                     state_reg_cnt <= state_reg_cnt == 3'd7 ? 3'd7 : state_reg_cnt + 3'd1;
                     case (state_reg_cnt) 
-                        0: uart_tx_data <= bus_addr[23:16];
-                        1: uart_tx_data <= bus_addr[15:8];
-                        2: uart_tx_data <= bus_addr[7:0];
-                        3: uart_tx_data <= state_reg_signals;
-                        4: uart_tx_data <= state_reg_fsms;
-                        5: uart_tx_data <= {'0, state_reg_error_wdt, state_reg_error_cmd, state_reg_error_bus };
+                        0: uart_tx_data <= state_reg_errors;      // [2:0] ошибки
+                        1: uart_tx_data <= state_reg_bus_ctrl;    // управление шиной
+                        2: uart_tx_data <= state_reg_fsms;        // состояния FSM
+                        3: uart_tx_data <= current_addr[23:16];   // адрес H
+                        4: uart_tx_data <= current_addr[15:8];    // адрес M  
+                        5: uart_tx_data <= current_addr[7:0];     // адрес L
                         default: begin 
+                            uart_tx_data <= state_reg_command;     // команда
                             state_errors_reset_stb <= 1;// сбросим флаги ошибок
                             cmd_state <= CMD_IDLE;
                         end
@@ -439,31 +445,23 @@ end
 
 always_ff @(posedge clk_i) begin
     if (rst) begin
-        state_reg_error_any <= '0;
-        state_reg_error_cmd <= '0;
-        state_reg_error_bus <= '0;
-        state_reg_error_wdt <= '0;
+        state_reg_errors <= 8'b0000_0000;
         state_reg_fsms <= '0;
-        state_reg_signals <= '0;
-    end else if (state_errors_reset_stb) begin
-        state_reg_error_any <= '0;
-        state_reg_error_cmd <= '0;
-        state_reg_error_bus <= '0;
-        state_reg_error_wdt <= '0;
-        state_reg_fsms <= '0;
-        state_reg_signals <= '0;
-    end else begin
-        if (!state_reg_error_any) begin
-            if (cmd_error_stb || bus_error_stb || wdt_trigger) begin
-                // mark the error bits
-                state_reg_error_any <= '1;
-                if (cmd_error_stb) state_reg_error_cmd <= '1;
-                if (bus_error_stb) state_reg_error_bus <= '1;
-                if (wdt_trigger)   state_reg_error_wdt <= '1;
-            end else begin
+        state_reg_bus_ctrl <= '0;
+        state_reg_command <= '0;
+    end else if (clke_i) begin
+        if (state_errors_reset_stb) begin
+            state_reg_errors <= 8'b0000_0000;
+            state_reg_fsms <= '0;
+            state_reg_bus_ctrl <= '0;
+            state_reg_command <= '0;
+        end else begin
+            if (!state_reg_errors[7]) begin
                 // update every clock untill error
-                state_reg_signals <= { current_cmd[6:4], bus_cyc, bus_stb, bus_ack, bus_we, bus_mem_access };
-                state_reg_fsms    <= { args_to_receive, bus_state, cmd_state };
+                state_reg_errors   <= {5'b10000, wdt_trigger, cmd_error_stb, wb_err_i};
+                state_reg_command  <= current_cmd;
+                state_reg_bus_ctrl <= {args_to_receive, bus_mem_access, bus_cyc, bus_stb, bus_ack, bus_we};
+                state_reg_fsms     <= { 2'b00, bus_state, cmd_state };
             end
         end
     end
@@ -505,7 +503,7 @@ always_ff @(posedge clk_i) begin
         
         bus_rd_data <= '0;
 
-    end else begin
+    end else if (clke_i) begin
         // Значения по умолчанию (только то что МОЖЕТ меняться)
         bus_error_stb <= 1'b0;
         
@@ -642,7 +640,7 @@ always_ff @(posedge clk_i) begin
 end
 
 assign cmd_state_o = cmd_state;
-assign bus_state_o = { 1'b0, 1'b0, bus_state[1:0] };
+assign bus_state_o = bus_state[1:0];
 assign bus_stb_o = bus_stb;
 assign bus_ack_o = bus_ack;
 
