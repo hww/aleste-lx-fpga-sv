@@ -69,8 +69,11 @@ module dual_port_ram #(
     // СИНХРОННОЕ чтение с 1 тактом латентности
     always_ff @(posedge dst_clk_i) begin
         if (dst_clke_i) begin
-            read_addr_ff <= dst_rd_addr_i;
-            read_data_ff <= mem[read_addr_ff];
+            // Original varian with synchronous address
+            //read_addr_ff <= dst_rd_addr_i;
+            //read_data_ff <= mem[read_addr_ff];
+            // New variant w/o synchronous address
+            read_data_ff <= mem[dst_rd_addr_i];
         end
     end
     

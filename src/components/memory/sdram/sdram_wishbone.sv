@@ -203,7 +203,7 @@ always @(posedge wb_clk_i) begin
                 // no need for precharge-all b/c all our r/w are done with auto-precharge.
                 {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_AutoRefresh;
                 state <= REFRESH;
-                    cycle <= 5'd1;
+                cycle <= 5'd1;
                 busy <= 1'b1;            
             end
 
@@ -272,7 +272,7 @@ always @(posedge wb_clk_i) begin
             //                  `------------- T_RC ------------'
             {REFRESH, T_RC}: begin
                 state <= IDLE;
-                    busy <= 1'b0;
+                busy <= 1'b0;
             end
             
             default: begin

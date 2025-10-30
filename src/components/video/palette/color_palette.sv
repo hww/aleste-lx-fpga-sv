@@ -13,19 +13,21 @@ module color_palette (
     // Wishbone interface
     input  logic            wb_clk_i, wb_clke_i, wb_rst_i,
     input  logic [23:0]     wb_adr_i,
-    input  logic [7:0]      wb_dat_i,      // 8-bit data bus for CPC compatibility
+    input  logic [7:0]      wb_dat_i,       // 8-bit data bus for CPC compatibility
     output logic [7:0]      wb_dat_o,
     input  logic            wb_we_i, wb_stb_i, wb_cyc_i,
     output logic            wb_ack_o,
     output logic            wb_grant_o,
-    input  logic [1:0]      tag_i,          // TAG от интерконнекта
-    input  logic            legacy_mode_i,  // 1=legacy CPC, 0=native
+    input  logic [1:0]      wb_tag_i,       // TAG от интерконнекта
+
+    // Configs
+    input  logic            cfg_legacy_mode_i, // 1=legacy CPC, 0=native
     
     // Pixel pipeline interface
-    input  logic            pix_clk_i,
-    input  logic            pix_ena_i,
+    input  logic            pixel_clk_i,
+    input  logic            pixel_ena_i,
     input  logic [7:0]      pixel_index_i,  // от пиксель-генератора
-    input  logic            de_i,           // флаг бордюра от пиксель-генератора
+    input  logic            pixel_de_i,     // флаг бордюра от пиксель-генератора
     output logic [11:0]     pixel_color_o   // к скандаблеру (12-bit R4G4B4)
 );
 
@@ -56,26 +58,26 @@ logic access_valid;
 parameter NATIVE_BASE = 16'h0100;   // A8=1, 0x0100-0x011F
 parameter LEGACY_GA   = 16'h7F00;   // Gate Array адрес (detection only a[15:14])
 // Address decoding for native mode
-assign native_access = (tag_i == 2'b01) && (wb_adr_i[15:8] == NATIVE_BASE[15:8]);
+assign native_access = (wb_tag_i == 2'b01) && (wb_adr_i[15:8] == NATIVE_BASE[15:8]);
 // Detect only legacy access with address and data decoding                       
-assign legacy_access = (tag_i == 2'b11) && (wb_adr_i[15:14] == LEGACY_GA[15:14]) && !wb_dat_in[7];
+assign legacy_access = (wb_tag_i == 2'b11) && (wb_adr_i[15:14] == LEGACY_GA[15:14]) && !wb_dat_in[7];
 assign logic_address = wb_adr_i[4:0];
-assign access_valid = legacy_mode_i ? legacy_access : native_access;
+assign access_valid = cfg_legacy_mode_i ? legacy_access : native_access;
 assign wb_grant_o = access_valid;
 
 // Convert 16 to 8 bitsv
 assign wb_dat_in = wb_dat_i;
-
 
 // Модификация индекса палитры
 logic [7:0] modified_pixel_index;
 logic modifier_enabled = control_logic[7];
 logic modifier_is_xor = control_logic[6];
 
+// Вычисляем индекс цвета
 assign modified_pixel_index = 
-    (!modifier_enabled) ? pixel_index_i :           // Модификатор выключен
-    (modifier_is_xor) ? pixel_index_i ^ palette_modifier :  // XOR режим
-                         pixel_index_i | palette_modifier;  // OR режим
+    (!modifier_enabled) ? pixel_index_i :                     // Модификатор выключен
+    (modifier_is_xor)   ? pixel_index_i ^ palette_modifier :  // XOR режим
+                          pixel_index_i | palette_modifier;   // OR режим
 
 // CPC colors converter
 logic [11:0] cpc_converted_color;
@@ -167,7 +169,7 @@ always_ff @(posedge wb_clk_i) begin
             
             if (wb_we_i) begin
                 // Write operations with priority
-                if (legacy_access && legacy_mode_i) begin
+                if (legacy_access && cfg_legacy_mode_i) begin
                     // Legacy CPC Gate Array access (highest priority when enabled)
                     case (wb_dat_in[7:6])
                         2'b00: begin
@@ -253,11 +255,11 @@ end
 assign wb_dat_o = wb_dat_out;
 
 // Pixel color lookup
-always_ff @(posedge pix_clk_i) begin
+always_ff @(posedge pixel_clk_i) begin
     if (wb_rst_i) begin    
         pixel_color_o <= 0;
-    end if (pix_ena_i) begin
-        if (de_i) begin
+    end if (pixel_ena_i) begin
+        if (pixel_de_i) begin
             // ОСНОВНОЕ ИЗОБРАЖЕНИЕ: читаем из палитры с модификатором
             pixel_color_o <= palette_ram[modified_pixel_index];
         end else begin

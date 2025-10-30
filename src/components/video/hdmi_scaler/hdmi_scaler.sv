@@ -126,14 +126,14 @@ module hdmi_scaler #(
         .DATA_LENGTH(SRC_H_VISIBLE)
     ) line_buffer_0 (
         .src_clk_i(src_clk_i),
-        .src_clke_i(1'b1),
+        .src_clke_i(src_clke_i),
         .src_rst_i(src_rst_i),
         .src_wr_en_i(!src_buffer_o),
         .src_wr_addr_i(src_buf_addr),
         .src_wr_data_i(src_pixel_data_i),
         
         .dst_clk_i(dst_clk_i),
-        .dst_clke_i(1'b1),
+        .dst_clke_i(src_clke_i),
         .dst_rst_i(dst_rst_i),
         .dst_rd_en_i(!dst_buffer_o),
         .dst_rd_addr_i(dst_buf_addr),
@@ -146,14 +146,14 @@ module hdmi_scaler #(
         .DATA_LENGTH(SRC_H_VISIBLE)
     ) line_buffer_1 (
         .src_clk_i(src_clk_i),
-        .src_clke_i(1'b1),
+        .src_clke_i(src_clke_i),
         .src_rst_i(src_rst_i),
         .src_wr_en_i(src_buffer_o),
         .src_wr_addr_i(src_buf_addr),
         .src_wr_data_i(src_pixel_data_i),
         
         .dst_clk_i(dst_clk_i),
-        .dst_clke_i(1'b1),
+        .dst_clke_i(src_clke_i),
         .dst_rst_i(dst_rst_i),
         .dst_rd_en_i(dst_buffer_o),
         .dst_rd_addr_i(dst_buf_addr),

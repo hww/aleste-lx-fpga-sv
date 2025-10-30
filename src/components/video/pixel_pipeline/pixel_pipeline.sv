@@ -10,28 +10,29 @@
 `default_nettype none
 
 module pixel_pipeline (
-    input wire clk_i,
-    input wire rst_i,
+    // Clock
+    input wire          rst_i,
+    input wire          clk_i,
+    input wire          clke_i,        
     
     // Timing from CRT
-    input wire pix_ena_i,        
-    input wire char_strobe_i,
-    input wire pixel_strobe_i,     
-    input wire byte_strobe_i,    
+    input wire          stb_char_i,
+    input wire          stb_pixel_i,     
     
     // Data input
-    input wire [7:0] vmem_data_i,
+    input wire          vmem_stb_i,    
+    input wire [7:0]    vmem_data_i,
     
     // Configuration
-    input wire [1:0] bpp_mode_i,
-    input wire continuous_mode_i,
+    input wire [1:0]    cfg_bpp_mode_i,
+    input wire          cfg_continuous_mode_i,
     
     // Display control
-    input wire de_i,             // Display Enable от CRT (1=active display, 0=border)
     
     // Output to palette
-    output wire [7:0] pixel_index_o,
-    output wire de_o            // Display Enable к палитре (1=active, 0=border)
+    output wire [7:0]   pixel_index_o,
+    input  wire         pixel_de_i,           // Display Enable от CRT (1=active display, 0=border)
+    output wire         pixel_de_o            // Display Enable к палитре (1=active, 0=border)
 );
 
 reg [1:0] bpp_mode_latched = 0;
@@ -49,14 +50,14 @@ always @(posedge clk_i) begin
         shift_reg <= 8'b0;
         pixel_index_latch <= 8'b0;
 
-    end else if (pix_ena_i) begin
+    end else if (clke_i) begin
         // Защёлкиваем режимы ТОЛЬКО при загрузке нового байта
-        if (byte_strobe_i) begin
-            bpp_mode_latched <= bpp_mode_i;
-            continuous_mode_latched <= continuous_mode_i;
+        if (vmem_stb_i) begin
+            bpp_mode_latched <= cfg_bpp_mode_i;
+            continuous_mode_latched <= cfg_continuous_mode_i;
             shift_reg <= vmem_data_i;
         end else begin
-            if (pixel_strobe_i) begin
+            if (stb_pixel_i) begin
                 // DE имеет приоритет - если не active (de_ff=0), выдаём border
                 if (!de_ff1) begin
                     pixel_index_latch <= 8'b0;
@@ -104,26 +105,25 @@ always @(posedge clk_i) begin
 end
 
 // Display Enable защёлка с той же латентностью что и пиксели
-
-
 always @(posedge clk_i) begin
     if (rst_i) begin
         de_ff1 <= 1'b1; // По умолчанию display enabled
-    end else if (char_strobe_i) begin
+    end else if (stb_char_i) begin
         // DE защёлкивается ВСЕГДА (не зависит от загрузки байта)
-        de_ff1 <= de_i;
+        de_ff1 <= pixel_de_i;
     end
 end
+
 always @(posedge clk_i) begin
     if (rst_i) begin
         de_ff2 <= 1'b1; // По умолчанию display enabled
-    end else if (pix_ena_i) begin
+    end else if (clke_i) begin
         // DE защёлкивается ВСЕГДА (не зависит от загрузки байта)
         de_ff2 <= de_ff1;
     end
 end
 
 assign pixel_index_o = pixel_index_latch;
-assign de_o = de_ff2;
+assign pixel_de_o = de_ff2;
 
 endmodule

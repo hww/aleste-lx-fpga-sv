@@ -24,7 +24,7 @@ module uart_bridge_test #(
     output logic serial_tx,
     
     // Отладочные выходы
-    output logic [7:0] debug_leds,
+    output logic [2:0] debug_leds,
     output logic [7:0] debug
 );
 
@@ -74,7 +74,7 @@ module uart_bridge_test #(
     // ===========================================
     // UART Bridge - прямой доступ к SDRAM
     // ===========================================
-    logic uart_wb_cyc, uart_wb_stb, uart_wb_we, uart_wb_ack;
+    logic uart_wb_cyc, uart_wb_stb, uart_wb_we, uart_wb_ack, uart_wb_ack3;
     logic [23:0] uart_wb_adr;
     logic [7:0] uart_wb_dat_i, uart_wb_dat_o;
     logic [1:0] uart_wb_sel;
@@ -86,10 +86,13 @@ module uart_bridge_test #(
     logic uart_rx_ready, uart_rx_idle, uart_rx_eop;
 
     logic serial_rx_clk, serial_tx_clk;
-    logic [3:0] cmd_state, bus_state;
+    logic [3:0] cmd_state;
+    logic [2:0] bus_state;
     logic uart_rx_ready, uart_tx_busy;
     logic bus_stb, bus_ack;
 
+
+    assign uart_dbg_dat_o = 8'h00;
 
     uart_bridge #(
         .CLK_FREQ(SYSTEM_CLK_FREQ),
@@ -120,7 +123,7 @@ module uart_bridge_test #(
         .wb_adr_o(uart_wb_adr),
         .wb_dat_o(uart_wb_dat_o),
         .wb_dat_i(uart_wb_dat_i),
-        .wb_ack_i(uart_wb_ack),
+        .wb_ack_i(uart_wb_ack3),
         .wb_err_i(uart_wb_err),
 
         .dbg_cyc_o(uart_dbg_cyc),
@@ -165,8 +168,8 @@ module uart_bridge_test #(
         .wb_rst_i(system_reset),
         .wb_cyc_i(uart_wb_cyc),
         .wb_stb_i(uart_wb_stb),
-        .wb_ack_o(),
-        .wb_ack3_o(uart_wb_ack),
+        .wb_ack_o(uart_wb_ack),
+        .wb_ack3_o(uart_wb_ack3),
         .wb_we_i(uart_wb_we),
         .wb_adr_i(uart_wb_adr),
         .wb_dat_i({uart_wb_dat_o, uart_wb_dat_o}),
@@ -231,11 +234,6 @@ module uart_bridge_test #(
     assign debug_leds[0] = sdram_debug_init_complete;  // Инициализация завершена
     assign debug_leds[1] = sdram_debug_ready;          // Контроллер готов
     assign debug_leds[2] = sdram_debug_busy;           // Контроллер занят
-    assign debug_leds[3] = uart_wb_ack;                // WB ACK
-    assign debug_leds[4] = uart_wb_stb;                // WB STB
-    assign debug_leds[5] = uart_rx_ready;              // UART RX готов
-    assign debug_leds[6] = uart_tx_busy;               // UART TX занят
-    assign debug_leds[7] = pll_locked;                 // PLL locked
 
     // Отладочные пины - комбинированная информация
     /*
@@ -251,14 +249,14 @@ module uart_bridge_test #(
     };
 */
     assign debug = {
-        sdram_dq[1],
-        sdram_dq[0],
-        sdram_dat_o[1],
-        sdram_dat_o[0],
-        uart_wb_adr[0],
-        uart_wb_err,       // Инициализация завершена
-        uart_wb_ack,               // WB ACK
-        uart_wb_stb               // WB STB
+        uart_wb_err,
+        sdram_cas_n,
+        sdram_ras_n,
+        uart_wb_ack3,
+        uart_wb_ack,       // Инициализация завершена
+        uart_wb_stb,               // WB ACK
+        uart_wb_cyc,              // WB STB
+        clk_system
     };
 
 

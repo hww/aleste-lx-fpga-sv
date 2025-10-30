@@ -117,15 +117,15 @@ module aleste_video #(
     logic [23:0] mem2sdram_addr;
     logic [15:0] mem2sdram_data_out;
     logic [15:0] mem2sdram_data_in; 
-    logic mem2sdram_we, mem2sdram_req, mem2sdram_ack, mem2sdram_grant;
+    logic mem2sdram_we, mem2sdram_req, mem2sdram_ack, mem2sdram_ack3, mem2sdram_grant;
     logic mem2sdram_burst;
     logic [2:0] mem2sdram_burst_len;
     logic [1:0] mem2sdram_sel;
 
     // Video Pipeline Signals
-    logic [7:0] pixel_index;
-    logic pixel_valid;
-    logic pipeline_de;
+    logic [7:0] ppu2pal_color_index;
+    logic ppu2pal_pixel_stb;
+    logic ppu2pal_de;
 
     // Video Buffer Signals
     logic [15:0] vbuf_data;
@@ -449,11 +449,13 @@ module aleste_video #(
         .sdram_we_o(mem2sdram_we),
         .sdram_req_o(mem2sdram_req),
         .sdram_ack_i(mem2sdram_ack),
+        .sdram_ack3_i(mem2sdram_ack3),
         .sdram_sel_o(mem2sdram_sel),
 
         .debug_state_o(debug_mem_arbiter_state),
+        .debug_wb_active_o(debug_mem_wb_active),
         .debug_video_active_o(debug_mem_video_active),
-        .debug_wb_active_o(debug_mem_wb_active)
+        .debug_gpu_active_o()// not needed
     );
 
     // ===========================================
@@ -471,7 +473,7 @@ module aleste_video #(
         .CLK_FREQ(CLK_FREQ_SYSTEM),     // 108MHz системная частота
         .WB_ADDR_WIDTH(24),
         .WB_DATA_WIDTH(16)
-    ) sdram_controller (
+    ) sdram_ctrl (
         // Wishbone Interface
         .wb_clk_i(clk_system),          // 108MHz cистемная частота
         .wb_rst_i(system_reset),
@@ -479,8 +481,8 @@ module aleste_video #(
         // SDRAM wishbon interface
         .wb_cyc_i(mem2sdram_req),
         .wb_stb_i(mem2sdram_req),
-        .wb_ack_o(),
-        .wb_ack3_o(mem2sdram_ack),
+        .wb_ack_o(mem2sdram_ack),
+        .wb_ack3_o(mem2sdram_ack3),
         .wb_we_i(mem2sdram_we),
         .wb_adr_i(mem2sdram_addr),
         .wb_dat_i(mem2sdram_data_out),
@@ -535,9 +537,9 @@ module aleste_video #(
 
         // CRTC timing signals
         .de_i(crtc_de),
+        .de_o(vbuf_de),
         .char_strobe_i(crtc_char_strobe),
         .byte_strobe_i(crtc_byte_strobe),
-        .de_o(vbuf_de),
         .char_strobe_o(vbuf_char_strobe),
         .byte_strobe_o(vbuf_byte_strobe),
         .byte_select_o(vbuf_byte_select),
@@ -555,34 +557,34 @@ module aleste_video #(
     // ===========================================
     // Video Pipeline
     // ===========================================
-    pixel_pipeline pipeline(
+    pixel_pipeline ppu(
         .rst_i(system_reset),
-        .clk_i(clk_system),
-        .pix_ena_i(clk_pixel),
+        .clk_i(clk_system),     // Hi frequency aka 108MHz
+        .clke_i(clk_pixel),  // Max pixel frequency 27MHz
         
         // Memory interface
+        .vmem_stb_i(vbuf_byte_strobe),
         .vmem_data_i(vbuf_data_o),
 
         // Configuration
-        .bpp_mode_i(crtc_bpp_mode),
-        .continuous_mode_i(crtc_continuous_mode),
+        .cfg_bpp_mode_i(crtc_bpp_mode),
+        .cfg_continuous_mode_i(crtc_continuous_mode),
 
         // CRTC timing
-        .de_i(vbuf_de),
-        .char_strobe_i(vbuf_char_strobe),
-        .byte_strobe_i(vbuf_byte_strobe),
-        .pixel_strobe_i(crtc_pixel_strobe),
+        .stb_char_i(vbuf_char_strobe),
+        .stb_pixel_i(crtc_pixel_strobe), // Actual pixel frequency 13.5MHz or other
+        .pixel_de_i(vbuf_de),
         
         // Pixel output
-        .pixel_index_o(pixel_index),
-        .de_o(pipeline_de)
+        .pixel_index_o(ppu2pal_color_index),
+        .pixel_de_o(ppu2pal_de)
     );
        
     // ===========================================
     // Color Palette
     // ===========================================
     
-    color_palette palette(
+    color_palette pal(
         .wb_rst_i(system_reset),
         .wb_clk_i(clk_system),
         .wb_clke_i(clk_bus),
@@ -596,14 +598,16 @@ module aleste_video #(
         .wb_cyc_i(system2palette_cyc),
         .wb_grant_o(system2palette_grant),
         .wb_ack_o(system2palette_ack),
-        .tag_i(system2palette_tag), // Palette tag
-        .legacy_mode_i(global_legacy_mode),
+        .wb_tag_i(system2palette_tag), // Palette tag
+
+        // Config
+        .cfg_legacy_mode_i(global_legacy_mode),
         
         // Pixel interface
-        .pix_clk_i(clk_system),
-        .pix_ena_i(clk_pixel),
-        .pixel_index_i(pixel_index),
-        .de_i(pipeline_de),
+        .pixel_clk_i(clk_system),
+        .pixel_ena_i(clk_pixel),
+        .pixel_index_i(ppu2pal_color_index),
+        .pixel_de_i(ppu2pal_de),
         .pixel_color_o(pixel_color)
     );
 
@@ -715,15 +719,29 @@ module aleste_video #(
     };
 
     // ===========================================
+    /*
+    // UART Bridge
     assign debug = {
-        debug_sdram_ready,      // LED0: SDRAM ready
-        debug_sdram_init_complete, // LED1: SDRAM init complete
-        uart_rx_ready,          // LED2: UART data received
-        uart2ext_err,           // LED3: UART transmitting  
-        uart2ext_ack,             // LED4: CRTC HSync
-        uart2ext_we,             // LED5: CRTC VSync 
-        uart2ext_stb,           // LED6: Reset active
-        uart2ext_cyc              // LED7: PLL locked
+        debug_sdram_ready,     
+        debug_sdram_init_complete, 
+        uart_rx_ready,         
+        uart2ext_err,          
+        uart2ext_ack,           
+        uart2ext_we,           
+        uart2ext_stb,          
+        uart2ext_cyc             
+    };
+    */
+    // Memory Arbitter
+    assign debug = {
+        vbuf_ack,
+        vbuf_req,          
+        debug_mem_video_active,           
+        debug_mem_wb_active,             
+        mem2sdram_ack3,             
+        mem2sdram_ack,          
+        mem2sdram_req,              
+        clk_bus
     };
 
     // ===========================================
