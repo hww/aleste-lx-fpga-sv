@@ -21,7 +21,8 @@ module memory_arbiter (
     input  logic [23:0] video_addr_i,
     input  logic        video_req_i,
     output logic [15:0] video_data_o,
-    output logic        video_ack_o,
+    output logic        video_ack0_o,
+    output logic        video_ack1_o,
     input  logic        video_burst_i,
 
     // 16-bit GPU Interface (будущее)
@@ -39,8 +40,8 @@ module memory_arbiter (
     input  logic [15:0] sdram_data_i,
     output logic        sdram_we_o,
     output logic        sdram_req_o,
-    input  logic        sdram_ack_i,
-    input  logic        sdram_ack3_i,
+    input  logic        sdram_ack0_i,
+    input  logic        sdram_ack1_i,
     output logic [1:0]  sdram_sel_o,
     output              sdram_burst_o,
 
@@ -68,8 +69,29 @@ state_t current_state;
 // Active master tracking for proper ack correlation
 logic [23:0] saved_addr;
 logic [15:0] saved_data;
+logic [15:0] saved_wb_data; // delay for slower bus
 logic saved_we;
 logic [1:0] saved_sel;
+logic [2:0] wb_ack_ff;
+logic wb_ack;
+
+// =============================================================================
+// Wishnam ACK
+// =============================================================================
+always_ff @(posedge clk_i) begin
+    if (rst) begin
+        wb_ack_ff <= 3'b000;
+    end else if (sdram_ack0_i) begin
+        if (clke_i) begin
+           wb_ack_ff <= 3'b110;
+        end else begin
+           wb_ack_ff <= 3'b011;
+        end
+    end else begin
+        wb_ack_ff <= {wb_ack_ff[1:0], 1'b0};
+    end
+end
+assign wb_ack = wb_ack_ff[2];
 
 // =============================================================================
 // Single State Register - убрали next_state для упрощения
@@ -81,6 +103,7 @@ always_ff @(posedge clk_i) begin
         saved_data <= 16'b0;
         saved_we <= 1'b0;
         saved_sel <= 2'b00;
+        saved_wb_data <= '0;
     end else begin
         case (current_state)
             STATE_IDLE: begin
@@ -105,14 +128,10 @@ always_ff @(posedge clk_i) begin
             end
             
             STATE_VIDEO_READ: begin
-                if (sdram_ack_i) begin
+                // после прочтения второй записи
+                if (sdram_ack1_i) begin
                     // Сохраняем параметры для следующей транзакции
-                    if (video_req_i) begin
-                        current_state <= STATE_VIDEO_READ;
-                        saved_addr <= video_addr_i;
-                        saved_we <= 1'b0;
-                        saved_sel <= 2'b11;
-                    end else if (wb_cyc_i && wb_stb_i) begin
+                    if (wb_cyc_i && wb_stb_i) begin
                         current_state <= STATE_WB_ACCESS;
                         saved_addr <= wb_adr_i;
                         saved_we <= wb_we_i;
@@ -132,7 +151,8 @@ always_ff @(posedge clk_i) begin
 
             STATE_WB_ACCESS: begin
                 // УБРАЛИ немедленные прерывания - ждем завершения транзакции
-                if (sdram_ack3_i && clke_i) begin
+                if (sdram_ack0_i) begin
+                    saved_wb_data <= sdram_data_i;
                     if (video_req_i) begin
                         current_state <= STATE_VIDEO_READ;
                         saved_addr <= video_addr_i;
@@ -158,7 +178,7 @@ always_ff @(posedge clk_i) begin
 
             STATE_GPU_ACCESS: begin
                 // УБРАЛИ немедленные прерывания - ждем завершения транзакции
-                if (sdram_ack_i) begin
+                if (sdram_ack0_i) begin
                     if (video_req_i) begin
                         current_state <= STATE_VIDEO_READ;
                         saved_addr <= video_addr_i;
@@ -190,7 +210,8 @@ end
 // =============================================================================
 always_comb begin
     // Default values - сбрасываем все подтверждения
-    video_ack_o = 1'b0;
+    video_ack0_o = 1'b0;
+    video_ack1_o = 1'b0;
     wb_ack_o = 1'b0;
     gpu_ack_o = 1'b0;
     sdram_req_o = 1'b0;
@@ -219,17 +240,18 @@ always_comb begin
 
         end
         STATE_VIDEO_READ: begin // VIDEO
-            video_ack_o = sdram_ack_i;
+            video_ack0_o = sdram_ack0_i;
+            video_ack1_o = sdram_ack1_i;
             video_data_o = sdram_data_i;
             sdram_burst_o = video_burst_i;
         end
         STATE_WB_ACCESS: begin // WB
-            wb_ack_o = sdram_ack3_i;
-            wb_dat_o = saved_addr[0] ? sdram_data_i[15:8] : sdram_data_i[7:0];
+            wb_ack_o = wb_ack;
+            wb_dat_o = saved_addr[0] ? saved_wb_data[15:8] : saved_wb_data[7:0];
             sdram_burst_o = '0;
         end
         STATE_GPU_ACCESS: begin // GPU
-            gpu_ack_o = sdram_ack_i;
+            gpu_ack_o = sdram_ack0_i;
             gpu_dat_o = sdram_data_i;
             sdram_burst_o = '0;
         end
