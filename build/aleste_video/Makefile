@@ -70,7 +70,7 @@ $(YOSYS_SCRIPT): $(ALL_SOURCES)
 	@echo "read_verilog $(YOSYS_INCLUDE) $(YOSYS_DEFINE) -sv $(TOP_MODULE)" >> $@
 	@echo "read_verilog $(CLOCK)" >> $@
 	@echo "read_verilog $(HDMI)" >> $@
-	@echo "read_verilog $(VIDBUF)" >> $@
+	@echo "read_verilog -sv $(VIDBUF)" >> $@
 	@echo "read_verilog -sv $(DEBUG)" >> $@
 	@echo "read_verilog -sv $(WB)" >> $@
 	@echo "read_verilog -sv $(SDRAM_CTRL)" >> $@

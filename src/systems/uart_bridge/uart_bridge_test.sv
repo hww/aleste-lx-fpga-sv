@@ -74,7 +74,7 @@ module uart_bridge_test #(
     // ===========================================
     // UART Bridge - прямой доступ к SDRAM
     // ===========================================
-    logic uart_wb_cyc, uart_wb_stb, uart_wb_we, uart_wb_ack, uart_wb_ack3;
+    logic uart_wb_cyc, uart_wb_stb, uart_wb_we, uart_wb_ack0, uart_wb_ack1;
     logic [23:0] uart_wb_adr;
     logic [7:0] uart_wb_dat_i, uart_wb_dat_o;
     logic [1:0] uart_wb_sel;
@@ -123,7 +123,7 @@ module uart_bridge_test #(
         .wb_adr_o(uart_wb_adr),
         .wb_dat_o(uart_wb_dat_o),
         .wb_dat_i(uart_wb_dat_i),
-        .wb_ack_i(uart_wb_ack3),
+        .wb_ack_i(uart_wb_ack1||uart_wb_ack0),
         .wb_err_i(uart_wb_err),
 
         .dbg_cyc_o(uart_dbg_cyc),
@@ -168,8 +168,8 @@ module uart_bridge_test #(
         .wb_rst_i(system_reset),
         .wb_cyc_i(uart_wb_cyc),
         .wb_stb_i(uart_wb_stb),
-        .wb_ack_o(uart_wb_ack),
-        .wb_ack3_o(uart_wb_ack3),
+        .wb_ack0_o(uart_wb_ack0),
+        .wb_ack1_o(uart_wb_ack1),
         .wb_we_i(uart_wb_we),
         .wb_adr_i(uart_wb_adr),
         .wb_dat_i({uart_wb_dat_o, uart_wb_dat_o}),
@@ -223,7 +223,7 @@ module uart_bridge_test #(
         .rst_i(system_reset),
         .cyc_i(uart_wb_cyc),
         .stb_i(uart_wb_stb),
-        .ack_i(uart_wb_ack),     // Подтверждение от ведомого
+        .ack_i(uart_wb_ack0),     // Подтверждение от ведомого
         .err_o(uart_wb_err)      // Сигнал ошибки
     );
     // ===========================================
@@ -252,8 +252,8 @@ module uart_bridge_test #(
         uart_wb_err,
         sdram_cas_n,
         sdram_ras_n,
-        uart_wb_ack3,
-        uart_wb_ack,       // Инициализация завершена
+        uart_wb_ack1,
+        uart_wb_ack0,       // Инициализация завершена
         uart_wb_stb,               // WB ACK
         uart_wb_cyc,              // WB STB
         clk_system

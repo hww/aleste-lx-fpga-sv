@@ -49,8 +49,8 @@ module sdram_wishbone #(
     parameter [4:0]   T_RC = 5'd6,     // 60ns, ref/active to ref/active
 
     // Burst mode settings
-    parameter [2:0] BURST_LEN = 3'b0,  // burst length 1
-    parameter BURST_MODE = 1'b0        // sequential
+    parameter [2:0] BURST_LEN = 3'd2,  // burst length 1
+    parameter BURST_MODE = 1'b1        // sequential
 )
 (
     // SDRAM Physical Interface
@@ -69,8 +69,8 @@ module sdram_wishbone #(
     input  logic                        wb_rst_i,
     input  logic                        wb_cyc_i, 
     input  logic                        wb_stb_i,
-    output logic                        wb_ack_o,
-    output logic                        wb_ack3_o,
+    output logic                        wb_ack0_o,   // first word
+    output logic                        wb_ack1_o,   // readin - last word, writing - completition
     input  logic                        wb_we_i,
     input  logic [WB_ADDR_WIDTH-1:0]    wb_adr_i,
     input  logic [WB_DATA_WIDTH-1:0]    wb_dat_i,
@@ -112,7 +112,9 @@ localparam CMD_NOP         = 3'b111;
 
 
 // ==== MODE REGISTER ДЛЯ IS42S16160B =====
-localparam [12:0] MODE_REG = {3'b000, 1'b0, 2'b00, CAS[2:0], BURST_MODE, BURST_LEN}; // 13-бит
+localparam BURST_WRITE_MODE_BURST = 1'b0;
+localparam BURST_WRITE_MODE_SINGLE_LOCATION = 1'b1;
+localparam [12:0] MODE_REG = {3'b000, BURST_WRITE_MODE_SINGLE_LOCATION, 2'b00, CAS[2:0], BURST_MODE, BURST_LEN}; // 13-бит
 
 // ========== ВНУТРЕННИЕ СИГНАЛЫ ==========
 logic cfg_now;
@@ -125,7 +127,7 @@ logic [SDRAM_DATA_WIDTH-1:0] dq_in;
 
 logic rd, wr;
 logic [FULL_WIDTH-1:0] addr;
-logic wb_ack, wb_ack1, wb_ack2;
+logic wb_ack0, wb_ack1;
 logic busy;  
 
 // ========== АДАПТАЦИЯ ИНТЕРФЕЙСА ==========
@@ -140,18 +142,16 @@ always @(posedge wb_clk_i) begin
         dq_oen <= 1'b0; // turn off DQ output
         SDRAM_DQM <= 2'b11;
         state <= INIT;
+        wb_ack0 <= 0;
         wb_ack1 <= 0;
-        wb_ack2 <= 0;
-        wb_ack <= 0;
         cycle <= 0;
         SDRAM_A <= 0;
         SDRAM_BA <= 0;
         {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_NOP;
     end else begin
         cycle <= (cycle == 5'd31) ? 5'd31 : cycle + 5'd1;
-        wb_ack2 <= wb_ack1;
-        wb_ack1 <= wb_ack;
-        
+        wb_ack0 <= 1'b0;
+        wb_ack1 <= 1'b0;   
         // Defaults from original
         {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_NOP; 
         
@@ -222,12 +222,21 @@ always @(posedge wb_clk_i) begin
                 SDRAM_DQM <= 2'b00;  // Все байты активны для чтения
             end
             {READ, T_RCD+CAS}: begin
-                wb_ack <= 1'b1;
-                wb_ack1 <= 1'b1;
-                wb_ack2 <= 1'b1;
+                wb_ack0 <= 1'b1;
             end
             {READ, T_RCD+CAS+5'd1}: begin
-                wb_ack <= 1'b0;
+                if (BURST_MODE) begin
+                    // Burst mode go to next word
+                    wb_ack0 <= 1'b0;
+                    wb_ack1 <= 1'b1;
+                end else begin
+                    // Standart mode go to IDLE
+                    wb_ack1 <= 1'b0;
+                    busy <= 1'b0;
+                    state <= IDLE;
+                end
+            end
+            {READ, T_RCD+CAS+5'd2}: begin
                 busy <= 1'b0;
                 state <= IDLE;
             end
@@ -252,12 +261,10 @@ always @(posedge wb_clk_i) begin
             end
             {WRITE, T_RCD+5'd1}: begin
                 dq_oen <= 1'b1;     // Keep outputs
-                wb_ack <= 1'b1;
-                wb_ack1 <= 1'b1;
-                wb_ack2 <= 1'b1;
+                wb_ack0 <= 1'b1;
             end
             {WRITE, T_RCD+T_WR+T_RP}: begin
-                wb_ack <= 1'b0;
+                wb_ack1 <= 1'b1;     // Tell completition
                 dq_oen <= 1'b0;      // Disable outputs
                 busy <= 1'b0;
                 state <= IDLE;
@@ -322,8 +329,8 @@ assign SDRAM_nCS = 1'b0;
 
 assign wb_dat_o = dq_in;
 assign wb_busy_o = busy;
-assign wb_ack_o = wb_ack;
-assign wb_ack3_o = wb_ack2;
+assign wb_ack0_o = wb_ack0;
+assign wb_ack1_o = wb_ack1;
 
 // ========== DEBUG SIGNALS ASSIGNMENT ==========
 

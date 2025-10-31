@@ -11,109 +11,121 @@
 `default_nettype none
 
 module video_buffer (
-    input wire clk_i,
-    input wire rst_i,
-    input wire pix_ena_i,
+    input   logic        clk_i,
+    input   logic        rst_i,
 
     // Memory interface
-    input wire [15:0] vmem_data_i,
-    input wire vmem_ack_i,
-    output wire vmem_req_o,
+    input   logic [15:0] vmem_data_i,
+    input   logic        vmem_ack0_i,
+    input   logic        vmem_ack1_i,
+    output  logic        vmem_req_o,
     
     // CRTC timing
-    input wire de_i,
-    input wire char_strobe_i,
-    input wire byte_strobe_i,
-    output wire char_strobe_o,
-    output wire byte_strobe_o,
-    output wire de_o,
-    output wire byte_select_o,
-    // To pixel_pipeline (КОМБИНАТОРНЫЙ выход!)
-    output wire [7:0] pixel_data_o,
-    output wire pixel_valid_o,
+    input   logic        stb_pixel_i,
+    input   logic        stb_char_i,
+    input   logic        stb_byte_i,
+    output  logic        stb_char_o,
+    output  logic        stb_byte_o,
+    input   logic        de_i,
+    output  logic        de_o,
 
-    // Config
-    input wire burst_mode_i
+    // To pixel_pipeline (КОМБИНАТОРНЫЙ выход!)
+    output  logic [7:0]  pixel_data_o,
+    output  logic        stb_pixel_o,
+
+    // Debugging
+    output  logic [1:0]  debug_byte_select_o
 );
 
 // Регистры состояния
-reg [15:0] input_buffer [0:1];
-reg [15:0] output_buffer [0:1];
+logic [15:0] input_buffer [0:1];
+logic [15:0] output_buffer [0:1];
 
-reg byte_select, word_select_wr, word_select_rd, need_data;
+// ==============================================
+// Inpyut data FSM
+// ==============================================
 
-always @(posedge clk_i or posedge rst_i) begin
-    if (rst_i) begin
-        byte_select <= 1'b0;
-        word_select_rd <= 1'b0;
-    end else begin
-        if (char_strobe_i && pix_ena_i) begin
-            byte_select <= 1'b0;
-            word_select_rd <= 1'b0;
-        end
-        else if (byte_strobe_i && pix_ena_i) begin
-            byte_select <= ~byte_select;
-            if (byte_select) begin
-                word_select_rd <= ~word_select_rd;
-            end
-        end
-    end
-end
+localparam VMEM_IDLE = 3'b000;
+localparam VMEM_READ_WORD_0 = 3'b001;
+localparam VMEM_READ_WORD_1 = 3'b010;
+
+logic [2:0] vmem_state = 0;
 
 always @(posedge clk_i or posedge rst_i) begin
     if (rst_i) begin
-        need_data <= 1'b0;
-        word_select_wr <= 1'b0;        
+        vmem_state <= '0;
+        vmem_req_o <= '0;
         input_buffer[0] <= 16'b0;
         input_buffer[1] <= 16'b0;
     end else begin
-        if (char_strobe_i && pix_ena_i) begin
-            word_select_wr <= 1'b0;
-            need_data <= 1'b1;
-        end else if (vmem_ack_i) begin
-            input_buffer[word_select_wr] <= vmem_data_i;
-            word_select_wr <= ~word_select_wr;
-            if (burst_mode_i) begin
-                if (word_select_wr) begin
-                    need_data <= '0;
-                end
-            end else begin
-                need_data <= 1'b0;
+        casez (vmem_state)
+        VMEM_IDLE: begin
+            if (stb_char_i && stb_pixel_i) begin
+                vmem_req_o <= 1'b1;
+                vmem_state <= VMEM_READ_WORD_0;
             end
         end
+
+        VMEM_READ_WORD_0: begin
+            if (vmem_ack0_i) begin
+                input_buffer[0] <= vmem_data_i;
+                vmem_state <= VMEM_READ_WORD_1;
+            end
+        end
+
+        VMEM_READ_WORD_1: begin
+            if (vmem_ack1_i) begin
+                input_buffer[1] <= vmem_data_i;
+                vmem_req_o <= '0;
+                vmem_state <= VMEM_IDLE;
+            end
+        end
+        endcase
     end
 end
 
-reg de = 0;
-reg char_strobe = 0;
-reg byte_strobe = 0;
+// ==============================================
+// Convert input logicister to the bytes stream
+// ==============================================
 
-always @(posedge clk_i or posedge rst_i) begin
+logic [1:0] byte_count = 0;
+
+always @(posedge clk_i) begin
     if (rst_i) begin
+        byte_count <= 2'b00;
         output_buffer[0] <= 0;
         output_buffer[1] <= 0;
-        de <= 1'b0;
-        char_strobe <= 1'b0;
-        byte_strobe <= 1'b0;        
-    end else if (pix_ena_i) begin
-        if (char_strobe_i) begin
+    end else if (stb_pixel_i) begin
+        if (stb_char_i) begin
+            byte_count <= 2'b00;
             output_buffer[0] <= input_buffer[0];
             output_buffer[1] <= input_buffer[1];
         end
-        de <= de_i;
-        char_strobe <= char_strobe_i;
-        byte_strobe <= byte_strobe_i;    
+        else if (stb_byte_i) begin
+            byte_count <= byte_count + 2'b01;
+        end
     end
 end
-assign de_o = de;
-assign char_strobe_o = char_strobe;
-assign byte_strobe_o = byte_strobe;
-assign byte_select_o = byte_select;
 
-// КОМБИНАТОРНЫЙ ВЫХОД - данные готовы сразу!
-assign pixel_data_o = byte_select ? output_buffer[word_select_rd][15:8] : output_buffer[word_select_rd][7:0];
-assign pixel_valid_o = byte_strobe_i;
+// Delay the sygnals 1 pixel
+always @(posedge clk_i) begin
+    if (rst_i) begin
+        de_o <= 1'b0;
+        stb_char_o <= 1'b0;
+        stb_byte_o <= 1'b0;        
+    end else if (stb_pixel_i) begin
+        de_o <= de_i;       
+        stb_char_o <= stb_char_i;
+        stb_byte_o <= stb_byte_i;    
+    end
+end
 
-assign vmem_req_o = need_data; 
+// Video interface
+assign pixel_data_o = byte_count[0] ? output_buffer[byte_count[1]][15:8] : output_buffer[byte_count[1]][7:0];
+assign stb_pixel_o = stb_byte_i;
+
+
+// debugging
+assign debug_byte_select_o = byte_count;
 
 endmodule

@@ -117,7 +117,7 @@ module aleste_video #(
     logic [23:0] mem2sdram_addr;
     logic [15:0] mem2sdram_data_out;
     logic [15:0] mem2sdram_data_in; 
-    logic mem2sdram_we, mem2sdram_req, mem2sdram_ack, mem2sdram_ack3, mem2sdram_grant;
+    logic mem2sdram_we, mem2sdram_req, mem2sdram_ack0, mem2sdram_ack1, mem2sdram_grant;
     logic mem2sdram_burst;
     logic [2:0] mem2sdram_burst_len;
     logic [1:0] mem2sdram_sel;
@@ -131,9 +131,10 @@ module aleste_video #(
     logic [15:0] vbuf_data;
     logic [7:0] vbuf_data_o;
     logic vbuf_data_valid;
-    logic vbuf_req, vbuf_ack;
+    logic vbuf_req, vbuf_ack0, vbuf_ack1;
     logic vbuf_burst_request;
-    logic vbuf_de, vbuf_char_strobe, vbuf_byte_strobe, vbuf_byte_select;
+    logic vbuf_de, vbuf_char_strobe, vbuf_byte_strobe;
+    logic [1:0] vbuf_byte_select;
 
     // Color Palette Signals
     logic [11:0] pixel_color;
@@ -210,7 +211,8 @@ module aleste_video #(
     logic [7:0] uart2dbg_dat_in, uart2dbg_dat_out;
     logic [1:0] uart2dbg_sel;
     logic debug_uart_bus_stb, debug_uart_bus_ack;
-    logic [3:0] debug_uart_cmd_state, debug_uart_bus_state;
+    logic [3:0] debug_uart_cmd_state;
+    logic [1:0] debug_uart_bus_state;
 
     uart_bridge #(
         .CLK_FREQ(CLK_FREQ_SYSTEM),
@@ -420,7 +422,8 @@ module aleste_video #(
         .video_burst_i(crtc2mem_burst_mode),
         .video_req_i(vbuf_req),
         .video_data_o(vbuf_data),
-        .video_ack_o(vbuf_ack),
+        .video_ack0_o(vbuf_ack0),
+        .video_ack1_o(vbuf_ack1),
 
         // System WB Interface (from internal arbiter)
         .wb_cyc_i(system2mem_cyc),
@@ -439,7 +442,8 @@ module aleste_video #(
         .gpu_we_i('0),
         .gpu_dat_i('0),
         .gpu_dat_o(),
-        .gpu_ack_o(),
+        .gpu_ack0_o(),
+        .gpu_ack1_o(),
         .gpu_sel_i('0),
 
         // SDRAM Interface
@@ -448,8 +452,8 @@ module aleste_video #(
         .sdram_data_i(mem2sdram_data_in),
         .sdram_we_o(mem2sdram_we),
         .sdram_req_o(mem2sdram_req),
-        .sdram_ack_i(mem2sdram_ack),
-        .sdram_ack3_i(mem2sdram_ack3),
+        .sdram_ack0_i(mem2sdram_ack0),
+        .sdram_ack1_i(mem2sdram_ack1),
         .sdram_sel_o(mem2sdram_sel),
 
         .debug_state_o(debug_mem_arbiter_state),
@@ -481,8 +485,8 @@ module aleste_video #(
         // SDRAM wishbon interface
         .wb_cyc_i(mem2sdram_req),
         .wb_stb_i(mem2sdram_req),
-        .wb_ack_o(mem2sdram_ack),
-        .wb_ack3_o(mem2sdram_ack3),
+        .wb_ack0_o(mem2sdram_ack0),
+        .wb_ack1_o(mem2sdram_ack1),
         .wb_we_i(mem2sdram_we),
         .wb_adr_i(mem2sdram_addr),
         .wb_dat_i(mem2sdram_data_out),
@@ -530,28 +534,27 @@ module aleste_video #(
     video_buffer vbuf (
         .clk_i(clk_system),
         .rst_i(system_reset),
-        .pix_ena_i(clk_pixel),
                 
-        // CRTC config signals
-        .burst_mode_i(crtc2mem_burst_mode),
-
         // CRTC timing signals
+        .stb_pixel_i(clk_pixel),
+        .stb_char_i(crtc_char_strobe),
+        .stb_byte_i(crtc_byte_strobe),
+        .stb_char_o(vbuf_char_strobe),
+        .stb_byte_o(vbuf_byte_strobe),
         .de_i(crtc_de),
         .de_o(vbuf_de),
-        .char_strobe_i(crtc_char_strobe),
-        .byte_strobe_i(crtc_byte_strobe),
-        .char_strobe_o(vbuf_char_strobe),
-        .byte_strobe_o(vbuf_byte_strobe),
-        .byte_select_o(vbuf_byte_select),
 
         // Memory interface (16/32-bit burst)
         .vmem_data_i(vbuf_data),
-        .vmem_ack_i(vbuf_ack),
+        .vmem_ack0_i(vbuf_ack0),
+        .vmem_ack1_i(vbuf_ack1),
         .vmem_req_o(vbuf_req),
 
         // To pixel_pipeline (8-bit)
         .pixel_data_o(vbuf_data_o),
-        .pixel_valid_o(vbuf_data_valid)
+        .stb_pixel_o(vbuf_data_valid),
+
+        .debug_byte_select_o(vbuf_byte_select)
     );
 
     // ===========================================
@@ -696,7 +699,7 @@ module aleste_video #(
     // ============================================================================
 
     wb_wdt_simple #(
-        .TIMEOUT_CYCLES(16)  // Таймаут в тактах
+        .TIMEOUT_CYCLES(32)  // Таймаут в тактах
     ) wb_wdt (
         // Wishbone интерфейс
         .clk_i(clk_system),
@@ -715,7 +718,7 @@ module aleste_video #(
     assign debug_leds = {
         debug_sdram_ready,      
         debug_sdram_init_complete, 
-        uart_rx_ready         
+        uart2ext_err
     };
 
     // ===========================================
@@ -733,30 +736,35 @@ module aleste_video #(
     };
     */
     // Memory Arbitter
+  
     assign debug = {
-        vbuf_ack,
-        vbuf_req,          
-        debug_mem_video_active,           
-        debug_mem_wb_active,             
-        mem2sdram_ack3,             
-        mem2sdram_ack,          
+        system2mem_ack,
+        system2mem_stb,
+        //vbuf_ack1,
+        //vbuf_ack0,
+        //vbuf_req,
+        mem2sdram_ack1,          
+        mem2sdram_ack0,          
         mem2sdram_req,              
-        clk_bus
+        debug_mem_video_active,           
+        debug_mem_wb_active             
     };
-
+  /*
+    assign debug = {
+        system2mem_dat_out[0],
+        system2mem_ack,
+        system2mem_stb,           
+        system2mem_cyc, 
+        mem2sdram_data_out[0],            
+        mem2sdram_ack1,             
+        mem2sdram_ack0,          
+        mem2sdram_req              
+    };
+    */
     // ===========================================
     // Отладка
     // ===========================================
-    logic serial_debug_pin;
-
-    debug_shift_reg #(.WIDTH(16)) addr_debug (
-        .rst(system_reset),
-        .clk(clk_system),
-        .ce(clk_pixel),                    // Всегда включен
-        .we(crtc_char_strobe),           // Захватываем при новом пикселе
-        .data_in(crtc2mem_addr),         // Младшие 16 бит адреса
-        .data_out(serial_debug_pin)      // На осциллограф
-    );
+   
 
     //assign debug = vbuf_data_o;
 
