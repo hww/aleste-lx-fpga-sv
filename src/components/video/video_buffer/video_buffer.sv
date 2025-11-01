@@ -21,7 +21,6 @@ module video_buffer (
     output  logic        vmem_req_o,
     
     // CRTC timing
-    input   logic        stb_pixel_i,
     input   logic        stb_char_i,
     input   logic        stb_byte_i,
     output  logic        stb_char_o,
@@ -60,7 +59,7 @@ always @(posedge clk_i or posedge rst_i) begin
     end else begin
         casez (vmem_state)
         VMEM_IDLE: begin
-            if (stb_char_i && stb_pixel_i) begin
+            if (stb_char_i) begin
                 vmem_req_o <= 1'b1;
                 vmem_state <= VMEM_READ_WORD_0;
             end
@@ -95,7 +94,7 @@ always @(posedge clk_i) begin
         byte_count <= 2'b00;
         output_buffer[0] <= 0;
         output_buffer[1] <= 0;
-    end else if (stb_pixel_i) begin
+    end else begin
         if (stb_char_i) begin
             byte_count <= 2'b00;
             output_buffer[0] <= input_buffer[0];
@@ -113,7 +112,7 @@ always @(posedge clk_i) begin
         de_o <= 1'b0;
         stb_char_o <= 1'b0;
         stb_byte_o <= 1'b0;        
-    end else if (stb_pixel_i) begin
+    end else begin
         de_o <= de_i;       
         stb_char_o <= stb_char_i;
         stb_byte_o <= stb_byte_i;    

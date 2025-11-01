@@ -12,16 +12,15 @@
 module pixel_pipeline (
     // Clock
     input wire          rst_i,
-    input wire          clk_i,
-    input wire          clke_i,        
+    input wire          clk_i,                // 54Mhz
     
     // Timing from CRT
-    input wire          stb_char_i,
-    input wire          stb_pixel_i,     
+    input wire          stb_char_i,           // Every CRTC character 
+    input wire          stb_pixel_i,          // Every CRTC pixel 27Mhz or 27Mhz/2, 27Mhz/4 
     
     // Data input
-    input wire          vmem_stb_i,    
-    input wire [7:0]    vmem_data_i,
+    input wire          video_stb_i,          // The data strobe
+    input wire [7:0]    video_data_i,         // The video data
     
     // Configuration
     input wire [1:0]    cfg_bpp_mode_i,
@@ -50,12 +49,12 @@ always @(posedge clk_i) begin
         shift_reg <= 8'b0;
         pixel_index_latch <= 8'b0;
 
-    end else if (clke_i) begin
+    end else begin
         // Защёлкиваем режимы ТОЛЬКО при загрузке нового байта
-        if (vmem_stb_i) begin
+        if (video_stb_i) begin
             bpp_mode_latched <= cfg_bpp_mode_i;
             continuous_mode_latched <= cfg_continuous_mode_i;
-            shift_reg <= vmem_data_i;
+            shift_reg <= video_data_i;
         end else begin
             if (stb_pixel_i) begin
                 // DE имеет приоритет - если не active (de_ff=0), выдаём border
@@ -117,7 +116,7 @@ end
 always @(posedge clk_i) begin
     if (rst_i) begin
         de_ff2 <= 1'b1; // По умолчанию display enabled
-    end else if (clke_i) begin
+    end else begin
         // DE защёлкивается ВСЕГДА (не зависит от загрузки байта)
         de_ff2 <= de_ff1;
     end

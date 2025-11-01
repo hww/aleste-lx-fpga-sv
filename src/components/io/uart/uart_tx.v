@@ -27,14 +27,13 @@ module uart_tx #(
 )(
 	input rst,
 	input clk,
-	input clke,
 	input tx_start,
 	input [7:0] tx_data,
 	output tx,
 	output tx_busy,
 	output bit_tick);
 
-baud_tick_gen #(.CLK_FREQ(CLK_FREQ), .BUS_FREQ(BUS_FREQ), .BAUD_RATE(BAUD_RATE)) tickgen(.rst(rst), .clk(clk), .clke(clke),  .enable(tx_busy), .tick(bit_tick));
+baud_tick_gen #(.CLK_FREQ(CLK_FREQ), .BUS_FREQ(BUS_FREQ), .BAUD_RATE(BAUD_RATE)) tickgen(.rst(rst), .clk(clk), .enable(tx_busy), .tick(bit_tick));
 
 localparam
 	IDLE      = 4'b0000, // tx = high
@@ -59,7 +58,7 @@ always @(posedge clk) begin
 	if (rst) begin
 		tx_shift <= 0;
 		tx_state <= 0;
-	end else if (clke) begin
+	end else begin
 		if (tx_ready & tx_start) begin
 			tx_shift <= tx_data;
 		end else if (tx_state[3] & bit_tick) begin

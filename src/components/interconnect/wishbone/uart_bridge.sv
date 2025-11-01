@@ -10,7 +10,7 @@ module uart_bridge #(
     parameter OVERSAMPLING = 16 // 8 does not work
 ) (
     input  logic                       clk_i,
-    input  logic                       clke_i,
+  
     input  logic                       rst,
     // UART Interface
     input  logic                       uart_rx,
@@ -96,7 +96,6 @@ uart #(
     // clocks
     .rst_i(rst),
     .clk_i(clk_i),
-    .clke_i(clke_i),
     
     // transmitter
     .tx_data_i(uart_tx_data),
@@ -172,7 +171,7 @@ always_ff @(posedge clk_i) begin
     if (rst) begin
         wdt_trigger <= '0;
         wdt_counter <= 0;
-    end else if (clke_i) begin
+    end else begin
         if (timeout_start_stb) begin
             wdt_trigger <= '0;
             wdt_counter <= TIMEOUT_UART_TX;
@@ -238,7 +237,7 @@ always_ff @(posedge clk_i) begin
         state_errors_reset_stb <= '0;
         timeout_active <= '0;
 
-    end else if (clke_i) begin
+    end else begin
         uart_rx_ack <= '0;
         uart_tx_start <= '0;
         timeout_start_stb <= '0;
@@ -452,7 +451,7 @@ always_ff @(posedge clk_i) begin
         state_reg_fsms <= '0;
         state_reg_bus_ctrl <= '0;
         state_reg_command <= '0;
-    end else if (clke_i) begin
+    end else begin
         if (state_errors_reset_stb) begin
             state_reg_errors <= 8'b0000_0000;
             state_reg_fsms <= '0;
@@ -505,7 +504,7 @@ always_ff @(posedge clk_i) begin
         
         bus_rd_data <= '0;
 
-    end else if (clke_i) begin
+    end else begin
         // Значения по умолчанию (только то что МОЖЕТ меняться)
         bus_error_stb <= 1'b0;
         

@@ -8,7 +8,6 @@ module uart #(
 )(
     input wire rst_i,
     input wire clk_i,
-    input wire clke_i,
     
     // transmitter
     input wire [7:0] tx_data_i,
@@ -38,7 +37,6 @@ uart_tx #(
 ) uart_tx_inst (
     .rst(rst_i),
     .clk(clk_i),
-    .clke(clke_i),
     .tx_start(tx_wr_i),     // Твой tx_wr_i -> их tx_start
     .tx_data(tx_data_i),    // Прямое подключение
     .tx(tx_o),              // Выход
@@ -58,7 +56,6 @@ uart_rx #(
 ) uart_rx_inst (
     .rst(rst_i),
     .clk(clk_i),
-    .clke(clke_i),
     .rx(rx_i),
     .rx_ready(rx_ready_o),  // Их rx_ready -> наш rx_ready_o
     .rx_data(rx_data_o),    // Прямое подключение

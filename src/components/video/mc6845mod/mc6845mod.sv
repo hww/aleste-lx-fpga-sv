@@ -26,7 +26,6 @@ module mc6845mod #(
 )(
     // Wishbone Slave Interface
     input logic wb_clk_i,
-    input logic wb_clke_i,
     input logic wb_rst_i,
     input logic wb_cyc_i,
     input logic wb_stb_i, 
@@ -41,7 +40,6 @@ module mc6845mod #(
 
     // Pixel Clock Domain  
     input logic pix_clk_i,
-    input logic pix_clke_i,
 
     // Video Outputs HDMI domain
     input logic hdmi_newline_i,
@@ -242,7 +240,7 @@ always_ff @(posedge wb_clk_i) begin
         end
         
 
-    end else if (wb_clke_i) begin
+    end else begin
         // Default assignments
         wb_ack <= 1'b0;
         wb_data_out <= 8'b0;
@@ -366,9 +364,7 @@ logic hdmi_extra_row = 0;
 logic hdmi_de = 0;
 
 always_ff @(posedge pix_clk_i) begin
-    if (pix_clke_i) begin
-        hdmi_de <= (hdmi_x_i < HDMI_H_VISIBLE) && (hdmi_y_i < HDMI_V_VISIBLE);
-    end
+    hdmi_de <= (hdmi_x_i < HDMI_H_VISIBLE) && (hdmi_y_i < HDMI_V_VISIBLE);
 end
 
 // ============================================================================
@@ -391,11 +387,9 @@ logic start_v_trigger = 0;
 
 // Определяем моменты старта
 always_ff @(posedge pix_clk_i) begin
-    if (pix_clke_i) begin
-        // только в четной строке
-        start_h_trigger <= start_h_trigger_comb; 
-        start_v_trigger <= (hdmi_y_i[V_PIX_COUNTER_WIDTH-1:1] == start_v_line[V_PIX_COUNTER_WIDTH-1:1]) && start_h_trigger_comb;
-    end
+    // только в четной строке
+    start_h_trigger <= start_h_trigger_comb; 
+    start_v_trigger <= (hdmi_y_i[V_PIX_COUNTER_WIDTH-1:1] == start_v_line[V_PIX_COUNTER_WIDTH-1:1]) && start_h_trigger_comb;
 end
 
 // ============================================================================
@@ -412,7 +406,7 @@ always_ff @(posedge pix_clk_i) begin
         crtc_pix_x <= 0;
     end else if (start_h_trigger) begin
         crtc_pix_x <= 0;
-    end else if (pix_clke_i) begin
+    end else begin
         crtc_pix_x <= crtc_pix_x + 1;
     end
 end
@@ -423,7 +417,7 @@ always_ff @(posedge pix_clk_i) begin
         crtc_pix_y <= 0;
     end else if (start_v_trigger) begin
         crtc_pix_y <= 0;
-    end else if (start_h_trigger && pix_clke_i) begin
+    end else if (start_h_trigger) begin
         if (crtc_pix_y == reg_max_scan) begin
             crtc_pix_y <= 0;
         end else begin
@@ -520,7 +514,7 @@ always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i) begin
         crtc_h_count <= 0;
         crtc_halt_line <= 0;
-    end else if (pix_clke_i) begin
+    end else begin
         if (start_h_trigger) begin
             crtc_h_count <= 0;
             crtc_halt_line <= 0;
@@ -539,7 +533,7 @@ always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i) begin
         crtc_v_count <= 0;
         crtc_halt_frame <= 0;
-    end else if (pix_clke_i) begin
+    end else begin
         if (start_v_trigger) begin
             crtc_v_count <= 0;
             crtc_halt_frame <= 0;
@@ -573,7 +567,7 @@ always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i || start_v_trigger) begin
         crtc_ma_addr <= {reg_start_addr_h, reg_start_addr_l};
         crtc_row_start_addr <= {reg_start_addr_h, reg_start_addr_l};
-    end else if (pix_clke_i && char_strobe) begin
+    end else if (char_strobe) begin
         // Traditional CRTC address sequencing
         if (crtc_end_of_line) begin
             crtc_ma_addr <= crtc_row_start_addr;
@@ -594,7 +588,7 @@ logic [15:0] linear_addr = 0;
 always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i || start_v_trigger) begin
         linear_addr <= {reg_start_addr_h, reg_start_addr_l}; // ×4 for byte address
-    end else if (pix_clke_i && char_strobe && linear_mode) begin
+    end else if (char_strobe && linear_mode) begin
         // Linear addressing: +2 bytes normal, +4 bytes burst
         linear_addr <= linear_addr + (crtc_burst_mode_o ? 16'd4 : 16'd2);
     end
@@ -637,7 +631,7 @@ assign crtc_cursor_ma_active = crtc_ma_addr == crtc_cursor_ma_addr;
 always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i || start_v_trigger) begin
         crtc_cursor_ra_active <= 0;
-    end else if (pix_clke_i && char_strobe) begin
+    end else if (char_strobe) begin
         if (crtc_pix_y == reg_cursor_start) begin
             crtc_cursor_ra_active <= 1;
         end else if (crtc_pix_y == reg_cursor_end) begin
@@ -650,7 +644,7 @@ end
 always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i) begin
         crtc_cursor_blinking <= 0;
-    end else if (pix_clke_i) begin
+    end else begin
         case (reg_cursor_mode)
             2'b00: crtc_cursor_blinking <= 1;
             2'b01: crtc_cursor_blinking <= hdmi_y_i[5];
@@ -676,7 +670,7 @@ logic crtc_cursor_raw;
 assign crtc_cursor_raw = crtc_cursor_ma_active && crtc_cursor_ra_active && crtc_cursor_blinking && crtc_de;
 
 always_ff @(posedge pix_clk_i) begin
-    if (pix_clke_i && char_strobe) begin
+    if (char_strobe) begin
         de_delayed_1 <= crtc_de;
         de_delayed_2 <= de_delayed_1;
         cursor_delayed_1 <= crtc_cursor_raw;

@@ -72,25 +72,18 @@ module aleste_video #(
     logic clk_27m, clk_270m, clk_54m, clk_108m;
     logic pll_locked;
     logic system_reset;
-    logic clk_pixel, clk_bus, clk_system;
+    logic clk_pixel, clk_pixel_x2, clk_bus, clk_system;
 
     video_pll vid_pll(
         .rst(1'b0),
         .clkin_25M(clk_25mhz),
         .clk_270M(clk_270m),
-        .clk_54M(), 
-        .clk_27M(),
+        .clk_54M(clk_54m), 
+        .clk_27M(clk_27m),
         .clk_108M(clk_108m),
         .locked(pll_locked)
     );
 
-    system_clock system_clk(
-        .clk_108(clk_108m),      // Входной такт 108 MHz от PLL
-        .rst(!pll_locked),       // Сброс (active low)
-        .ce_54(clk_54m),         // Строб 54 MHz (регистровый!)
-        .ce_27_phase0(clk_27m),  // Строб 27 MHz фаза 0 (совпадает с ce_54)
-        .ce_27_phase2()          // Строб 27 MHz фаза 2 (сдвиг на 180°)
-    );
 
     localparam CLK_FREQ_SYSTEM = 108_000_000;
     localparam CLK_FREQ_BUS = 54_000_000;
@@ -99,6 +92,7 @@ module aleste_video #(
     assign clk_system = clk_108m;
     assign clk_bus = clk_54m;
     assign clk_pixel = clk_27m;
+    assign clk_pixel_x2 = clk_54m;
 
     // Системный сброс
     reset_controller reset_inst(
@@ -224,8 +218,7 @@ module aleste_video #(
 
         .OVERSAMPLING(16) // 8 does not work        
     ) uart_bridge_inst (
-        .clk_i(clk_system),
-        .clke_i(clk_bus),
+        .clk_i(clk_bus),
         .rst(system_reset),
         
         // UART Interface
@@ -290,9 +283,7 @@ module aleste_video #(
     // ===========================================
 
     system_arbiter sys_arbiter (
-        .clk(clk_system),
-        .clke(clk_bus),
-
+        .clk(clk_bus),
         .rst(system_reset),
         
         // External WB Interface (от UART Bridge)
@@ -353,8 +344,7 @@ module aleste_video #(
     ) crtc (
         // Wishbone
         .wb_rst_i(system_reset),
-        .wb_clk_i(clk_system),
-        .wb_clke_i(clk_bus),
+        .wb_clk_i(clk_bus),
 
         // Wishbone interface
         .wb_cyc_i(system2crtc_cyc),
@@ -369,8 +359,7 @@ module aleste_video #(
         .legacy_mode_i(global_legacy_mode),
 
         // Pixel Clock Domain  
-        .pix_clk_i(clk_system),
-        .pix_clke_i(clk_pixel),
+        .pix_clk_i(clk_pixel),
 
         // Video Outputs
         .crtc_de_o(crtc_de),
@@ -536,7 +525,6 @@ module aleste_video #(
         .rst_i(system_reset),
                 
         // CRTC timing signals
-        .stb_pixel_i(clk_pixel),
         .stb_char_i(crtc_char_strobe),
         .stb_byte_i(crtc_byte_strobe),
         .stb_char_o(vbuf_char_strobe),
@@ -562,12 +550,11 @@ module aleste_video #(
     // ===========================================
     pixel_pipeline ppu(
         .rst_i(system_reset),
-        .clk_i(clk_system),     // Hi frequency aka 108MHz
-        .clke_i(clk_pixel),  // Max pixel frequency 27MHz
+        .clk_i(clk_pixel),     
         
         // Memory interface
-        .vmem_stb_i(vbuf_byte_strobe),
-        .vmem_data_i(vbuf_data_o),
+        .video_stb_i(vbuf_byte_strobe),
+        .video_data_i(vbuf_data_o),
 
         // Configuration
         .cfg_bpp_mode_i(crtc_bpp_mode),
@@ -589,8 +576,7 @@ module aleste_video #(
     
     color_palette pal(
         .wb_rst_i(system_reset),
-        .wb_clk_i(clk_system),
-        .wb_clke_i(clk_bus),
+        .wb_clk_i(clk_bus),
 
         // Whishbone interface
         .wb_adr_i(system2palette_adr),
@@ -607,8 +593,7 @@ module aleste_video #(
         .cfg_legacy_mode_i(global_legacy_mode),
         
         // Pixel interface
-        .pixel_clk_i(clk_system),
-        .pixel_ena_i(clk_pixel),
+        .pixel_clk_i(clk_pixel),
         .pixel_index_i(ppu2pal_color_index),
         .pixel_de_i(ppu2pal_de),
         .pixel_color_o(pixel_color)
@@ -629,8 +614,7 @@ module aleste_video #(
     ) scaler_inst (
         // Source domain (CRTC - 54MHz)
         .src_rst_i(system_reset),
-        .src_clk_i(clk_system),
-        .src_clke_i(clk_pixel),
+        .src_clk_i(clk_pixel),
         .src_pixel_data_i(scaler_pixel_i), 
         .src_newline_i(crtc_newline),
         .src_newframe_i(crtc_newframe),
@@ -638,8 +622,7 @@ module aleste_video #(
         .src_de_i(hdmi_de),
         
         // Destination domain (HDMI - 27MHz)  
-        .dst_clk_i(clk_system),
-        .dst_clke_i(clk_pixel),
+        .dst_clk_i(clk_pixel),
         .dst_rst_i(system_reset),
         .dst_newline_i(hdmi_newline),
         .dst_newframe_i(hdmi_newframe),
@@ -670,7 +653,7 @@ module aleste_video #(
         .V_BACK_PORCH(HDMI_V_BACK_PORCH)
     ) hdmi (
         .i_tmdsclk(clk_270m),
-        .i_pixclk(clk_27m),
+        .i_pixclk(clk_pixel),
         .i_reset(system_reset),
         .i_red(hdmi_pixel_data[23:16]),
         .i_grn(hdmi_pixel_data[15:8]),
@@ -702,8 +685,7 @@ module aleste_video #(
         .TIMEOUT_CYCLES(32)  // Таймаут в тактах
     ) wb_wdt (
         // Wishbone интерфейс
-        .clk_i(clk_system),
-        .clke_i(clk_bus),
+        .clk_i(clk_bus),
         .rst_i(system_reset),
         .cyc_i(uart2ext_cyc),
         .stb_i(uart2ext_stb),
@@ -735,8 +717,18 @@ module aleste_video #(
         uart2ext_cyc             
     };
     */
+    // Pixel Process unit
+    assign debug = {
+        '0,
+        vbuf_data_o[0],
+        vbuf_byte_strobe,
+        ppu2pal_color_index[0],
+        crtc_pixel_strobe,
+        crtc_pixel_strobe,
+        clk_pixel
+    };
+    /*
     // Memory Arbitter
-  
     assign debug = {
         system2mem_ack,
         system2mem_stb,
@@ -749,6 +741,7 @@ module aleste_video #(
         debug_mem_video_active,           
         debug_mem_wb_active             
     };
+    */
   /*
     assign debug = {
         system2mem_dat_out[0],

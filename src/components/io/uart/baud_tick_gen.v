@@ -31,7 +31,6 @@ module baud_tick_gen #(
 )(
 	input rst,
 	input clk, 
-	input clke,
 	input enable,
 	output tick
 );
@@ -48,7 +47,7 @@ reg [acc_width:0] acc = 0;
 always @(posedge clk) begin
     if (rst) begin
         acc <= 0;
-	end else if (clke) begin
+	end else begin
 		if (enable) begin
         	acc <= acc[acc_width-1:0] + inc[acc_width:0];
 		end else begin

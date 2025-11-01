@@ -25,7 +25,6 @@ module color_palette (
     
     // Pixel pipeline interface
     input  logic            pixel_clk_i,
-    input  logic            pixel_ena_i,
     input  logic [7:0]      pixel_index_i,  // от пиксель-генератора
     input  logic            pixel_de_i,     // флаг бордюра от пиксель-генератора
     output logic [11:0]     pixel_color_o   // к скандаблеру (12-bit R4G4B4)
@@ -258,7 +257,7 @@ assign wb_dat_o = wb_dat_out;
 always_ff @(posedge pixel_clk_i) begin
     if (wb_rst_i) begin    
         pixel_color_o <= 0;
-    end if (pixel_ena_i) begin
+    end begin
         if (pixel_de_i) begin
             // ОСНОВНОЕ ИЗОБРАЖЕНИЕ: читаем из палитры с модификатором
             pixel_color_o <= palette_ram[modified_pixel_index];

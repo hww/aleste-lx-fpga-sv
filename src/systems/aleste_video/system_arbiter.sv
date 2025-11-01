@@ -3,7 +3,6 @@
 
 module system_arbiter (
     input logic         clk, 
-    input logic         clke, 
     input logic         rst,
     
     // ==========================================

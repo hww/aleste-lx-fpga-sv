@@ -4,7 +4,6 @@ module wb_wdt_simple #(
     parameter TIMEOUT_CYCLES = 8
 )(
     input  logic clk_i,
-    input  logic clke_i,
     input  logic rst_i,
     input  logic stb_i,
     input  logic cyc_i, 
@@ -20,7 +19,7 @@ module wb_wdt_simple #(
             wdt_active <= 1'b1;
             timeout_counter <= '0;
             err_o <= 1'b0;
-        end else if (clke_i) begin
+        end else begin
             // По умолчанию нет ошибки
             err_o <= 1'b0;
             

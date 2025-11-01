@@ -15,7 +15,6 @@ module hdmi_scaler #(
 )(
     // Тактирование и сброс входного домена
     input  logic src_clk_i,             // HF 54 или 108 MHz
-    input  logic src_clke_i,            // 27MHz строб пикселов идет непрерывно
     input  logic src_rst_i,             
     
     // Входной видеоинтерфейс от 6845
@@ -27,7 +26,6 @@ module hdmi_scaler #(
 
     // Тактирование и сброс выходного домена
     input  logic dst_clk_i,             // Высокая частота например 108МГц
-    input  logic dst_clke_i,            // Частота шины например 54МГц
     input  logic dst_rst_i,
     
     // Выходной видеоинтерфейс к HDMI
@@ -54,7 +52,7 @@ module hdmi_scaler #(
             src_buf_addr <= '0;
             src_buf_sel <= 1'b0;
             src_line_valid <= 1'b0;
-        end else if (src_clke_i) begin
+        end else begin
             if (src_newframe_i) begin
                 src_buf_addr <= '0;
                 src_buf_sel <= 1'b0;
@@ -86,7 +84,7 @@ module hdmi_scaler #(
             dst_buf_sel <= 1'b0;
             dst_line_repeat <= 1'b0;
             dst_line_counter <= '0;
-        end else if (dst_clke_i) begin
+        end else begin
             if (dst_rd_i) begin
                 if (dst_newframe_i) begin
                     dst_buf_addr <= '0;
@@ -126,14 +124,12 @@ module hdmi_scaler #(
         .DATA_LENGTH(SRC_H_VISIBLE)
     ) line_buffer_0 (
         .src_clk_i(src_clk_i),
-        .src_clke_i(src_clke_i),
         .src_rst_i(src_rst_i),
         .src_wr_en_i(!src_buffer_o),
         .src_wr_addr_i(src_buf_addr),
         .src_wr_data_i(src_pixel_data_i),
         
         .dst_clk_i(dst_clk_i),
-        .dst_clke_i(src_clke_i),
         .dst_rst_i(dst_rst_i),
         .dst_rd_en_i(!dst_buffer_o),
         .dst_rd_addr_i(dst_buf_addr),
@@ -146,14 +142,12 @@ module hdmi_scaler #(
         .DATA_LENGTH(SRC_H_VISIBLE)
     ) line_buffer_1 (
         .src_clk_i(src_clk_i),
-        .src_clke_i(src_clke_i),
         .src_rst_i(src_rst_i),
         .src_wr_en_i(src_buffer_o),
         .src_wr_addr_i(src_buf_addr),
         .src_wr_data_i(src_pixel_data_i),
         
         .dst_clk_i(dst_clk_i),
-        .dst_clke_i(src_clke_i),
         .dst_rst_i(dst_rst_i),
         .dst_rd_en_i(dst_buffer_o),
         .dst_rd_addr_i(dst_buf_addr),
