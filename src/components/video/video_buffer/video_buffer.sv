@@ -11,7 +11,7 @@
 `default_nettype none
 
 module video_buffer (
-    input   logic        clk_i,
+    input   logic        vmem_clk_i,
     input   logic        rst_i,
 
     // Memory interface
@@ -21,16 +21,14 @@ module video_buffer (
     output  logic        vmem_req_o,
     
     // CRTC timing
+    input   logic        pixel_clk_i,
     input   logic        stb_char_i,
     input   logic        stb_byte_i,
     output  logic        stb_char_o,
     output  logic        stb_byte_o,
     input   logic        de_i,
     output  logic        de_o,
-
-    // To pixel_pipeline (КОМБИНАТОРНЫЙ выход!)
-    output  logic [7:0]  pixel_data_o,
-    output  logic        stb_pixel_o,
+    output  logic [7:0]  data_o,
 
     // Debugging
     output  logic [1:0]  debug_byte_select_o
@@ -50,7 +48,7 @@ localparam VMEM_READ_WORD_1 = 3'b010;
 
 logic [2:0] vmem_state = 0;
 
-always @(posedge clk_i or posedge rst_i) begin
+always @(posedge vmem_clk_i) begin
     if (rst_i) begin
         vmem_state <= '0;
         vmem_req_o <= '0;
@@ -89,7 +87,7 @@ end
 
 logic [1:0] byte_count = 0;
 
-always @(posedge clk_i) begin
+always @(posedge pixel_clk_i) begin
     if (rst_i) begin
         byte_count <= 2'b00;
         output_buffer[0] <= 0;
@@ -107,7 +105,7 @@ always @(posedge clk_i) begin
 end
 
 // Delay the sygnals 1 pixel
-always @(posedge clk_i) begin
+always @(posedge pixel_clk_i) begin
     if (rst_i) begin
         de_o <= 1'b0;
         stb_char_o <= 1'b0;
@@ -120,8 +118,7 @@ always @(posedge clk_i) begin
 end
 
 // Video interface
-assign pixel_data_o = byte_count[0] ? output_buffer[byte_count[1]][15:8] : output_buffer[byte_count[1]][7:0];
-assign stb_pixel_o = stb_byte_i;
+assign data_o = byte_count[0] ? output_buffer[byte_count[1]][15:8] : output_buffer[byte_count[1]][7:0];
 
 
 // debugging

@@ -55,10 +55,10 @@ module mc6845mod #(
     output logic crtc_cursor_o,
     output logic crtc_newline_o,
     output logic crtc_newframe_o,
-    output logic char_strobe_o,                 // End of character 1/16 of 27Mhz
-    output logic word_strobe_o,                 // End of word
-    output logic byte_strobe_o,                 // Загрузка байта
-    output logic pixel_strobe_o,                // Пиксельный строб 
+    output logic stb_char_o,                 // End of character 1/16 of 27Mhz
+    output logic stb_word_o,                 // End of word
+    output logic stb_byte_o,                 // Загрузка байта
+    output logic stb_pixel_o,                // Пиксельный строб 
 
     // Memory Address Interface
     output logic [13:0] crtc_ma_o,
@@ -426,10 +426,10 @@ always_ff @(posedge pix_clk_i) begin
     end
 end
 
-logic char_strobe = 0;      // Character increment signal
-logic word_strobe = 0;      // Next byte
-logic byte_strobe = 0;      // Next byte
-logic pixel_strobe = 0;     // Pixel increment signal
+logic stb_char = 0;      // Character increment signal
+logic stb_word = 0;      // Next byte
+logic stb_byte = 0;      // Next byte
+logic stb_pixel = 0;     // Pixel increment signal
 
 wire strobe_1x = (crtc_pix_x[3:0] == 4'b1110);  
 wire strobe_2x = (crtc_pix_x[2:0] == 3'b110); 
@@ -440,60 +440,60 @@ wire strobe_16x = 1'b1;
 // Configurable pixel character speed
 always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i) begin
-        char_strobe <= 0;
-        word_strobe <= 0;
-        byte_strobe <= 0;
-        pixel_strobe <= 0;
+        stb_char <= 0;
+        stb_word <= 0;
+        stb_byte <= 0;
+        stb_pixel <= 0;
     end else begin
-        char_strobe <= strobe_1x;
+        stb_char <= strobe_1x;
         case (pixel_clock_sel)
-            2'b00: word_strobe <= strobe_1x; // 16px per char
-            2'b01: word_strobe <= strobe_2x; // 8px per char
-            2'b10: word_strobe <= strobe_4x; // 4px per char
-            2'b11: word_strobe <= strobe_8x; // 2px per char
+            2'b00: stb_word <= strobe_1x; // 16px per char
+            2'b01: stb_word <= strobe_2x; // 8px per char
+            2'b10: stb_word <= strobe_4x; // 4px per char
+            2'b11: stb_word <= strobe_8x; // 2px per char
             default: ;
         endcase
         case (pixel_clock_sel)
-            2'b00: byte_strobe <= strobe_2x;  // 16px/char
-            2'b01: byte_strobe <= strobe_4x;  // 8px/char
-            2'b10: byte_strobe <= strobe_8x;  // 4px/char
-            2'b11: byte_strobe <= 1'b1;       // 2px/char
+            2'b00: stb_byte <= strobe_2x;  // 16px/char
+            2'b01: stb_byte <= strobe_4x;  // 8px/char
+            2'b10: stb_byte <= strobe_8x;  // 4px/char
+            2'b11: stb_byte <= 1'b1;       // 2px/char
             default: ;
         endcase
         case ({pixel_clock_sel, bpp_mode})
             // 16KB VRAM - все режимы доступны на полной скорости
-            4'b00_00: pixel_strobe <= strobe_16x; // 1bpp: 8x (макс)
-            4'b00_01: pixel_strobe <= strobe_8x; // 2bpp: 4x
-            4'b00_10: pixel_strobe <= strobe_4x; // 4bpp: 2x  
-            4'b00_11: pixel_strobe <= strobe_2x; // 8bpp: 1x
+            4'b00_00: stb_pixel <= strobe_16x; // 1bpp: 8x (макс)
+            4'b00_01: stb_pixel <= strobe_8x; // 2bpp: 4x
+            4'b00_10: stb_pixel <= strobe_4x; // 4bpp: 2x  
+            4'b00_11: stb_pixel <= strobe_2x; // 8bpp: 1x
 
             // 32KB VRAM - 1bpp недоступен, остальные на повышенной скорости
-            4'b01_00: pixel_strobe <= 1'b0;      // 1bpp: НЕДОСТУПЕН
-            4'b01_01: pixel_strobe <= strobe_16x; // 2bpp: 8x (↑ повысили!)
-            4'b01_10: pixel_strobe <= strobe_8x; // 4bpp: 4x (↑ повысили!)
-            4'b01_11: pixel_strobe <= strobe_4x; // 8bpp: 2x (↑ повысили!)
+            4'b01_00: stb_pixel <= 1'b0;      // 1bpp: НЕДОСТУПЕН
+            4'b01_01: stb_pixel <= strobe_16x; // 2bpp: 8x (↑ повысили!)
+            4'b01_10: stb_pixel <= strobe_8x; // 4bpp: 4x (↑ повысили!)
+            4'b01_11: stb_pixel <= strobe_4x; // 8bpp: 2x (↑ повысили!)
 
             // 64KB VRAM - только 4bpp и 8bpp на максимальной скорости
-            4'b10_00: pixel_strobe <= 1'b0;      // 1bpp: НЕДОСТУПЕН
-            4'b10_01: pixel_strobe <= 1'b0;      // 2bpp: НЕДОСТУПЕН
-            4'b10_10: pixel_strobe <= strobe_16x; // 4bpp: 8x (↑↑ макс!)
-            4'b10_11: pixel_strobe <= strobe_8x; // 8bpp: 4x (↑ повысили!)
+            4'b10_00: stb_pixel <= 1'b0;      // 1bpp: НЕДОСТУПЕН
+            4'b10_01: stb_pixel <= 1'b0;      // 2bpp: НЕДОСТУПЕН
+            4'b10_10: stb_pixel <= strobe_16x; // 4bpp: 8x (↑↑ макс!)
+            4'b10_11: stb_pixel <= strobe_8x; // 8bpp: 4x (↑ повысили!)
 
             // 128KB VRAM - только 8bpp на максимальной скорости
-            4'b11_00: pixel_strobe <= 1'b0;      // 1bpp: НЕДОСТУПЕН
-            4'b11_01: pixel_strobe <= 1'b0;      // 2bpp: НЕДОСТУПЕН  
-            4'b11_10: pixel_strobe <= 1'b0;      // 4bpp: НЕДОСТУПЕН
-            4'b11_11: pixel_strobe <= strobe_16x; // 8bpp: 8x (↑↑ макс!)
+            4'b11_00: stb_pixel <= 1'b0;      // 1bpp: НЕДОСТУПЕН
+            4'b11_01: stb_pixel <= 1'b0;      // 2bpp: НЕДОСТУПЕН  
+            4'b11_10: stb_pixel <= 1'b0;      // 4bpp: НЕДОСТУПЕН
+            4'b11_11: stb_pixel <= strobe_16x; // 8bpp: 8x (↑↑ макс!)
             default: ;
         endcase  
     end  
 end
 
 // Character clock output
-assign char_strobe_o = char_strobe;
-assign word_strobe_o = word_strobe;
-assign byte_strobe_o = byte_strobe;   // Загрузка байта
-assign pixel_strobe_o = pixel_strobe; // Базовый пиксельный строб (постоянный)
+assign stb_char_o = stb_char;
+assign stb_word_o = stb_word;
+assign stb_byte_o = stb_byte;   // Загрузка байта
+assign stb_pixel_o = stb_pixel; // Базовый пиксельный строб (постоянный)
 
 // ============================================================================
 // СИМВОЛЬНЫЕ СЧЕТЧИКИ (CRTC DOMAIN)
@@ -518,7 +518,7 @@ always_ff @(posedge pix_clk_i) begin
         if (start_h_trigger) begin
             crtc_h_count <= 0;
             crtc_halt_line <= 0;
-        end else if (char_strobe) begin
+        end else if (stb_char) begin
             if (crtc_end_of_line) begin
                 crtc_halt_line <= '1;
             end else begin
@@ -567,7 +567,7 @@ always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i || start_v_trigger) begin
         crtc_ma_addr <= {reg_start_addr_h, reg_start_addr_l};
         crtc_row_start_addr <= {reg_start_addr_h, reg_start_addr_l};
-    end else if (char_strobe) begin
+    end else if (stb_char) begin
         // Traditional CRTC address sequencing
         if (crtc_end_of_line) begin
             crtc_ma_addr <= crtc_row_start_addr;
@@ -588,7 +588,7 @@ logic [15:0] linear_addr = 0;
 always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i || start_v_trigger) begin
         linear_addr <= {reg_start_addr_h, reg_start_addr_l}; // ×4 for byte address
-    end else if (char_strobe && linear_mode) begin
+    end else if (stb_char && linear_mode) begin
         // Linear addressing: +2 bytes normal, +4 bytes burst
         linear_addr <= linear_addr + (crtc_burst_mode_o ? 16'd4 : 16'd2);
     end
@@ -631,7 +631,7 @@ assign crtc_cursor_ma_active = crtc_ma_addr == crtc_cursor_ma_addr;
 always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i || start_v_trigger) begin
         crtc_cursor_ra_active <= 0;
-    end else if (char_strobe) begin
+    end else if (stb_char) begin
         if (crtc_pix_y == reg_cursor_start) begin
             crtc_cursor_ra_active <= 1;
         end else if (crtc_pix_y == reg_cursor_end) begin
@@ -670,7 +670,7 @@ logic crtc_cursor_raw;
 assign crtc_cursor_raw = crtc_cursor_ma_active && crtc_cursor_ra_active && crtc_cursor_blinking && crtc_de;
 
 always_ff @(posedge pix_clk_i) begin
-    if (char_strobe) begin
+    if (stb_char) begin
         de_delayed_1 <= crtc_de;
         de_delayed_2 <= de_delayed_1;
         cursor_delayed_1 <= crtc_cursor_raw;

@@ -137,10 +137,10 @@
 
 === aleste_video ===
 
-   Number of wires:                184
-   Number of wire bits:            659
-   Number of public wires:         161
-   Number of public wire bits:     593
+   Number of wires:                183
+   Number of wire bits:            658
+   Number of public wires:         160
+   Number of public wire bits:     592
    Number of ports:                 19
    Number of port bits:             61
    Number of memories:               0
@@ -455,10 +455,10 @@
      video_buffer                    1
      video_pll                       1
 
-   Number of wires:               3238
-   Number of wire bits:          26095
-   Number of public wires:         799
-   Number of public wire bits:    3255
+   Number of wires:               3237
+   Number of wire bits:          26094
+   Number of public wires:         798
+   Number of public wire bits:    3254
    Number of ports:                371
    Number of port bits:           1349
    Number of memories:               4
