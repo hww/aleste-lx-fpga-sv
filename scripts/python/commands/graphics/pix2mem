@@ -1,0 +1,12 @@
+#!/bin/bash
+# pix2mem - Обертка для запуска из любой директории
+
+# Находим корень проекта
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Переходим в корень проекта и запускаем
+cd "$PROJECT_ROOT"
+
+# Запускаем Python скрипт
+python -m scripts.tools.pix2mem "$@"

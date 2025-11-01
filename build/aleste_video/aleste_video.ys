@@ -16,6 +16,7 @@ read_verilog -sv ../../src/components/video/pixel_pipeline/pixel_pipeline.sv
 read_verilog -sv ../../src/components/clocks/system_clock.sv
 read_verilog -sv ../../src/components/reset/reset_controller.sv
 hierarchy -top aleste_video
+tee -o stats_pre.txt stat
 synth_ecp5 -json aleste_video.json -no-rw-check
-stat
+tee -o stats_sysnt.txt stat
 # Sources: 26 files

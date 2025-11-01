@@ -84,8 +84,9 @@ $(YOSYS_SCRIPT): $(ALL_SOURCES)
 	@echo "read_verilog -sv $(CLOCK_CTRL)" >> $@
 	@echo "read_verilog -sv $(RESET_CTRL)" >> $@
 	@echo "hierarchy -top aleste_video" >> $@
+	@echo "tee -o stats_pre.txt stat" >> $@
 	@echo "synth_ecp5 -json $(JSON_FILE) -no-rw-check" >> $@
-	@echo "stat" >> $@
+	@echo "tee -o stats_sysnt.txt stat" >> $@
 	@echo "# Sources: $(words $(ALL_SOURCES)) files" >> $@
 
 # Synthesis with Yosys

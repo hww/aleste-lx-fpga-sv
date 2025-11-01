@@ -1,0 +1,3 @@
+/home/valery/aleste-lx-fpga-sv/tools/converter/build/CMakeFiles/pix_convert.dir
+/home/valery/aleste-lx-fpga-sv/tools/converter/build/CMakeFiles/edit_cache.dir
+/home/valery/aleste-lx-fpga-sv/tools/converter/build/CMakeFiles/rebuild_cache.dir

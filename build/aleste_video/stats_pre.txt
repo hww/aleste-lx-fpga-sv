@@ -1,0 +1,511 @@
+
+28. Printing statistics.
+
+=== pixel_pipeline ===
+
+   Number of wires:                 31
+   Number of wire bits:             91
+   Number of public wires:          18
+   Number of public wire bits:      48
+   Number of ports:                 12
+   Number of port bits:             27
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              9
+   Number of cells:                  1
+     $logic_not                      1
+
+=== system_arbiter ===
+
+   Number of wires:                 55
+   Number of wire bits:            242
+   Number of public wires:          39
+   Number of public wire bits:     191
+   Number of ports:                 39
+   Number of port bits:            191
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              1
+   Number of cells:                  1
+     $logic_and                      1
+
+=== memory_arbiter ===
+
+   Number of wires:                103
+   Number of wire bits:            545
+   Number of public wires:          49
+   Number of public wire bits:     285
+   Number of ports:                 38
+   Number of port bits:            223
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              2
+   Number of cells:                 14
+     $eq                             4
+     $logic_and                      3
+     $logic_not                      2
+     $logic_or                       1
+     $mux                            3
+     $ne                             1
+
+=== color_palette ===
+
+   Number of wires:               1041
+   Number of wire bits:          11933
+   Number of public wires:          33
+   Number of public wire bits:     168
+   Number of ports:                 18
+   Number of port bits:             74
+   Number of memories:               1
+   Number of memory bits:         3072
+   Number of processes:             10
+   Number of cells:                 24
+     $add                            2
+     $eq                             5
+     $logic_and                      6
+     $logic_not                      2
+     $memrd                          3
+     $mux                            3
+     $or                             1
+     $xor                            1
+     cpc_colors                      1
+
+=== cpc_colors ===
+
+   Number of wires:                582
+   Number of wire bits:           7020
+   Number of public wires:           2
+   Number of public wire bits:      20
+   Number of ports:                  2
+   Number of port bits:             20
+   Number of memories:               1
+   Number of memory bits:         3072
+   Number of processes:              2
+   Number of cells:                289
+     $meminit_v2                   288
+     $memrd                          1
+
+=== $paramod$08e9df164de93aaef4504ed93b2e036b85ac1662\baud_tick_gen ===
+
+   Number of wires:                  9
+   Number of wire bits:             77
+   Number of public wires:           6
+   Number of public wire bits:      23
+   Number of ports:                  5
+   Number of port bits:              5
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              2
+   Number of cells:                  1
+     $add                            1
+
+=== $paramod$fc279394581cfe18bb58e35abc1514b181bfae21\baud_tick_gen ===
+
+   Number of wires:                  9
+   Number of wire bits:             77
+   Number of public wires:           6
+   Number of public wire bits:      23
+   Number of ports:                  5
+   Number of port bits:              5
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              2
+   Number of cells:                  1
+     $add                            1
+
+=== $paramod$3af06abfd9dc8c730854c9711a7b5f0ef6bccd56\dual_port_ram ===
+
+   Number of wires:                 33
+   Number of wire bits:            279
+   Number of public wires:          14
+   Number of public wire bits:      74
+   Number of ports:                 12
+   Number of port bits:             52
+   Number of memories:               1
+   Number of memory bits:         8640
+   Number of processes:              4
+   Number of cells:                  3
+     $logic_and                      1
+     $memrd                          1
+     $mux                            1
+
+=== $paramod$fc279394581cfe18bb58e35abc1514b181bfae21\uart_tx ===
+
+   Number of wires:                 23
+   Number of wire bits:             67
+   Number of public wires:          11
+   Number of public wire bits:      28
+   Number of ports:                  8
+   Number of port bits:             15
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              3
+   Number of cells:                  9
+     $and                            3
+     $eq                             1
+     $lt                             1
+     $not                            1
+     $or                             1
+     $paramod$fc279394581cfe18bb58e35abc1514b181bfae21\baud_tick_gen      1
+     $shr                            1
+
+=== $paramod$08e9df164de93aaef4504ed93b2e036b85ac1662\uart ===
+
+   Number of wires:                 15
+   Number of wire bits:             29
+   Number of public wires:          15
+   Number of public wire bits:      29
+   Number of ports:                 14
+   Number of port bits:             28
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:                  2
+     $paramod$08e9df164de93aaef4504ed93b2e036b85ac1662\uart_rx      1
+     $paramod$fc279394581cfe18bb58e35abc1514b181bfae21\uart_tx      1
+
+=== aleste_video ===
+
+   Number of wires:                184
+   Number of wire bits:            659
+   Number of public wires:         160
+   Number of public wire bits:     592
+   Number of ports:                 19
+   Number of port bits:             61
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              6
+   Number of cells:                 27
+     $eq                             2
+     $logic_and                      3
+     $logic_not                      2
+     $not                            1
+     $paramod$15735d5b5f42338dfdadf2e6027e61400cba37fc\uart_bridge      1
+     $paramod$2cbd44edbf047fb5030bdc8e3ba7dfd139b2488d\llhdmi      1
+     $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod      1
+     $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone      1
+     $paramod$86178f6322c302bd8017170cfd1dd3de731221eb\hdmi_scaler      1
+     $paramod\wb_wdt_simple\TIMEOUT_CYCLES=s32'00000000000000000000000000100000      1
+     OBUFDS                          4
+     ODDRX1F                         1
+     color_palette                   1
+     memory_arbiter                  1
+     pixel_pipeline                  1
+     reset_controller                1
+     system_arbiter                  1
+     system_clock                    1
+     video_buffer                    1
+     video_pll                       1
+
+=== $paramod$08e9df164de93aaef4504ed93b2e036b85ac1662\uart_rx ===
+
+   Number of wires:                 65
+   Number of wire bits:            138
+   Number of public wires:          16
+   Number of public wire bits:      37
+   Number of ports:                  9
+   Number of port bits:             16
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:             15
+   Number of cells:                 34
+     $add                            3
+     $and                            3
+     $eq                             7
+     $logic_and                     10
+     $mux                            1
+     $ne                             3
+     $not                            3
+     $paramod$08e9df164de93aaef4504ed93b2e036b85ac1662\baud_tick_gen      1
+     $pos                            1
+     $reduce_and                     1
+     $sub                            1
+
+=== $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod ===
+
+   Number of wires:                300
+   Number of wire bits:           1427
+   Number of public wires:         116
+   Number of public wire bits:     448
+   Number of ports:                 40
+   Number of port bits:            141
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:             61
+   Number of cells:                 84
+     $add                            8
+     $div                            2
+     $eq                            21
+     $ge                             2
+     $logic_and                     29
+     $logic_not                      3
+     $logic_or                       4
+     $lt                             8
+     $mul                            2
+     $mux                            3
+     $sub                            2
+
+=== $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone ===
+
+   Number of wires:                 92
+   Number of wire bits:            357
+   Number of public wires:          48
+   Number of public wire bits:     224
+   Number of ports:                 32
+   Number of port bits:            135
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              2
+   Number of cells:                 26
+     $add                            2
+     $and                            1
+     $eq                             3
+     $ge                             2
+     $logic_and                      8
+     $logic_not                      2
+     $mux                            3
+     $ne                             2
+     $not                            2
+     $or                             1
+
+=== $paramod$86178f6322c302bd8017170cfd1dd3de731221eb\hdmi_scaler ===
+
+   Number of wires:                 51
+   Number of wire bits:            256
+   Number of public wires:          25
+   Number of public wire bits:      88
+   Number of ports:                 16
+   Number of port bits:             38
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              9
+   Number of cells:                 14
+     $add                            3
+     $eq                             3
+     $logic_not                      3
+     $mux                            1
+     $not                            2
+     $paramod$3af06abfd9dc8c730854c9711a7b5f0ef6bccd56\dual_port_ram      2
+
+=== $paramod$2cbd44edbf047fb5030bdc8e3ba7dfd139b2488d\llhdmi ===
+
+   Number of wires:                 98
+   Number of wire bits:            493
+   Number of public wires:          41
+   Number of public wire bits:     201
+   Number of ports:                 16
+   Number of port bits:             56
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:             25
+   Number of cells:                 26
+     $add                            3
+     $and                            1
+     $eq                             6
+     $ge                             2
+     $logic_and                      4
+     $lt                             4
+     $mux                            2
+     $not                            1
+     tmds_encoder                    3
+
+=== $paramod\wb_wdt_simple\TIMEOUT_CYCLES=s32'00000000000000000000000000100000 ===
+
+   Number of wires:                 17
+   Number of wire bits:             60
+   Number of public wires:           9
+   Number of public wire bits:      13
+   Number of ports:                  7
+   Number of port bits:              7
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              3
+   Number of cells:                  3
+     $add                            1
+     $eq                             1
+     $logic_and                      1
+
+=== video_buffer ===
+
+   Number of wires:                 45
+   Number of wire bits:            295
+   Number of public wires:          22
+   Number of public wire bits:     108
+   Number of ports:                 16
+   Number of port bits:             39
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              7
+   Number of cells:                  3
+     $add                            1
+     $logic_and                      1
+     $mux                            1
+
+=== OBUFDS ===
+
+   Number of wires:                  4
+   Number of wire bits:              4
+   Number of public wires:           3
+   Number of public wire bits:       3
+   Number of ports:                  3
+   Number of port bits:              3
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:                  1
+     $not                            1
+
+=== tmds_encoder ===
+
+   Number of wires:                 87
+   Number of wire bits:            272
+   Number of public wires:          25
+   Number of public wire bits:      83
+   Number of ports:                  5
+   Number of port bits:             22
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              4
+   Number of cells:                 58
+     $add                           15
+     $and                            1
+     $eq                             7
+     $gt                             1
+     $logic_and                      1
+     $logic_or                       3
+     $mux                            7
+     $not                            4
+     $sub                            3
+     $xor                           16
+
+=== reset_controller ===
+
+   Number of wires:                 17
+   Number of wire bits:             69
+   Number of public wires:           7
+   Number of public wire bits:      14
+   Number of ports:                  5
+   Number of port bits:              5
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              3
+   Number of cells:                  5
+     $add                            1
+     $logic_and                      1
+     $logic_not                      2
+     $ne                             1
+
+=== video_pll ===
+
+   Number of wires:                  8
+   Number of wire bits:              8
+   Number of public wires:           8
+   Number of public wire bits:       8
+   Number of ports:                  7
+   Number of port bits:              7
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:                  1
+     EHXPLLL                         1
+
+=== system_clock ===
+
+   Number of wires:                 14
+   Number of wire bits:             47
+   Number of public wires:           6
+   Number of public wire bits:       7
+   Number of ports:                  5
+   Number of port bits:              5
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              2
+   Number of cells:                  4
+     $add                            1
+     $eq                             3
+
+=== $paramod$15735d5b5f42338dfdadf2e6027e61400cba37fc\uart_bridge ===
+
+   Number of wires:                185
+   Number of wire bits:            920
+   Number of public wires:          71
+   Number of public wire bits:     316
+   Number of ports:                 31
+   Number of port bits:             93
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              8
+   Number of cells:                 51
+     $add                            3
+     $eq                             4
+     $gt                             2
+     $logic_and                     11
+     $logic_not                     18
+     $logic_or                       6
+     $mux                            1
+     $ne                             1
+     $paramod$08e9df164de93aaef4504ed93b2e036b85ac1662\uart      1
+     $sub                            4
+
+=== design hierarchy ===
+
+   aleste_video                      1
+     $paramod$15735d5b5f42338dfdadf2e6027e61400cba37fc\uart_bridge      1
+       $paramod$08e9df164de93aaef4504ed93b2e036b85ac1662\uart      1
+         $paramod$08e9df164de93aaef4504ed93b2e036b85ac1662\uart_rx      1
+           $paramod$08e9df164de93aaef4504ed93b2e036b85ac1662\baud_tick_gen      1
+         $paramod$fc279394581cfe18bb58e35abc1514b181bfae21\uart_tx      1
+           $paramod$fc279394581cfe18bb58e35abc1514b181bfae21\baud_tick_gen      1
+     $paramod$2cbd44edbf047fb5030bdc8e3ba7dfd139b2488d\llhdmi      1
+       tmds_encoder                  3
+     $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod      1
+     $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone      1
+     $paramod$86178f6322c302bd8017170cfd1dd3de731221eb\hdmi_scaler      1
+       $paramod$3af06abfd9dc8c730854c9711a7b5f0ef6bccd56\dual_port_ram      2
+     $paramod\wb_wdt_simple\TIMEOUT_CYCLES=s32'00000000000000000000000000100000      1
+     OBUFDS                          4
+     color_palette                   1
+       cpc_colors                    1
+     memory_arbiter                  1
+     pixel_pipeline                  1
+     reset_controller                1
+     system_arbiter                  1
+     system_clock                    1
+     video_buffer                    1
+     video_pll                       1
+
+   Number of wires:               3287
+   Number of wire bits:          26200
+   Number of public wires:         823
+   Number of public wire bits:    3280
+   Number of ports:                395
+   Number of port bits:           1373
+   Number of memories:               4
+   Number of memory bits:        23424
+   Number of processes:            192
+   Number of cells:                775
+     $add                           75
+     $and                           11
+     $div                            2
+     $eq                            81
+     $ge                             6
+     $gt                             5
+     $logic_and                     83
+     $logic_not                     35
+     $logic_or                      20
+     $lt                            13
+     $meminit_v2                   288
+     $memrd                          6
+     $mul                            2
+     $mux                           41
+     $ne                             8
+     $not                           26
+     $or                             3
+     $pos                            1
+     $reduce_and                     1
+     $shr                            1
+     $sub                           16
+     $xor                           49
+     EHXPLLL                         1
+     ODDRX1F                         1
+

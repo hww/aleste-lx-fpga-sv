@@ -101,4 +101,7 @@ for tool in "${tools[@]}"; do
     fi
 done
 
+yay -S python-pillow
+
 echo -e "${GREEN}\nToolchain installation completed!${NC}"
+

@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/pix_convert.dir/link.d CMakeFiles/pix_convert.dir/pix_convert.cpp.o -o pix_convert

@@ -344,7 +344,7 @@ module aleste_video #(
     // CRTC контроллер
     // ===========================================
     mc6845mod #(
-        .STANDARD("lx"),
+        .STANDARD("cpc"),
         .WB_ADDRESS(16'h6845),
         .HDMI_H_VISIBLE(HDMI_H_VISIBLE),
         .HDMI_V_VISIBLE(HDMI_V_VISIBLE),

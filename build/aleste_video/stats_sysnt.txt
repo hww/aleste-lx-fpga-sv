@@ -1,0 +1,26 @@
+
+30. Printing statistics.
+
+=== aleste_video ===
+
+   Number of wires:               6251
+   Number of wire bits:          18896
+   Number of public wires:        6251
+   Number of public wire bits:   18896
+   Number of ports:                 19
+   Number of port bits:             61
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:              12782
+     $_TBUF_                        16
+     $scopeinfo                     29
+     CCU2C                         147
+     DP16KD                          2
+     EHXPLLL                         1
+     L6MUX21                       273
+     LUT4                         7273
+     ODDRX1F                         1
+     PFUMX                        1035
+     TRELLIS_FF                   4005
+
