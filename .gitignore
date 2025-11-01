@@ -21,3 +21,5 @@ obj_dir
 .pix
 __pycache__
 obj_dir
+stats_pre.txt
+stats_synt.txt

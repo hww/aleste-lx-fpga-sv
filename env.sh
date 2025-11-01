@@ -4,7 +4,7 @@
 export ALESTE_PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Основные пути
-export PATH="$ALESTE_PROJECT_ROOT/tools:$ALESTE_PROJECT_ROOT/scripts/python/commands:$PATH"
+export PATH="$ALESTE_PROJECT_ROOT/tools:$ALESTE_PROJECT_ROOT/scripts/python/commands:$ALESTE_PROJECT_ROOT/tools/commit_analyzer:$PATH"
 export PYTHONPATH="$ALESTE_PROJECT_ROOT:$PYTHONPATH"
 
 # Полезные aliases
