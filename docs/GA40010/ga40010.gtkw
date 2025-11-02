@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Sun Nov  2 08:49:36 2025
+[*]
+[dumpfile] "/home/valery/Amstrad_MiSTer/rtl/GA40010/ga40010.vcd"
+[dumpfile_mtime] "Sun Nov  2 07:58:42 2025"
+[dumpfile_size] 323386417
+[savefile] "/home/valery/Amstrad_MiSTer/rtl/GA40010/ga40010.gtkw"
+[timestart] 2637573
+[size] 1918 964
+[pos] -460 -183
+*-6.167037 2637964 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.ga40010_test.
+[treeopen] TOP.ga40010_test.ga40010.
+[treeopen] TOP.ga40010_test.ga40010.video.
+[treeopen] TOP.ga40010_test.ga40010.video.colour_mux[0].
+[sst_width] 276
+[signals_width] 142
+[sst_expanded] 1
+[sst_vpaned_height] 285
+@28
+TOP.ga40010_test.CRTC.DE
+TOP.ga40010_test.ga40010.DISPEN_BUF
+TOP.ga40010_test.ga40010.RAS_N
+TOP.ga40010_test.ga40010.CAS_N
+@22
+TOP.ga40010_test.ga40010.video.VIDEO[7:0]
+@28
+TOP.ga40010_test.ga40010.video.load
+TOP.ga40010_test.ga40010.video.border_sel
+TOP.ga40010_test.ga40010.video.cen_16
+TOP.ga40010_test.ga40010.video.clk
+@22
+TOP.ga40010_test.ga40010.video.colour[4:0]
+@28
+TOP.ga40010_test.ga40010.video.DISPEN_BUF
+@22
+TOP.ga40010_test.ga40010.video.BORDER[4:0]
+@28
+TOP.ga40010_test.CRTC.DE
+TOP.ga40010_test.ga40010.video.border_sel
+TOP.ga40010_test.ga40010.video.shift
+@22
+TOP.ga40010_test.ga40010.video.shift_reg[7:0]
+@28
+TOP.ga40010_test.ga40010.vidbuf_clk
+[pattern_trace] 1
+[pattern_trace] 0
