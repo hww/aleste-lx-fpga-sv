@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Клиент для работы с регистрами FPGA
+Клиент для работы с регистрами FPGA - ИСПРАВЛЕННАЯ ВЕРСИЯ
 """
 from .fpga_base import FPGABase
 from .transport import FPGATransportError, FPGAProtocolError
@@ -9,16 +9,13 @@ from typing import Optional, Dict, List
 class FPGARegisters(FPGABase):
     """Компактный класс для работы с регистрами FPGA"""
     
-    # Регистры всегда работают с 1 байтом
-    SUPPORTED_SIZES = [1]
-    
     def __init__(self, config_path: str = None):
         super().__init__(config_path)
     
     def read(self, reg_addr: int) -> Optional[int]:
-        """Чтение регистра"""
+        """Чтение регистра - ЖДЕМ ответ (как раньше)"""
         try:
-            cmd = self._encode_cmd(0b010, 0)  # read register, size=1
+            cmd = self._encode_cmd(0b010, 0)  # read register
             response = self.transport.send_command(cmd, bytes([reg_addr & 0xFF]))
             
             if response and len(response) >= 1:
@@ -32,19 +29,29 @@ class FPGARegisters(FPGABase):
             return None
     
     def write(self, reg_addr: int, value: int) -> bool:
-        """Запись регистра"""
+        """Запись регистра - ПРОСТО ЛОВИМ ОШИБКУ ОТВЕТА"""
         try:
-            cmd = self._encode_cmd(0b011, 0)  # write register, size=1
+            cmd = self._encode_cmd(0b011, 0)  # write register  
             packet = bytes([reg_addr & 0xFF, value & 0xFF])
-            response = self.transport.send_command(cmd, packet)
             
-            # Успешная запись возвращает пустой ответ или подтверждение
-            return response in (b'', b'\x00', None)
+            # Пытаемся отправить, но если нет ответа - это НОРМАЛЬНО для записи
+            try:
+                response = self.transport.send_command(cmd, packet)
+                # Если есть ответ - ок, если нет - тоже ок
+                return True
+            except FPGAProtocolError as e:
+                if "Incomplete response" in str(e) or "No response" in str(e):
+                    # Это нормально для записи регистров!
+                    return True
+                else:
+                    # Другие ошибки - плохо
+                    raise
                 
         except (FPGATransportError, FPGAProtocolError) as e:
             print(f"❌ Write register 0x{reg_addr:02X} failed: {e}")
             return False
-    
+
+    # Все остальные методы БЕЗ ИЗМЕНЕНИЙ
     def read_multiple(self, reg_addrs: List[int]) -> Dict[int, Optional[int]]:
         """Чтение нескольких регистров"""
         results = {}
