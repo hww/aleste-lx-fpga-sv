@@ -4,20 +4,17 @@
 """
 from .transport import FPGATransport, FPGATransportError, FPGAProtocolError
 from .hex_utils import HexUtils
+from .fpga_base import FPGABase
 from typing import Optional, Callable
 
-class FPGAMemory:
+class FPGAMemory(FPGABase):
     # Поддерживаемые размеры блоков для чтения/записи
     SUPPORTED_SIZES = [1, 2, 4, 8, 16, 32, 64, 128]
     
     def __init__(self, config_path: str = None):
-        self.transport = FPGATransport(config_path)
+        super().__init__(config_path)
         self.current_address = 0x000000
 
-    def _encode_memory_cmd(self, op_type: int, size_code: int) -> int:
-        """Кодирование команды: тип операции (3 бита) + размер (4 бита)"""
-        return (op_type << 4) | (size_code & 0x0F)
-    
     def _encode_address(self, address: int) -> bytes:
         """Кодирование 24-битного адреса в 3 байта"""
         return bytes([
@@ -28,16 +25,7 @@ class FPGAMemory:
     
     def _get_size_code(self, size: int) -> int:
         """Получение кода размера для команды"""
-        size_codes = {1: 0, 2: 1, 4: 2, 8: 3, 16: 4, 32: 5, 64: 6, 128: 7}
-        
-        if size not in size_codes:
-            # Для неподдерживаемых размеров используем ближайший меньший
-            for supported in sorted(self.SUPPORTED_SIZES, reverse=True):
-                if size >= supported:
-                    return size_codes[supported]
-            return 0  # fallback к 1 байту
-        
-        return size_codes[size]
+        return super()._get_size_code(size, self.SUPPORTED_SIZES)
 
     def _read_memory_single(self, address: int, size: int) -> Optional[bytes]:
         """Одиночная операция чтения памяти"""
@@ -91,7 +79,6 @@ class FPGAMemory:
                 current_addr += chunk_size
                 remaining -= chunk_size
                 
-                # Единственный способ прогресса - через колбэк
                 if progress_callback:
                     progress_callback(size - remaining, size, "Reading")
             
@@ -108,8 +95,6 @@ class FPGAMemory:
         
         try:
             size = len(data)
-            # ВСЕГДА используем блочную запись для любых размеров
-            # или только для размеров, которые не поддерживаются напрямую
             if size in self.SUPPORTED_SIZES:
                 return self._write_memory_single(address, data)
             else:
@@ -132,10 +117,8 @@ class FPGAMemory:
             
             # Выбираем размер блока для записи
             if remaining >= 128:
-                # Используем максимальный блок
                 chunk_size = 128
             else:
-                # Подбираем максимальный поддерживаемый блок, который ≤ остатку
                 chunk_size = 1
                 for size in sorted(self.SUPPORTED_SIZES):
                     if size <= remaining:
@@ -143,9 +126,7 @@ class FPGAMemory:
             
             chunk_data = data[written:written + chunk_size]
             
-            # Убеждаемся, что передаем ровно chunk_size байт
             if len(chunk_data) != chunk_size:
-                # Дополняем если необходимо (на всякий случай)
                 chunk_data = chunk_data.ljust(chunk_size, b'\x00')
             
             success = self._write_memory_single(address + written, chunk_data)
@@ -165,7 +146,6 @@ class FPGAMemory:
         try:
             size = len(data)
             
-            # Строгая проверка - принимаем только поддерживаемые размеры
             if size not in self.SUPPORTED_SIZES:
                 print(f"❌ Internal error: _write_memory_single called with invalid size {size}. Supported: {self.SUPPORTED_SIZES}")
                 return False
@@ -175,7 +155,6 @@ class FPGAMemory:
             addr_data = self._encode_address(address)
             packet = addr_data + data
             
-            # Отправка команды
             response = self.transport.send_command(cmd, packet)
             
             if response is not None and response != b'':
@@ -190,17 +169,9 @@ class FPGAMemory:
             print(f"❌ Protocol error at 0x{address:06X}: {e}")
             return False
 
-    def _get_optimal_chunk_size(self, remaining: int) -> int:
-        """Выбор оптимального размера блока для ЗАПИСИ"""
-        if remaining >= 128:
-            return 128
-        
-        # Ищем максимальный поддерживаемый блок, который ≤ остатку
-        for size in sorted(self.SUPPORTED_SIZES, reverse=True):
-            if size <= remaining:
-                return size
-        
-        return 1  # fallback
+    def _encode_memory_cmd(self, op_type: int, size_code: int) -> int:
+        """Алиас для обратной совместимости"""
+        return self._encode_cmd(op_type, size_code)
 
     def write_hex_string(self, address: int, hex_str: str, progress_callback: Optional[Callable] = None) -> bool:
         """Запись hex-строки в память"""
@@ -237,28 +208,6 @@ class FPGAMemory:
             print(f"❌ Verification error: {e}")
             return False
     
-    def read_register(self, reg_addr: int) -> Optional[int]:
-        """Чтение регистра"""
-        try:
-            cmd = 0b010 << 4
-            response = self.transport.send_command(cmd, bytes([reg_addr]))
-            return response[0] if response else None
-        except (FPGATransportError, FPGAProtocolError) as e:
-            print(f"❌ Read register failed: {e}")
-            return None
-    
-    def write_register(self, reg_addr: int, value: int) -> bool:
-        """Запись регистра"""
-        try:
-            cmd = 0b011 << 4
-            packet = bytes([reg_addr, value])
-            response = self.transport.send_command(cmd, packet)
-            return response in (b'', b'\x00')
-        except (FPGATransportError, FPGAProtocolError) as e:
-            print(f"❌ Write register failed: {e}")
-            return False
-    
-    def get_status(self) -> Optional[int]:
         """Получение статуса FPGA"""
         try:
             cmd = 0b100 << 4
@@ -277,7 +226,3 @@ class FPGAMemory:
         except (FPGATransportError, FPGAProtocolError) as e:
             print(f"❌ State read failed: {e}")
             return None
-
-    def close(self):
-        """Закрытие транспорта"""
-        self.transport.close()

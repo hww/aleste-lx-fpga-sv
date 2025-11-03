@@ -124,9 +124,9 @@ module aleste_video #(
     // Video Buffer Signals
     logic [15:0] vbuf_data;
     logic [7:0] vbuf_data_o;
-    logic vbuf_req, vbuf_ack0, vbuf_ack1;
+    logic vbuf_req, vbuf_ack0, vbuf_ack1, vbuf_de_o;
     logic vbuf_burst_request;
-    logic vbuf_de, vbuf_stb_char, vbuf_stb_byte;
+    logic vbuf_stb_byte;
     logic [1:0] vbuf_byte_select;
 
     // Color Palette Signals
@@ -143,7 +143,7 @@ module aleste_video #(
     // Wishbone Signals
     logic uart2ext_cyc, uart2ext_stb, uart2ext_ack, uart2ext_we, uart2ext_grant, uart2ext_err;
     logic [23:0] uart2ext_adr;
-    logic [7:0] uart2ext_dat_inut, uart2ext_dat_in;
+    logic [7:0] uart2ext_dat_out, uart2ext_dat_in;
     logic [1:0] uart2ext_sel, uart2ext_tag;
       
     logic system2palette_cyc, system2palette_stb, system2palette_ack, system2palette_we, system2palette_grant;
@@ -175,7 +175,7 @@ module aleste_video #(
     logic crtc2mem_burst_mode;
     logic [2:0] crtc_addr_mode;
     logic [1:0] crtc_pixel_clock_sel;
-    logic crtc_stb_char, crtc_stb_word, crtc_stb_pixel, crtc_stb_byte;
+    logic crtc_stb_char, crtc_stb_word, crtc_stb_pixel, crtc_stb_byte, crtc_stb_origin;
     logic crtc_halt; // For debug
 
     // Scan Doubler Signals
@@ -235,7 +235,7 @@ module aleste_video #(
         .wb_stb_o(uart2ext_stb),
         .wb_we_o(uart2ext_we),
         .wb_adr_o(uart2ext_adr),
-        .wb_dat_o(uart2ext_dat_inut),
+        .wb_dat_o(uart2ext_dat_out),
         .wb_dat_i(uart2ext_dat_in),
         .wb_ack_i(uart2ext_ack),
         .wb_err_i(uart2ext_err),
@@ -246,7 +246,7 @@ module aleste_video #(
         .dbg_adr_o(uart2dbg_adr),
         .dbg_dat_o(uart2dbg_dat_out),
         .dbg_dat_i(uart2dbg_dat_in),
-        .dbg_ack_i(uart2dbg_stb),
+        .dbg_ack_i(uart2dbg_ack),
         .dbg_err_i('0),
 
         .cmd_state_o(debug_uart_cmd_state),
@@ -277,6 +277,20 @@ module aleste_video #(
             uart2ext_tag = 2'b00;
     end
 
+    logic [7:0] dbg_data;
+    wb_simple_reg dbg_reg (
+        // Wishbone interface
+        .clk_i(clk_bus),
+        .rst_i(system_reset),
+        .stb_i(uart2dbg_stb),
+        .we_i(uart2dbg_we),
+        .adr_i(uart2dbg_ack),
+        .dat_i(uart2dbg_dat_out),
+        .dat_o(uart2dbg_dat_in),
+        .ack_o(uart2dbg_ack),
+        .reg_out(dbg_data)
+    );
+
     // ===========================================
     // Internal WB Arbiter
     // ===========================================
@@ -292,7 +306,7 @@ module aleste_video #(
         .wb_ext_ack_o(uart2ext_ack),
         .wb_ext_we_i(uart2ext_we),
         .wb_ext_adr_i(uart2ext_adr),
-        .wb_ext_dat_i(uart2ext_dat_inut),
+        .wb_ext_dat_i(uart2ext_dat_out),
         .wb_ext_dat_o(uart2ext_dat_in),
         .wb_ext_tag_i(uart2ext_tag),
 
@@ -368,10 +382,10 @@ module aleste_video #(
         .crtc_newline_o(crtc_newline),
         .crtc_newframe_o(crtc_newframe),
         .stb_char_o(crtc_stb_char),     // End of character 1/16 of 27MHz
-        .stb_word_o(crtc_stb_word),     // End of character
         .stb_pixel_o(crtc_stb_pixel),   // Пиксельный строб 
         .stb_byte_o(crtc_stb_byte),     // Загрузка байта
-               
+        .stb_origin_o(crtc_stb_origin), // ключевой строб латентности
+
         // HDMI timing reference
         .hdmi_x_i(hdmi_x),
         .hdmi_y_i(hdmi_y),
@@ -518,7 +532,7 @@ module aleste_video #(
     // ===========================================
     // Video Buffer
     // ===========================================
-
+    logic [15:0] vmem = crtc_ra[2] ? 8'h81 : crtc_ma;
     video_buffer vbuf (
         .rst_i(system_reset),
                 
@@ -526,21 +540,19 @@ module aleste_video #(
         .vmem_clk_i(clk_system),    // 108mhz
         .vmem_ack0_i(vbuf_ack0),    // First word. One period of 108Mhz 
         .vmem_ack1_i(vbuf_ack1),    // Second word. One period of 108Mhz
-        .vmem_data_i(vbuf_data),    // Word
+        .vmem_data_i(vmem),    // Word
         .vmem_req_o(vbuf_req),      // Request words
 
         // CRTC timing signals
         .pixel_clk_i(clk_pixel),    // 27Mhz
-        .stb_char_i(crtc_stb_char), // Every CRTC character one periond
         .stb_byte_i(crtc_stb_byte), // Every video byte character one periond
+        .stb_origin_i(crtc_stb_origin),
         .de_i(crtc_de),             // Border
 
         // To pixel_pipeline (8-bit)
-        .stb_char_o(vbuf_stb_char), // Every CRTC character one periond
         .stb_byte_o(vbuf_stb_byte), // Every video byte character one periond
-        .de_o(vbuf_de),             // Border
         .data_o(vbuf_data_o),       // Video byte
-
+        .de_o(vbuf_de_o),             // Border
         .debug_byte_select_o(vbuf_byte_select)
     );
 
@@ -549,23 +561,22 @@ module aleste_video #(
     // ===========================================
     pixel_pipeline ppu(
         .rst_i(system_reset),
-        .clk_i(clk_pixel),     
+        .clk_i(clk_pixel),           // 27mhz
         
-        // Memory interface
-        .video_stb_i(vbuf_stb_byte),
-        .video_data_i(vbuf_data_o),
-
         // Configuration
         .cfg_bpp_mode_i(crtc_bpp_mode),
         .cfg_continuous_mode_i(crtc_continuous_mode),
 
+        // Memory interface
+        .video_stb_i(vbuf_stb_byte),  // single clk with  
+        .video_data_i(vbuf_data_o),   // 8-bits
+
         // CRTC timing
-        .stb_char_i(vbuf_stb_char),
-        .stb_pixel_i(crtc_stb_pixel), // Actual pixel frequency 13.5MHz or other
-        .pixel_de_i(vbuf_de),
+        .stb_pixel_i(crtc_stb_pixel), // Actual pixel frequency 13.5MHz or other or constant 1
+        .pixel_de_i(vbuf_de_o),
         
         // Pixel output
-        .pixel_index_o(ppu2pal_color_index),
+        .pixel_o(ppu2pal_color_index),
         .pixel_de_o(ppu2pal_de)
     );
        
@@ -730,6 +741,17 @@ module aleste_video #(
     */
     // Memory Arbitter
     assign debug = {
+                ppu2pal_color_index[0],
+        vbuf_stb_byte,  // single clk with  
+        crtc_de,
+        crtc_stb_origin,
+        crtc_stb_pixel, // Actual pixel frequency 13.5MHz or other or constant 1
+        crtc_stb_byte,
+        crtc_stb_char, // Actual pixel frequency 13.5MHz or other or constant 1
+        clk_pixel
+    };
+    /*
+    assign debug = {
         system2mem_ack,
         system2mem_stb,
         //vbuf_ack1,
@@ -741,7 +763,7 @@ module aleste_video #(
         debug_mem_video_active,           
         debug_mem_wb_active             
     };
- 
+ */
   /*
     assign debug = {
         system2mem_dat_out[0],
@@ -760,5 +782,49 @@ module aleste_video #(
    
 
     //assign debug = vbuf_data_o;
+
+endmodule
+
+`default_nettype none
+
+module wb_simple_reg (
+    // Wishbone interface
+    input  logic        clk_i,
+    input  logic        rst_i,
+    input  logic        stb_i,
+    input  logic        we_i,
+    input  logic [7:0]  adr_i,
+    input  logic [7:0]  dat_i,
+    output logic [7:0]  dat_o,
+    output logic        ack_o,
+
+    // Register output
+    output logic [7:0]  reg_out
+);
+
+logic [7:0] register = 8'h00;
+
+// Wishbone transaction
+always @(posedge clk_i) begin
+    if (rst_i) begin
+        register <= 8'h00;
+        ack_o <= 1'b0;
+    end else begin
+        ack_o <= 1'b0;
+        
+        if (stb_i && !ack_o) begin
+            ack_o <= 1'b1;
+            
+            if (we_i) begin
+                // Write operation
+                register <= dat_i;
+            end
+        end
+    end
+end
+
+// Read operation
+assign dat_o = register;
+assign reg_out = register;
 
 endmodule

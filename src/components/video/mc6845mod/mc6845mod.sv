@@ -56,9 +56,9 @@ module mc6845mod #(
     output logic crtc_newline_o,
     output logic crtc_newframe_o,
     output logic stb_char_o,                 // End of character 1/16 of 27Mhz
-    output logic stb_word_o,                 // End of word
     output logic stb_byte_o,                 // Загрузка байта
     output logic stb_pixel_o,                // Пиксельный строб 
+    output logic stb_origin_o,
 
     // Memory Address Interface
     output logic [13:0] crtc_ma_o,
@@ -427,7 +427,6 @@ always_ff @(posedge pix_clk_i) begin
 end
 
 logic stb_char = 0;      // Character increment signal
-logic stb_word = 0;      // Next byte
 logic stb_byte = 0;      // Next byte
 logic stb_pixel = 0;     // Pixel increment signal
 
@@ -441,49 +440,43 @@ wire strobe_16x = 1'b1;
 always_ff @(posedge pix_clk_i) begin
     if (wb_rst_i) begin
         stb_char <= 0;
-        stb_word <= 0;
         stb_byte <= 0;
         stb_pixel <= 0;
     end else begin
-        stb_char <= strobe_1x;
+        stb_char <= strobe_1x;       
+        stb_origin_o        <= (crtc_pix_x[2:0] == 3'b011); // 4 and 12
+
         case (pixel_clock_sel)
-            2'b00: stb_word <= strobe_1x; // 16px per char
-            2'b01: stb_word <= strobe_2x; // 8px per char
-            2'b10: stb_word <= strobe_4x; // 4px per char
-            2'b11: stb_word <= strobe_8x; // 2px per char
-            default: ;
-        endcase
-        case (pixel_clock_sel)
-            2'b00: stb_byte <= strobe_2x;  // 16px/char
-            2'b01: stb_byte <= strobe_4x;  // 8px/char
-            2'b10: stb_byte <= strobe_8x;  // 4px/char
-            2'b11: stb_byte <= 1'b1;       // 2px/char
+            2'b00: stb_byte <= (crtc_pix_x[2:0] == 3'b011); // 16px/char (2 bytes per 16 pixeld)
+            2'b01: stb_byte <= (crtc_pix_x[1:0] == 2'b01);  // 8px/char  (4 bytes per 16 pixeld)
+            2'b10: stb_byte <= (crtc_pix_x[0]   == 1'b1);   // 4px/char  (8 bytes per 16 pixeld)
+            2'b11: stb_byte <= 1'b1;                        // 2px/char
             default: ;
         endcase
         case ({pixel_clock_sel, bpp_mode})
-            // 16KB VRAM - все режимы доступны на полной скорости
+            // 16KB VRAM - все режимы доступны на полной скорости 8pix/perbyte
             4'b00_00: stb_pixel <= strobe_16x; // 1bpp: 8x (макс)
-            4'b00_01: stb_pixel <= strobe_8x; // 2bpp: 4x
-            4'b00_10: stb_pixel <= strobe_4x; // 4bpp: 2x  
-            4'b00_11: stb_pixel <= strobe_2x; // 8bpp: 1x
+            4'b00_01: stb_pixel <= strobe_8x;  // 2bpp: 4x
+            4'b00_10: stb_pixel <= strobe_4x;  // 4bpp: 2x  
+            4'b00_11: stb_pixel <= strobe_2x;  // 8bpp: 1x
 
-            // 32KB VRAM - 1bpp недоступен, остальные на повышенной скорости
-            4'b01_00: stb_pixel <= 1'b0;      // 1bpp: НЕДОСТУПЕН
+            // 32KB VRAM - 1bpp недоступен, остальные на повышенной скорости 4pix/perbyte
+            4'b01_00: stb_pixel <= 1'b0;       // 1bpp: НЕДОСТУПЕН
             4'b01_01: stb_pixel <= strobe_16x; // 2bpp: 8x (↑ повысили!)
-            4'b01_10: stb_pixel <= strobe_8x; // 4bpp: 4x (↑ повысили!)
-            4'b01_11: stb_pixel <= strobe_4x; // 8bpp: 2x (↑ повысили!)
+            4'b01_10: stb_pixel <= strobe_8x;  // 4bpp: 4x (↑ повысили!)
+            4'b01_11: stb_pixel <= strobe_4x;  // 8bpp: 2x (↑ повысили!)
 
-            // 64KB VRAM - только 4bpp и 8bpp на максимальной скорости
-            4'b10_00: stb_pixel <= 1'b0;      // 1bpp: НЕДОСТУПЕН
-            4'b10_01: stb_pixel <= 1'b0;      // 2bpp: НЕДОСТУПЕН
+            // 64KB VRAM - только 4bpp и 8bpp на максимальной скорости 2pix/perbyte
+            4'b10_00: stb_pixel <= 1'b0;       // 1bpp: НЕДОСТУПЕН
+            4'b10_01: stb_pixel <= 1'b0;       // 2bpp: НЕДОСТУПЕН
             4'b10_10: stb_pixel <= strobe_16x; // 4bpp: 8x (↑↑ макс!)
-            4'b10_11: stb_pixel <= strobe_8x; // 8bpp: 4x (↑ повысили!)
+            4'b10_11: stb_pixel <= strobe_8x;  // 8bpp: 4x (↑ повысили!)  
 
-            // 128KB VRAM - только 8bpp на максимальной скорости
-            4'b11_00: stb_pixel <= 1'b0;      // 1bpp: НЕДОСТУПЕН
-            4'b11_01: stb_pixel <= 1'b0;      // 2bpp: НЕДОСТУПЕН  
-            4'b11_10: stb_pixel <= 1'b0;      // 4bpp: НЕДОСТУПЕН
-            4'b11_11: stb_pixel <= strobe_16x; // 8bpp: 8x (↑↑ макс!)
+            // 128KB VRAM - только 8bpp на максимальной скорости 1pix/perbyte
+            4'b11_00: stb_pixel <= 1'b0;       // 1bpp: НЕДОСТУПЕН
+            4'b11_01: stb_pixel <= 1'b0;       // 2bpp: НЕДОСТУПЕН  
+            4'b11_10: stb_pixel <= 1'b0;       // 4bpp: НЕДОСТУПЕН
+            4'b11_11: stb_pixel <= strobe_16x; // 8bpp: 8x (↑↑ макс!) 
             default: ;
         endcase  
     end  
@@ -491,7 +484,6 @@ end
 
 // Character clock output
 assign stb_char_o = stb_char;
-assign stb_word_o = stb_word;
 assign stb_byte_o = stb_byte;   // Загрузка байта
 assign stb_pixel_o = stb_pixel; // Базовый пиксельный строб (постоянный)
 
@@ -556,7 +548,7 @@ logic crtc_de;
 assign crtc_de = (crtc_h_count < reg_h_displayed) && 
                  (crtc_v_count < reg_v_displayed);
 
-// Traditional CRTC address - ОБЪЯВЛЕН ДО ИСПОЛЬЗОВАНИЯ
+// Traditional CRTC address
 logic [13:0] crtc_ma_addr = 0;
 logic [13:0] crtc_row_start_addr = 0;
 logic after_visible_line;
@@ -600,8 +592,13 @@ always_comb begin
         // Linear addressing modes
         crtc_ext_addr_o = {reg_high_address, linear_addr};
     end else begin
-        // Traditional CPC addressing (compatible with original)
-        crtc_ext_addr_o = {reg_high_address, 8'b0, crtc_ra_o[2:0], crtc_ma_addr[12:0]};
+        // Traditional CPC addressing (compatible with original) 
+        // a[0] is constant 0
+        // ma[9:0] is the a[10:1]
+        // ma[11:10] is unused
+        // ma[13:12] are a[15:14]
+        // ra[3:0] are a[13:12]
+        crtc_ext_addr_o = {reg_high_address, crtc_ma_addr[13:12], crtc_ra_o[3:0], crtc_ma_addr[9:0], 1'b0};
     end
 end
 

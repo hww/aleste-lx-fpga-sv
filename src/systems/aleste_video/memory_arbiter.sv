@@ -233,7 +233,11 @@ always_comb begin
 
     if (current_state != STATE_IDLE) begin
         // Всегда выставляем запрос к SDRAM в активном состоянии
-        sdram_addr_o = saved_addr;
+        sdram_addr_o = {
+            saved_addr[12:2],   // ROW
+            saved_addr[21:13],  // COL
+            saved_addr[1:0]     // BANK (сохраняем для burst)
+        };
         sdram_we_o = saved_we;
         sdram_data_o = saved_data_wr;
         sdram_sel_o = saved_sel;

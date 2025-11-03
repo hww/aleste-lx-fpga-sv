@@ -1,13 +1,3 @@
-// =============================================================================
-// VBUF - Color Palette Unit
-// =============================================================================
-// For Aleste LX project by H2W
-// =============================================================================
-// The video output buffer
-// Supports double buffering and burst mode
-// =============================================================================
-
-
 `default_nettype none
 
 module video_buffer (
@@ -22,9 +12,8 @@ module video_buffer (
     
     // CRTC timing
     input   logic        pixel_clk_i,
-    input   logic        stb_char_i,
     input   logic        stb_byte_i,
-    output  logic        stb_char_o,
+    input   logic        stb_origin_i,
     output  logic        stb_byte_o,
     input   logic        de_i,
     output  logic        de_o,
@@ -36,28 +25,32 @@ module video_buffer (
 
 // Регистры состояния
 logic [15:0] input_buffer [0:1];
-logic [15:0] output_buffer [0:1];
+logic [7:0] output_buffer [0:3];
 
 // ==============================================
-// Inpyut data FSM
+// Input data FSM
 // ==============================================
 
-localparam VMEM_IDLE = 3'b000;
-localparam VMEM_READ_WORD_0 = 3'b001;
-localparam VMEM_READ_WORD_1 = 3'b010;
+localparam VMEM_IDLE = 2'b00;
+localparam VMEM_READ_WORD_0 = 2'b01;
+localparam VMEM_READ_WORD_1 = 2'b10;
+localparam VMEM_WAIT = 2'b11;
 
-logic [2:0] vmem_state = 0;
+logic [1:0] vmem_state = 0;
+logic data_req;
+logic data_valid;
 
 always @(posedge vmem_clk_i) begin
     if (rst_i) begin
+        data_valid <= 0;
         vmem_state <= '0;
         vmem_req_o <= '0;
         input_buffer[0] <= 16'b0;
         input_buffer[1] <= 16'b0;
     end else begin
-        casez (vmem_state)
+        case (vmem_state)
         VMEM_IDLE: begin
-            if (stb_char_i) begin
+            if (data_req) begin  // Запрос только когда DE активно
                 vmem_req_o <= 1'b1;
                 vmem_state <= VMEM_READ_WORD_0;
             end
@@ -74,53 +67,104 @@ always @(posedge vmem_clk_i) begin
             if (vmem_ack1_i) begin
                 input_buffer[1] <= vmem_data_i;
                 vmem_req_o <= '0;
-                vmem_state <= VMEM_IDLE;
+                vmem_state <= VMEM_WAIT;
+                data_valid <= '1;
             end
         end
+        
+        VMEM_WAIT: begin
+            if (!data_req) begin
+                vmem_state <= VMEM_IDLE;
+                data_valid <= '0;
+            end
+        end
+
+        default: vmem_state <= VMEM_IDLE;
         endcase
     end
 end
 
 // ==============================================
-// Convert input logicister to the bytes stream
+// Convert input register to the bytes stream
 // ==============================================
 
 logic [1:0] byte_count = 0;
+logic bufer_enable, de_delayed;
 
 always @(posedge pixel_clk_i) begin
     if (rst_i) begin
         byte_count <= 2'b00;
         output_buffer[0] <= 0;
         output_buffer[1] <= 0;
+        output_buffer[2] <= 0;
+        output_buffer[3] <= 0;
+        data_req <= '0;
     end else begin
-        if (stb_char_i) begin
-            byte_count <= 2'b00;
-            output_buffer[0] <= input_buffer[0];
-            output_buffer[1] <= input_buffer[1];
+        // origin is the 4th and 12th clock of cycle (16 clocks total)
+        // EF 0123456789ABCDEF 0123        
+        //        4       C          <--- origin
+        if (stb_origin_i) begin
+            if (!bufer_enable) begin
+                data_req <= de_i;
+                byte_count <= 2'b00;
+            end 
         end
-        else if (stb_byte_i) begin
-            byte_count <= byte_count + 2'b01;
+        // stb byte is based on mode 
+        // 2 bytes per cycle -- the 4th and 12th clock of cycle (16 clocks total)
+        // 4 bytes per cycle -- 0,4,8,12 clock of cycle (16 clocks total)
+        // 8 bytes per cycle -- 0,2,4,6,8,10,12,14 clock of cycle (16 clocks total)                
+        if (stb_byte_i) begin
+            // 0 clock - запрашиваем данные только если DE активно
+            if (!bufer_enable) begin
+                data_req <= de_i;
+                byte_count <= 2'b00;
+            end else begin
+                // 2,4,6,8,A,B,C,D,E clocks
+                if (data_valid) begin  // Только при активном DE
+                    data_req <= '0;
+                    byte_count <= 2'b00;
+                    output_buffer[0] <= input_buffer[0][7:0];
+                    output_buffer[1] <= input_buffer[0][15:8];
+                    output_buffer[2] <= input_buffer[1][7:0];
+                    output_buffer[3] <= input_buffer[1][15:8];
+                end else if (de_i) begin  // Инкремент только при активном DE
+                    byte_count <= byte_count + 2'b01;
+                    if (byte_count == 2'b11)
+                        data_req <= de_i; // load last byte may start new cylce 
+                end
+            end
         end
     end
 end
 
-// Delay the sygnals 1 pixel
+// The origine generated in 4th and 12th clock of cycle (16 clocks)
+// EF 0123456789ABCDEF 0123
+//        4       C          <--- origin
 always @(posedge pixel_clk_i) begin
     if (rst_i) begin
-        de_o <= 1'b0;
-        stb_char_o <= 1'b0;
-        stb_byte_o <= 1'b0;        
+        bufer_enable <= '0;
+        de_delayed <= '0;
     end else begin
-        de_o <= de_i;       
-        stb_char_o <= stb_char_i;
-        stb_byte_o <= stb_byte_i;    
+        if (stb_origin_i) begin
+            bufer_enable <= de_i;
+            de_delayed <= bufer_enable; 
+        end 
     end
 end
 
-// Video interface
-assign data_o = byte_count[0] ? output_buffer[byte_count[1]][15:8] : output_buffer[byte_count[1]][7:0];
 
-
+// Delay the signals 1 pixel because the input signals used to copy 
+// data to the output
+always @(posedge pixel_clk_i) begin
+    if (rst_i) begin
+        stb_byte_o <= '0;     
+    end else begin
+        stb_byte_o <= stb_byte_i;  // stb_byte_o только при активном DE
+    end
+end
+// Video interface - выдаем 0 когда DE неактивно
+assign data_o = de_delayed ? output_buffer[byte_count] : 8'h00;
+assign de_o = de_delayed;
 // debugging
 assign debug_byte_select_o = byte_count;
 

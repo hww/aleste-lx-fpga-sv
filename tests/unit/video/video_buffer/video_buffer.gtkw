@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Sun Nov  2 22:16:16 2025
+[*]
+[dumpfile] "/home/valery/aleste-lx-fpga-sv/tests/unit/video/video_buffer/video_buffer_test.fst"
+[dumpfile_mtime] "Sun Nov  2 22:13:10 2025"
+[dumpfile_size] 1792
+[savefile] "/home/valery/aleste-lx-fpga-sv/tests/unit/video/video_buffer/video_buffer.gtkw"
+[timestart] 454
+[size] 1918 964
+[pos] -1 -1
+*-7.200000 843 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[sst_width] 276
+[signals_width] 198
+[sst_expanded] 1
+[sst_vpaned_height] 285
+@28
+TOP.video_buffer.vmem_clk_i
+TOP.video_buffer.vmem_state[1:0]
+TOP.video_buffer.data_req
+@29
+TOP.video_buffer.data_valid
+@28
+TOP.video_buffer.vmem_req_o
+TOP.video_buffer.vmem_ack0_i
+TOP.video_buffer.vmem_ack1_i
+@22
+TOP.video_buffer.vmem_data_i[15:0]
+TOP.video_buffer.input_buffer[0][15:0]
+TOP.video_buffer.input_buffer[1][15:0]
+TOP.video_buffer.output_buffer[0][7:0]
+TOP.video_buffer.output_buffer[1][7:0]
+TOP.video_buffer.output_buffer[2][7:0]
+TOP.video_buffer.output_buffer[3][7:0]
+@28
+TOP.video_buffer.byte_count[1:0]
+@22
+TOP.video_buffer.data_o[7:0]
+@28
+TOP.video_buffer.de_i
+TOP.video_buffer.pixel_clk_i
+TOP.video_buffer.rst_i
+TOP.video_buffer.stb_char_i
+TOP.video_buffer.stb_byte_i
+TOP.video_buffer.stb_byte_o
+TOP.video_buffer.stb_char_ff
+[pattern_trace] 1
+[pattern_trace] 0

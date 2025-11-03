@@ -1,6 +1,5 @@
 #!/bin/bash
-#!/bin/bash
-# Конвертирует тестовые изображения в .PIX форматы
+# Конвертирует тестовые изображения в .PIX форматы и проверяет их
 
 echo "Конвертация тестовых изображений..."
 
@@ -17,16 +16,37 @@ fi
 
 echo "Используем конвертер: $CONVERTER"
 
-# Конвертируем тестовые изображения
-$CONVERTER test_checkerboard.bmp test_checkerboard_mono.pix --color-mode mono --bpp 1 --layout cpc-block --memory-size 16
-$CONVERTER test_vertical.bmp test_vertical_mono.pix --color-mode mono --bpp 1 --layout cpc-block --memory-size 16
-$CONVERTER test_horizontal.bmp test_horizontal_mono.pix --color-mode mono --bpp 1 --layout cpc-block --memory-size 16
-$CONVERTER test_circle.bmp test_circle_mono.pix --color-mode mono --bpp 1 --layout cpc-block --memory-size 16
-$CONVERTER test_border.bmp test_border_mono.pix --color-mode mono --bpp 1 --layout cpc-block --memory-size 16
+# Массив тестовых файлов
+declare -a test_files=(
+    "test_checkerboard.bmp"
+    "test_vertical.bmp" 
+    "test_horizontal.bmp"
+    "test_circle.bmp"
+    "test_border.bmp"
+)
 
-# Также создаем цветные версии
-$CONVERTER test_checkerboard.bmp test_checkerboard_4bpp.pix --color-mode linear --bpp 4 --layout cpc-block --memory-size 16
-$CONVERTER test_circle.bmp test_circle_4bpp.pix --color-mode linear --bpp 4 --layout cpc-block --memory-size 16
+# Конвертируем
+for file in "${test_files[@]}"; do
+    if [ -f "$file" ]; then
+        base_name="${file%.*}"
+        echo "Converting $file..."
+        
+        # Mono version
+        $CONVERTER "$file" "${base_name}_mono.pix" --color-mode mono --bpp 1 --layout cpc-block --memory-size 16
+        
+        # Color version  
+        $CONVERTER "$file" "${base_name}_4bpp.pix" --color-mode linear --bpp 4 --layout cpc-block --memory-size 16
+    else
+        echo "⚠️  Warning: $file not found"
+    fi
+done
 
-echo "Готово! Созданы файлы:"
-ls -la *.pix
+echo "Проверяем созданные файлы..."
+for pix_file in *.pix; do
+    if [ -f "$pix_file" ]; then
+        echo "---"
+        ../../tools/pix_info/build/pix_info  "$pix_file"
+    fi
+done
+
+echo "Готово!"

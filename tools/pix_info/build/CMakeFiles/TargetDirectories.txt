@@ -1,0 +1,3 @@
+/home/valery/aleste-lx-fpga-sv/tools/pix_info/build/CMakeFiles/pix_info.dir
+/home/valery/aleste-lx-fpga-sv/tools/pix_info/build/CMakeFiles/edit_cache.dir
+/home/valery/aleste-lx-fpga-sv/tools/pix_info/build/CMakeFiles/rebuild_cache.dir

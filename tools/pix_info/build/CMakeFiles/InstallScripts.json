@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/valery/aleste-lx-fpga-sv/tools/pix_info/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
