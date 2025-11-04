@@ -444,7 +444,7 @@ always_ff @(posedge pix_clk_i) begin
         stb_pixel <= 0;
     end else begin
         stb_char <= strobe_1x;       
-        stb_origin_o        <= (crtc_pix_x[2:0] == 3'b011); // 4 and 12
+        stb_origin_o        <= !start_h_trigger && (crtc_pix_x[2:0] == 3'b011); // 4 and 12
 
         case (pixel_clock_sel)
             2'b00: stb_byte <= (crtc_pix_x[2:0] == 3'b011); // 16px/char (2 bytes per 16 pixeld)

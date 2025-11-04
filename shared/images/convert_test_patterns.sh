@@ -7,6 +7,8 @@ echo "Конвертация тестовых изображений..."
 CONVERTER=""
 if [ -f "../../tools/converter/pix_convert" ]; then
     CONVERTER="../../tools/converter/pix_convert"
+elif [ -f "../../tools/converter/build/pix_convert" ]; then
+    CONVERTER="../../tools/converter/build/pix_convert"
 elif command -v pix_convert >/dev/null 2>&1; then
     CONVERTER="pix_convert"
 else
@@ -31,22 +33,21 @@ for file in "${test_files[@]}"; do
         base_name="${file%.*}"
         echo "Converting $file..."
         
-        # Mono version
-        $CONVERTER "$file" "${base_name}_mono.pix" --color-mode mono --bpp 1 --layout cpc-block --memory-size 16
+        # Mono version (1bpp, CPC адресация)
+        $CONVERTER "$file" "${base_name}_mono.pix" --width 640 --height 200 --bpp 1 --color-encoding linear --address-encoding cpc --palette-mode cpc
         
-        # Color version  
-        $CONVERTER "$file" "${base_name}_4bpp.pix" --color-mode linear --bpp 4 --layout cpc-block --memory-size 16
+        # 4bpp CPC version
+        $CONVERTER "$file" "${base_name}_4bpp_cpc.pix" --width 160 --height 200 --bpp 4 --color-encoding cpc --address-encoding cpc --palette-mode cpc
+        
+        # 4bpp Linear version  
+        $CONVERTER "$file" "${base_name}_4bpp_linear.pix" --width 320 --height 200 --bpp 4 --color-encoding linear --address-encoding linear --palette-mode cpc
+        
+        # 8bpp version (256 colors)
+        $CONVERTER "$file" "${base_name}_8bpp.pix" --width 160 --height 200 --bpp 8 --color-encoding linear --address-encoding linear --palette-mode 8bit
     else
         echo "⚠️  Warning: $file not found"
     fi
 done
 
-echo "Проверяем созданные файлы..."
-for pix_file in *.pix; do
-    if [ -f "$pix_file" ]; then
-        echo "---"
-        ../../tools/pix_info/build/pix_info  "$pix_file"
-    fi
-done
 
 echo "Готово!"

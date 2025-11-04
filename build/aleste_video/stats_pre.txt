@@ -137,20 +137,19 @@
 
 === aleste_video ===
 
-   Number of wires:                188
-   Number of wire bits:            726
-   Number of public wires:         162
-   Number of public wire bits:     616
+   Number of wires:                189
+   Number of wire bits:            731
+   Number of public wires:         164
+   Number of public wire bits:     633
    Number of ports:                 19
    Number of port bits:             61
    Number of memories:               0
    Number of memory bits:            0
-   Number of processes:              7
-   Number of cells:                 28
+   Number of processes:              8
+   Number of cells:                 26
      $eq                             2
      $logic_and                      3
      $logic_not                      1
-     $mux                            1
      $not                            1
      $paramod$15735d5b5f42338dfdadf2e6027e61400cba37fc\uart_bridge      1
      $paramod$2cbd44edbf047fb5030bdc8e3ba7dfd139b2488d\llhdmi      1
@@ -158,7 +157,6 @@
      $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone      1
      $paramod$86178f6322c302bd8017170cfd1dd3de731221eb\hdmi_scaler      1
      $paramod\wb_wdt_simple\TIMEOUT_CYCLES=s32'00000000000000000000000000100000      1
-     $pos                            1
      OBUFDS                          4
      ODDRX1F                         1
      color_palette                   1
@@ -196,8 +194,8 @@
 
 === $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod ===
 
-   Number of wires:                295
-   Number of wire bits:           1422
+   Number of wires:                297
+   Number of wire bits:           1424
    Number of public wires:         113
    Number of public wire bits:     445
    Number of ports:                 38
@@ -205,13 +203,13 @@
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:             60
-   Number of cells:                 83
+   Number of cells:                 85
      $add                            8
      $div                            2
      $eq                            25
      $ge                             2
-     $logic_and                     24
-     $logic_not                      3
+     $logic_and                     25
+     $logic_not                      4
      $logic_or                       4
      $lt                             8
      $mul                            2
@@ -317,20 +315,21 @@
 
 === video_buffer ===
 
-   Number of wires:                 52
-   Number of wire bits:            227
-   Number of public wires:          26
-   Number of public wire bits:     109
-   Number of ports:                 14
-   Number of port bits:             37
+   Number of wires:                 63
+   Number of wire bits:            241
+   Number of public wires:          30
+   Number of public wire bits:     114
+   Number of ports:                 17
+   Number of port bits:             41
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:              7
-   Number of cells:                  6
-     $add                            1
-     $eq                             1
-     $logic_not                      3
+   Number of cells:                 11
+     $add                            3
+     $logic_and                      2
+     $logic_not                      4
      $mux                            1
+     $not                            1
 
 === OBUFDS ===
 
@@ -475,34 +474,34 @@
      video_pll                       1
      wb_simple_reg                   1
 
-   Number of wires:               3269
-   Number of wire bits:          26191
-   Number of public wires:         813
-   Number of public wire bits:    3323
-   Number of ports:                378
-   Number of port bits:           1384
+   Number of wires:               3283
+   Number of wire bits:          26212
+   Number of public wires:         819
+   Number of public wire bits:    3345
+   Number of ports:                381
+   Number of port bits:           1388
    Number of memories:               4
    Number of memory bits:        23424
-   Number of processes:            191
-   Number of cells:                769
-     $add                           74
+   Number of processes:            192
+   Number of cells:                774
+     $add                           76
      $and                           11
      $div                            2
-     $eq                            83
+     $eq                            82
      $ge                             6
      $gt                             5
-     $logic_and                     72
-     $logic_not                     37
+     $logic_and                     75
+     $logic_not                     39
      $logic_or                      20
      $lt                            13
      $meminit_v2                   288
      $memrd                          6
      $mul                            2
-     $mux                           42
+     $mux                           41
      $ne                             8
-     $not                           26
+     $not                           27
      $or                             3
-     $pos                            2
+     $pos                            1
      $reduce_and                     1
      $shr                            1
      $sub                           16

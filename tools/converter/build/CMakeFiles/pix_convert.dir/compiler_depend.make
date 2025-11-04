@@ -173,6 +173,7 @@ CMakeFiles/pix_convert.dir/pix_convert.cpp.o: /home/valery/aleste-lx-fpga-sv/too
   /usr/include/c++/15.2.1/iosfwd \
   /usr/include/c++/15.2.1/iostream \
   /usr/include/c++/15.2.1/istream \
+  /usr/include/c++/15.2.1/limits \
   /usr/include/c++/15.2.1/new \
   /usr/include/c++/15.2.1/ostream \
   /usr/include/c++/15.2.1/stdexcept \
@@ -226,6 +227,46 @@ CMakeFiles/pix_convert.dir/pix_convert.cpp.o: /home/valery/aleste-lx-fpga-sv/too
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/stddef.h \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/stdint.h
 
+pix_convert: /usr/lib/Scrt1.o \
+  /usr/lib/crti.o \
+  /usr/lib/crtn.o \
+  /usr/lib/libc.so \
+  /usr/lib/libgcc_s.so \
+  /usr/lib/libgcc_s.so.1 \
+  /usr/lib/libm.so \
+  /usr/lib/libstdc++.so \
+  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o \
+  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o \
+  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/libgcc.a \
+  /usr/lib/ld-linux-x86-64.so.2 \
+  /usr/lib/libc.so.6 \
+  /usr/lib/libc_nonshared.a \
+  /usr/lib/libm.so.6 \
+  /usr/lib/libmvec.so.1 \
+  CMakeFiles/pix_convert.dir/pix_convert.cpp.o
+
+
+/usr/lib/libm.so.6:
+
+/usr/lib/libc.so.6:
+
+/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/libgcc.a:
+
+/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o:
+
+/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o:
+
+/usr/lib/libstdc++.so:
+
+/usr/lib/libm.so:
+
+/usr/lib/libgcc_s.so.1:
+
+/usr/lib/libgcc_s.so:
+
+/usr/lib/libc.so:
+
+/usr/lib/crtn.o:
 
 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/stdint.h:
 
@@ -260,6 +301,8 @@ CMakeFiles/pix_convert.dir/pix_convert.cpp.o: /home/valery/aleste-lx-fpga-sv/too
 /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/os_defines.h:
 
 /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/gthr.h:
+
+/usr/lib/libmvec.so.1:
 
 /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/gthr-default.h:
 
@@ -373,6 +416,8 @@ CMakeFiles/pix_convert.dir/pix_convert.cpp.o: /home/valery/aleste-lx-fpga-sv/too
 
 /usr/include/bits/sched.h:
 
+CMakeFiles/pix_convert.dir/pix_convert.cpp.o:
+
 /usr/include/bits/types/cookie_io_functions_t.h:
 
 /usr/include/c++/15.2.1/bits/functional_hash.h:
@@ -400,6 +445,8 @@ CMakeFiles/pix_convert.dir/pix_convert.cpp.o: /home/valery/aleste-lx-fpga-sv/too
 /usr/include/bits/pthread_stack_min-dynamic.h:
 
 /usr/include/bits/mathcalls-narrow.h:
+
+/usr/lib/Scrt1.o:
 
 /usr/include/bits/types/timer_t.h:
 
@@ -443,6 +490,8 @@ CMakeFiles/pix_convert.dir/pix_convert.cpp.o: /home/valery/aleste-lx-fpga-sv/too
 
 /usr/include/bits/mathcalls-macros.h:
 
+/usr/lib/libc_nonshared.a:
+
 /usr/include/c++/15.2.1/bits/basic_ios.h:
 
 /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/c++config.h:
@@ -466,6 +515,8 @@ CMakeFiles/pix_convert.dir/pix_convert.cpp.o: /home/valery/aleste-lx-fpga-sv/too
 /usr/include/bits/byteswap.h:
 
 /usr/include/bits/struct_mutex.h:
+
+/usr/lib/crti.o:
 
 /usr/include/bits/typesizes.h:
 
@@ -637,9 +688,13 @@ CMakeFiles/pix_convert.dir/pix_convert.cpp.o: /home/valery/aleste-lx-fpga-sv/too
 
 /usr/include/c++/15.2.1/bits/invoke.h:
 
+/usr/lib/ld-linux-x86-64.so.2:
+
 /usr/include/c++/15.2.1/cstdio:
 
 /usr/include/c++/15.2.1/bits/istream.tcc:
+
+/usr/include/c++/15.2.1/limits:
 
 /usr/include/c++/15.2.1/ext/string_conversions.h:
 

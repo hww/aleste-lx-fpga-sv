@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/pix_info.dir/link.d CMakeFiles/pix_info.dir/pix_info.cpp.o -o pix_info

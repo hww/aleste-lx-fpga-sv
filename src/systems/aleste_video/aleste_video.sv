@@ -117,7 +117,7 @@ module aleste_video #(
     logic [1:0] mem2sdram_sel;
 
     // Video Pipeline Signals
-    logic [7:0] ppu2pal_color_index;
+    logic [7:0] ppu2pal_color;
     logic ppu2pal_pixel_stb;
     logic ppu2pal_de;
 
@@ -126,7 +126,7 @@ module aleste_video #(
     logic [7:0] vbuf_data_o;
     logic vbuf_req, vbuf_ack0, vbuf_ack1, vbuf_de_o;
     logic vbuf_burst_request;
-    logic vbuf_stb_byte;
+    logic vbuf_stb_byte, vbuf_stb_pixel;
     logic [1:0] vbuf_byte_select;
 
     // Color Palette Signals
@@ -532,24 +532,27 @@ module aleste_video #(
     // ===========================================
     // Video Buffer
     // ===========================================
-    logic [15:0] vmem = crtc_ra[2] ? 8'h81 : crtc_ma;
+    logic [15:0] vbuf_vmem_in = vbuf_data;
     video_buffer vbuf (
         .rst_i(system_reset),
-                
+
+        .cfg_pixel_clock_sel(crtc_pixel_clock_sel),              
         // Memory interface (16/32-bit burst)
         .vmem_clk_i(clk_system),    // 108mhz
         .vmem_ack0_i(vbuf_ack0),    // First word. One period of 108Mhz 
         .vmem_ack1_i(vbuf_ack1),    // Second word. One period of 108Mhz
-        .vmem_data_i(vmem),    // Word
+        .vmem_data_i(vbuf_vmem_in),    // Word
         .vmem_req_o(vbuf_req),      // Request words
 
         // CRTC timing signals
         .pixel_clk_i(clk_pixel),    // 27Mhz
+        .stb_pixel_i(crtc_stb_pixel),
         .stb_byte_i(crtc_stb_byte), // Every video byte character one periond
         .stb_origin_i(crtc_stb_origin),
         .de_i(crtc_de),             // Border
 
         // To pixel_pipeline (8-bit)
+        .stb_pixel_o(vbuf_stb_pixel),
         .stb_byte_o(vbuf_stb_byte), // Every video byte character one periond
         .data_o(vbuf_data_o),       // Video byte
         .de_o(vbuf_de_o),             // Border
@@ -559,6 +562,7 @@ module aleste_video #(
     // ===========================================
     // Video Pipeline
     // ===========================================
+     logic [15:0] ppu_data_in = vbuf_data_o;
     pixel_pipeline ppu(
         .rst_i(system_reset),
         .clk_i(clk_pixel),           // 27mhz
@@ -569,14 +573,14 @@ module aleste_video #(
 
         // Memory interface
         .video_stb_i(vbuf_stb_byte),  // single clk with  
-        .video_data_i(vbuf_data_o),   // 8-bits
+        .video_data_i(ppu_data_in),   // 8-bits
 
         // CRTC timing
-        .stb_pixel_i(crtc_stb_pixel), // Actual pixel frequency 13.5MHz or other or constant 1
+        .stb_pixel_i(vbuf_stb_pixel), // Actual pixel frequency 13.5MHz or other or constant 1
         .pixel_de_i(vbuf_de_o),
         
         // Pixel output
-        .pixel_o(ppu2pal_color_index),
+        .pixel_o(ppu2pal_color),
         .pixel_de_o(ppu2pal_de)
     );
        
@@ -604,7 +608,7 @@ module aleste_video #(
         
         // Pixel interface
         .pixel_clk_i(clk_pixel),
-        .pixel_index_i(ppu2pal_color_index),
+        .pixel_index_i(ppu2pal_color),
         .pixel_de_i(ppu2pal_de),
         .pixel_color_o(pixel_color)
     );
@@ -733,7 +737,7 @@ module aleste_video #(
         '0,
         vbuf_data_o[0],
         vbuf_stb_byte,
-        ppu2pal_color_index[0],
+        ppu2pal_color[0],
         crtc_stb_pixel,
         crtc_stb_pixel,
         clk_pixel
@@ -741,11 +745,11 @@ module aleste_video #(
     */
     // Memory Arbitter
     assign debug = {
-                ppu2pal_color_index[0],
+        vbuf_byte_select[1],
+        vbuf_byte_select[0],
         vbuf_stb_byte,  // single clk with  
         crtc_de,
         crtc_stb_origin,
-        crtc_stb_pixel, // Actual pixel frequency 13.5MHz or other or constant 1
         crtc_stb_byte,
         crtc_stb_char, // Actual pixel frequency 13.5MHz or other or constant 1
         clk_pixel
