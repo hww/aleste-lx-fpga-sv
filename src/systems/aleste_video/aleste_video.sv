@@ -170,7 +170,6 @@ module aleste_video #(
     logic crtc_cursor, crtc_newline, crtc_newframe;
     logic [1:0] crtc_bpp_mode;
     logic crtc_continuous_mode;
-    logic crtc_use_cpc_modes;
     logic [23:0] crtc2mem_addr;
     logic crtc2mem_burst_mode;
     logic [2:0] crtc_addr_mode;
@@ -264,8 +263,8 @@ module aleste_video #(
     logic [1:0] uart2ext_tag;
     logic mmio_space    = uart2ext_adr[23:16] == 8'hFF;
     logic mmio_system   = mmio_space &&  uart2ext_adr[15:8] == 8'h00;
-    logic mmio_native   = mmio_space && ~uart2ext_adr[15];
-    logic mmio_legacy   = mmio_space &&  uart2ext_adr[15];
+    logic mmio_native   = mmio_space && uart2ext_adr[15:14] == 2'b00;
+    logic mmio_legacy   = mmio_space && uart2ext_adr[15:14] != 2'b00;
 
     always_comb begin
         if (mmio_system) uart2ext_tag = 2'b01;
@@ -358,6 +357,8 @@ module aleste_video #(
         // Wishbone
         .wb_rst_i(system_reset),
         .wb_clk_i(clk_bus),
+        .cfg_legacy_mode_i(global_legacy_mode),
+        .cfg_cpc_bpp_i('0),             // graphics mode from CPC
 
         // Wishbone interface
         .wb_cyc_i(system2crtc_cyc),
@@ -369,7 +370,6 @@ module aleste_video #(
         .wb_dat_o(system2crtc_dat_in),
         .wb_grant_o(system2crtc_grant), // CRTC self-detection to arbiter
         .wb_tag_i(system2crtc_tag),
-        .legacy_mode_i(global_legacy_mode),
 
         // Pixel Clock Domain  
         .pix_clk_i(clk_pixel),
@@ -401,14 +401,13 @@ module aleste_video #(
         // Extended address
         .crtc_ext_addr_o(crtc2mem_addr),
 
-        .crtc_use_cpc_modes(crtc_use_cpc_modes),        // 0=extended, 1=legacy CPC
-        .crtc_bpp_mode(crtc_bpp_mode),                  // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
-        .crtc_continuous_mode(crtc_continuous_mode),    // 0=CPC-style, 1=continuous  
+        .crtc_bpp_mode_o(crtc_bpp_mode),                // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
+        .crtc_continuous_mode_o(crtc_continuous_mode),  // 0=CPC-style, 1=continuous  
+        .crtc_pixel_clock_sel_o(crtc_pixel_clock_sel),  // Pixel clock selection
      
         // NEW: Extended address interface
         .crtc_burst_mode_o(crtc2mem_burst_mode),        // 1=32-bit burst, 0=16-bit normal
-        .crtc_addr_mode_o(crtc_addr_mode),              // Address mode
-        .crtc_pixel_clock_sel_o(crtc_pixel_clock_sel)   // Pixel clock selection
+        .crtc_addr_mode_o(crtc_addr_mode)               // Address mode
     );
 
     // ===========================================
@@ -562,7 +561,7 @@ module aleste_video #(
     // ===========================================
     // Video Pipeline
     // ===========================================
-     logic [15:0] ppu_data_in = vbuf_data_o;
+    logic [7:0] ppu_data_in = vbuf_data_o;
     pixel_pipeline ppu(
         .rst_i(system_reset),
         .clk_i(clk_pixel),           // 27mhz
@@ -591,6 +590,7 @@ module aleste_video #(
     color_palette pal(
         .wb_rst_i(system_reset),
         .wb_clk_i(clk_bus),
+        .cfg_legacy_mode_i(global_legacy_mode),
 
         // Whishbone interface
         .wb_adr_i(system2palette_adr),
@@ -602,9 +602,7 @@ module aleste_video #(
         .wb_grant_o(system2palette_grant),
         .wb_ack_o(system2palette_ack),
         .wb_tag_i(system2palette_tag), // Palette tag
-
-        // Config
-        .cfg_legacy_mode_i(global_legacy_mode),
+        .wb_cs_i('1),
         
         // Pixel interface
         .pixel_clk_i(clk_pixel),
@@ -748,11 +746,12 @@ module aleste_video #(
         vbuf_byte_select[1],
         vbuf_byte_select[0],
         vbuf_stb_byte,  // single clk with  
-        crtc_de,
-        crtc_stb_origin,
-        crtc_stb_byte,
-        crtc_stb_char, // Actual pixel frequency 13.5MHz or other or constant 1
-        clk_pixel
+        system2palette_tag[1],
+        system2palette_tag[0],
+        system2palette_ack, // Actual pixel frequency 13.5MHz or other or constant 1
+        system2palette_grant,       
+        system2palette_stb,
+        system2palette_cyc
     };
     /*
     assign debug = {

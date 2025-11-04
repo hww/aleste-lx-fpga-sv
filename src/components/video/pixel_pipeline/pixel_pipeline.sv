@@ -1,3 +1,12 @@
+// =============================================================================
+// PAL - Pixel Pipeline Unit
+// =============================================================================
+// For Aleste LX project by H2W
+// =============================================================================
+// This unit converts the bytes stream to a pixels stream
+// =============================================================================
+
+`default_nettype none
 module pixel_pipeline (
     // Clock
     input logic          rst_i,
@@ -31,7 +40,7 @@ always @(posedge clk_i) begin
         cfg_continuous_mode_latched <= 1'b0;
     end else begin
         if (video_stb_i) begin
-            cfg_bpp_mode <= cfg_bpp_mode_i;
+            cfg_bpp_mode_latched <= cfg_bpp_mode_i;
             cfg_continuous_mode_latched <= cfg_continuous_mode_i;
         end
     end
@@ -48,7 +57,7 @@ always @(posedge clk_i) begin
             de_delayed <= pixel_de_i;
         end else if (stb_pixel_i) begin
             // Сдвиговый регистр
-            case (cfg_bpp_mode)
+            case (cfg_bpp_mode_latched)
                 2'b00: begin // 1bpp - 8 пикселей из байта
                     shift_reg <= {shift_reg[6:0], 1'b0};
                 end

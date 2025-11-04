@@ -1,12 +1,16 @@
 // cpc_colors.sv - Accurate CPC hardware register to RGB converter
 module cpc_colors (
-    input wire [7:0] hw_register,  // Raw byte from CPC Gate Array
-    output reg [11:0] rgb_color    // 12-bit R4G4B4
+    input  wire        clk_i,         // ← ДОБАВИЛ такт
+    input  wire [7:0]  hw_register,   // Raw byte from CPC Gate Array
+    output reg [11:0]  rgb_color      // 12-bit R4G4B4
 );
 
 // Distributed memory LUT для точного маппинга CPC hardware значений
 (* rom_style = "distributed" *) 
 reg [11:0] cpc_hw_to_rgb [0:255];
+
+// Pipeline регистр
+reg [11:0] rgb_color_ff;
 
 // Инициализация точных CPC цветов на основе предоставленной таблицы
 initial begin
@@ -50,8 +54,12 @@ initial begin
     cpc_hw_to_rgb[8'h4B] = 12'hFFF; // 26 Bright White
 end
 
-always @(*) begin
-    rgb_color = cpc_hw_to_rgb[hw_register];
+// Pipeline стадия - убираем комбинаторный взрыв
+always @(posedge clk_i) begin
+    rgb_color_ff <= cpc_hw_to_rgb[hw_register];
 end
+
+// Выход всегда защелкнут
+assign rgb_color = rgb_color_ff;
 
 endmodule
