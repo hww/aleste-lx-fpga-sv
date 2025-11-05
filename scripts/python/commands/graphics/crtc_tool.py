@@ -35,9 +35,9 @@ class CRTC_Tool:
             0x0E: "CURH",
             0x0F: "CURL",
             0x12: "VIDEO_CONTROL",
-            0x19: "HIGH_ADDRESS",
-            0x1A: "ADDR_MODE",
-            0x1B: "PIXEL_CTRL"
+            0x13: "HIGH_ADDRESS",
+            0x14: "ADDR_MODE",
+            0x15: "PIXEL_CTRL"
         }
     
     def read_reg(self, reg):

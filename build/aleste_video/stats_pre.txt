@@ -183,10 +183,10 @@
 
 === aleste_video ===
 
-   Number of wires:                178
-   Number of wire bits:            721
-   Number of public wires:         163
-   Number of public wire bits:     644
+   Number of wires:                177
+   Number of wire bits:            720
+   Number of public wires:         162
+   Number of public wire bits:     643
    Number of ports:                 19
    Number of port bits:             61
    Number of memories:               0
@@ -239,15 +239,15 @@
 === $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod ===
 
    Number of wires:                297
-   Number of wire bits:           1427
-   Number of public wires:         115
-   Number of public wire bits:     449
+   Number of wire bits:           1428
+   Number of public wires:         114
+   Number of public wire bits:     448
    Number of ports:                 39
    Number of port bits:            142
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:             60
-   Number of cells:                 83
+   Number of cells:                 84
      $add                            8
      $div                            2
      $eq                            22
@@ -258,6 +258,7 @@
      $lt                             8
      $mul                            2
      $mux                            3
+     $not                            1
      $sub                            2
 
 === $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone ===
@@ -507,16 +508,16 @@
      video_pll                       1
      wb_simple_reg                   1
 
-   Number of wires:               5844
+   Number of wires:               5843
    Number of wire bits:          37984
-   Number of public wires:         830
-   Number of public wire bits:    3433
+   Number of public wires:         828
+   Number of public wire bits:    3431
    Number of ports:                393
    Number of port bits:           1472
    Number of memories:               5
    Number of memory bits:        26496
    Number of processes:            191
-   Number of cells:               1074
+   Number of cells:               1075
      $add                           76
      $and                           11
      $div                            2
@@ -532,7 +533,7 @@
      $mul                            2
      $mux                           40
      $ne                             8
-     $not                           26
+     $not                           27
      $or                             3
      $pos                            1
      $reduce_and                     1

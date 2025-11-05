@@ -169,11 +169,11 @@ module aleste_video #(
     logic crtc_de, crtc_hsync, crtc_vsync;
     logic crtc_cursor, crtc_newline, crtc_newframe;
     logic [1:0] crtc_bpp;
-    logic cfg_linear;
+    logic cfg_linear_crtc;
     logic [23:0] crtc2mem_addr;
     logic cfg_burst;
     logic [1:0] cfg_rate;
-    logic crtc_stb_char, crtc_stb_word, crtc_stb_pixel, crtc_stb_byte, crtc_stb_origin;
+    logic crtc_stb_char_end, crtc_stb_pixel_shift, crtc_stb_byte_load, crtc_stb_mem_sync;
     logic crtc_halt; // For debug
 
     // Scan Doubler Signals
@@ -376,10 +376,10 @@ module aleste_video #(
         .crtc_cursor_o(crtc_cursor),
         .crtc_newline_o(crtc_newline),
         .crtc_newframe_o(crtc_newframe),
-        .stb_char_o(crtc_stb_char),     // End of character 1/16 of 27MHz
-        .stb_pixel_o(crtc_stb_pixel),   // Пиксельный строб 
-        .stb_byte_o(crtc_stb_byte),     // Загрузка байта
-        .stb_origin_o(crtc_stb_origin), // ключевой строб латентности
+        .stb_char_end_o(crtc_stb_char_end),     // End of character 1/16 of 27MHz
+        .stb_pixel_shift_o(crtc_stb_pixel_shift),   // Пиксельный строб 
+        .stb_byte_load_o(crtc_stb_byte_load),     // Загрузка байта
+        .stb_mem_sync_o(crtc_stb_mem_sync), // ключевой строб латентности
 
         // HDMI timing reference
         .hdmi_x_i(hdmi_x),
@@ -397,7 +397,7 @@ module aleste_video #(
         .crtc_ext_addr_o(crtc2mem_addr),
 
         .cfg_bpp_o(crtc_bpp),           // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
-        .cfg_linear_o(cfg_linear),      // 0=CPC-style, 1=continuous  
+        .cfg_linear_o(cfg_linear_crtc),      // 0=CPC-style, 1=continuous  
         .cfg_rate_o(cfg_rate),          // Pixel clock selection
         .cfg_burst_o(cfg_burst)         // 1=32-bit burst, 0=16-bit normal
     );
@@ -524,6 +524,7 @@ module aleste_video #(
     // Video Buffer
     // ===========================================
     logic [15:0] vbuf_vmem_in = vbuf_data;
+
     video_buffer vbuf (
         .rst_i(system_reset),
 
@@ -537,14 +538,14 @@ module aleste_video #(
 
         // CRTC timing signals
         .pixel_clk_i(clk_pixel),    // 27Mhz
-        .stb_pixel_i(crtc_stb_pixel),
-        .stb_byte_i(crtc_stb_byte), // Every video byte character one periond
-        .stb_origin_i(crtc_stb_origin),
+        .stb_pixel_shift_i(crtc_stb_pixel_shift),
+        .stb_byte_load_i(crtc_stb_byte_load), // Every video byte character one periond
+        .stb_mem_sync_i(crtc_stb_mem_sync),
         .de_i(crtc_de),             // Border
 
         // To pixel_pipeline (8-bit)
-        .stb_pixel_o(vbuf_stb_pixel),
-        .stb_byte_o(vbuf_stb_byte), // Every video byte character one periond
+        .stb_pixel_shift_o(vbuf_stb_pixel),
+        .stb_byte_load_o(vbuf_stb_byte), // Every video byte character one periond
         .data_o(vbuf_data_o),       // Video byte
         .de_o(vbuf_de_o),             // Border
         .debug_byte_select_o(vbuf_byte_select)
@@ -560,14 +561,14 @@ module aleste_video #(
         
         // Configuration
         .cfg_bpp_i(crtc_bpp),
-        .cfg_linear_i(cfg_linear),
+        .cfg_linear_i(cfg_linear_crtc),
 
         // Memory interface
         .video_stb_i(vbuf_stb_byte),  // single clk with  
         .video_data_i(ppu_data_in),   // 8-bits
 
         // CRTC timing
-        .stb_pixel_i(vbuf_stb_pixel), // Actual pixel frequency 13.5MHz or other or constant 1
+        .stb_pixel_shift_i(vbuf_stb_pixel), // Actual pixel frequency 13.5MHz or other or constant 1
         .pixel_de_i(vbuf_de_o),
         
         // Pixel output
@@ -728,8 +729,8 @@ module aleste_video #(
         vbuf_data_o[0],
         vbuf_stb_byte,
         ppu2pal_color[0],
-        crtc_stb_pixel,
-        crtc_stb_pixel,
+        crtc_stb_pixel_shift,
+        crtc_stb_pixel_shift,
         clk_pixel
     };
     */

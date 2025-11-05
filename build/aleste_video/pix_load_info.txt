@@ -1,0 +1,5 @@
+Image: 160x200 @4bpp
+Base address: 0x040000
+Pixel data: 0x040000
+Palette: 0x044000
+Info: 0x044020

@@ -9,7 +9,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.join(current_dir, '../..')
 sys.path.insert(0, root_dir)
 
-from core.smart_preset_loader import SmartPresetLoader
+from core.preset_loader import PresetLoader
 
 def main():
     if len(sys.argv) < 2:
@@ -24,7 +24,7 @@ def main():
         return 1
 
     command = sys.argv[1]
-    loader = SmartPresetLoader()
+    loader = PresetLoader()
 
     try:
         if command == "list":
