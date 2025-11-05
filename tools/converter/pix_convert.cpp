@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <unordered_map>  // Added missing include
 
 // ==================== СТРУКТУРЫ ДАННЫХ ====================
 struct RGB {
@@ -179,6 +180,7 @@ public:
     uint16_t width() const { return width_; }
     uint16_t height() const { return height_; }
     const RGB& pixel(int x, int y) const { return pixels[y * width_ + x]; }
+    std::vector<RGB>& getPixels() { return pixels; }  // Changed to non-const
     const std::vector<RGB>& getPixels() const { return pixels; }
     
     void resize(uint16_t newWidth, uint16_t newHeight) {
@@ -245,6 +247,146 @@ public:
         pixels = std::move(newPixels);
         width_ = newWidth;
         height_ = newHeight;
+    }
+};
+
+// ================== КОНВЕРТОР ИЗИБРАЖЕНИЯ ==================
+class SimpleColorProcessor {
+private:
+    struct ColorStats {
+        RGB color;
+        int count;
+        
+        ColorStats(const RGB& c, int cnt) : color(c), count(cnt) {}
+        
+        // Простые методы конвертации
+        uint16_t to12bit() const {
+            return ((color.r >> 4) << 8) | ((color.g >> 4) << 4) | (color.b >> 4);
+        }
+        
+        uint8_t toMSX() const {
+            return ((color.r >> 5) << 5) | ((color.g >> 5) << 2) | (color.b >> 6);
+        }
+        
+        uint8_t to6bit() const {
+            return ((color.r >> 6) << 4) | ((color.g >> 6) << 2) | (color.b >> 6);
+        }
+        
+        uint16_t toCPC() const {
+            // Простой поиск ближайшего CPC цвета
+            int bestIndex = 0;
+            int bestDist = 255 * 255 * 3;
+            
+            for (int i = 0; i < CPC_PALETTE.size(); i++) {
+                const RGB& cpcColor = CPC_PALETTE[i];
+                int dr = color.r - cpcColor.r;
+                int dg = color.g - cpcColor.g;
+                int db = color.b - cpcColor.b;
+                int dist = dr*dr + dg*dg + db*db;
+                
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestIndex = i;
+                }
+            }
+            
+            const RGB& bestColor = CPC_PALETTE[bestIndex];
+            return ((bestColor.r >> 4) << 8) | ((bestColor.g >> 4) << 4) | (bestColor.b >> 4);
+        }
+    };
+
+public:
+    static std::vector<RGB> selectPalette(const SimpleImage& image, int maxColors, const std::string& paletteMode) {
+        // 1. Собираем статистику цветов
+        std::unordered_map<uint32_t, int> colorCount;
+        
+        for (const auto& pixel : image.getPixels()) {
+            uint32_t key = (pixel.r << 16) | (pixel.g << 8) | pixel.b;
+            colorCount[key]++;
+        }
+        
+        // 2. Преобразуем в ColorStats и сортируем по частоте
+        std::vector<ColorStats> colorStats;
+        for (const auto& entry : colorCount) {
+            RGB color((entry.first >> 16) & 0xFF, (entry.first >> 8) & 0xFF, entry.first & 0xFF);
+            colorStats.emplace_back(color, entry.second);
+        }
+        
+        std::sort(colorStats.begin(), colorStats.end(), 
+            [](const ColorStats& a, const ColorStats& b) { 
+                return a.count > b.count; 
+            });
+        
+        // 3. Выбираем палитру
+        std::vector<RGB> palette;
+        
+        if (paletteMode == "cpc") {
+            // Фиксированная CPC палитра
+            palette = CPC_PALETTE;
+            if (maxColors < palette.size()) {
+                palette.resize(maxColors);
+            }
+        } else {
+            // Берем N самых частых цветов
+            int count = std::min(maxColors, (int)colorStats.size());
+            for (int i = 0; i < count; i++) {
+                palette.push_back(colorStats[i].color);
+            }
+        }
+        
+        return palette;
+    }
+    
+    static std::vector<uint8_t> savePalette(const std::vector<RGB>& palette, const std::string& paletteMode) {
+        std::vector<uint8_t> paletteData;
+        
+        for (const auto& color : palette) {
+            ColorStats stats(color, 0);
+            
+            if (paletteMode == "cpc" || paletteMode == "12bit") {
+                uint16_t color12 = stats.to12bit();
+                paletteData.push_back(color12 & 0xFF);
+                paletteData.push_back((color12 >> 8) & 0xFF);
+            } else if (paletteMode == "msx") {
+                paletteData.push_back(stats.toMSX());
+            } else if (paletteMode == "6bit") {
+                paletteData.push_back(stats.to6bit());
+            } else {
+                // По умолчанию - 12bit
+                uint16_t color12 = stats.to12bit();
+                paletteData.push_back(color12 & 0xFF);
+                paletteData.push_back((color12 >> 8) & 0xFF);
+            }
+        }
+        
+        return paletteData;
+    }
+    
+    static SimpleImage quantizeImage(const SimpleImage& image, const std::vector<RGB>& palette) {
+        SimpleImage result = image;
+        
+        for (auto& pixel : result.getPixels()) {
+            // Находим ближайший цвет в палитре
+            int bestIndex = 0;
+            int bestDist = 255 * 255 * 3;
+            
+            for (int i = 0; i < palette.size(); i++) {
+                const RGB& palColor = palette[i];
+                int dr = pixel.r - palColor.r;
+                int dg = pixel.g - palColor.g;
+                int db = pixel.b - palColor.b;
+                int dist = dr*dr + dg*dg + db*db;
+                
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestIndex = i;
+                }
+            }
+            
+            pixel = palette[bestIndex];
+        }
+        
+        return result;
     }
 };
 
@@ -434,7 +576,7 @@ private:
     
     // CPC адресация (чересстрочная)
     std::vector<uint8_t> applyCPCAddressing(const std::vector<uint8_t>& data, int width, int height, int bpp) {
-        // CPC адресация требует 16KB буфера (8×2048)
+        // CPC адресация требует 16KB будера (8×2048)
         int cpcBufferSize = 16384; // 16KB для CPC
         std::vector<uint8_t> result(cpcBufferSize, 0); // Инициализируем нулями!
         
@@ -561,17 +703,11 @@ public:
         std::vector<RGB> palette;
         int maxColors = 1 << bpp;
         
-        if (paletteMode == "cpc") {
-            std::cout << "🎨 Using CPC palette (" << maxColors << " colors)" << std::endl;
-            palette = CPC_PALETTE;
-            if (maxColors < palette.size()) {
-                palette.resize(maxColors);
-            }
-        } else if (paletteMode == "8bit") {
-            palette = extractAdaptivePalette(image, maxColors);
-        } else {
-            palette = extractPalette(image, maxColors);
-        }
+        // ИСПОЛЬЗУЕМ НОВЫЙ ПРОЦЕССОР
+        palette = SimpleColorProcessor::selectPalette(image, maxColors, paletteMode);
+        
+        // ==================== КВАНТОВАНИЕ ИЗОБРАЖЕНИЯ ====================
+        SimpleImage quantizedImage = SimpleColorProcessor::quantizeImage(image, palette);
         
         // ==================== КОДИРОВАНИЕ ПИКСЕЛЕЙ ====================
         std::vector<uint8_t> pixelData;
@@ -602,13 +738,8 @@ public:
         }
         
         // ==================== ПОДГОТОВКА ДАННЫХ ====================
-        std::vector<uint8_t> paletteData;
-        for (const auto& color : palette) {
-            paletteData.push_back(color.r);
-            paletteData.push_back(color.g);
-            paletteData.push_back(color.b);
-        }
-        
+         std::vector<uint8_t> paletteData = SimpleColorProcessor::savePalette(palette, paletteMode);
+            
         std::vector<uint8_t> infoData = createInfoChunk(width, height, bpp, colorEncoding, addressEncoding, paletteMode);
         
         // ==================== СОЗДАНИЕ СТРУКТУРЫ ФАЙЛА ====================
