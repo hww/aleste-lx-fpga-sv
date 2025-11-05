@@ -50,7 +50,6 @@ assign legacy_access = cfg_legacy_i && wb_tag_i[2] && !wb_dat_i[7] && (!wb_adr_i
 // CPC control registers by D[7:6] the Aleste will use A[4:0]
 
 assign wb_grant_o  = legacy_access || native_access;
-assign wb_grant_o = wb_grant_o;
 
 // Модификация индекса палитры
 logic [7:0] modified_pixel_index;
@@ -182,7 +181,7 @@ end
 always_ff @(posedge pixel_clk_i) begin
     if (wb_rst_i) begin    
         pixel_color_o <= 0;
-    end begin
+    end else begin
         if (pixel_de_i) begin
             // ОСНОВНОЕ ИЗОБРАЖЕНИЕ: читаем из палитры с модификатором
             pixel_color_o <= palette_ram[modified_pixel_index];

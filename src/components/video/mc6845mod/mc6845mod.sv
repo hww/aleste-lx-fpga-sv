@@ -69,15 +69,17 @@ module mc6845mod #(
     // CPU Interface
     output logic crtc_halt_o,
 
-    // Expansion
-    output logic [1:0]  cfg_bpp_o,          // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
-    output logic        cfg_linear_o,       // 0=CPC-style, 1=continuous  
-    output logic [1:0]  cfg_rate_o,         // Pixel clock selection
-    
     // NEW: Extended address interface
     output logic [23:0] crtc_ext_addr_o,    // 24-bit extended address
+
+    // Expansion
+    output logic [1:0]  cfg_bpp_o,          // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
+    output logic        cfg_linear_pixel_o, // 0=CPC-style, 1=continuous  
+    output logic [1:0]  cfg_pixel_rate_o,         // Pixel clock selection
+    output logic        cfg_use_cpc_pal_o,
+    
     output logic        cfg_burst_o,        // 1=32-bit burst, 0=16-bit normal
-    output logic [2:0]  crtc_addr_mode_o,   // Address mode
+    output logic [2:0]  cfg_addr_mode_o,    // Address mode
 );
 
 // ============================================================================
@@ -103,9 +105,9 @@ localparam REG_CURH       = 5'h0E;
 localparam REG_CURL       = 5'h0F;
 localparam REG_VIDEO_CONTROL = 5'h12;
 // NEW EXTENDED REGISTERS - добавляем после существующих
-localparam REG_HIGH_ADDRESS = 5'h19;  // A16-A23
-localparam REG_ADDR_MODE    = 5'h1A;  // Address mode control
-localparam REG_PIXEL_CTRL   = 5'h1B;  // Pixel clock control
+localparam REG_HIGH_ADDRESS = 5'h13;  // A16-A23
+localparam REG_ADDR_MODE    = 5'h14;  // Address mode control
+localparam REG_PIXEL_CTRL   = 5'h15;  // Pixel clock control
 
 // Internal registers
 logic [7:0] reg_h_total = 0;
@@ -323,40 +325,38 @@ end
 // РАСШИРЕННЫЕ СИГНАЛЫ УПРАВЛЕНИЯ
 // ============================================================================
 // Video Control Register (reg_video_control) - 8 bits
-// [7:5] - Reserved for future use
-// [4]   - use_cpc_modes: 0=Normal modes, 1=CPC-compatible video modes
-// [3]   - continuous_mode: 0=Single access, 1=Continuous memory access  
-// [2]   - burst_enable: 0=Single cycle access, 1=Burst mode access (REQUIRES SDRAM SUPPORT!)
 // [1:0] - bpp_mode: 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
+// [2]   - reserved
+// [3]   - reserved  
+// [4]   - linear_pixel: 0=CPC palette, 1=Linear RGB
+// [5]   - use_cpc_modes: 0=Internal bpp, 1=CPC gatearray graphics
+// [6]   - use_cpc_pal: 0=Native palette, 1=CPC palette mode
+// [7]   - reserved
 wire [1:0] bpp_mode        = reg_video_control[1:0];
-wire       burst_enable    = reg_video_control[2]; // Reuse existing bit
-wire       continuous_mode = reg_video_control[3];
-wire       use_cpc_modes   = reg_video_control[4];
+wire       linear_pixel    = reg_video_control[4];
+wire       use_cpc_modes   = reg_video_control[5];
+wire       use_cpc_pal     = reg_video_control[6];
 
 // Pixel Control Register (reg_pixel_ctrl) - 8 bits  
+// [1:0] - bytes_per_16clk: 00=2 bytes, 01=4 bytes, 10=8 bytes, 11=16 bytes
 // [7:2] - Reserved for future use
-// [1:0] - pixel_clock_sel: 00=27MHz, 01=54MHz, 10=74MHz, 11=108MHz
-wire [1:0] pixel_clock_sel = reg_pixel_ctrl[1:0];  // From new register
+wire [1:0] pixel_rate = reg_pixel_ctrl[1:0];  // From new register
 
 // Address Mode Register (reg_addr_mode) - 8 bits
-// [7:3] - Reserved for future use
-// [2:0] - addr_mode: 
-//          000=(Main) CPC 16KB
-//          001=(Reserved) EX 32KB  
-//          010=(Reserved) LX 32KB
-//          011=(Reserved) LX 64KB
-//          100=(Main Linear) 16,32,64,...,128KB
-//          101-111=Reserved
-wire [2:0] addr_mode = reg_addr_mode[2:0];   // From new register
-wire cpc_mode =  addr_mode == 3'b000; // Linear addressing mode
-wire linear_mode =  addr_mode[2]; // Linear addressing mode
+// [0]   - linear_mode: 0=CPC-style, 1=Linear addressing
+// [1]   - burst_enable: 0=Normal, 1=Burst mode
+// [4:2] - addr_mode: 000=CPC 16KB, 001=EX 32KB, 010=LX 32KB, 011=LX 64KB, 100=Linear
+// [7:5] - Reserved for future use
+wire linear_mode  = reg_video_control[0]; // Linear addressing mode
+wire burst_enable = reg_video_control[1]; // Reuse existing bit
+wire [2:0] addr_mode = reg_addr_mode[5:4];// From new register
 
 // Output assignments
-assign cfg_bpp_o= use_cpc_modes ? cfg_cpc_bpp_i : bpp_mode;
-assign cfg_linear_o = continuous_mode;
-assign crtc_addr_mode_o = addr_mode;
-assign cfg_rate_o = pixel_clock_sel;
-
+assign cfg_bpp_o= use_cpc_modes ? ~cfg_cpc_bpp_i : bpp_mode;
+assign cfg_linear_pixel_o = linear_pixel;
+assign cfg_addr_mode_o = addr_mode;
+assign cfg_pixel_rate_o = pixel_rate;
+assign cfg_use_cpc_pal_o = use_cpc_pal;
 // ============================================================================
 // БЛОК 1: HDMI ПИКСЕЛЬНЫЕ СЧЕТЧИКИ (FIXED TIMING)
 // ============================================================================
@@ -447,14 +447,14 @@ always_ff @(posedge pix_clk_i) begin
         stb_char <= strobe_1x;       
         stb_origin_o        <= !start_h_trigger && (crtc_pix_x[2:0] == 3'b011); // 4 and 12
 
-        case (pixel_clock_sel)
+        case (pixel_rate)
             2'b00: stb_byte <= (crtc_pix_x[2:0] == 3'b011); // 16px/char (2 bytes per 16 pixeld)
             2'b01: stb_byte <= (crtc_pix_x[1:0] == 2'b01);  // 8px/char  (4 bytes per 16 pixeld)
             2'b10: stb_byte <= (crtc_pix_x[0]   == 1'b1);   // 4px/char  (8 bytes per 16 pixeld)
             2'b11: stb_byte <= 1'b1;                        // 2px/char
             default: ;
         endcase
-        case ({pixel_clock_sel, bpp_mode})
+        case ({pixel_rate, bpp_mode})
             // 16KB VRAM - все режимы доступны на полной скорости 8pix/perbyte
             4'b00_00: stb_pixel <= strobe_16x; // 1bpp: 8x (макс)
             4'b00_01: stb_pixel <= strobe_8x;  // 2bpp: 4x
