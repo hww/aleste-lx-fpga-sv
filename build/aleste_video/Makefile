@@ -35,14 +35,13 @@ SCALER      := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
 PALETTE     := $(PALETTE_DIR)/cpc_colors.sv $(PALETTE_DIR)/msx_colors.sv $(PALETTE_DIR)/color_palette.sv
 VIDBUF      := $(VIDBUF_DIR)/video_buffer.sv
 PIXPIPE	    := $(PIXPIPE_DIR)/pixel_pipeline.sv
-MEM_ARBITER := $(SYSTEM_DIR)/memory_arbiter.sv $(SYSTEM_DIR)/system_arbiter.sv
-TEST_GEN    := $(SYSTEM_DIR)/test_video_data_generator.sv
+SYSTEM      := $(SYSTEM_DIR)/memory_arbiter.sv $(SYSTEM_DIR)/system_arbiter.sv $(SYSTEM_DIR)/address_decoder.sv
 TOP_MODULE  := $(SYSTEM_DIR)/aleste_video.sv
 
 # ALL_SOURCES для правильных зависимостей
 ALL_SOURCES := $(TOP_MODULE) $(CLOCK) $(SDRAM_CTRL) $(HDMI) $(CRTC) $(SCALER) \
-               $(PALETTE) $(MEM_ARBITER) $(PIXPIPE) \
-               $(RESET_CTRL) $(TEST_GEN) $(DEBUG) $(VIDBUF) $(UART_BRIDGE) $(WB) $(CLOCK_CTRL)
+               $(PALETTE) $(SYSTEM) $(PIXPIPE) \
+               $(RESET_CTRL) $(DEBUG) $(VIDBUF) $(UART_BRIDGE) $(WB) $(CLOCK_CTRL)
 
 # Generated files
 YOSYS_SCRIPT := aleste_video.ys
@@ -75,11 +74,10 @@ $(YOSYS_SCRIPT): $(ALL_SOURCES)
 	@echo "read_verilog -sv $(WB)" >> $@
 	@echo "read_verilog -sv $(SDRAM_CTRL)" >> $@
 	@echo "read_verilog -sv $(UART_BRIDGE)" >> $@
-	@echo "read_verilog -sv $(TEST_GEN)" >> $@
 	@echo "read_verilog -sv $(CRTC)" >> $@
 	@echo "read_verilog -sv $(SCALER)" >> $@
 	@echo "read_verilog -sv $(PALETTE)" >> $@
-	@echo "read_verilog -sv $(MEM_ARBITER)" >> $@
+	@echo "read_verilog -sv $(SYSTEM)" >> $@
 	@echo "read_verilog -sv $(PIXPIPE)" >> $@
 	@echo "read_verilog -sv $(CLOCK_CTRL)" >> $@
 	@echo "read_verilog -sv $(RESET_CTRL)" >> $@

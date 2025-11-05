@@ -20,8 +20,8 @@ module pixel_pipeline (
     input logic [7:0]    video_data_i,         // The video data
     
     // Configuration
-    input logic [1:0]    cfg_bpp_mode_i,
-    input logic          cfg_continuous_mode_i,
+    input logic [1:0]    cfg_bpp_i,
+    input logic          cfg_linear_i,
     
     // Display control
     output logic [7:0]   pixel_o,
@@ -29,19 +29,19 @@ module pixel_pipeline (
     output logic         pixel_de_o            // Display Enable к палитре (1=active, 0=border)
 );
 
-logic       cfg_continuous_mode_latched = 0;
-logic [1:0] cfg_bpp_mode_latched = 0;
+logic       cfg_linear_latched = 0;
+logic [1:0] cfg_bpp_latched = 0;
 logic [7:0] shift_reg = 0;
 logic de_delayed; 
 
 always @(posedge clk_i) begin
     if (rst_i) begin
-        cfg_bpp_mode_latched <= 2'b0;
-        cfg_continuous_mode_latched <= 1'b0;
+        cfg_bpp_latched <= 2'b0;
+        cfg_linear_latched <= 1'b0;
     end else begin
         if (video_stb_i) begin
-            cfg_bpp_mode_latched <= cfg_bpp_mode_i;
-            cfg_continuous_mode_latched <= cfg_continuous_mode_i;
+            cfg_bpp_latched <= cfg_bpp_i;
+            cfg_linear_latched <= cfg_linear_i;
         end
     end
 end
@@ -57,12 +57,12 @@ always @(posedge clk_i) begin
             de_delayed <= pixel_de_i;
         end else if (stb_pixel_i) begin
             // Сдвиговый регистр
-            case (cfg_bpp_mode_latched)
+            case (cfg_bpp_latched)
                 2'b00: begin // 1bpp - 8 пикселей из байта
                     shift_reg <= {shift_reg[6:0], 1'b0};
                 end
                 2'b01: begin // 2bpp - 4 пикселя из байта
-                    if (cfg_continuous_mode_latched) begin
+                    if (cfg_linear_latched) begin
                         shift_reg <= {shift_reg[5:0], 2'b0};
                     end else begin
                         // CPC Mode 1: [3,7], [2,6], [1,5], [0,4]
@@ -70,7 +70,7 @@ always @(posedge clk_i) begin
                     end
                 end
                 2'b10: begin // 4bpp - 2 пикселя из байта
-                    if (cfg_continuous_mode_latched) begin
+                    if (cfg_linear_latched) begin
                         shift_reg <= {shift_reg[3:0], 4'b0};
                     end else begin
                         // CPC Mode 0: [1,5,3,7], [0,4,2,6]
@@ -87,12 +87,12 @@ logic [7:0] pixel = 0;
 
 always_comb begin
     // Формирование пиксельного индекса
-    case (cfg_bpp_mode_latched)
+    case (cfg_bpp_latched)
         2'b00: begin // 1bpp - 8 пикселей из байта
             pixel = {7'b0, shift_reg[7]};
         end
         2'b01: begin // 2bpp - 4 пикселя из байта
-            if (cfg_continuous_mode_latched) begin
+            if (cfg_linear_latched) begin
                 pixel = {6'b0, shift_reg[7:6]};
             end else begin
                 // CPC Mode 1: [3,7], [2,6], [1,5], [0,4]
@@ -100,7 +100,7 @@ always_comb begin
             end
         end
         2'b10: begin // 4bpp - 2 пикселя из байта
-            if (cfg_continuous_mode_latched) begin
+            if (cfg_linear_latched) begin
                 pixel = {4'b0, shift_reg[7:4]};
             end else begin
                 // CPC Mode 0: [1,5,3,7], [0,4,2,6]

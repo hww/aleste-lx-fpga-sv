@@ -25,7 +25,7 @@ module mc6845mod #(
     localparam V_PIX_COUNTER_WIDTH = $clog2(HDMI_V_TOTAL)   // 262 -> 9 бит
 )(
     // Wishbone Slave Interface
-    input  logic        cfg_legacy_mode_i,  // the addressing same as the CPC
+    input  logic        cfg_legacy_i,  // the addressing same as the CPC
     input  logic [1:0]  cfg_cpc_bpp_i,      // the gatearray graphics mode from CPC
     input logic wb_clk_i,
     input logic wb_rst_i,
@@ -34,9 +34,10 @@ module mc6845mod #(
     input logic [23:0] wb_adr_i,
     input logic [7:0] wb_dat_i,
     input logic wb_we_i,
-    input logic [1:0] wb_tag_i,
+    input logic [2:0] wb_tag_i,
     output logic wb_ack_o,
     output logic [7:0] wb_dat_o,
+    input  logic wb_cs_i,
     output logic wb_grant_o,
 
     // Pixel Clock Domain  
@@ -69,14 +70,14 @@ module mc6845mod #(
     output logic crtc_halt_o,
 
     // Expansion
-    output logic [1:0]  crtc_bpp_mode_o,         // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
-    output logic        crtc_continuous_mode_o,  // 0=CPC-style, 1=continuous  
-    output logic [1:0]  crtc_pixel_clock_sel_o,  // Pixel clock selection
+    output logic [1:0]  cfg_bpp_o,          // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
+    output logic        cfg_linear_o,       // 0=CPC-style, 1=continuous  
+    output logic [1:0]  cfg_rate_o,         // Pixel clock selection
     
     // NEW: Extended address interface
-    output logic [23:0] crtc_ext_addr_o,        // 24-bit extended address
-    output logic        crtc_burst_mode_o,       // 1=32-bit burst, 0=16-bit normal
-    output logic [2:0]  crtc_addr_mode_o,       // Address mode
+    output logic [23:0] crtc_ext_addr_o,    // 24-bit extended address
+    output logic        cfg_burst_o,        // 1=32-bit burst, 0=16-bit normal
+    output logic [2:0]  crtc_addr_mode_o,   // Address mode
 );
 
 // ============================================================================
@@ -138,16 +139,17 @@ logic [4:0] wb_addr_reg;
 logic [7:0] wb_data_in;
 logic [7:0] wb_data_out;
 logic address_lines;
+logic legacy_cs;
 
 // Chip select
-// Legacy mode   0xBCXX
-// Native mode 0xFF0110
 localparam LEGACY_ADDRESS = 16'hBC00;
-localparam NATIVE_ADDRESS = 16'h0110;
+// Legacy mode when enabled is on the TAG[2]
+assign legacy_cs = cfg_legacy_i && wb_tag_i[2] && (wb_adr_i[14] == WB_ADDRESS[14]);
+// Enable on the legacy or native mode
+assign wb_grant_o = wb_cyc_i && wb_stb_i && (legacy_cs || wb_cs_i);
+// CPC has address lines A[9:0] the LX will have A[1:0]
+assign address_lines = cfg_legacy_i ? wb_adr_i[8] : wb_adr_i[0];
 
-assign wb_grant_o = wb_cyc_i && wb_stb_i && (cfg_legacy_mode_i ? (wb_tag_i == 2'b11) && (wb_adr_i[15:1] == WB_ADDRESS[15:1])
-                                                               : (wb_tag_i == 2'b10) && (wb_adr_i[15:4] == NATIVE_ADDRESS [15:4]));
-assign address_lines = cfg_legacy_mode_i ? wb_adr_i[8] : wb_adr_i[0];
 assign wb_ack_o = wb_ack;
 assign wb_dat_o = wb_data_out;
 assign wb_data_in = wb_dat_i;
@@ -350,10 +352,10 @@ wire cpc_mode =  addr_mode == 3'b000; // Linear addressing mode
 wire linear_mode =  addr_mode[2]; // Linear addressing mode
 
 // Output assignments
-assign crtc_bpp_mode_o= use_cpc_modes ? cfg_cpc_bpp_i : bpp_mode;
-assign crtc_continuous_mode_o = continuous_mode;
+assign cfg_bpp_o= use_cpc_modes ? cfg_cpc_bpp_i : bpp_mode;
+assign cfg_linear_o = continuous_mode;
 assign crtc_addr_mode_o = addr_mode;
-assign crtc_pixel_clock_sel_o = pixel_clock_sel;
+assign cfg_rate_o = pixel_clock_sel;
 
 // ============================================================================
 // БЛОК 1: HDMI ПИКСЕЛЬНЫЕ СЧЕТЧИКИ (FIXED TIMING)
@@ -581,7 +583,7 @@ always_ff @(posedge pix_clk_i) begin
         linear_addr <= {reg_start_addr_h, reg_start_addr_l}; // ×4 for byte address
     end else if (stb_char && linear_mode) begin
         // Linear addressing: +2 bytes normal, +4 bytes burst
-        linear_addr <= linear_addr + (crtc_burst_mode_o ? 16'd4 : 16'd2);
+        linear_addr <= linear_addr + (cfg_burst_o ? 16'd4 : 16'd2);
     end
 end
 
@@ -603,7 +605,7 @@ end
 
 // Simplified burst request generation
 always_comb begin
-    crtc_burst_mode_o = burst_enable && 
+    cfg_burst_o = burst_enable && 
                       linear_mode && // Only in linear mode
                       (crtc_h_count < reg_h_displayed) && 
                       (crtc_v_count < reg_v_displayed) &&

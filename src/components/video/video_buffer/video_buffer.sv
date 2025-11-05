@@ -4,7 +4,7 @@ module video_buffer (
     input   logic        vmem_clk_i,
     input   logic        rst_i,
 
-    input   logic [1:0]  cfg_pixel_clock_sel,
+    input   logic [1:0]  cfg_rate,
     // Memory interface
     input   logic [15:0] vmem_data_i,
     input   logic        vmem_ack0_i,
@@ -106,7 +106,7 @@ always @(posedge pixel_clk_i) begin
     end else begin
 
         if (stb_origin_i) begin
-            case (cfg_pixel_clock_sel)
+            case (cfg_rate)
                 2'b00: begin // 2 bytes per 16 pixels
                     data_req <= de_i && !phase1;
                 end
@@ -135,7 +135,7 @@ always @(posedge pixel_clk_i) begin
             // T0, T4, T8, T12 
             // T0, T2, T4, T6, T8, T10, T12, T14
             if (stb_origin_i) begin
-                case (cfg_pixel_clock_sel)
+                case (cfg_rate)
                     2'b00: begin // 2 bytes per 16 pixels
                         if (phase1) byte_count <= 2'b00;
                         else byte_count <= byte_count + 2'b01;

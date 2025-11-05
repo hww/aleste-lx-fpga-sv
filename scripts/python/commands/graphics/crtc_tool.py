@@ -14,7 +14,7 @@ from core.memory import FPGAMemory
 class CRTC_Tool:
     def __init__(self):
         self.fpga = FPGAMemory()
-        self.crtc_base = 0xFF0110  # CRTC base address
+        self.crtc_base = 0xFF0120  # CRTC base address
         
         # Названия регистров для удобства
         self.reg_names = {

@@ -1,44 +1,59 @@
-// =============================================================================
-// CENTRALIZED ADDRESS DECODER
-// =============================================================================
+`default_nettype none
 
 module address_decoder (
-    input  logic [23:0] wb_adr_i,
-    input  logic [1:0]  wb_tag_o,
-    output logic        wb_palette_cs_o,
-    output logic        wb_palette_cs_o,
+    input  logic        cfg_legacy_i,
 
+    input  logic [23:0] wb_adr_i,
+    output logic [2:0]  wb_tag_o,           // ← output
+
+    output logic [7:0]  cs_o,               // 8 устройств в native space
+    output logic [7:0]  cs_system_o,        // system devices  
+    output logic [7:0]  cs_legacy_o         // legacy devices
 );
 
-// Регионы памяти (абстрактные)
-parameter NATIVE_PALETTE_BASE  = 24'hFF_0100;
-parameter NATIVE_CRTC_BASE     = 24'hFF_0110; 
+logic mmio_space, mmio_native, mmio_legacy;
 
-parameter LEGACY_PALETTE_BASE  = 16'h7F00;   // Gate Array адрес (detection only a[15:14])
-// Address decoding for native mode
-assign native_access = (wb_tag_i == 2'b01) && (wb_adr_i[15:8] == NATIVE_BASE[15:8]);
-// Detect only legacy access with address and data decoding                       
-assign legacy_access = (wb_tag_i == 2'b11) && (wb_adr_i[15:14] == LEGACY_GA[15:14]) && !wb_dat_in[7];
-assign logic_address = wb_adr_i[4:0];
-assign access_valid = cfg_legacy_mode_i ? legacy_access : native_access;
-assign wb_grant_o = access_valid;
-// Декодирование по регионам (группами)
+// Address regions
+logic mmio_space    = (wb_adr_i[23:16] == 8'hFF);
+logic mmio_native   = mmio_space && !wb_adr_i[15] && !wb_adr_i[14];  // 0xFF0000-0xFF3FFF
+logic mmio_legacy   = mmio_space &&  wb_adr_i[15] &&  wb_adr_i[14];  // 0xFF4000-0xFFFFFF
+
+// TAG encoding - mutually exclusive
 always_comb begin
-    device_select_o = 16'b0;
-    
-    // Palette 
-    if (wb_adr_i[23:8] == PALETTE_BASE[23:8]) begin
-        device_select_o[0] = 1'b1;  // Palette device
-        
-    // CRTC
-    end else if (wb_adr_i[23:8] == CRTC_BASE[23:8]) begin
-        device_select_o[3] = 1'b1;  // UART device
-    end
-    
-    // TAG-based фильтрация
-    if (wb_tag_i != 2'b01) begin  // Только для CPU accesses
-        device_select_o = 16'b0;
-    end
+    wb_tag_o = 3'b000;
+    if (mmio_native)       wb_tag_o = 3'b010;  // Native IO
+    else if (mmio_legacy)  wb_tag_o = 3'b100;  // Legacy IO  
+    else                   wb_tag_o = 3'b001;  // Memory space
 end
+
+// Native devices (8 units, 4KB each)
+assign cs_o[0] = mmio_native && (wb_adr_i[10:8] == 3'b000); 
+assign cs_o[1] = mmio_native && (wb_adr_i[10:8] == 3'b001);   
+assign cs_o[2] = mmio_native && (wb_adr_i[10:8] == 3'b010); // 0xFF1000-0xFF17FF
+assign cs_o[3] = mmio_native && (wb_adr_i[10:8] == 3'b011); // 0xFF1800-0xFF1FFF
+assign cs_o[4] = mmio_native && (wb_adr_i[10:8] == 3'b100); // 0xFF2000-0xFF27FF
+assign cs_o[5] = mmio_native && (wb_adr_i[10:8] == 3'b101); // 0xFF2800-0xFF2FFF
+assign cs_o[6] = mmio_native && (wb_adr_i[10:8] == 3'b110); // 0xFF3000-0xFF37FF
+assign cs_o[7] = mmio_native && (wb_adr_i[10:8] == 3'b111); // 0xFF3800-0xFF3FFF
+
+// System devices (8 devices, 32 bytes each) - в первом native блоке
+assign cs_system_o[0] = cs_o[0] && (wb_adr_i[7:5] == 3'b000); 
+assign cs_system_o[1] = cs_o[0] && (wb_adr_i[7:5] == 3'b001);
+assign cs_system_o[2] = cs_o[0] && (wb_adr_i[7:5] == 3'b010);
+assign cs_system_o[3] = cs_o[0] && (wb_adr_i[7:5] == 3'b011);
+assign cs_system_o[4] = cs_o[0] && (wb_adr_i[7:5] == 3'b100);
+assign cs_system_o[5] = cs_o[0] && (wb_adr_i[7:5] == 3'b101);
+assign cs_system_o[6] = cs_o[0] && (wb_adr_i[7:5] == 3'b110);
+assign cs_system_o[7] = cs_o[0] && (wb_adr_i[7:5] == 3'b111);
+
+// Legacy devices (8 devices, 32 bytes each) - во втором native блоке  
+assign cs_legacy_o[0] = cs_o[1] && (wb_adr_i[7:5] == 3'b000);
+assign cs_legacy_o[1] = cs_o[1] && (wb_adr_i[7:5] == 3'b001);
+assign cs_legacy_o[2] = cs_o[1] && (wb_adr_i[7:5] == 3'b010);
+assign cs_legacy_o[3] = cs_o[1] && (wb_adr_i[7:5] == 3'b011);
+assign cs_legacy_o[4] = cs_o[1] && (wb_adr_i[7:5] == 3'b100);
+assign cs_legacy_o[5] = cs_o[1] && (wb_adr_i[7:5] == 3'b101);
+assign cs_legacy_o[6] = cs_o[1] && (wb_adr_i[7:5] == 3'b110);
+assign cs_legacy_o[7] = cs_o[1] && (wb_adr_i[7:5] == 3'b111);
 
 endmodule

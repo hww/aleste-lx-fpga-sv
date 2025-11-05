@@ -16,7 +16,7 @@ module system_arbiter (
     input  logic [23:0] wb_ext_adr_i,
     input  logic [7:0]  wb_ext_dat_i,
     output logic [7:0]  wb_ext_dat_o,
-    input  logic [1:0]  wb_ext_tag_i,
+    input  logic [2:0]  wb_ext_tag_i,
     
     // ==========================================
     // Internal Device Interfaces - ВСЕ сигналы 
@@ -32,7 +32,7 @@ module system_arbiter (
     output logic [23:0] palette_adr_o,
     output logic [7:0]  palette_dat_o,
     input  logic [7:0]  palette_dat_i,
-    output logic [1:0]  palette_tag_o,
+    output logic [2:0]  palette_tag_o,
 
     // CRTClogicroller
     output logic        crtc_cyc_o,
@@ -43,7 +43,7 @@ module system_arbiter (
     output logic [23:0] crtc_adr_o,
     output logic [7:0]  crtc_dat_o,
     input  logic [7:0]  crtc_dat_i,
-    output logic [1:0]  crtc_tag_o,
+    output logic [2:0]  crtc_tag_o,
     
     // Memory Controller
     output logic         mem_cyc_o,
@@ -54,7 +54,7 @@ module system_arbiter (
     output logic  [23:0] mem_adr_o,
     output logic  [7:0]  mem_dat_o,
     input  logic  [7:0]  mem_dat_i,
-    output logic  [1:0]  mem_tag_o
+    output logic  [2:0]  mem_tag_o
 );
 // ==========================================
 // ВСЕ сигналы просто проходят ко всем устройствам

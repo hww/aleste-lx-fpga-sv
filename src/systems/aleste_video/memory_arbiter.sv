@@ -14,7 +14,7 @@ module memory_arbiter (
     input  logic [23:0] wb_adr_i,
     input  logic [7:0]  wb_dat_i,
     output logic [7:0]  wb_dat_o,
-    input  logic  [1:0] wb_tag_i,
+    input  logic [2:0]  wb_tag_i,
     output logic        wb_grant_o, // valid access to memory
 
     // 16-bit Video Controller
@@ -74,7 +74,7 @@ logic [2:0] wb_ack_ff;
 logic wb_req, wb_ack, wb_enabled;
 logic [2:0] cycle;
 
-assign wb_grant_o = (wb_tag_i == 2'b00) && wb_cyc_i;
+assign wb_grant_o = wb_tag_i[0] && wb_cyc_i;
 assign wb_req = wb_grant_o && wb_stb_i;
 assign wb_ack = wb_ack_ff[2];
 
