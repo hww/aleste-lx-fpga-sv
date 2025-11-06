@@ -22,6 +22,11 @@ class UniversalPIXLoader:
         self.magic = b'ALESTE_PIXv2'
         self.fpga = fpga_memory or FPGAMemory()
         self.palette = FPGAPalette(self.fpga)
+        self.force_12bit = False
+    
+    def set_force_12bit(self, force: bool):
+        """Устанавливает режим принудительной конвертации в 12-бит"""
+        self.force_12bit = force
     
     def parse_pix_file(self, filename: str) -> Tuple[Dict[str, Any], bytes, bytes]:
         """
@@ -119,11 +124,85 @@ class UniversalPIXLoader:
             mode_value = mode_map.get(palette_mode, self.palette.WRITE_MODE_NATIVE12BIT)
             
             print(f"   Setting palette mode: {palette_mode} -> {mode_value}")
-            return True  # Режим будет установлен при записи цвета
+            return self.palette.set_write_mode(mode_value)
             
         except Exception as e:
             print(f"❌ Error setting palette mode: {e}")
             return False
+
+    def _convert_to_12bit(self, palette_data: bytes, palette_mode: str, color_count: int) -> bytes:
+        """Конвертирует палитру в 12-битный формат"""
+        converted_data = bytearray()
+        
+        # Таблица конвертации MSX2+ YJK -> 12-bit RGB
+        msx_yjk_to_12bit = [
+            # Эта таблица должна соответствовать аппаратной реализации в msx_colors.v
+            # Можно сгенерировать или использовать предрасчитанные значения
+        ]
+        
+        for i in range(color_count):
+            if palette_mode == 'cpc':
+                # CPC: таблица из 27 цветов
+                cpc_index = palette_data[i*2]
+                cpc_index = min(cpc_index, 26)
+                
+                cpc_12bit_colors = [
+                    0x000, 0x00F, 0x0F0, 0x0FF, 0xF00, 0xF0F, 0xFF0, 0xFFF,
+                    0x000, 0x007, 0x070, 0x077, 0x700, 0x707, 0x770, 0x777,  
+                    0x000, 0x00A, 0x0A0, 0x0AA, 0xA00, 0xA0A, 0xAA0, 0xAAA,
+                    0x555, 0x55F, 0x5F5, 0x5FF, 0xF55, 0xF5F, 0xFF5, 0x000
+                ]
+                color_12bit = cpc_12bit_colors[cpc_index]
+                
+            elif palette_mode == 'msx':
+                # MSX2+: используем YJK палитру
+                msx_color = palette_data[i]  # 8-битный YJK цвет
+                # Здесь должна быть конвертация по таблице msx_yjk_to_12bit
+                # Пока используем упрощенную версию
+                color_12bit = self._msx_yjk_to_12bit(msx_color)
+                
+            elif palette_mode == '6bit':
+                # 6-bit: RRGGBB (2-2-2 бита)
+                color_6bit = palette_data[i]
+                r = (color_6bit >> 4) & 0x03
+                g = (color_6bit >> 2) & 0x03
+                b = color_6bit & 0x03
+                r_12bit = r * 5
+                g_12bit = g * 5  
+                b_12bit = b * 5
+                color_12bit = (r_12bit << 8) | (g_12bit << 4) | b_12bit
+                
+            elif palette_mode == '12bit':
+                low_byte = palette_data[i*2]
+                high_byte = palette_data[i*2 + 1] 
+                color_12bit = (high_byte << 8) | low_byte
+                
+            else:
+                if len(palette_data) >= (i+1)*2:
+                    low_byte = palette_data[i*2]
+                    high_byte = palette_data[i*2 + 1]
+                    color_12bit = (high_byte << 8) | low_byte
+                else:
+                    color_12bit = 0
+            
+            converted_data.append(color_12bit & 0xFF)
+            converted_data.append((color_12bit >> 8) & 0xFF)
+        
+        return bytes(converted_data)
+
+    def _msx_yjk_to_12bit(self, msx_color: int) -> int:
+        """Конвертирует MSX2+ YJK цвет в 12-битный RGB"""
+        # Упрощенная реализация - нужно точно повторить аппаратную таблицу
+        y = (msx_color >> 5) & 0x07  # Luminance (биты 7-5)
+        j = (msx_color >> 2) & 0x07  # Chrominance 1 (биты 4-2)
+        k = msx_color & 0x03         # Chrominance 2 (биты 1-0)
+        
+        # Упрощенное преобразование (заменить на точную таблицу)
+        r = (y * 2 + 1) if y > 0 else 0
+        g = (j * 2 + 1) if j > 0 else 0  
+        b = (k * 5) if k > 0 else 0
+        
+        return (min(r, 15) << 8) | (min(g, 15) << 4) | min(b, 15)
 
     def load_palette(self, palette_data: bytes, palette_mode: str = '12bit') -> bool:
         """
@@ -139,18 +218,24 @@ class UniversalPIXLoader:
             
             print(f"🎨 Loading palette: {color_count} colors, mode={palette_mode}")
             
-            # Загружаем цвета в зависимости от режима
-            if palette_mode == '12bit':
+            if self.force_12bit:
+                # Принудительная конвертация в 12-бит
+                print("   🔄 Converting to 12-bit format")
+                palette_data = self._convert_to_12bit(palette_data, palette_mode, color_count)
                 return self._load_12bit_palette(palette_data, color_count)
-            elif palette_mode == 'cpc':
-                return self._load_cpc_palette(palette_data, color_count)
-            elif palette_mode == 'msx':
-                return self._load_msx_palette(palette_data, color_count)
-            elif palette_mode == '6bit':
-                return self._load_6bit_palette(palette_data, color_count)
             else:
-                print(f"⚠️  Unknown palette mode '{palette_mode}', using 12-bit fallback")
-                return self._load_12bit_palette(palette_data, color_count)
+                # Загружаем в родном формате
+                if palette_mode == '12bit':
+                    return self._load_12bit_palette(palette_data, color_count)
+                elif palette_mode == 'cpc':
+                    return self._load_cpc_palette(palette_data, color_count)
+                elif palette_mode == 'msx':
+                    return self._load_msx_palette(palette_data, color_count)
+                elif palette_mode == '6bit':
+                    return self._load_6bit_palette(palette_data, color_count)
+                else:
+                    print(f"⚠️  Unknown palette mode '{palette_mode}', using 12-bit fallback")
+                    return self._load_12bit_palette(palette_data, color_count)
                 
         except Exception as e:
             print(f"❌ Palette loading failed: {e}")
@@ -159,6 +244,10 @@ class UniversalPIXLoader:
     def _load_12bit_palette(self, palette_data: bytes, color_count: int) -> bool:
         """Загружает 12-битную палитру"""
         print("   Using 12-bit native palette mode")
+        
+        # Устанавливаем режим палитры
+        if not self._set_palette_mode('12bit'):
+            return False
         
         success_count = 0
         for i in range(color_count):
@@ -184,14 +273,16 @@ class UniversalPIXLoader:
         """Загружает CPC палитру"""
         print("   Using CPC palette mode")
         
+        # Устанавливаем режим палитры
+        if not self._set_palette_mode('cpc'):
+            return False
+        
         success_count = 0
         for i in range(min(color_count, 27)):  # CPC имеет максимум 27 цветов
             # CPC данные: используем только первый байт (CPC цветной формат)
             cpc_color_byte = palette_data[i*2]  # CPC цвет
             
-            # Для CPC используем прямой доступ через 12-bit с auto-increment
-            # CPC цвета конвертируются в 12-bit внутри set_color_12bit
-            if self.palette.set_color_12bit(i, cpc_color_byte, auto_inc=True):
+            if self.palette.set_color_cpc(i, cpc_color_byte, auto_inc=True):
                 success_count += 1
             else:
                 print(f"❌ Failed to set CPC palette color #{i}")
@@ -203,6 +294,10 @@ class UniversalPIXLoader:
     def _load_msx_palette(self, palette_data: bytes, color_count: int) -> bool:
         """Загружает MSX2+ палитру"""
         print("   Using MSX2+ palette mode")
+        
+        # Устанавливаем режим палитры
+        if not self._set_palette_mode('msx'):
+            return False
         
         success_count = 0
         for i in range(color_count):
@@ -221,13 +316,15 @@ class UniversalPIXLoader:
         """Загружает 6-битную палитру"""
         print("   Using 6-bit palette mode")
         
+        # Устанавливаем режим палитры
+        if not self._set_palette_mode('6bit'):
+            return False
+        
         success_count = 0
         for i in range(color_count):
             color_6bit = palette_data[i]  # 6-битный цвет
             
-            # Для 6-bit режима используем 12-bit с auto-increment
-            # Конвертация 6-bit -> 12-bit происходит в железе
-            if self.palette.set_color_12bit(i, color_6bit, auto_inc=True):
+            if self.palette.set_color_6bit(i, color_6bit, auto_inc=True):
                 success_count += 1
             else:
                 print(f"❌ Failed to set 6-bit palette color #{i}")
@@ -325,8 +422,6 @@ class UniversalPIXLoader:
         if self.fpga:
             self.fpga.close()
 
-# Остальной код main() остается без изменений...
-
 def main():
     parser = argparse.ArgumentParser(
         description='Universal PIX v2 Loader for Aleste LX',
@@ -338,6 +433,7 @@ Examples:
   %(prog)s 0x40000 image.pix --palette-only     # Load only palette
   %(prog)s 0x40000 image.pix --no-palette       # Load without palette
   %(prog)s 0x40000 image.pix --info             # Show file info only
+  %(prog)s 0x40000 image.pix --force-12bit      # Convert palette to 12-bit
         """
     )
     
@@ -348,6 +444,8 @@ Examples:
     parser.add_argument('--verify', action='store_true', help='Verify after write')
     parser.add_argument('--checksum', action='store_true', help='Calculate checksums')
     parser.add_argument('--no-progress', action='store_true', help='Disable progress bars')
+    parser.add_argument('--force-12bit', action='store_true', 
+                       help='Convert palette to 12-bit format')
     
     # Опции палитры
     palette_group = parser.add_mutually_exclusive_group()
@@ -391,6 +489,7 @@ Examples:
         
         # Создаем загрузчик
         loader = UniversalPIXLoader()
+        loader.set_force_12bit(args.force_12bit)
         
         # Парсим .PIX файл
         header_info, pixel_data, palette_data = loader.parse_pix_file(args.input)
@@ -407,6 +506,8 @@ Examples:
             print(f"   Palette: {header_info.get('palette_mode', '?')}")
             print(f"   Pixel data: {len(pixel_data)} bytes")
             print(f"   Palette data: {len(palette_data)} bytes")
+            if args.force_12bit:
+                print(f"   Mode: FORCED 12-bit conversion")
             
             # Расчет памяти
             mem_req = loader.get_memory_requirements(header_info)

@@ -41,6 +41,35 @@ class FPGAPalette:
         except Exception as e:
             print(f"❌ Palette write error 0x{reg:02X}: {e}")
             return False
+
+    def set_write_mode(self, mode, auto_inc=False):
+        """
+        Установить режим записи палитры
+        
+        Args:
+            mode: один из режимов:
+                - WRITE_MODE_CPC (0) - CPC формат
+                - WRITE_MODE_EX6BIT (1) - 6-битный формат  
+                - WRITE_MODE_MSX2P (2) - MSX2+ формат
+                - WRITE_MODE_NATIVE12BIT (3) - 12-битный нативный формат
+            auto_inc: автоматическое увеличение индекса после записи
+        """
+        if mode not in [self.WRITE_MODE_CPC, self.WRITE_MODE_EX6BIT, 
+                       self.WRITE_MODE_MSX2P, self.WRITE_MODE_NATIVE12BIT]:
+            print(f"❌ Invalid palette write mode: {mode}")
+            return False
+        
+        # Формируем значение control регистра
+        # [7] - modifier_enable (0 - выключено)
+        # [6] - modifier_type (0 - OR, 1 - XOR)  
+        # [5] - auto_increment
+        # [4:3] - palette_write_mode
+        # [2:0] - reserved
+        control_value = (mode & 0x3) << 3
+        if auto_inc:
+            control_value |= (1 << 5)
+        
+        return self._write_register(self.REG_CONTROL, control_value)
     
     def set_index(self, index):
         """Установить индекс палитры"""
@@ -55,12 +84,8 @@ class FPGAPalette:
         if not self.set_index(index):
             return False
         
-        # Настраиваем control register для 12-bit mode
-        control = (self.WRITE_MODE_NATIVE12BIT & 0x3) << 3
-        if auto_inc:
-            control |= (1 << 5)
-        
-        if not self._write_register(self.REG_CONTROL, control):
+        # Устанавливаем режим записи
+        if not self.set_write_mode(self.WRITE_MODE_NATIVE12BIT, auto_inc):
             return False
         
         # Записываем цвет (12-bit mode)
@@ -74,21 +99,41 @@ class FPGAPalette:
             
         return True
     
+    def set_color_cpc(self, index, cpc_color, auto_inc=False):
+        """Записать цвет в формате CPC"""
+        if not self.set_index(index):
+            return False
+        
+        # Устанавливаем режим записи CPC
+        if not self.set_write_mode(self.WRITE_MODE_CPC, auto_inc):
+            return False
+        
+        # Записываем CPC цвет
+        return self._write_register(self.REG_PALETTE_DATA_LOW, cpc_color)
+    
     def set_color_msx(self, index, msx_color, auto_inc=False):
         """Записать цвет в формате MSX2+"""
         if not self.set_index(index):
             return False
         
-        # Настраиваем control register для MSX2+ mode
-        control = (self.WRITE_MODE_MSX2P & 0x3) << 3
-        if auto_inc:
-            control |= (1 << 5)
-        
-        if not self._write_register(self.REG_CONTROL, control):
+        # Устанавливаем режим записи MSX2+
+        if not self.set_write_mode(self.WRITE_MODE_MSX2P, auto_inc):
             return False
         
         # Записываем MSX2+ цвет
         return self._write_register(self.REG_PALETTE_DATA_LOW, msx_color)
+    
+    def set_color_6bit(self, index, color_6bit, auto_inc=False):
+        """Записать цвет в 6-битном формате"""
+        if not self.set_index(index):
+            return False
+        
+        # Устанавливаем режим записи 6-bit
+        if not self.set_write_mode(self.WRITE_MODE_EX6BIT, auto_inc):
+            return False
+        
+        # Записываем 6-битный цвет
+        return self._write_register(self.REG_PALETTE_DATA_LOW, color_6bit)
     
     def get_color(self, index=None):
         """Прочитать цвет из палитры"""

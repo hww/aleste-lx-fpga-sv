@@ -228,21 +228,73 @@ class Palette_Tool:
             print(f"  🏁 Border color: 0x{border:03X} = {rgb}")
     
     def set_gradient_palette(self, start=0, count=16):
+        """Установить плавную градиентную палитру RGB"""
+        print(f"🌈 Установка градиентной палитры #{start}-#{start+count-1}:")
+        
+        for i in range(count):
+            index = start + i
+            
+            # Плавное изменение через треугольные волны
+            # Красный: максимум в начале, минимум в конце
+            r = 15 - (i * 15) // max(count - 1, 1)
+            
+            # Зеленый: максимум в середине
+            green_pos = abs(2 * i - count + 1)  # расстояние до центра
+            g = 15 - (green_pos * 15) // max(count - 1, 1)
+            
+            # Синий: минимум в начале, максимум в конце  
+            b = (i * 15) // max(count - 1, 1)
+            
+            color_12bit = (r << 8) | (g << 4) | b
+            
+            if self.write_palette_color(index, color_12bit):
+                print(f"  ✅ #{index:3d} = 0x{color_12bit:03X} (R:{r:1X} G:{g:1X} B:{b:1X})")
+            else:
+                print(f"  ❌ #{index:3d} = 0x{color_12bit:03X} - ошибка")
+
+    def set_temp_gradient_palette(self, start=0, count=16):
+        """Установить тепловую градиентную палитру"""
+        print(f"🌈 Установка градиентной палитры #{start}-#{start+count-1}:")
+        
+        for i in range(count):
+            index = start + i
+            intensity = (i * 15) // max(count - 1, 1)  # 0-15
+            
+            # Тепловой градиент: черный → красный → желтый → белый
+            if intensity < 5:
+                r = intensity * 3
+                g = 0
+                b = 0
+            elif intensity < 10:
+                r = 15
+                g = (intensity - 5) * 3
+                b = 0
+            else:
+                r = 15
+                g = 15
+                b = (intensity - 10) * 3
+            
+            color_12bit = (r << 8) | (g << 4) | b
+            
+            if self.write_palette_color(index, color_12bit):
+                print(f"  ✅ #{index:3d} = 0x{color_12bit:03X} (R:{r:1X} G:{g:1X} B:{b:1X})")
+            else:
+                print(f"  ❌ #{index:3d} = 0x{color_12bit:03X} - ошибка")
+
+    def set_gray_palette(self, start=0, count=16):
         """Установить градиентную палитру"""
         print(f"🌈 Установка градиентной палитры #{start}-#{start+count-1}:")
         
         for i in range(count):
             index = start + i
-            # Создаем градиентный 12-bit цвет
-            r = (i * 15 // count) & 0x0F
-            g = ((i + 5) * 15 // count) & 0x0F  
-            b = ((i + 10) * 15 // count) & 0x0F
-            color_12bit = (r << 8) | (g << 4) | b
+            # Простое линейное распределение: 0,1,2,...,15
+            intensity = min(i, 15)  # Просто используем индекс, ограничивая 15
+            color_12bit = (intensity << 8) | (intensity << 4) | intensity
             
             if self.write_palette_color(index, color_12bit):
-                print(f"  ✅ #{index:3d} = 0x{color_12bit:03X}")
+                print(f"  ✅ #{index:3d} = 0x{color_12bit:03X} (R:{intensity:1X} G:{intensity:1X} B:{intensity:1X})")
             else:
-                print(f"  ❌ #{index:3d} = 0x{color_12bit:03X} - ошибка")
+                print(f"  ❌ #{index:3d} = 0x{color_12bit:03X} - ошибка")             
     
     def set_test_pattern(self):
         """Установить тестовый паттерн цветов"""
@@ -464,7 +516,16 @@ def main():
             elif cmd == "gradient":
                 count = int(sys.argv[2], 0) if len(sys.argv) >= 3 else 16
                 tool.set_gradient_palette(0, count)
-                
+            
+            elif cmd == "temp":
+                count = int(sys.argv[2], 0) if len(sys.argv) >= 3 else 16
+                tool.set_temp_gradient_palette(0, count)
+
+            elif cmd == "gray":
+                count = int(sys.argv[2], 0) if len(sys.argv) >= 3 else 16
+                tool.set_gray_palette(0, count)
+
+
             elif cmd == "test":
                 tool.set_test_pattern()
                 
@@ -489,6 +550,7 @@ def print_help():
     print("  palette_tool.py registers                # Дамп регистров")
     print("  palette_tool.py border <color>           # Установить бордюр")
     print("  palette_tool.py gradient [count]         # Градиентная палитра")
+    print("  palette_tool.py gray [count]         # Градиентная серая палитра")
     print("  palette_tool.py test                     # Тестовый паттерн")
     print("\nПримеры:")
     print("  palette_tool.py read 0x00               # Прочитать PALETTE_INDEX")
