@@ -8,7 +8,7 @@
 #include <limits>
 #include <unordered_map>
 #include <random>
-
+#include <cassert>
 // ==================== СТРУКТУРЫ ДАННЫХ ====================
 struct RGB {
     uint8_t r, g, b;
@@ -911,195 +911,221 @@ private:
     std::string dumpBmpPath_;
     
     // [Остальные методы остаются такими же...]
+std::vector<uint8_t> encodeCPC1BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
+    std::cout << "🔧 Encoding: CPC 1bpp (2 colors) - Mode 2" << std::endl;
     
-    std::vector<uint8_t> encodeCPC1BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
-        std::cout << "🔧 Encoding: CPC 1bpp (2 colors)" << std::endl;
-        
-        // Для 1bpp должны быть только 2 цвета в палитре
-        if (palette.size() < 2) {
-            std::cerr << "❌ ERROR: 1bpp requires exactly 2 colors in palette" << std::endl;
-            return std::vector<uint8_t>();
-        }
-        
-        std::vector<uint8_t> result;
-        int width = image.width();
-        int height = image.height();
-        int bytesPerLine = width / 8;
-        
-        std::cout << "   Bytes per line: " << bytesPerLine << std::endl;
-        std::cout << "   Palette colors: 0=(" << (int)palette[0].r << "," << (int)palette[0].g << "," << (int)palette[0].b 
-                << "), 1=(" << (int)palette[1].r << "," << (int)palette[1].g << "," << (int)palette[1].b << ")" << std::endl;
-        
-        for (int y = 0; y < height; ++y) {
-            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
-                uint8_t byteVal = 0;
-                
-                for (int bit = 0; bit < 8; ++bit) {
-                    int pixelX = xByte * 8 + bit;
-                    if (pixelX >= width) continue;
-                    
-                    const RGB& color = image.pixel(pixelX, y);
-                    int colorIdx = AdvancedColorProcessor::findBestColorCPC(color, palette);
-                    
-                    // Бит устанавливается если цвет ближе ко второму цвету палитры
-                    if (colorIdx == 1) {
-                        byteVal |= (1 << (7 - bit)); // Старший бит - левый пиксель
-                    }
-                }
-                result.push_back(byteVal);
-            }
-        }
-        
-        std::cout << "✅ CPC 1bpp: " << result.size() << " bytes" << std::endl;
-        return result;
+    if (palette.size() < 2) {
+        std::cerr << "❌ ERROR: 1bpp requires exactly 2 colors in palette" << std::endl;
+        return std::vector<uint8_t>();
     }
     
-    std::vector<uint8_t> encodeCPC2BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
-        std::cout << "🔧 Encoding: CPC 2bpp (4 colors)" << std::endl;
-        
-        std::vector<uint8_t> result;
-        int width = image.width();
-        int height = image.height();
-        
-        // CPC Mode 1: 4 пикселя в байте
-        int bytesPerLine = width / 4;
-        
-        std::cout << "   CPC Mode 1: " << bytesPerLine << " bytes/line" << std::endl;
-        
-        for (int y = 0; y < height; ++y) {
-            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
-                uint8_t byteVal = 0;
-                
-                for (int pixel = 0; pixel < 4; ++pixel) {
-                    int pixelX = xByte * 4 + pixel;
-                    if (pixelX >= width) continue;  // Защита от выхода за границы
-                    
-                    const RGB& color = image.pixel(pixelX, y);
-                    int colorIdx = AdvancedColorProcessor::findBestColorCPC(color, palette);
-                    
-                    // CPC Mode 1: пиксели упаковываются как [P3|P2|P1|P0]
-                    switch (pixel) {
-                        case 0: byteVal |= ((colorIdx & 0x03) << 6); break;
-                        case 1: byteVal |= ((colorIdx & 0x03) << 4); break;
-                        case 2: byteVal |= ((colorIdx & 0x03) << 2); break;
-                        case 3: byteVal |= ((colorIdx & 0x03) << 0); break;
-                    }
-                }
-                result.push_back(byteVal);
-            }
-        }
-        
-        std::cout << "✅ CPC 2bpp: " << result.size() << " bytes" << std::endl;
-        return result;
-    }
-
-    std::vector<uint8_t> encodeCPC4BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
-        std::cout << "🔧 Encoding: CPC 4bpp (16 colors)" << std::endl;
-        
-        std::vector<uint8_t> result;
-        int width = image.width();
-        int height = image.height();
-        
-        // CPC Mode 0: 2 пикселя в байте
-        int bytesPerLine = width / 2;
-        
-        std::cout << "   CPC Mode 0: " << bytesPerLine << " bytes/line" << std::endl;
-        
-        for (int y = 0; y < height; ++y) {
-            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
-                uint8_t byteVal = 0;
-                
-                for (int pixel = 0; pixel < 2; ++pixel) {
-                    int pixelX = xByte * 2 + pixel;
-                    if (pixelX >= width) continue;  // Защита от выхода за границы
-                    
-                    const RGB& color = image.pixel(pixelX, y);
-                    int colorIdx = AdvancedColorProcessor::findBestColorCPC(color, palette);
-                    
-                    // CPC Mode 0: [P1|P0] где каждый пиксель 4 бита
-                    if (pixel == 0) {
-                        byteVal |= ((colorIdx & 0x0F) << 4);
-                    } else {
-                        byteVal |= (colorIdx & 0x0F);
-                    }
-                }
-                result.push_back(byteVal);
-            }
-        }
-        
-        std::cout << "✅ CPC 4bpp: " << result.size() << " bytes" << std::endl;
-        return result;
-    }
-        
-    std::vector<uint8_t> encodeLinear(const SimpleImage& image, int bpp, const std::vector<RGB>& palette) {
-        std::cout << "🔧 Encoding: Linear " << bpp << "bpp (" << (1 << bpp) << " colors)" << std::endl;
-        
-        std::vector<uint8_t> result;
-        int width = image.width();
-        int height = image.height();
-        int pixelsPerByte = 8 / bpp;
-        int bytesPerLine = (width + pixelsPerByte - 1) / pixelsPerByte; // Округление вверх!
-        
-        std::cout << "   Pixels per byte: " << pixelsPerByte << std::endl;
-        std::cout << "   Bytes per line: " << bytesPerLine << std::endl;
-        
-        for (int y = 0; y < height; ++y) {
-            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
-                uint8_t byteVal = 0;
-                
-                for (int i = 0; i < pixelsPerByte; ++i) {
-                    int pixelX = xByte * pixelsPerByte + i;
-                    if (pixelX < width) {
-                        const RGB& color = image.pixel(pixelX, y);
-                        int colorIdx = findBestColor(color, palette);
-                        
-                        // ПРАВИЛЬНАЯ упаковка: младшие биты - правые пиксели
-                        byteVal |= (colorIdx << (bpp * i));
-                    }
-                }
-                result.push_back(byteVal);
-            }
-        }
-        
-        std::cout << "✅ Linear " << bpp << "bpp: " << result.size() << " bytes" << std::endl;
-        return result;
-    }
-
-    std::vector<uint8_t> applyCPCAddressing(const std::vector<uint8_t>& data, int width, int height, int bpp) {
-        std::cout << "🔄 Applying CPC addressing for " << width << "x" << height << " @" << bpp << "bpp" << std::endl;
-        
-        // Рассчитываем параметры
-        int pixelsPerByte = 8 / bpp;
-        int bytesPerLine = width / pixelsPerByte;
-        int cpcBufferSize = 16384; // 16KB CPC буфер
-        
-        std::vector<uint8_t> result(cpcBufferSize, 0);
-        
-        std::cout << "   Bytes per line: " << bytesPerLine << std::endl;
-        std::cout << "   CPC buffer size: " << cpcBufferSize << std::endl;
-        
-        for (int y = 0; y < height; ++y) {
-            // CPC адресация: каждые 8 строк образуют "character row"
-            int character_row = y / 8;
-            int line_in_char = y % 8;
+    std::vector<uint8_t> result;
+    int width = image.width();
+    int height = image.height();
+    int bytesPerLine = width / 8; // 640px / 8 = 80 bytes
+    assert(bytesPerLine == 80);
+    
+    std::cout << "   Mode 2: 640x200, 80 bytes/line" << std::endl;
+    
+    for (int y = 0; y < height; ++y) {
+        for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
+            uint8_t byteVal = 0;
             
-            // CPC адрес: line_in_char * 2048 + character_row * bytesPerLine
-            int dst_offset = line_in_char * 2048 + character_row * bytesPerLine;
-            int src_offset = y * bytesPerLine;
-            
-            if (dst_offset + bytesPerLine <= result.size() && 
-                src_offset + bytesPerLine <= data.size()) {
-                std::copy(data.begin() + src_offset,
-                        data.begin() + src_offset + bytesPerLine,
-                        result.begin() + dst_offset);
-            } else {
-                std::cout << "⚠️  CPC addressing overflow at line " << y 
-                        << " (src: " << src_offset << ", dst: " << dst_offset << ")" << std::endl;
+            for (int bit = 0; bit < 8; ++bit) {
+                int pixelX = xByte * 8 + bit;
+                if (pixelX >= width) continue;
+                
+                const RGB& color = image.pixel(pixelX, y);
+                int colorIdx = AdvancedColorProcessor::findBestColorCPC(color, palette);
+                
+                // Mode 2: прямой порядок - бит 7 = pixel 0, бит 0 = pixel 7
+                if (colorIdx == 1) {
+                    byteVal |= (1 << (7 - bit));
+                }
             }
+            result.push_back(byteVal);
         }
-        
-        return result;
     }
+    
+    std::cout << "✅ CPC 1bpp Mode 2: " << result.size() << " bytes" << std::endl;
+    return result;
+}
+
+std::vector<uint8_t> encodeCPC2BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
+    std::cout << "🔧 Encoding: CPC 2bpp (4 colors) - Mode 1" << std::endl;
+    
+    std::vector<uint8_t> result;
+    int width = image.width();
+    int height = image.height();
+    int bytesPerLine = width / 4; // 320px / 4 = 80 bytes
+    assert(bytesPerLine == 80);
+
+    std::cout << "   Mode 1: 320x200, 80 bytes/line" << std::endl;
+    
+    for (int y = 0; y < height; ++y) {
+        for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
+            uint8_t byteVal = 0;
+            
+            // Собираем 4 пикселя
+            int colorIndices[4];
+            for (int pixel = 0; pixel < 4; ++pixel) {
+                int pixelX = xByte * 4 + pixel;
+                if (pixelX >= width) {
+                    colorIndices[pixel] = 0;
+                    continue;
+                }
+                
+                const RGB& color = image.pixel(pixelX, y);
+                colorIndices[pixel] = AdvancedColorProcessor::findBestColorCPC(color, palette);
+            }
+            
+            // Mode 1: сложная упаковка:
+            // bit7 = pixel0.bit1, bit6 = pixel1.bit1, bit5 = pixel2.bit1, bit4 = pixel3.bit1
+            // bit3 = pixel0.bit0, bit2 = pixel1.bit0, bit1 = pixel2.bit0, bit0 = pixel3.bit0
+            
+            byteVal |= ((colorIndices[0] & 0x02) ? 0x80 : 0); // pixel0 bit1 -> bit7
+            byteVal |= ((colorIndices[1] & 0x02) ? 0x40 : 0); // pixel1 bit1 -> bit6  
+            byteVal |= ((colorIndices[2] & 0x02) ? 0x20 : 0); // pixel2 bit1 -> bit5
+            byteVal |= ((colorIndices[3] & 0x02) ? 0x10 : 0); // pixel3 bit1 -> bit4
+            
+            byteVal |= ((colorIndices[0] & 0x01) ? 0x08 : 0); // pixel0 bit0 -> bit3
+            byteVal |= ((colorIndices[1] & 0x01) ? 0x04 : 0); // pixel1 bit0 -> bit2
+            byteVal |= ((colorIndices[2] & 0x01) ? 0x02 : 0); // pixel2 bit0 -> bit1
+            byteVal |= ((colorIndices[3] & 0x01) ? 0x01 : 0); // pixel3 bit0 -> bit0
+            
+            result.push_back(byteVal);
+        }
+    }
+    
+    std::cout << "✅ CPC 2bpp Mode 1: " << result.size() << " bytes" << std::endl;
+    return result;
+}
+
+std::vector<uint8_t> encodeCPC4BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
+    std::cout << "🔧 Encoding: CPC 4bpp (16 colors) - Mode 0" << std::endl;
+    
+    std::vector<uint8_t> result;
+    int width = image.width();
+    int height = image.height();
+    int bytesPerLine = width / 2; // 160px / 2 = 80 bytes
+    assert(bytesPerLine == 80);
+ 
+    std::cout << "   Mode 0: 160x200, 80 bytes/line" << std::endl;
+    
+    for (int y = 0; y < height; ++y) {
+        for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
+            uint8_t byteVal = 0;
+            
+            // Собираем 2 пикселя
+            int colorIndices[2];
+            for (int pixel = 0; pixel < 2; ++pixel) {
+                int pixelX = xByte * 2 + pixel;
+                if (pixelX >= width) {
+                    colorIndices[pixel] = 0;
+                    continue;
+                }
+                
+                const RGB& color = image.pixel(pixelX, y);
+                colorIndices[pixel] = AdvancedColorProcessor::findBestColorCPC(color, palette);
+            }
+            
+            // Mode 0: самая сложная упаковка:
+            // bit7 = pixel0.bit0, bit6 = pixel1.bit0
+            // bit5 = pixel0.bit2, bit4 = pixel1.bit2  
+            // bit3 = pixel0.bit1, bit2 = pixel1.bit1
+            // bit1 = pixel0.bit3, bit0 = pixel1.bit3
+            
+            byteVal |= ((colorIndices[0] & 0x01) ? 0x80 : 0); // pixel0 bit0 -> bit7
+            byteVal |= ((colorIndices[1] & 0x01) ? 0x40 : 0); // pixel1 bit0 -> bit6
+            
+            byteVal |= ((colorIndices[0] & 0x04) ? 0x20 : 0); // pixel0 bit2 -> bit5
+            byteVal |= ((colorIndices[1] & 0x04) ? 0x10 : 0); // pixel1 bit2 -> bit4
+            
+            byteVal |= ((colorIndices[0] & 0x02) ? 0x08 : 0); // pixel0 bit1 -> bit3
+            byteVal |= ((colorIndices[1] & 0x02) ? 0x04 : 0); // pixel1 bit1 -> bit2
+            
+            byteVal |= ((colorIndices[0] & 0x08) ? 0x02 : 0); // pixel0 bit3 -> bit1
+            byteVal |= ((colorIndices[1] & 0x08) ? 0x01 : 0); // pixel1 bit3 -> bit0
+            
+            result.push_back(byteVal);
+        }
+    }
+    
+    std::cout << "✅ CPC 4bpp Mode 0: " << result.size() << " bytes" << std::endl;
+    return result;
+}
+        
+std::vector<uint8_t> encodeLinear(const SimpleImage& image, int bpp, const std::vector<RGB>& palette) {
+    std::cout << "🔧 Encoding: Linear " << bpp << "bpp (" << (1 << bpp) << " colors)" << std::endl;
+    
+    std::vector<uint8_t> result;
+    int width = image.width();
+    int height = image.height();
+    int pixelsPerByte = 8 / bpp;
+    int bytesPerLine = (width + pixelsPerByte - 1) / pixelsPerByte;
+    
+    std::cout << "   Pixels per byte: " << pixelsPerByte << std::endl;
+    std::cout << "   Bytes per line: " << bytesPerLine << std::endl;
+    
+    for (int y = 0; y < height; ++y) {
+        for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
+            uint8_t byteVal = 0;
+            
+            for (int i = 0; i < pixelsPerByte; ++i) {
+                int pixelX = xByte * pixelsPerByte + i;
+                if (pixelX < width) {
+                    const RGB& color = image.pixel(pixelX, y);
+                    int colorIdx = findBestColor(color, palette);
+                    
+                    // ПРАВИЛЬНО: пиксель 0 = старшие биты
+                    // pixelsPerByte-1-i даст обратный порядок (неправильный)
+                    // i даст прямой порядок (пиксель 0 = младшие биты) - НЕПРАВИЛЬНО
+                    // НУЖНО: пиксель 0 = старшие биты
+                    int shift = (pixelsPerByte - 1 - i) * bpp;
+                    byteVal |= (colorIdx << shift);
+                }
+            }
+            result.push_back(byteVal);
+        }
+    }
+    
+    std::cout << "✅ Linear " << bpp << "bpp: " << result.size() << " bytes" << std::endl;
+    return result;
+}
+
+std::vector<uint8_t> applyCPCAddressing(const std::vector<uint8_t>& data, int width, int height, int bpp) {
+    std::cout << "🔄 Applying CPC addressing for " << width << "x" << height << " @" << bpp << "bpp" << std::endl;
+    
+    int bytesPerLine = 80;
+    
+    // CPC требует буфер 16KB (16384 байт) из-за адресации 0x800
+    int bufferSize = 16384;  // 16KB CPC buffer
+    std::vector<uint8_t> result(bufferSize, 0);
+    
+    std::cout << "   CPC buffer: " << bufferSize << " bytes (16KB)" << std::endl;
+    
+    for (int y = 0; y < height; ++y) {
+        int character_row = y / 8;
+        int line_in_char = y % 8;
+        
+        int dst_offset = line_in_char * 0x800 + character_row * bytesPerLine;
+        int src_offset = y * bytesPerLine;
+        
+        if (dst_offset + bytesPerLine <= result.size() && 
+            src_offset + bytesPerLine <= data.size()) {
+            std::copy(data.begin() + src_offset,
+                     data.begin() + src_offset + bytesPerLine,
+                     result.begin() + dst_offset);
+        } else {
+            std::cout << "⚠️  CPC addressing overflow at line " << y 
+                     << " (src: " << src_offset << ".." << (src_offset + bytesPerLine)
+                     << ", dst: " << dst_offset << ".." << (dst_offset + bytesPerLine) 
+                     << ", max: " << result.size() << ")" << std::endl;
+        }
+    }
+    
+    return result;
+}
     
     std::vector<uint8_t> createInfoChunk(int width, int height, int bpp, 
                                         const std::string& colorEncoding,
@@ -1369,9 +1395,94 @@ void showUsage() {
     std::cout << "  --dump-bmp file.bmp     Save quality check BMP" << std::endl;
     std::cout << "  -v, --verbose           Show detailed diagnostics" << std::endl;
     std::cout << std::endl;
+    std::cout << "CPC Mode Compatibility:" << std::endl;
+    std::cout << "  Mode 0 (4bpp): 160x200, 16 colors" << std::endl;
+    std::cout << "  Mode 1 (2bpp): 320x200, 4 colors" << std::endl;
+    std::cout << "  Mode 2 (1bpp): 640x200, 2 colors" << std::endl;
+    std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  pix_convert image.bmp output.pix --width 320 --height 200 --bpp 4 --dither floyd" << std::endl;
     std::cout << "  pix_convert image.ppm game.pix --width 640 --height 200 --bpp 1 --palette-mode msx --dump-bmp check.bmp" << std::endl;
+}
+
+bool validateParameters(int width, int height, int bpp, 
+                       const std::string& colorEncoding,
+                       const std::string& addressEncoding,
+                       const std::string& paletteMode) {
+    // Проверка разрешения
+    if (width != 160 && width != 320 && width != 640) {
+        std::cerr << "❌ ERROR: Width must be 160, 320 or 640 pixels" << std::endl;
+        return false;
+    }
+    
+    if (height != 200) {
+        std::cerr << "❌ ERROR: Height must be 200 pixels" << std::endl;
+        return false;
+    }
+    
+    // Проверка битности
+    if (bpp != 1 && bpp != 2 && bpp != 4 && bpp != 8) {
+        std::cerr << "❌ ERROR: BPP must be 1, 2, 4 or 8" << std::endl;
+        return false;
+    }
+    
+    // Проверка совместимости CPC режимов
+    if (colorEncoding == "cpc") {
+        switch (bpp) {
+            case 1:
+                if (width != 640) {
+                    std::cerr << "❌ ERROR: CPC Mode 2 (1bpp) requires 640px width" << std::endl;
+                    return false;
+                }
+                break;
+            case 2:
+                if (width != 320) {
+                    std::cerr << "❌ ERROR: CPC Mode 1 (2bpp) requires 320px width" << std::endl;
+                    return false;
+                }
+                break;
+            case 4:
+                if (width != 160) {
+                    std::cerr << "❌ ERROR: CPC Mode 0 (4bpp) requires 160px width" << std::endl;
+                    return false;
+                }
+                break;
+            case 8:
+                std::cerr << "❌ ERROR: CPC does not support 8bpp mode" << std::endl;
+                return false;
+        }
+        
+        // Проверка палитры для CPC
+        if (paletteMode != "cpc") {
+            std::cerr << "⚠️  WARNING: CPC color encoding works best with CPC palette mode" << std::endl;
+        }
+    }
+    
+    // Проверка MSX палитры
+    if (paletteMode == "msx") {
+        if (bpp > 4) {
+            std::cerr << "❌ ERROR: MSX palette supports maximum 4bpp (16 colors)" << std::endl;
+            return false;
+        }
+    }
+    
+    // Проверка кодировок
+    if (colorEncoding != "cpc" && colorEncoding != "linear") {
+        std::cerr << "❌ ERROR: Color encoding must be 'cpc' or 'linear'" << std::endl;
+        return false;
+    }
+    
+    if (addressEncoding != "cpc" && addressEncoding != "linear") {
+        std::cerr << "❌ ERROR: Address encoding must be 'cpc' or 'linear'" << std::endl;
+        return false;
+    }
+    
+    if (paletteMode != "cpc" && paletteMode != "msx" && paletteMode != "8bit" && paletteMode != "12bit") {
+        std::cerr << "❌ ERROR: Palette mode must be 'cpc', 'msx', '8bit' or '12bit'" << std::endl;
+        return false;
+    }
+    
+    return true;
 }
 
 int main(int argc, char* argv[]) {
@@ -1426,6 +1537,23 @@ int main(int argc, char* argv[]) {
     if (width == 0 || height == 0 || bpp == 0) {
         std::cerr << "❌ ERROR: --width, --height, and --bpp are required" << std::endl;
         showUsage();
+        return 1;
+    }
+    
+    // Валидация параметров
+    if (!validateParameters(width, height, bpp, colorEncoding, addressEncoding, paletteMode)) {
+        std::cerr << std::endl;
+        showUsage();
+        return 1;
+    }
+    
+    // Дополнительные предупреждения
+    if (colorEncoding == "cpc" && addressEncoding != "cpc") {
+        std::cout << "⚠️  NOTE: CPC color encoding works best with CPC address encoding" << std::endl;
+    }
+    
+    if (ditherType != "none" && ditherType != "ordered" && ditherType != "floyd" && ditherType != "random") {
+        std::cerr << "❌ ERROR: Dither type must be 'none', 'ordered', 'floyd' or 'random'" << std::endl;
         return 1;
     }
     

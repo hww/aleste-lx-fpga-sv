@@ -28,8 +28,7 @@ declare -a test_files=(
     "pgirl.bmp"
     "vfp.bmp"
 )
-//DITHER=floyd
-DITHER=advanced
+DITHER=floyd
 
 # Конвертируем
 for file in "${test_files[@]}"; do
@@ -40,8 +39,8 @@ for file in "${test_files[@]}"; do
         # Mono version (1bpp, CPC адресация)
         $CONVERTER "$file" "cpc_${base_name}_1bpp.pix" --width 640 --height 200 --bpp 1 --color-encoding linear --address-encoding cpc --palette-mode cpc --dither $DITHER --dump-bmp "cpc_${base_name}_1bpp.dump.bmp"
         
-        # 4bpp CPC version
-        $CONVERTER "$file" "cpc_${base_name}_2bpp.pix" --width 320 --height 200 --bpp 4 --color-encoding cpc --address-encoding cpc --palette-mode cpc --dither $DITHER --dump-bmp "cpc_${base_name}_2bpp.dump.bmp"
+        # 2bpp CPC version
+        $CONVERTER "$file" "cpc_${base_name}_2bpp.pix" --width 320 --height 200 --bpp 2 --color-encoding cpc --address-encoding cpc --palette-mode cpc --dither $DITHER --dump-bmp "cpc_${base_name}_2bpp.dump.bmp"
         
         # 4bpp CPC version
         $CONVERTER "$file" "cpc_${base_name}_4bpp.pix" --width 160 --height 200 --bpp 4 --color-encoding cpc --address-encoding cpc --palette-mode cpc --dither $DITHER --dump-bmp "cpc_${base_name}_4bpp.dump.bmp"

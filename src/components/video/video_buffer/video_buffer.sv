@@ -15,7 +15,8 @@ module video_buffer (
     input   logic        pixel_clk_i,
     input   logic        stb_pixel_i,
     input   logic        stb_byte_i,
-    input   logic        stb_sync_i,
+    input   logic        stb_sync1_i,
+    input   logic        stb_sync2_i,
 
     output  logic        stb_pixel_o,
     output  logic        stb_byte_o,
@@ -93,7 +94,7 @@ end
 // ==============================================
 
 logic [1:0] byte_count = 0;
-logic bufer_enable, de_delayed, phase1;
+logic bufer_enable, de_delayed;
 
 always @(posedge pixel_clk_i) begin
     if (rst_i) begin
@@ -105,13 +106,13 @@ always @(posedge pixel_clk_i) begin
         data_req <= '0;
     end else begin
 
-        if (stb_sync_i) begin
+        if (stb_sync1_i || stb_sync2_i) begin
             case (cfg_rate)
                 2'b00: begin // 2 bytes per 16 pixels
-                    data_req <= de_i && !phase1;
+                    data_req <= de_i && stb_sync1_i;
                 end
                 2'b01: begin // 4 bytes per 16 pixels
-                    data_req <= de_i && !phase1;
+                    data_req <= de_i && stb_sync1_i;
                 end
                 2'b10: begin // 8 bytes per 16 pixels
                     data_req <= de_i;
@@ -134,14 +135,14 @@ always @(posedge pixel_clk_i) begin
             // T4 or T12
             // T0, T4, T8, T12 
             // T0, T2, T4, T6, T8, T10, T12, T14
-            if (stb_sync_i) begin
+            if (stb_sync1_i || stb_sync2_i) begin
                 case (cfg_rate)
                     2'b00: begin // 2 bytes per 16 pixels
-                        if (phase1) byte_count <= 2'b00;
+                        if (stb_sync2_i) byte_count <= 2'b00;
                         else byte_count <= byte_count + 2'b01;
                     end
                     2'b01: begin // 4 bytes per 16 pixels
-                        if (phase1) byte_count <= 2'b00;
+                        if (stb_sync2_i) byte_count <= 2'b00;
                         else byte_count <= byte_count + 2'b01;
                     end
                     2'b10: begin // 8 bytes per 16 pixels
@@ -165,15 +166,8 @@ always @(posedge pixel_clk_i) begin
     if (rst_i) begin
         bufer_enable <= '0;
         de_delayed <= '0;
-        phase1 <= '0;
     end else begin
-        if (!de_i) begin
-            // первый доступ в память прогрев
-            phase1 <= '0;                    
-        end else if (stb_sync_i) begin
-            phase1 <= ~phase1;
-        end
-        if (stb_sync_i) begin
+        if (stb_sync1_i) begin
             bufer_enable <= de_i; // прогрев пайплайна
             de_delayed <= bufer_enable; 
         end 

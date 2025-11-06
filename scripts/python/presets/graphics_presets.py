@@ -7,19 +7,20 @@
 // [1:0] - bpp_mode: 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
 // [2]   - reserved
 // [3]   - reserved  
-// [4]   - linear_pixel: 0=CPC palette, 1=Linear RGB
+// [4]   - linear_pixel:  0=CPC bits,  1=Linear Bits
 // [5]   - use_cpc_modes: 0=Internal bpp, 1=CPC gatearray graphics
 // [7]   - reserved
+
+// Address Mode Register (reg_addr_mode) - 8 bits
+// [0]   - linear_mode: 0=CPC-style, 1=Linear addressing
+// [1]   - address step: 0-Once per cycle, 1-two times per cycle
+// [2]   - address rate: 0-Once per cycle, 1-two times per cycle
+// [5:4] - addr_mode: 000=CPC 16KB, 001=EX 32KB, 010=LX 32KB, 011=LX 64KB, 100=Linear
+// [7:6] - Reserved for future use
 
 // Pixel Control Register (reg_pixel_ctrl) - 8 bits  
 // [1:0] - bytes_per_16clk: 00=2 bytes, 01=4 bytes, 10=8 bytes, 11=16 bytes
 // [7:2] - Reserved for future use
-
-// Address Mode Register (reg_addr_mode) - 8 bits
-// [0]   - linear_mode: 0=CPC-style, 1=Linear addressing
-// [1]   - burst_enable: 0=Normal, 1=Burst mode
-// [4:2] - addr_mode: 000=CPC 16KB, 001=EX 32KB, 010=LX 32KB, 011=LX 64KB, 100=Linear
-// [7:5] - Reserved for future use
 """
 
 GRAPHICS_PRESETS = {
@@ -45,16 +46,16 @@ GRAPHICS_PRESETS = {
                 [0x0D, 0, 0xFF],     # R13: START_ADDR_L
                 # Расширенные регистры - не использоавть cpc mode, 
                 # использовать внутренний но с cpc режимом палитры и пикселов
-                [0x12, 0b01100010, 0b11111111],  # R18: VIDEO_CONTROL - use_cpc=0, bpp=10 (4bpp)
-                [0x14, 0b00000000, 0b00000111], # R20: ADDR_MODE - linear (100)
-                [0x15, 0b00000000, 0b00000011]  # R21: PIXEL_CTRL - 27MHz
+                [0x12, 0b00000010, 0b00110011], # R18: VIDEO_CONTROL 
+                [0x14, 0b00000000, 0b00110111], # R20: ADDR_MODE 
+                [0x15, 0b00000000, 0b00000011]  # R21: PIXEL_CTRL
             ],
             "gate_array": [
 
             ],
-            "palette": [
-                ["gradient_16c"]  # Специальная команда для настройки палитры
-            ]
+            #"palette": [
+            #    ["gradient_16c"]  # Специальная команда для настройки палитры
+            #]
         }
     },
     
@@ -80,15 +81,15 @@ GRAPHICS_PRESETS = {
                 [0x0D, 0, 0xFF],     # R13: START_ADDR_L
                 # Расширенные регистры - не использоавть cpc mode, 
                 # использовать внутренний но с cpc режимом палитры и пикселов
-                [0x12, 0b01100001, 0b11111111], # R18: VIDEO_CONTROL - use_cpc=0, bpp=01 (2bpp)
-                [0x14, 0b00000000, 0b00000111], # R20: ADDR_MODE - linear (100)
+                [0x12, 0b00000001, 0b00110011], # R18: VIDEO_CONTROL - use_cpc=0, bpp=01 (2bpp)
+                [0x14, 0b00000000, 0b00110111], # R20: ADDR_MODE - linear (100)
                 [0x15, 0b00000000, 0b00000011]  # R21: PIXEL_CTRL - 27MHz
             ],
             "gate_array": [
             ],
-            "palette": [
-                ["gradient_16c"]
-            ]
+            #"palette": [
+            #    ["gradient_16c"]
+            #]
         }
     },
     
@@ -112,17 +113,17 @@ GRAPHICS_PRESETS = {
                 # Адреса
                 [0x0C, 0, 0x3F],     # R12: START_ADDR_H
                 [0x0D, 0, 0xFF],     # R13: START_ADDR_L
+                # Расширенные регистры - не использоавть cpc mode, 
+                # использовать внутренний но с cpc режимом палитры и пикселов                
+                [0x12, 0b00000000, 0b00110011], # R18: VIDEO_CONTROL - use_cpc=0, bpp=00 (1bpp)
+                [0x14, 0b00000000, 0b00110111], # R20: ADDR_MODE - linear (100)
+                [0x15, 0b00000000, 0b00000011]  # R21: PIXEL_CTRL - 27MHz                
             ],
             "gate_array": [
-                # Расширенные регистры - не использоавть cpc mode, 
-                # использовать внутренний но с cpc режимом палитры и пикселов
-                [0x12, 0b01100000, 0b11111111], # R18: VIDEO_CONTROL - use_cpc=0, bpp=00 (1bpp)
-                [0x14, 0b00000000, 0b00000111], # R20: ADDR_MODE - linear (100)
-                [0x15, 0b00000000, 0b00000011]  # R21: PIXEL_CTRL - 27MHz
             ],
-            "palette": [
-                ["gradient_16c"]
-            ]
+            #"palette": [
+            #    ["gradient_16c"]
+            #]
         }
     },
 
@@ -148,8 +149,8 @@ GRAPHICS_PRESETS = {
                 [0x0D, 0, 0xFF],     # R13: START_ADDR_L
                 
                 # РАСШИРЕННЫЕ РЕГИСТРЫ - КЛЮЧЕВЫЕ ИЗМЕНЕНИЯ!
-                [0x12, 0b00001011, 0b11111111], # R18: use_cpc_modes=0, linear=1, bpp=11 (8bpp)
-                [0x14, 0b00000001, 0b00000111], # R26: ADDR_MODE=100 (linear)
+                [0x12, 0b00001011, 0b00110011], # R18: use_cpc_modes=0, linear=1, bpp=11 (8bpp)
+                [0x14, 0b00000001, 0b00110111], # R26: ADDR_MODE=100 (linear)
                 [0x15, 0b00000001, 0b00000011], # R27: PIXEL_CTRL - sel=01 (32KB буфер)
             ],
             "gate_array": [
@@ -173,8 +174,8 @@ GRAPHICS_PRESETS = {
                 [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
                 
                 # Расширенные регистры
-                [0x12, 0b00001010, 0b11111111], # use_cpc_modes=0, linear=1, bpp=10 (4bpp)
-                [0x14, 0b00000001, 0b00000111], # ADDR_MODE=100 (linear)
+                [0x12, 0b00001010, 0b00110011], # use_cpc_modes=0, linear=1, bpp=10 (4bpp)
+                [0x14, 0b00000001, 0b00110111], # ADDR_MODE=100 (linear)
                 [0x15, 0b00000001, 0b00000011], # PIXEL_CTRL - sel=01 (32KB буфер)
             ],
             "palette": [
@@ -195,8 +196,8 @@ GRAPHICS_PRESETS = {
                 [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
                 
                 # Расширенные регистры
-                [0x12, 0b00001001, 0b11111111], # use_cpc_modes=0, linear=1, bpp=01 (2bpp)
-                [0x14, 0b00000001, 0b00000111], # ADDR_MODE=100 (linear) 
+                [0x12, 0b00001001, 0b00110011], # use_cpc_modes=0, linear=1, bpp=01 (2bpp)
+                [0x14, 0b00000001, 0b00110111], # ADDR_MODE=100 (linear) 
                 [0x15, 0b00000000, 0b00000011], # PIXEL_CTRL - sel=00 (16KB буфер)
             ],
             "palette": [
@@ -217,8 +218,8 @@ GRAPHICS_PRESETS = {
                 [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
                 
                 # Расширенные регистры
-                [0x12, 0b00001011, 0b11111111], # use_cpc_modes=0, linear=1, bpp=11 (8bpp)
-                [0x14, 0b00000001, 0b00000111], # ADDR_MODE=100 (linear)
+                [0x12, 0b00001011, 0b00110011], # use_cpc_modes=0, linear=1, bpp=11 (8bpp)
+                [0x14, 0b00000001, 0b00110111], # ADDR_MODE=100 (linear)
                 [0x15, 0b00000010, 0b00000011], # PIXEL_CTRL - sel=10 (64KB буфер)
             ],
             "palette": [
@@ -239,7 +240,7 @@ GRAPHICS_PRESETS = {
                 [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
                 
                 # Расширенные регистры
-                [0x12, 0b00001010, 0b11111111], # use_cpc_modes=0, linear=1, bpp=10 (4bpp)
+                [0x12, 0b00001010, 0b00110011], # use_cpc_modes=0, linear=1, bpp=10 (4bpp)
                 [0x14, 0b00000001, 0b00000111], # ADDR_MODE=100 (linear)
                 [0x15, 0b00000010, 0b00000011], # PIXEL_CTRL - sel=10 (64KB буфер)
             ],
@@ -261,7 +262,7 @@ GRAPHICS_PRESETS = {
                 [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
                 
                 # Расширенные регистры
-                [0x12, 0b00001001, 0b11111111], # use_cpc_modes=0, linear=1, bpp=01 (2bpp)
+                [0x12, 0b00001001, 0b00110011], # use_cpc_modes=0, linear=1, bpp=01 (2bpp)
                 [0x14, 0b00000001, 0b00000111], # ADDR_MODE=100 (linear)
                 [0x15, 0b00000001, 0b00000011], # PIXEL_CTRL - sel=01 (32KB буфер)
             ],

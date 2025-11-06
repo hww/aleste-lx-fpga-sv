@@ -23,7 +23,6 @@ module memory_arbiter (
     output logic [15:0] video_data_o,
     output logic        video_ack0_o,
     output logic        video_ack1_o,
-    input  logic        video_burst_i,
 
     // 16-bit GPU Interface (будущее)
     input  logic [23:0] gpu_addr_i,

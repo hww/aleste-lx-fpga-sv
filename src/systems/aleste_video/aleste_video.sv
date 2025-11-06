@@ -171,9 +171,8 @@ module aleste_video #(
     logic [1:0] crtc_bpp;
     logic cfg_linear;
     logic [23:0] crtc2mem_addr;
-    logic cfg_burst;
     logic [1:0] cfg_pixel_rate;
-    logic crtc_stb_char, crtc_stb_word, crtc_stb_pixel, crtc_stb_byte, crtc_stb_sync;
+    logic crtc_stb_char, crtc_stb_word, crtc_stb_pixel, crtc_stb_byte, crtc_stb_sync1, crtc_stb_sync2;
     logic crtc_halt; // For debug
 
     // Scan Doubler Signals
@@ -380,7 +379,8 @@ module aleste_video #(
         .stb_char_o(crtc_stb_char),     // End of character 1/16 of 27MHz
         .stb_pixel_o(crtc_stb_pixel),   // Пиксельный строб 
         .stb_byte_o(crtc_stb_byte),     // Загрузка байта
-        .stb_sync_o(crtc_stb_sync), // ключевой строб латентности
+        .stb_sync1_o(crtc_stb_sync1), // ключевой строб латентности
+        .stb_sync2_o(crtc_stb_sync2), // ключевой строб латентности
 
         // HDMI timing reference
         .hdmi_x_i(hdmi_x),
@@ -400,7 +400,6 @@ module aleste_video #(
         .cfg_bpp_o(crtc_bpp),           // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
         .cfg_linear_pixel_o(cfg_linear),      // 0=CPC-style, 1=continuous  
         .cfg_pixel_rate_o(cfg_pixel_rate),          // Pixel clock selection
-        .cfg_burst_o(cfg_burst)         // 1=32-bit burst, 0=16-bit normal
     );
     // ===========================================
     // Memory Arbiter (Video + System WB)
@@ -412,7 +411,6 @@ module aleste_video #(
         
         // Video Interface
         .video_addr_i(crtc2mem_addr),
-        .video_burst_i(cfg_burst),
         .video_req_i(vbuf_req),
         .video_data_o(vbuf_data),
         .video_ack0_o(vbuf_ack0),
@@ -539,7 +537,8 @@ module aleste_video #(
         .pixel_clk_i(clk_pixel),    // 27Mhz
         .stb_pixel_i(crtc_stb_pixel),
         .stb_byte_i(crtc_stb_byte), // Every video byte character one periond
-        .stb_sync_i(crtc_stb_sync),
+        .stb_sync1_i(crtc_stb_sync1),
+        .stb_sync2_i(crtc_stb_sync2),
         .de_i(crtc_de),             // Border
 
         // To pixel_pipeline (8-bit)

@@ -46,12 +46,12 @@
 
 === memory_arbiter ===
 
-   Number of wires:                102
-   Number of wire bits:            545
-   Number of public wires:          49
-   Number of public wire bits:     286
-   Number of ports:                 38
-   Number of port bits:            224
+   Number of wires:                101
+   Number of wire bits:            544
+   Number of public wires:          48
+   Number of public wire bits:     285
+   Number of ports:                 37
+   Number of port bits:            223
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:              2
@@ -240,24 +240,24 @@
 
 === $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod ===
 
-   Number of wires:                296
-   Number of wire bits:           1427
-   Number of public wires:         114
-   Number of public wire bits:     448
+   Number of wires:                297
+   Number of wire bits:           1428
+   Number of public wires:         116
+   Number of public wire bits:     450
    Number of ports:                 39
    Number of port bits:            142
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:             60
-   Number of cells:                 83
+   Number of cells:                 80
      $add                            8
      $div                            2
      $eq                            21
      $ge                             2
-     $logic_and                     25
-     $logic_not                      4
+     $logic_and                     23
+     $logic_not                      5
      $logic_or                       5
-     $lt                             8
+     $lt                             6
      $mul                            2
      $mux                            3
      $not                            1
@@ -345,21 +345,21 @@
 
 === video_buffer ===
 
-   Number of wires:                 63
-   Number of wire bits:            241
+   Number of wires:                 60
+   Number of wire bits:            238
    Number of public wires:          30
    Number of public wire bits:     114
-   Number of ports:                 17
-   Number of port bits:             41
+   Number of ports:                 18
+   Number of port bits:             42
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:              7
-   Number of cells:                 11
+   Number of cells:                  9
      $add                            3
      $logic_and                      2
-     $logic_not                      4
+     $logic_not                      1
+     $logic_or                       2
      $mux                            1
-     $not                            1
 
 === OBUFDS ===
 
@@ -510,16 +510,16 @@
      video_pll                       1
      wb_simple_reg                   1
 
-   Number of wires:               5351
-   Number of wire bits:          31946
-   Number of public wires:         831
-   Number of public wire bits:    3431
+   Number of wires:               5348
+   Number of wire bits:          31943
+   Number of public wires:         832
+   Number of public wire bits:    3432
    Number of ports:                393
    Number of port bits:           1469
    Number of memories:               5
    Number of memory bits:        23748
    Number of processes:            191
-   Number of cells:                816
+   Number of cells:                811
      $add                           76
      $and                           11
      $div                            2
@@ -527,16 +527,16 @@
      $ge                             6
      $gt                             5
      $le                             1
-     $logic_and                    101
-     $logic_not                     42
-     $logic_or                      22
-     $lt                            13
+     $logic_and                     99
+     $logic_not                     40
+     $logic_or                      24
+     $lt                            11
      $meminit_v2                   283
      $memrd                          7
      $mul                            2
      $mux                           40
      $ne                             9
-     $not                           27
+     $not                           26
      $or                             3
      $pos                            1
      $reduce_and                     1

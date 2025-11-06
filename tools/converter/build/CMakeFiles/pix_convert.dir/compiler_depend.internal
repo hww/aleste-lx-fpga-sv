@@ -15,6 +15,7 @@ CMakeFiles/pix_convert.dir/pix_convert.cpp.o
  /usr/include/asm/posix_types.h
  /usr/include/asm/posix_types_64.h
  /usr/include/asm/types.h
+ /usr/include/assert.h
  /usr/include/bits/atomic_wide_counter.h
  /usr/include/bits/byteswap.h
  /usr/include/bits/cpu-set.h
@@ -161,6 +162,7 @@ CMakeFiles/pix_convert.dir/pix_convert.cpp.o
  /usr/include/c++/15.2.1/bits/utility.h
  /usr/include/c++/15.2.1/bits/vector.tcc
  /usr/include/c++/15.2.1/bits/version.h
+ /usr/include/c++/15.2.1/cassert
  /usr/include/c++/15.2.1/cctype
  /usr/include/c++/15.2.1/cerrno
  /usr/include/c++/15.2.1/clocale

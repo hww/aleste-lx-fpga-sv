@@ -60,7 +60,8 @@ module mc6845mod #(
     output logic stb_char_o,                 // End of character 1/16 of 27Mhz
     output logic stb_byte_o,                 // Загрузка байта
     output logic stb_pixel_o,                // Пиксельный строб 
-    output logic stb_sync_o,
+    output logic stb_sync1_o,
+    output logic stb_sync2_o,
 
     // Memory Address Interface
     output logic [13:0] crtc_ma_o,
@@ -77,7 +78,6 @@ module mc6845mod #(
     output logic        cfg_linear_pixel_o, // 0=CPC-style, 1=continuous  
     output logic [1:0]  cfg_pixel_rate_o,         // Pixel clock selection
     
-    output logic        cfg_burst_o,        // 1=32-bit burst, 0=16-bit normal
     output logic [2:0]  cfg_addr_mode_o,    // Address mode
 );
 
@@ -103,10 +103,9 @@ localparam REG_STARTL     = 5'h0D;
 localparam REG_CURH       = 5'h0E;
 localparam REG_CURL       = 5'h0F;
 localparam REG_VIDEO_CONTROL = 5'h12;
-// NEW EXTENDED REGISTERS - добавляем после существующих
-localparam REG_HIGH_ADDRESS = 5'h13;  // A16-A23
-localparam REG_ADDR_MODE    = 5'h14;  // Address mode control
-localparam REG_PIXEL_CTRL   = 5'h15;  // Pixel clock control
+localparam REG_HIGH_ADDRESS  = 5'h13;  // A16-A23
+localparam REG_ADDR_MODE     = 5'h14;  // Address mode control
+localparam REG_PIXEL_CTRL    = 5'h15;  // Pixel clock control
 
 // Internal registers
 logic [7:0] reg_h_total = 0;
@@ -334,19 +333,21 @@ wire [1:0] bpp_mode        = reg_video_control[1:0];
 wire       linear_pixel    = reg_video_control[4];
 wire       use_cpc_modes   = reg_video_control[5];
 
+// Address Mode Register (reg_addr_mode) - 8 bits
+// [0]   - linear_mode: 0=CPC-style, 1=Linear addressing
+// [1]   - address step: 0-Once per cycle, 1-two times per cycle
+// [2]   - address rate: 0-Once per cycle, 1-two times per cycle
+// [5:4] - addr_mode: 000=CPC 16KB, 001=EX 32KB, 010=LX 32KB, 011=LX 64KB, 100=Linear
+// [7:6] - Reserved for future use
+wire linear_mode  = reg_addr_mode[0]; // Linear addressing mode
+wire address_step = reg_addr_mode[1]; // 0-Step 1, 1-Step-2
+wire address_rate = reg_addr_mode[2]; // 0-Once per cycle, 1-two times per cycle
+wire [2:0] addr_mode = reg_addr_mode[5:4];// From new register
+
 // Pixel Control Register (reg_pixel_ctrl) - 8 bits  
 // [1:0] - bytes_per_16clk: 00=2 bytes, 01=4 bytes, 10=8 bytes, 11=16 bytes
 // [7:2] - Reserved for future use
 wire [1:0] pixel_rate = reg_pixel_ctrl[1:0];  // From new register
-
-// Address Mode Register (reg_addr_mode) - 8 bits
-// [0]   - linear_mode: 0=CPC-style, 1=Linear addressing
-// [1]   - burst_enable: 0=Normal, 1=Burst mode
-// [4:2] - addr_mode: 000=CPC 16KB, 001=EX 32KB, 010=LX 32KB, 011=LX 64KB, 100=Linear
-// [7:5] - Reserved for future use
-wire linear_mode  = reg_video_control[0]; // Linear addressing mode
-wire burst_enable = reg_video_control[1]; // Reuse existing bit
-wire [2:0] addr_mode = reg_addr_mode[5:4];// From new register
 
 // Output assignments
 assign cfg_bpp_o= use_cpc_modes ? ~cfg_cpc_bpp_i : bpp_mode;
@@ -442,7 +443,8 @@ always_ff @(posedge pix_clk_i) begin
         stb_pixel <= 0;
     end else begin
         stb_char <= strobe_1x;       
-        stb_sync_o        <= !start_h_trigger && (crtc_pix_x[2:0] == 3'b011); // 4 and 12
+        stb_sync1_o        <= !start_h_trigger && (crtc_pix_x[3:0] == 4'b0011); // 4 and 12
+        stb_sync2_o        <= !start_h_trigger && (crtc_pix_x[3:0] == 4'b1011); // 4 and 12
 
         case (pixel_rate)
             2'b00: stb_byte <= (crtc_pix_x[2:0] == 3'b011); // 16px/char (2 bytes per 16 pixeld)
@@ -574,15 +576,30 @@ end
 
 // Linear address counter - ОТДЕЛЬНЫЙ блок для линейной адресации
 logic [15:0] linear_addr = 0;
+logic linear_incrementing = 0;
 
 always_ff @(posedge pix_clk_i) begin
-    if (wb_rst_i || start_v_trigger) begin
-        linear_addr <= {reg_start_addr_h, reg_start_addr_l}; // ×4 for byte address
-    end else if (stb_char && linear_mode) begin
-        // Linear addressing: +2 bytes normal, +4 bytes burst
-        linear_addr <= linear_addr + (cfg_burst_o ? 16'd4 : 16'd2);
+    if (wb_rst_i) begin
+        linear_addr <= 16'h0000;
+        linear_incrementing <= '0;
+    end else begin
+        if (start_v_trigger) begin
+            linear_addr <= {reg_start_addr_h, reg_start_addr_l};
+            linear_incrementing <= '0; // Сбрасываем в "первый цикл"
+        end else begin
+            if (stb_sync1_o) begin
+                // Первый цикл после VSYNC: только включаем инкрементацию
+                linear_incrementing <= linear_mode;
+            end
+
+            if (linear_incrementing && (stb_sync1_o || (address_rate && stb_sync2_o))) begin
+                // Нормальный инкремент в последующих циклах
+                linear_addr <= linear_addr + (address_step ? 16'd4 : 16'd2);
+            end
+        end
     end
 end
+
 
 // Extended address output with proper mode selection
 always_comb begin
@@ -598,15 +615,6 @@ always_comb begin
         // ra[3:0] are a[13:12]
         crtc_ext_addr_o = {reg_high_address, crtc_ma_addr[13:12], crtc_ra_o[3:0], crtc_ma_addr[9:0], 1'b0};
     end
-end
-
-// Simplified burst request generation
-always_comb begin
-    cfg_burst_o = burst_enable && 
-                      linear_mode && // Only in linear mode
-                      (crtc_h_count < reg_h_displayed) && 
-                      (crtc_v_count < reg_v_displayed) &&
-                      (crtc_h_count[0] == 1'b0); // Burst on even character positions
 end
 
 // ============================================================================
