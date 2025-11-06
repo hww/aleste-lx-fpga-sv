@@ -6,7 +6,8 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <unordered_map>  // Added missing include
+#include <unordered_map>
+#include <random>
 
 // ==================== СТРУКТУРЫ ДАННЫХ ====================
 struct RGB {
@@ -15,6 +16,22 @@ struct RGB {
     RGB(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b) {}
     bool operator==(const RGB& other) const {
         return r == other.r && g == other.g && b == other.b;
+    }
+    
+    RGB operator+(const RGB& other) const {
+        return RGB(
+            std::min(255, int(r) + int(other.r)),
+            std::min(255, int(g) + int(other.g)), 
+            std::min(255, int(b) + int(other.b))
+        );
+    }
+    
+    RGB operator*(float factor) const {
+        return RGB(
+            std::max(0, std::min(255, int(r * factor))),
+            std::max(0, std::min(255, int(g * factor))),
+            std::max(0, std::min(255, int(b * factor)))
+        );
     }
 };
 
@@ -30,6 +47,29 @@ const std::vector<RGB> CPC_PALETTE = {
     RGB(0xFF, 0x80, 0x00), RGB(0xFF, 0x80, 0x80), RGB(0xFF, 0x80, 0xFF),
     RGB(0xFF, 0xFF, 0x00), RGB(0xFF, 0xFF, 0x80), RGB(0xFF, 0xFF, 0xFF)
 };
+
+// Правильная палитра MSX согласно спецификации
+const std::vector<RGB> MSX_PALETTE = {
+    RGB(0x00, 0x00, 0x00), RGB(0x00, 0x00, 0x00), RGB(0x3E, 0xB8, 0x49), RGB(0x74, 0xD0, 0x7D),
+    RGB(0x59, 0x55, 0xE0), RGB(0x80, 0x76, 0xF1), RGB(0xB9, 0x5E, 0x51), RGB(0x65, 0xDB, 0xEF),
+    RGB(0xDB, 0x65, 0x59), RGB(0xFF, 0x89, 0x7D), RGB(0xCC, 0xC3, 0x5E), RGB(0xDE, 0xD0, 0x87),
+    RGB(0x3A, 0xA2, 0x41), RGB(0xB7, 0x66, 0xB5), RGB(0xCC, 0xCC, 0xCC), RGB(0xFF, 0xFF, 0xFF)
+};
+
+// Функция для конвертации MSX цветового значения в RGB
+RGB msxToRGB(uint8_t msxColor) {
+    // Распаковка компонентов из MSX формата: RRRGGGBB
+    uint8_t r_bits = (msxColor >> 5) & 0x07;
+    uint8_t g_bits = (msxColor >> 2) & 0x07; 
+    uint8_t b_bits = msxColor & 0x03;
+    
+    // Конвертация в 8-битные значения согласно таблице
+    static const uint8_t r_table[8] = {0, 36, 72, 109, 145, 182, 218, 255};
+    static const uint8_t g_table[8] = {0, 36, 72, 109, 145, 182, 218, 255};
+    static const uint8_t b_table[4] = {0, 85, 170, 255};
+    
+    return RGB(r_table[r_bits], g_table[g_bits], b_table[b_bits]);
+}
 
 struct PIXHeader {
     char magic[12];
@@ -64,6 +104,9 @@ private:
 
 public:
     SimpleImage() : width_(0), height_(0) {}
+    SimpleImage(uint16_t w, uint16_t h) : width_(w), height_(h) {
+        pixels.resize(w * h);
+    }
     
     bool loadPPM(const std::string& filename) {
         std::ifstream file(filename, std::ios::binary);
@@ -177,10 +220,124 @@ public:
         return success;
     }
     
+    bool saveBMP(const std::string& filename) {
+        std::ofstream file(filename, std::ios::binary);
+        if (!file) {
+            std::cerr << "❌ Cannot create BMP file: " << filename << std::endl;
+            return false;
+        }
+        
+        // Вычисляем размер строки с выравниванием
+        uint32_t width = width_;
+        uint32_t height = height_;
+        uint32_t bytesPerPixel = 3;
+        uint32_t rowSize = (width * bytesPerPixel + 3) & ~3; // Выравнивание до 4 байт
+        uint32_t imageSize = rowSize * height;
+        uint32_t fileSize = 54 + imageSize; // 54 байта заголовок
+        
+        std::cout << "   BMP details: " << width << "x" << height 
+                << ", rowSize=" << rowSize << ", imageSize=" << imageSize 
+                << ", fileSize=" << fileSize << std::endl;
+        
+        // === BMP FILE HEADER (14 bytes) ===
+        // Signature
+        file.put('B');
+        file.put('M');
+        
+        // File size
+        file.write(reinterpret_cast<const char*>(&fileSize), 4);
+        
+        // Reserved
+        uint16_t reserved1 = 0;
+        uint16_t reserved2 = 0;
+        file.write(reinterpret_cast<const char*>(&reserved1), 2);
+        file.write(reinterpret_cast<const char*>(&reserved2), 2);
+        
+        // Data offset
+        uint32_t dataOffset = 54;
+        file.write(reinterpret_cast<const char*>(&dataOffset), 4);
+        
+        // === BMP INFO HEADER (40 bytes) ===
+        uint32_t headerSize = 40;
+        file.write(reinterpret_cast<const char*>(&headerSize), 4);
+        
+        // Width
+        file.write(reinterpret_cast<const char*>(&width), 4);
+        
+        // Height (положительное для bottom-up)
+        int32_t signedHeight = height;
+        file.write(reinterpret_cast<const char*>(&signedHeight), 4);
+        
+        // Planes
+        uint16_t planes = 1;
+        file.write(reinterpret_cast<const char*>(&planes), 2);
+        
+        // Bits per pixel
+        uint16_t bitsPerPixel = 24;
+        file.write(reinterpret_cast<const char*>(&bitsPerPixel), 2);
+        
+        // Compression
+        uint32_t compression = 0; // BI_RGB
+        file.write(reinterpret_cast<const char*>(&compression), 4);
+        
+        // Image size
+        file.write(reinterpret_cast<const char*>(&imageSize), 4);
+        
+        // Resolution
+        uint32_t xPixelsPerM = 0;
+        uint32_t yPixelsPerM = 0;
+        file.write(reinterpret_cast<const char*>(&xPixelsPerM), 4);
+        file.write(reinterpret_cast<const char*>(&yPixelsPerM), 4);
+        
+        // Colors
+        uint32_t colorsUsed = 0;
+        uint32_t importantColors = 0;
+        file.write(reinterpret_cast<const char*>(&colorsUsed), 4);
+        file.write(reinterpret_cast<const char*>(&importantColors), 4);
+        
+        // === PIXEL DATA ===
+        std::vector<uint8_t> rowBuffer(rowSize, 0);
+        
+        // Bottom-up: начинаем с последней строки
+        for (int y = height - 1; y >= 0; --y) {
+            // Заполняем строку пикселями в формате BGR
+            for (int x = 0; x < width; ++x) {
+                const RGB& pixel = pixels[y * width_ + x];
+                rowBuffer[x * 3 + 0] = pixel.b; // Blue
+                rowBuffer[x * 3 + 1] = pixel.g; // Green  
+                rowBuffer[x * 3 + 2] = pixel.r; // Red
+            }
+            // Записываем строку
+            file.write(reinterpret_cast<const char*>(rowBuffer.data()), rowSize);
+            
+            if (file.fail()) {
+                std::cerr << "❌ Error writing row " << y << std::endl;
+                return false;
+            }
+        }
+        
+        bool success = !file.fail();
+        if (success) {
+            std::cout << "✅ BMP saved: " << filename << " (" << width_ << "x" << height_ << ", 24-bit)" << std::endl;
+            
+            // Проверяем содержимое
+            std::cout << "   First few pixels: ";
+            for (int i = 0; i < std::min(3, width_ * height_); i++) {
+                const RGB& p = pixels[i];
+                std::cout << "(" << (int)p.r << "," << (int)p.g << "," << (int)p.b << ") ";
+            }
+            std::cout << std::endl;
+        } else {
+            std::cerr << "❌ Error writing BMP file" << std::endl;
+        }
+        return success;
+    }
+    
     uint16_t width() const { return width_; }
     uint16_t height() const { return height_; }
+    RGB& pixel(int x, int y) { return pixels[y * width_ + x]; }
     const RGB& pixel(int x, int y) const { return pixels[y * width_ + x]; }
-    std::vector<RGB>& getPixels() { return pixels; }  // Changed to non-const
+    std::vector<RGB>& getPixels() { return pixels; }
     const std::vector<RGB>& getPixels() const { return pixels; }
     
     void resize(uint16_t newWidth, uint16_t newHeight) {
@@ -202,7 +359,6 @@ public:
         height_ = newHeight;
     }
     
-    // Билинейная интерполяция для лучшего качества
     void resizeBilinear(uint16_t newWidth, uint16_t newHeight) {
         std::cout << "🔄 Resizing (bilinear): " << width_ << "x" << height_ 
                   << " → " << newWidth << "x" << newHeight << std::endl;
@@ -250,22 +406,25 @@ public:
     }
 };
 
-// ================== КОНВЕРТОР ИЗИБРАЖЕНИЯ ==================
-class SimpleColorProcessor {
+// ================== УЛУЧШЕННЫЙ КОНВЕРТОР ЦВЕТОВ ==================
+class AdvancedColorProcessor {
 private:
     struct ColorStats {
         RGB color;
         int count;
-        
+
         ColorStats(const RGB& c, int cnt) : color(c), count(cnt) {}
         
-        // Простые методы конвертации
         uint16_t to12bit() const {
             return ((color.r >> 4) << 8) | ((color.g >> 4) << 4) | (color.b >> 4);
         }
         
         uint8_t toMSX() const {
-            return ((color.r >> 5) << 5) | ((color.g >> 5) << 2) | (color.b >> 6);
+            // Конвертация RGB в MSX формат: RRRGGGBB
+            uint8_t r = (color.r >> 5) & 0x07;  // 3 бита
+            uint8_t g = (color.g >> 5) & 0x07;  // 3 бита  
+            uint8_t b = (color.b >> 6) & 0x03;  // 2 бита
+            return (r << 5) | (g << 2) | b;
         }
         
         uint8_t to6bit() const {
@@ -273,7 +432,6 @@ private:
         }
         
         uint16_t toCPC() const {
-            // Простой поиск ближайшего CPC цвета
             int bestIndex = 0;
             int bestDist = 255 * 255 * 3;
             
@@ -296,47 +454,260 @@ private:
     };
 
 public:
-    static std::vector<RGB> selectPalette(const SimpleImage& image, int maxColors, const std::string& paletteMode) {
-        // 1. Собираем статистику цветов
-        std::unordered_map<uint32_t, int> colorCount;
+    // Улучшенный поиск ближайшего цвета с учетом особенностей аппаратуры
+    static int findBestColorCPC(const RGB& color, const std::vector<RGB>& palette) {
+        int bestIndex = 0;
+        double bestDist = std::numeric_limits<double>::max();
         
-        for (const auto& pixel : image.getPixels()) {
-            uint32_t key = (pixel.r << 16) | (pixel.g << 8) | pixel.b;
-            colorCount[key]++;
+        for (int i = 0; i < palette.size(); i++) {
+            const RGB& palColor = palette[i];
+            
+            // Взвешенное расстояние (человеческое восприятие)
+            double dr = color.r - palColor.r;
+            double dg = color.g - palColor.g;
+            double db = color.b - palColor.b;
+            
+            // Коэффициенты восприятия (стандартные для RGB)
+            double dist = 0.299 * dr*dr + 0.587 * dg*dg + 0.114 * db*db;
+            
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestIndex = i;
+            }
         }
         
-        // 2. Преобразуем в ColorStats и сортируем по частоте
-        std::vector<ColorStats> colorStats;
-        for (const auto& entry : colorCount) {
-            RGB color((entry.first >> 16) & 0xFF, (entry.first >> 8) & 0xFF, entry.first & 0xFF);
-            colorStats.emplace_back(color, entry.second);
+        return bestIndex;
+    }
+    
+    static int findBestColorMSX(const RGB& color, const std::vector<RGB>& palette) {
+        int bestIndex = 0;
+        double bestDist = std::numeric_limits<double>::max();
+        
+        for (int i = 0; i < palette.size(); i++) {
+            const RGB& palColor = palette[i];
+            
+            // MSX имеет специфическую палитру, учитываем это
+            double dr = color.r - palColor.r;
+            double dg = color.g - palColor.g;
+            double db = color.b - palColor.b;
+            
+            // Усиливаем важность зеленого для MSX
+            double dist = 0.25 * dr*dr + 0.60 * dg*dg + 0.15 * db*db;
+            
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestIndex = i;
+            }
         }
         
-        std::sort(colorStats.begin(), colorStats.end(), 
-            [](const ColorStats& a, const ColorStats& b) { 
-                return a.count > b.count; 
-            });
-        
-        // 3. Выбираем палитру
-        std::vector<RGB> palette;
+        return bestIndex;
+    }
+
+    // Улучшенный подбор палитры с учетом аппаратных ограничений
+    static std::vector<RGB> selectAdaptivePalette(const SimpleImage& image, int maxColors, const std::string& paletteMode) {
+        std::cout << "🎨 Selecting adaptive palette for " << paletteMode << " (" << maxColors << " colors)" << std::endl;
         
         if (paletteMode == "cpc") {
             // Фиксированная CPC палитра
-            palette = CPC_PALETTE;
+            std::vector<RGB> palette = CPC_PALETTE;
+            if (maxColors <= 16) {
+                // Для 4bpp (16 цветов) выбираем лучшие 16 цветов из CPC палитры
+                palette = selectBestCPCSubset(image, maxColors);
+            } else if (maxColors <= 4) {
+                // Для 2bpp (4 цвета) выбираем лучшие 4 цвета
+                palette = selectBestCPCSubset(image, maxColors);
+            } else {
+                // Для других случаев используем всю CPC палитру
+                palette = CPC_PALETTE;
+                if (maxColors < palette.size()) {
+                    palette.resize(maxColors);
+                }
+            }
+            return palette;
+        }
+        else if (paletteMode == "msx") {
+            // Фиксированная MSX палитра
+            std::vector<RGB> palette = MSX_PALETTE;
             if (maxColors < palette.size()) {
                 palette.resize(maxColors);
             }
-        } else {
-            // Берем N самых частых цветов
-            int count = std::min(maxColors, (int)colorStats.size());
-            for (int i = 0; i < count; i++) {
-                palette.push_back(colorStats[i].color);
+            return palette;
+        }
+        
+        // Для других режимов - медианный cut алгоритм (упрощенный)
+        return selectMedianCutPalette(image, maxColors);
+    }
+    // Функция для выбора лучших цветов CPC палитры
+    static std::vector<RGB> selectBestCPCSubset(const SimpleImage& image, int numColors) {
+        std::cout << "   Selecting best " << numColors << " CPC colors from image..." << std::endl;
+        
+        // Собираем все цвета изображения
+        std::vector<RGB> imageColors = image.getPixels();
+        
+        // Уникальные цвета
+        std::sort(imageColors.begin(), imageColors.end(), [](const RGB& a, const RGB& b) {
+            return (a.r << 16 | a.g << 8 | a.b) < (b.r << 16 | b.g << 8 | b.b);
+        });
+        auto last = std::unique(imageColors.begin(), imageColors.end());
+        imageColors.erase(last, imageColors.end());
+        
+        std::cout << "   Unique colors in image: " << imageColors.size() << std::endl;
+        
+        // Если уникальных цветов меньше нужного, добавляем из CPC палитры
+        std::vector<RGB> result;
+        
+        // Сначала берем цвета из изображения, которые есть в CPC палитре
+        for (const RGB& imgColor : imageColors) {
+            for (const RGB& cpcColor : CPC_PALETTE) {
+                if (colorDistance(imgColor, cpcColor) < 1000) { // Близкий цвет
+                    if (std::find(result.begin(), result.end(), cpcColor) == result.end()) {
+                        result.push_back(cpcColor);
+                        if (result.size() >= numColors) break;
+                    }
+                }
+            }
+            if (result.size() >= numColors) break;
+        }
+        
+        // Если не набрали, добавляем контрастные цвета из CPC палитры
+        if (result.size() < numColors) {
+            std::vector<RGB> remainingColors = CPC_PALETTE;
+            // Убираем уже выбранные цвета
+            remainingColors.erase(
+                std::remove_if(remainingColors.begin(), remainingColors.end(),
+                    [&](const RGB& c) {
+                        return std::find(result.begin(), result.end(), c) != result.end();
+                    }),
+                remainingColors.end()
+            );
+            
+            // Добавляем недостающие
+            while (result.size() < numColors && !remainingColors.empty()) {
+                result.push_back(remainingColors.back());
+                remainingColors.pop_back();
             }
         }
         
+        std::cout << "   Final palette: " << result.size() << " colors" << std::endl;
+        return result;
+    }
+    static int colorDistance(const RGB& a, const RGB& b) {
+        int dr = a.r - b.r;
+        int dg = a.g - b.g;
+        int db = a.b - b.b;
+        return dr*dr + dg*dg + db*db;
+    }
+    
+    // Упрощенный алгоритм медианного cut
+    static std::vector<RGB> selectMedianCutPalette(const SimpleImage& image, int maxColors) {
+        std::cout << "🎨 Using Median Cut algorithm for better contrast" << std::endl;
+        
+        // Собираем все уникальные цвета
+        std::vector<RGB> allColors = image.getPixels();
+        
+        // Убираем дубликаты
+        std::sort(allColors.begin(), allColors.end(), [](const RGB& a, const RGB& b) {
+            return (a.r << 16 | a.g << 8 | a.b) < (b.r << 16 | b.g << 8 | b.b);
+        });
+        auto last = std::unique(allColors.begin(), allColors.end());
+        allColors.erase(last, allColors.end());
+        
+        std::cout << "   Unique colors: " << allColors.size() << std::endl;
+        
+        if (allColors.size() <= maxColors) {
+            return allColors;
+        }
+        
+        // Median Cut: рекурсивно разбиваем цветовое пространство
+        std::vector<std::vector<RGB>> colorBoxes = {allColors};
+        
+        while (colorBoxes.size() < maxColors) {
+            // Находим коробку с наибольшим диапазоном
+            int splitBox = 0;
+            float maxRange = -1;
+            
+            for (int i = 0; i < colorBoxes.size(); i++) {
+                if (colorBoxes[i].size() < 2) continue;
+                
+                // Находим диапазон по R, G, B
+                uint8_t minR = 255, maxR = 0, minG = 255, maxG = 0, minB = 255, maxB = 0;
+                for (const RGB& c : colorBoxes[i]) {
+                    minR = std::min(minR, c.r); maxR = std::max(maxR, c.r);
+                    minG = std::min(minG, c.g); maxG = std::max(maxG, c.g);
+                    minB = std::min(minB, c.b); maxB = std::max(maxB, c.b);
+                }
+                
+                float rangeR = maxR - minR;
+                float rangeG = maxG - minG;
+                float rangeB = maxB - minB;
+                
+                // Выбираем канал с наибольшим диапазоном
+                float maxChannelRange = std::max({rangeR, rangeG, rangeB});
+                if (maxChannelRange > maxRange) {
+                    maxRange = maxChannelRange;
+                    splitBox = i;
+                }
+            }
+            
+            if (maxRange <= 0) break; // Нечего разбивать
+            
+            // Сортируем по выбранному каналу
+            uint8_t minR = 255, maxR = 0, minG = 255, maxG = 0, minB = 255, maxB = 0;
+            for (const RGB& c : colorBoxes[splitBox]) {
+                minR = std::min(minR, c.r); maxR = std::max(maxR, c.r);
+                minG = std::min(minG, c.g); maxG = std::max(maxG, c.g);
+                minB = std::min(minB, c.b); maxB = std::max(maxB, c.b);
+            }
+            
+            float rangeR = maxR - minR;
+            float rangeG = maxG - minG;
+            float rangeB = maxB - minB;
+            
+            // Сортируем по каналу с наибольшим диапазоном
+            if (rangeR >= rangeG && rangeR >= rangeB) {
+                std::sort(colorBoxes[splitBox].begin(), colorBoxes[splitBox].end(),
+                        [](const RGB& a, const RGB& b) { return a.r < b.r; });
+            } else if (rangeG >= rangeR && rangeG >= rangeB) {
+                std::sort(colorBoxes[splitBox].begin(), colorBoxes[splitBox].end(),
+                        [](const RGB& a, const RGB& b) { return a.g < b.g; });
+            } else {
+                std::sort(colorBoxes[splitBox].begin(), colorBoxes[splitBox].end(),
+                        [](const RGB& a, const RGB& b) { return a.b < b.b; });
+            }
+            
+            // Разбиваем пополам
+            int median = colorBoxes[splitBox].size() / 2;
+            std::vector<RGB> leftBox(colorBoxes[splitBox].begin(), colorBoxes[splitBox].begin() + median);
+            std::vector<RGB> rightBox(colorBoxes[splitBox].begin() + median, colorBoxes[splitBox].end());
+            
+            // Заменяем старую коробку двумя новыми
+            colorBoxes[splitBox] = leftBox;
+            colorBoxes.push_back(rightBox);
+        }
+        
+        // Берем средний цвет из каждой коробки
+        std::vector<RGB> palette;
+        for (const auto& box : colorBoxes) {
+            if (box.empty()) continue;
+            
+            uint32_t sumR = 0, sumG = 0, sumB = 0;
+            for (const RGB& c : box) {
+                sumR += c.r; sumG += c.g; sumB += c.b;
+            }
+            
+            RGB avgColor(
+                static_cast<uint8_t>(sumR / box.size()),
+                static_cast<uint8_t>(sumG / box.size()),
+                static_cast<uint8_t>(sumB / box.size())
+            );
+            palette.push_back(avgColor);
+        }
+        
+        std::cout << "   Median Cut palette: " << palette.size() << " colors" << std::endl;
         return palette;
     }
     
+
     static std::vector<uint8_t> savePalette(const std::vector<RGB>& palette, const std::string& paletteMode) {
         std::vector<uint8_t> paletteData;
         
@@ -352,7 +723,6 @@ public:
             } else if (paletteMode == "6bit") {
                 paletteData.push_back(stats.to6bit());
             } else {
-                // По умолчанию - 12bit
                 uint16_t color12 = stats.to12bit();
                 paletteData.push_back(color12 & 0xFF);
                 paletteData.push_back((color12 >> 8) & 0xFF);
@@ -362,19 +732,166 @@ public:
         return paletteData;
     }
     
-    static SimpleImage quantizeImage(const SimpleImage& image, const std::vector<RGB>& palette) {
-        SimpleImage result = image;
+    // Квантование с дитерингом
+    static SimpleImage quantizeWithDithering(const SimpleImage& image, const std::vector<RGB>& palette, 
+                                           const std::string& ditherType, const std::string& paletteMode) {
+        SimpleImage result(image.width(), image.height());
         
-        for (auto& pixel : result.getPixels()) {
-            // Находим ближайший цвет в палитре
+        if (ditherType == "none") {
+            // Простое квантование
+            std::cout << "   MODE: No dithering - direct quantization" << std::endl;
+            
+            // ДОБАВИМ ОТЛАДКУ
+            std::cout << "   DEBUG: First few source pixels: ";
+            for (int i = 0; i < 3; i++) {
+                const RGB& p = image.pixel(i, 0);
+                std::cout << "(" << (int)p.r << "," << (int)p.g << "," << (int)p.b << ") ";
+            }
+            std::cout << std::endl;
+            
+            for (int y = 0; y < image.height(); y++) {
+                for (int x = 0; x < image.width(); x++) {
+                    const RGB& original = image.pixel(x, y);
+                    int bestIndex = findBestColor(original, palette, paletteMode);
+                    
+                    // ДОБАВИМ ПРОВЕРКУ
+                    if (bestIndex < 0 || bestIndex >= palette.size()) {
+                        std::cout << "⚠️  INVALID COLOR INDEX: " << bestIndex << " at (" << x << "," << y << ")" << std::endl;
+                        bestIndex = 0;
+                    }
+                    
+                    result.pixel(x, y) = palette[bestIndex];
+                }
+            }
+            
+            // ДОБАВИМ ПРОВЕРКУ РЕЗУЛЬТАТА
+            std::cout << "   DEBUG: First few result pixels: ";
+            for (int i = 0; i < 3; i++) {
+                const RGB& p = result.pixel(i, 0);
+                std::cout << "(" << (int)p.r << "," << (int)p.g << "," << (int)p.b << ") ";
+            }
+            std::cout << std::endl;
+        }
+        else if (ditherType == "ordered") {
+            // Упорядоченный дитеринг (Bayer 4x4)
+            const int bayerMatrix[4][4] = {
+                { 0, 8, 2, 10 },
+                { 12, 4, 14, 6 },
+                { 3, 11, 1, 9 },
+                { 15, 7, 13, 5 }
+            };
+            
+            for (int y = 0; y < image.height(); y++) {
+                for (int x = 0; x < image.width(); x++) {
+                    RGB original = image.pixel(x, y);
+                    
+                    // Добавляем шум based on Bayer matrix
+                    int threshold = bayerMatrix[y % 4][x % 4] - 8;
+                    original.r = std::max(0, std::min(255, original.r + threshold));
+                    original.g = std::max(0, std::min(255, original.g + threshold));
+                    original.b = std::max(0, std::min(255, original.b + threshold));
+                    
+                    int bestIndex = findBestColor(original, palette, paletteMode);
+                    result.pixel(x, y) = palette[bestIndex];
+                }
+            }
+        }
+        else if (ditherType == "floyd") {
+            std::cout << "   MODE: Floyd-Steinberg dithering with error limiting" << std::endl;
+            
+            struct FloatRGB { float r, g, b; };
+            std::vector<std::vector<FloatRGB>> temp(image.height(), 
+                                                std::vector<FloatRGB>(image.width()));
+            
+            // Инициализируем
+            for (int y = 0; y < image.height(); y++) {
+                for (int x = 0; x < image.width(); x++) {
+                    const RGB& p = image.pixel(x, y);
+                    temp[y][x] = {static_cast<float>(p.r), static_cast<float>(p.g), static_cast<float>(p.b)};
+                }
+            }
+            
+            // Floyd-Steinberg дитеринг с ограничением ошибки
+            for (int y = 0; y < image.height(); y++) {
+                for (int x = 0; x < image.width(); x++) {
+                    FloatRGB& current = temp[y][x];
+                    
+                    // ОГРАНИЧИВАЕМ значения перед квантованием
+                    current.r = std::max(0.0f, std::min(255.0f, current.r));
+                    current.g = std::max(0.0f, std::min(255.0f, current.g));
+                    current.b = std::max(0.0f, std::min(255.0f, current.b));
+                    
+                    // Находим ближайший цвет в палитре
+                    RGB original(static_cast<uint8_t>(current.r), 
+                                static_cast<uint8_t>(current.g), 
+                                static_cast<uint8_t>(current.b));
+                    int bestIndex = findBestColor(original, palette, paletteMode);
+                    RGB quantized = palette[bestIndex];
+                    result.pixel(x, y) = quantized;
+                    
+                    // Вычисляем ошибку
+                    float errorR = current.r - quantized.r;
+                    float errorG = current.g - quantized.g;
+                    float errorB = current.b - quantized.b;
+                    
+                    // ОГРАНИЧИВАЕМ максимальную ошибку (это ключевое исправление!)
+                    errorR = std::max(-32.0f, std::min(32.0f, errorR));
+                    errorG = std::max(-32.0f, std::min(32.0f, errorG));
+                    errorB = std::max(-32.0f, std::min(32.0f, errorB));
+                    
+                    // Распространяем ошибку
+                    if (x + 1 < image.width()) {
+                        temp[y][x + 1].r += errorR * (7.0f / 16.0f);
+                        temp[y][x + 1].g += errorG * (7.0f / 16.0f);
+                        temp[y][x + 1].b += errorB * (7.0f / 16.0f);
+                    }
+                    if (y + 1 < image.height()) {
+                        if (x > 0) {
+                            temp[y + 1][x - 1].r += errorR * (3.0f / 16.0f);
+                            temp[y + 1][x - 1].g += errorG * (3.0f / 16.0f);
+                            temp[y + 1][x - 1].b += errorB * (3.0f / 16.0f);
+                        }
+                        temp[y + 1][x].r += errorR * (5.0f / 16.0f);
+                        temp[y + 1][x].g += errorG * (5.0f / 16.0f);
+                        temp[y + 1][x].b += errorB * (5.0f / 16.0f);
+                        if (x + 1 < image.width()) {
+                            temp[y + 1][x + 1].r += errorR * (1.0f / 16.0f);
+                            temp[y + 1][x + 1].g += errorG * (1.0f / 16.0f);
+                            temp[y + 1][x + 1].b += errorB * (1.0f / 16.0f);
+                        }
+                    }
+                }
+            }
+        }
+ 
+        else {
+            std::cout << "🔧 Unknown dither type '" << ditherType << "'" << std::endl;
+            exit(0);
+        }
+        return result;
+    }
+    static uint8_t clamp(int value) {
+        return static_cast<uint8_t>(std::max(0, std::min(255, value)));
+    }
+private:
+
+    static int findBestColor(const RGB& color, const std::vector<RGB>& palette, const std::string& paletteMode) {
+        if (paletteMode == "cpc") {
+            return findBestColorCPC(color, palette);
+        }
+        else if (paletteMode == "msx") {
+            return findBestColorMSX(color, palette);
+        }
+        else {
+            // Стандартный поиск
             int bestIndex = 0;
             int bestDist = 255 * 255 * 3;
             
             for (int i = 0; i < palette.size(); i++) {
                 const RGB& palColor = palette[i];
-                int dr = pixel.r - palColor.r;
-                int dg = pixel.g - palColor.g;
-                int db = pixel.b - palColor.b;
+                int dr = color.r - palColor.r;
+                int dg = color.g - palColor.g;
+                int db = color.b - palColor.b;
                 int dist = dr*dr + dg*dg + db*db;
                 
                 if (dist < bestDist) {
@@ -382,79 +899,27 @@ public:
                     bestIndex = i;
                 }
             }
-            
-            pixel = palette[bestIndex];
+            return bestIndex;
         }
-        
-        return result;
     }
 };
 
-// ==================== КОНВЕРТЕР ====================
+// ==================== УЛУЧШЕННЫЙ КОНВЕРТЕР ====================
 class AlesteImageConverter {
 private:
     bool verbose_;
+    std::string dumpBmpPath_;
     
-    int findNearestColor(const RGB& color, const std::vector<RGB>& palette) {
-        int bestIndex = 0;
-        int bestDistance = std::numeric_limits<int>::max();
-        
-        for (size_t i = 0; i < palette.size(); ++i) {
-            int dr = static_cast<int>(color.r) - static_cast<int>(palette[i].r);
-            int dg = static_cast<int>(color.g) - static_cast<int>(palette[i].g);
-            int db = static_cast<int>(color.b) - static_cast<int>(palette[i].b);
-            int distance = dr*dr + dg*dg + db*db;
-            
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                bestIndex = i;
-            }
-        }
-        
-        return bestIndex;
-    }
+    // [Остальные методы остаются такими же...]
     
-    std::vector<RGB> extractPalette(const SimpleImage& image, int maxColors) {
-        std::cout << "🎨 Extracting palette (max " << maxColors << " colors)" << std::endl;
-        
-        std::vector<RGB> palette;
-        const std::vector<RGB>& colors = image.getPixels();
-        
-        // Простой алгоритм - первые уникальные цвета
-        for (const auto& color : colors) {
-            bool found = false;
-            for (const auto& pc : palette) {
-                if (color == pc) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found && palette.size() < static_cast<size_t>(maxColors)) {
-                palette.push_back(color);
-            }
-        }
-        
-        // Дополняем если нужно
-        while (palette.size() < static_cast<size_t>(maxColors)) {
-            uint8_t val = static_cast<uint8_t>((palette.size() * 255) / maxColors);
-            palette.push_back(RGB(val, val, val));
-        }
-        
-        std::cout << "✅ Palette: " << palette.size() << " colors" << std::endl;
-        return palette;
-    }
-    
-    // Улучшенный алгоритм палитры (медианный cut)
-    std::vector<RGB> extractAdaptivePalette(const SimpleImage& image, int maxColors) {
-        std::cout << "🎨 Extracting adaptive palette (max " << maxColors << " colors)" << std::endl;
-        
-        // Пока используем простой алгоритм, но можно улучшить
-        return extractPalette(image, maxColors);
-    }
-    
-    // Кодировка CPC для 1bpp (Mode 2)
     std::vector<uint8_t> encodeCPC1BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
-        std::cout << "🔧 Encoding: CPC 1bpp (monochrome)" << std::endl;
+        std::cout << "🔧 Encoding: CPC 1bpp (2 colors)" << std::endl;
+        
+        // Для 1bpp должны быть только 2 цвета в палитре
+        if (palette.size() < 2) {
+            std::cerr << "❌ ERROR: 1bpp requires exactly 2 colors in palette" << std::endl;
+            return std::vector<uint8_t>();
+        }
         
         std::vector<uint8_t> result;
         int width = image.width();
@@ -462,19 +927,25 @@ private:
         int bytesPerLine = width / 8;
         
         std::cout << "   Bytes per line: " << bytesPerLine << std::endl;
-        std::cout << "   Total lines: " << height << std::endl;
+        std::cout << "   Palette colors: 0=(" << (int)palette[0].r << "," << (int)palette[0].g << "," << (int)palette[0].b 
+                << "), 1=(" << (int)palette[1].r << "," << (int)palette[1].g << "," << (int)palette[1].b << ")" << std::endl;
         
         for (int y = 0; y < height; ++y) {
             for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
                 uint8_t byteVal = 0;
                 
-                // Для шашечницы: клетка 64×8 пикселей (8 байт × 8 строк)
-                int cellX = xByte / 8;    // 0-9 (10 клеток по горизонтали)
-                int cellY = y / 8;        // 0-24 (25 клеток по вертикали)
-                bool isWhite = (cellX + cellY) % 2 == 0;
-                
-                // Заполняем весь байт одним цветом
-                byteVal = isWhite ? 0xFF : 0x00;
+                for (int bit = 0; bit < 8; ++bit) {
+                    int pixelX = xByte * 8 + bit;
+                    if (pixelX >= width) continue;
+                    
+                    const RGB& color = image.pixel(pixelX, y);
+                    int colorIdx = AdvancedColorProcessor::findBestColorCPC(color, palette);
+                    
+                    // Бит устанавливается если цвет ближе ко второму цвету палитры
+                    if (colorIdx == 1) {
+                        byteVal |= (1 << (7 - bit)); // Старший бит - левый пиксель
+                    }
+                }
                 result.push_back(byteVal);
             }
         }
@@ -483,22 +954,30 @@ private:
         return result;
     }
     
-    // Кодировка CPC для 2bpp (Mode 1)
     std::vector<uint8_t> encodeCPC2BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
         std::cout << "🔧 Encoding: CPC 2bpp (4 colors)" << std::endl;
         
         std::vector<uint8_t> result;
-        int bytesPerLine = image.width() / 4;
+        int width = image.width();
+        int height = image.height();
         
-        for (int y = 0; y < image.height(); ++y) {
-            for (int x = 0; x < bytesPerLine; ++x) {
+        // CPC Mode 1: 4 пикселя в байте
+        int bytesPerLine = width / 4;
+        
+        std::cout << "   CPC Mode 1: " << bytesPerLine << " bytes/line" << std::endl;
+        
+        for (int y = 0; y < height; ++y) {
+            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
                 uint8_t byteVal = 0;
+                
                 for (int pixel = 0; pixel < 4; ++pixel) {
-                    int pixelX = x * 4 + pixel;
-                    const RGB& color = image.pixel(pixelX, y);
-                    int colorIdx = findNearestColor(color, palette);
+                    int pixelX = xByte * 4 + pixel;
+                    if (pixelX >= width) continue;  // Защита от выхода за границы
                     
-                    // CPC Mode 1 битовая упаковка
+                    const RGB& color = image.pixel(pixelX, y);
+                    int colorIdx = AdvancedColorProcessor::findBestColorCPC(color, palette);
+                    
+                    // CPC Mode 1: пиксели упаковываются как [P3|P2|P1|P0]
                     switch (pixel) {
                         case 0: byteVal |= ((colorIdx & 0x03) << 6); break;
                         case 1: byteVal |= ((colorIdx & 0x03) << 4); break;
@@ -513,23 +992,31 @@ private:
         std::cout << "✅ CPC 2bpp: " << result.size() << " bytes" << std::endl;
         return result;
     }
-    
-    // Кодировка CPC для 4bpp (Mode 0)
+
     std::vector<uint8_t> encodeCPC4BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
         std::cout << "🔧 Encoding: CPC 4bpp (16 colors)" << std::endl;
         
         std::vector<uint8_t> result;
-        int bytesPerLine = image.width() / 2;
+        int width = image.width();
+        int height = image.height();
         
-        for (int y = 0; y < image.height(); ++y) {
-            for (int x = 0; x < bytesPerLine; ++x) {
+        // CPC Mode 0: 2 пикселя в байте
+        int bytesPerLine = width / 2;
+        
+        std::cout << "   CPC Mode 0: " << bytesPerLine << " bytes/line" << std::endl;
+        
+        for (int y = 0; y < height; ++y) {
+            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
                 uint8_t byteVal = 0;
+                
                 for (int pixel = 0; pixel < 2; ++pixel) {
-                    int pixelX = x * 2 + pixel;
-                    const RGB& color = image.pixel(pixelX, y);
-                    int colorIdx = findNearestColor(color, palette);
+                    int pixelX = xByte * 2 + pixel;
+                    if (pixelX >= width) continue;  // Защита от выхода за границы
                     
-                    // CPC Mode 0 битовая упаковка
+                    const RGB& color = image.pixel(pixelX, y);
+                    int colorIdx = AdvancedColorProcessor::findBestColorCPC(color, palette);
+                    
+                    // CPC Mode 0: [P1|P0] где каждый пиксель 4 бита
                     if (pixel == 0) {
                         byteVal |= ((colorIdx & 0x0F) << 4);
                     } else {
@@ -543,27 +1030,31 @@ private:
         std::cout << "✅ CPC 4bpp: " << result.size() << " bytes" << std::endl;
         return result;
     }
-    
-    // Linear кодировка для любого BPP
+        
     std::vector<uint8_t> encodeLinear(const SimpleImage& image, int bpp, const std::vector<RGB>& palette) {
         std::cout << "🔧 Encoding: Linear " << bpp << "bpp (" << (1 << bpp) << " colors)" << std::endl;
         
         std::vector<uint8_t> result;
+        int width = image.width();
+        int height = image.height();
         int pixelsPerByte = 8 / bpp;
-        int bytesPerLine = image.width() / pixelsPerByte;
+        int bytesPerLine = (width + pixelsPerByte - 1) / pixelsPerByte; // Округление вверх!
         
         std::cout << "   Pixels per byte: " << pixelsPerByte << std::endl;
         std::cout << "   Bytes per line: " << bytesPerLine << std::endl;
         
-        for (int y = 0; y < image.height(); ++y) {
-            for (int x = 0; x < bytesPerLine; ++x) {
+        for (int y = 0; y < height; ++y) {
+            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
                 uint8_t byteVal = 0;
+                
                 for (int i = 0; i < pixelsPerByte; ++i) {
-                    int pixelX = x * pixelsPerByte + i;
-                    if (pixelX < image.width()) {
+                    int pixelX = xByte * pixelsPerByte + i;
+                    if (pixelX < width) {
                         const RGB& color = image.pixel(pixelX, y);
-                        int colorIdx = findNearestColor(color, palette);
-                        byteVal |= (colorIdx << (bpp * (pixelsPerByte - 1 - i)));
+                        int colorIdx = findBestColor(color, palette);
+                        
+                        // ПРАВИЛЬНАЯ упаковка: младшие биты - правые пиксели
+                        byteVal |= (colorIdx << (bpp * i));
                     }
                 }
                 result.push_back(byteVal);
@@ -573,41 +1064,39 @@ private:
         std::cout << "✅ Linear " << bpp << "bpp: " << result.size() << " bytes" << std::endl;
         return result;
     }
-    
-    // CPC адресация (чересстрочная)
+
     std::vector<uint8_t> applyCPCAddressing(const std::vector<uint8_t>& data, int width, int height, int bpp) {
-        // CPC адресация требует 16KB будера (8×2048)
-        int cpcBufferSize = 16384; // 16KB для CPC
-        std::vector<uint8_t> result(cpcBufferSize, 0); // Инициализируем нулями!
+        std::cout << "🔄 Applying CPC addressing for " << width << "x" << height << " @" << bpp << "bpp" << std::endl;
         
-        int bytesPerLine = (width * bpp + 7) / 8;
+        // Рассчитываем параметры
+        int pixelsPerByte = 8 / bpp;
+        int bytesPerLine = width / pixelsPerByte;
+        int cpcBufferSize = 16384; // 16KB CPC буфер
         
-        std::cout << "   CPC addressing: " << height << " lines, " << bytesPerLine << " bytes/line" << std::endl;
-        std::cout << "   CPC buffer: " << cpcBufferSize << " bytes (16KB)" << std::endl;
+        std::vector<uint8_t> result(cpcBufferSize, 0);
+        
+        std::cout << "   Bytes per line: " << bytesPerLine << std::endl;
+        std::cout << "   CPC buffer size: " << cpcBufferSize << std::endl;
         
         for (int y = 0; y < height; ++y) {
-            int row = y % 8;
-            int char_pos_y = (y - row) / 8;
-            int dst_addr = row * 2048 + char_pos_y * bytesPerLine;
+            // CPC адресация: каждые 8 строк образуют "character row"
+            int character_row = y / 8;
+            int line_in_char = y % 8;
             
+            // CPC адрес: line_in_char * 2048 + character_row * bytesPerLine
+            int dst_offset = line_in_char * 2048 + character_row * bytesPerLine;
             int src_offset = y * bytesPerLine;
-            int dst_offset = dst_addr;
             
-            if (src_offset + bytesPerLine <= data.size() && dst_offset + bytesPerLine <= result.size()) {
-                std::copy(data.begin() + src_offset, 
+            if (dst_offset + bytesPerLine <= result.size() && 
+                src_offset + bytesPerLine <= data.size()) {
+                std::copy(data.begin() + src_offset,
                         data.begin() + src_offset + bytesPerLine,
                         result.begin() + dst_offset);
             } else {
-                std::cout << "⚠️  CPC addressing: offset out of range! y=" << y 
-                        << ", src=" << src_offset << "/" << data.size()
-                        << ", dst=" << dst_offset << "/" << result.size() << std::endl;
-                // Заполняем нулями оставшуюся часть
-                break;
+                std::cout << "⚠️  CPC addressing overflow at line " << y 
+                        << " (src: " << src_offset << ", dst: " << dst_offset << ")" << std::endl;
             }
         }
-        
-        // Обрезаем до реального размера данных (если нужно)
-        // Но для CPC лучше оставить 16KB
         
         return result;
     }
@@ -615,34 +1104,60 @@ private:
     std::vector<uint8_t> createInfoChunk(int width, int height, int bpp, 
                                         const std::string& colorEncoding,
                                         const std::string& addressEncoding,
-                                        const std::string& paletteMode) {
+                                        const std::string& paletteMode,
+                                        const std::string& ditherType) {
         std::string info = 
             "Width: " + std::to_string(width) + "\n" +
             "Height: " + std::to_string(height) + "\n" + 
             "BPP: " + std::to_string(bpp) + "\n" +
             "ColorEncoding: " + colorEncoding + "\n" +
             "AddressEncoding: " + addressEncoding + "\n" +
-            "PaletteMode: " + paletteMode + "\n";
+            "PaletteMode: " + paletteMode + "\n" +
+            "Dithering: " + ditherType + "\n";
         
         return std::vector<uint8_t>(info.begin(), info.end());
+    }
+    
+    int findBestColor(const RGB& color, const std::vector<RGB>& palette) {
+        int bestIndex = 0;
+        int bestDist = 255 * 255 * 3;
+        
+        for (int i = 0; i < palette.size(); i++) {
+            const RGB& palColor = palette[i];
+            int dr = color.r - palColor.r;
+            int dg = color.g - palColor.g;
+            int db = color.b - palColor.b;
+            int dist = dr*dr + dg*dg + db*db;
+            
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
     }
 
 public:
     AlesteImageConverter(bool verbose = false) : verbose_(verbose) {}
     
+    void setDumpBmpPath(const std::string& path) {
+        dumpBmpPath_ = path;
+    }
+    
     bool convert(const std::string& inputFile, const std::string& outputFile,
                  int width, int height, int bpp, 
                  const std::string& colorEncoding,
                  const std::string& addressEncoding,
-                 const std::string& paletteMode) {
+                 const std::string& paletteMode,
+                 const std::string& ditherType) {
         
-        // ==================== НАЧАЛО КОНВЕРТАЦИИ ====================
         std::cout << "🚀 STARTING CONVERSION" << std::endl;
         std::cout << "📁 Input: " << inputFile << std::endl;
         std::cout << "📁 Output: " << outputFile << std::endl;
         std::cout << "🎯 Target: " << width << "x" << height << " @" << bpp << "bpp" << std::endl;
         std::cout << "⚙️  Settings: " << colorEncoding << " color, " 
                   << addressEncoding << " addressing, " << paletteMode << " palette" << std::endl;
+        std::cout << "🎨 Dithering: " << ditherType << std::endl;
         
         // Проверка параметров
         if (width != 160 && width != 320 && width != 640) {
@@ -658,26 +1173,20 @@ public:
             return false;
         }
         
-        // ==================== ЗАГРУЗКА ИЗОБРАЖЕНИЯ ====================
+        // Загрузка изображения
         SimpleImage image;
         bool loaded = false;
         
         if (inputFile == "-") {
-            std::cout << "📥 Loading from stdin..." << std::endl;
             loaded = image.loadFromStdin();
         } else if (inputFile.length() > 4) {
             std::string ext = inputFile.substr(inputFile.length() - 4);
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
             
             if (ext == ".bmp") {
-                std::cout << "📥 Loading BMP..." << std::endl;
                 loaded = image.loadBMP(inputFile);
             } else if (ext == ".ppm") {
-                std::cout << "📥 Loading PPM..." << std::endl;
                 loaded = image.loadPPM(inputFile);
-            } else {
-                std::cerr << "❌ ERROR: Unsupported file format" << std::endl;
-                return false;
             }
         }
         
@@ -688,79 +1197,86 @@ public:
         
         std::cout << "✅ Source image: " << image.width() << "x" << image.height() << std::endl;
         
-        // ==================== ИЗМЕНЕНИЕ РАЗМЕРА ====================
+        // Изменение размера
         if (image.width() != width || image.height() != height) {
             if (image.width() > width || image.height() > height) {
-                // Уменьшение - используем билинейную интерполяцию для лучшего качества
                 image.resizeBilinear(width, height);
             } else {
-                // Увеличение - простой метод
                 image.resize(width, height);
             }
         }
         
-        // ==================== СОЗДАНИЕ ПАЛИТРЫ ====================
+        // Создание палитры
         std::vector<RGB> palette;
         int maxColors = 1 << bpp;
         
-        // ИСПОЛЬЗУЕМ НОВЫЙ ПРОЦЕССОР
-        palette = SimpleColorProcessor::selectPalette(image, maxColors, paletteMode);
+        // ИСПОЛЬЗУЕМ УЛУЧШЕННЫЙ ПРОЦЕССОР
+        palette = AdvancedColorProcessor::selectAdaptivePalette(image, maxColors, paletteMode);
         
-        // ==================== КВАНТОВАНИЕ ИЗОБРАЖЕНИЯ ====================
-        SimpleImage quantizedImage = SimpleColorProcessor::quantizeImage(image, palette);
+        // Квантование с дитерингом
+        SimpleImage quantizedImage = AdvancedColorProcessor::quantizeWithDithering(
+            image, palette, ditherType, paletteMode);
         
-        // ==================== КОДИРОВАНИЕ ПИКСЕЛЕЙ ====================
+        // Сохраняем BMP для оценки качества (если указано)
+        if (!dumpBmpPath_.empty()) {
+            std::cout << "💾 Saving quality check BMP: " << dumpBmpPath_ << std::endl;
+            std::cout << "   Colors in quantized image: ";
+            
+            // Проверяем уникальные цвета в квантованном изображении
+            std::unordered_map<uint32_t, int> uniqueColors;
+            for (const auto& pixel : quantizedImage.getPixels()) {
+                uint32_t key = (pixel.r << 16) | (pixel.g << 8) | pixel.b;
+                uniqueColors[key]++;
+            }
+            std::cout << uniqueColors.size() << " unique colors" << std::endl;
+            
+            bool saved = quantizedImage.saveBMP(dumpBmpPath_);
+            if (!saved) {
+                std::cerr << "❌ Failed to save BMP for quality check" << std::endl;
+            }
+        }
+        
+        // Кодирование пикселей
         std::vector<uint8_t> pixelData;
         
         if (colorEncoding == "cpc") {
             switch (bpp) {
-                case 1: 
-                    pixelData = encodeCPC1BPP(image, palette); 
-                    break;
-                case 2: 
-                    pixelData = encodeCPC2BPP(image, palette); 
-                    break;
-                case 4: 
-                    pixelData = encodeCPC4BPP(image, palette); 
-                    break;
-                default: 
-                    std::cout << "⚠️  CPC mode not supported for " << bpp << "bpp, using linear" << std::endl;
-                    pixelData = encodeLinear(image, bpp, palette); 
-                    break;
+                case 1: pixelData = encodeCPC1BPP(quantizedImage, palette); break;
+                case 2: pixelData = encodeCPC2BPP(quantizedImage, palette); break;
+                case 4: pixelData = encodeCPC4BPP(quantizedImage, palette); break;
+                default: pixelData = encodeLinear(quantizedImage, bpp, palette); break;
             }
         } else {
-            pixelData = encodeLinear(image, bpp, palette);
+            pixelData = encodeLinear(quantizedImage, bpp, palette);
         }
         
-        // ==================== ПРИМЕНЕНИЕ АДРЕСАЦИИ ====================
+        // Применение адресации
         if (addressEncoding == "cpc") {
             pixelData = applyCPCAddressing(pixelData, width, height, bpp);
         }
         
-        // ==================== ПОДГОТОВКА ДАННЫХ ====================
-         std::vector<uint8_t> paletteData = SimpleColorProcessor::savePalette(palette, paletteMode);
-            
-        std::vector<uint8_t> infoData = createInfoChunk(width, height, bpp, colorEncoding, addressEncoding, paletteMode);
+        // Подготовка данных
+        std::vector<uint8_t> paletteData = AdvancedColorProcessor::savePalette(palette, paletteMode);
+        std::vector<uint8_t> infoData = createInfoChunk(width, height, bpp, colorEncoding, addressEncoding, paletteMode, ditherType);
         
-        // ==================== СОЗДАНИЕ СТРУКТУРЫ ФАЙЛА ====================
+        // Создание структуры файла
         std::vector<PIXChunk> chunks;
         chunks.push_back(PIXChunk("INFO", infoData.size()));
         chunks.push_back(PIXChunk("PAL ", paletteData.size()));
         chunks.push_back(PIXChunk("DATA", pixelData.size()));
         
-        // Вычисляем общий размер
-        uint32_t total_size = 20; // заголовок
+        uint32_t total_size = 20;
         for (const auto& chunk : chunks) {
-            total_size += 8 + chunk.data_size; // тип(4) + размер(4) + данные
+            total_size += 8 + chunk.data_size;
         }
         
-        // ==================== СОЗДАНИЕ ЗАГОЛОВКА ====================
+        // Создание заголовка
         PIXHeader header;
         header.total_size = total_size;
         header.chunk_count = chunks.size();
         header.first_chunk_offset = 20;
         
-        // ==================== ЗАПИСЬ ФАЙЛА ====================
+        // Запись файла
         std::ostream* outStream = &std::cout;
         std::ofstream fileStream;
         
@@ -775,7 +1291,7 @@ public:
         
         std::cout << "💾 Writing file..." << std::endl;
         
-        // Записываем заголовок (BIG-ENDIAN)
+        // [Запись файла - без изменений]
         outStream->write(header.magic, 12);
         
         uint32_t total_size_be = ((total_size >> 24) & 0xFF) | ((total_size >> 8) & 0xFF00) | 
@@ -788,7 +1304,6 @@ public:
         uint16_t first_offset_be = ((20 >> 8) & 0xFF) | ((20 << 8) & 0xFF00);
         outStream->write(reinterpret_cast<const char*>(&first_offset_be), 2);
         
-        // Записываем чанки (BIG-ENDIAN)
         for (size_t i = 0; i < chunks.size(); ++i) {
             const auto& chunk = chunks[i];
             const std::vector<uint8_t>* chunk_data = nullptr;
@@ -800,20 +1315,18 @@ public:
             
             if (!chunk_data) continue;
             
-            // Заголовок чанка
             outStream->write(chunk.type, 4);
             
             uint32_t data_size_be = ((chunk.data_size >> 24) & 0xFF) | ((chunk.data_size >> 8) & 0xFF00) | 
                                    ((chunk.data_size << 8) & 0xFF0000) | ((chunk.data_size << 24) & 0xFF000000);
             outStream->write(reinterpret_cast<const char*>(&data_size_be), 4);
             
-            // Данные
             outStream->write(reinterpret_cast<const char*>(chunk_data->data()), chunk.data_size);
             
             std::cout << "   📦 " << std::string(chunk.type, 4) << ": " << chunk.data_size << " bytes" << std::endl;
         }
         
-        // ==================== ФИНАЛЬНЫЙ ОТЧЕТ ====================
+        // Финальный отчет
         std::cout << "🎉 CONVERSION COMPLETE" << std::endl;
         std::cout << "==========================================" << std::endl;
         std::cout << "📊 SUMMARY:" << std::endl;
@@ -822,21 +1335,12 @@ public:
         std::cout << "   🎨 Color depth: " << bpp << "bpp (" << (1 << bpp) << " colors)" << std::endl;
         std::cout << "   🎯 Encoding: " << colorEncoding << " color, " << addressEncoding << " addressing" << std::endl;
         std::cout << "   🎨 Palette: " << paletteMode << " (" << palette.size() << " colors)" << std::endl;
+        std::cout << "   ✨ Dithering: " << ditherType << std::endl;
         std::cout << "   💾 Pixel data: " << pixelData.size() << " bytes" << std::endl;
         std::cout << "   📄 File size: " << total_size << " bytes" << std::endl;
         
-        // Расчет использования памяти
-        int memory_used = pixelData.size();
-        std::cout << "   🧮 Memory usage: " << memory_used << " bytes (" 
-                  << (memory_used + 1023) / 1024 << "KB)" << std::endl;
-        
-        // Проверка ограничений
-        if (addressEncoding == "cpc" && memory_used > 16384) {
-            std::cout << "   ⚠️  Warning: CPC addressing designed for 16KB memory" << std::endl;
-        }
-        
-        if (memory_used > 65536) {
-            std::cout << "   ⚠️  Warning: Exceeds 64KB memory limit" << std::endl;
+        if (!dumpBmpPath_.empty()) {
+            std::cout << "   🔍 Quality check: " << dumpBmpPath_ << std::endl;
         }
         
         std::cout << "==========================================" << std::endl;
@@ -847,7 +1351,7 @@ public:
 
 // ==================== MAIN ====================
 void showUsage() {
-    std::cout << "Aleste Image Converter v2 (FULL DIAGNOSTIC VERSION)" << std::endl;
+    std::cout << "Aleste Image Converter v2 (ENHANCED VERSION)" << std::endl;
     std::cout << "Usage: pix_convert input output [options]" << std::endl;
     std::cout << std::endl;
     std::cout << "Arguments:" << std::endl;
@@ -860,12 +1364,14 @@ void showUsage() {
     std::cout << "  --bpp 1|2|4|8           Bits per pixel (required)" << std::endl;
     std::cout << "  --color-encoding cpc|linear" << std::endl;
     std::cout << "  --address-encoding cpc|linear" << std::endl;
-    std::cout << "  --palette-mode cpc|8bit|12bit" << std::endl;
+    std::cout << "  --palette-mode cpc|msx|8bit|12bit" << std::endl;
+    std::cout << "  --dither none|ordered|floyd|random  Dithering algorithm" << std::endl;
+    std::cout << "  --dump-bmp file.bmp     Save quality check BMP" << std::endl;
     std::cout << "  -v, --verbose           Show detailed diagnostics" << std::endl;
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
-    std::cout << "  pix_convert image.bmp output.pix --width 640 --height 200 --bpp 1" << std::endl;
-    std::cout << "  cat image.ppm | pix_convert - output.pix --width 320 --height 200 --bpp 4" << std::endl;
+    std::cout << "  pix_convert image.bmp output.pix --width 320 --height 200 --bpp 4 --dither floyd" << std::endl;
+    std::cout << "  pix_convert image.ppm game.pix --width 640 --height 200 --bpp 1 --palette-mode msx --dump-bmp check.bmp" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -884,6 +1390,8 @@ int main(int argc, char* argv[]) {
     std::string colorEncoding = "linear";
     std::string addressEncoding = "linear";
     std::string paletteMode = "cpc";
+    std::string ditherType = "none";
+    std::string dumpBmpPath = "";
     bool verbose = false;
     
     // Парсим аргументы
@@ -901,6 +1409,10 @@ int main(int argc, char* argv[]) {
             addressEncoding = argv[++i];
         } else if (arg == "--palette-mode" && i + 1 < argc) {
             paletteMode = argv[++i];
+        } else if (arg == "--dither" && i + 1 < argc) {
+            ditherType = argv[++i];
+        } else if (arg == "--dump-bmp" && i + 1 < argc) {
+            dumpBmpPath = argv[++i];
         } else if (arg == "-v" || arg == "--verbose") {
             verbose = true;
         } else {
@@ -918,6 +1430,10 @@ int main(int argc, char* argv[]) {
     }
     
     AlesteImageConverter converter(verbose);
+    if (!dumpBmpPath.empty()) {
+        converter.setDumpBmpPath(dumpBmpPath);
+    }
+    
     return converter.convert(inputFile, outputFile, width, height, bpp, 
-                            colorEncoding, addressEncoding, paletteMode) ? 0 : 1;
+                            colorEncoding, addressEncoding, paletteMode, ditherType) ? 0 : 1;
 }
