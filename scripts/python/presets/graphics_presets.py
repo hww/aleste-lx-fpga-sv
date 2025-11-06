@@ -9,26 +9,17 @@
 // [3]   - reserved  
 // [4]   - linear_pixel: 0=CPC palette, 1=Linear RGB
 // [5]   - use_cpc_modes: 0=Internal bpp, 1=CPC gatearray graphics
-// [6]   - use_cpc_pal: 0=Native palette, 1=CPC palette mode
 // [7]   - reserved
-wire [1:0] bpp_mode        = reg_video_control[1:0];
-wire       linear_pixel    = reg_video_control[4];
-wire       use_cpc_modes   = reg_video_control[5];
-wire       use_cpc_pal     = reg_video_control[6];
 
 // Pixel Control Register (reg_pixel_ctrl) - 8 bits  
 // [1:0] - bytes_per_16clk: 00=2 bytes, 01=4 bytes, 10=8 bytes, 11=16 bytes
 // [7:2] - Reserved for future use
-wire [1:0] pixel_rate = reg_pixel_ctrl[1:0];  // From new register
 
 // Address Mode Register (reg_addr_mode) - 8 bits
 // [0]   - linear_mode: 0=CPC-style, 1=Linear addressing
 // [1]   - burst_enable: 0=Normal, 1=Burst mode
 // [4:2] - addr_mode: 000=CPC 16KB, 001=EX 32KB, 010=LX 32KB, 011=LX 64KB, 100=Linear
 // [7:5] - Reserved for future use
-wire linear_mode  = addr_mode[0]; // Linear addressing mode
-wire burst_enable = reg_video_control[1]; // Reuse existing bit
-wire [2:0] addr_mode = reg_addr_mode[5:4];   // From new register
 """
 
 GRAPHICS_PRESETS = {
