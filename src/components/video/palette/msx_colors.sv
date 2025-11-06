@@ -6,6 +6,7 @@ module msx_colors (
 );
 
 // 256x12 ROM с предрасчитанными MSX2+ цветами
+(* no_rw_check *)
 logic [11:0] msx_color_rom [0:255];
 
 initial begin

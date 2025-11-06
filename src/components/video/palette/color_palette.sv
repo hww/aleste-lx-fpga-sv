@@ -55,6 +55,7 @@ assign wb_grant_o  = legacy_access || native_access;
 logic [7:0] modified_pixel_index;
 logic modifier_enabled = control_logic[7];
 logic modifier_is_xor = control_logic[6];
+logic mode_12bits;
 
 // Вычисляем индекс цвета
 assign modified_pixel_index = 
@@ -121,22 +122,23 @@ always_ff @(posedge wb_clk_i) begin
                         5'h01: begin
                             // Запись в палитру - режим зависит от control_logic[4:3]
                             case (control_logic[4:3])
-                                2'b00: ; // CPC mode - не используется в native
-                                2'b01: begin // EX 6-bit mode
+                                2'b00:  // CPC mode - не используется в native
+                                    palette_ram[palette_index] <= cpc_converted_color;
+                                2'b01: begin // EX 6-bit mode simple expansion
                                     palette_ram[palette_index] <= {
                                         wb_dat_i[5:4], wb_dat_i[5:4],  // R
                                         wb_dat_i[3:2], wb_dat_i[3:2],  // G
                                         wb_dat_i[1:0], wb_dat_i[1:0]   // B
                                     };
                                 end
-                                2'b10: begin // Native 8-bit - MSX2+ КОНВЕРТАЦИЯ!
+                                2'b10: begin // Native 8-bit - MSX2+ convertion!
                                     palette_ram[palette_index] <= msx_converted_color;
                                 end
                                 2'b11: begin // Native 12-bit (low byte)
                                     palette_ram[palette_index][7:0] <= wb_dat_i;
                                 end
                             endcase
-                            if (control_logic[5]) begin // auto_inc
+                            if (control_logic[5] && control_logic[4:3] != 2'b11) begin // auto_inc
                                 palette_index <= palette_index + 1;
                             end
                         end
@@ -151,8 +153,32 @@ always_ff @(posedge wb_clk_i) begin
                         end
                         5'h03: control_logic <= wb_dat_i;
                         5'h04: palette_modifier <= wb_dat_i;
-                        5'h05: border_color[7:0] <= wb_dat_i;        // Бордюр low
-                        5'h06: border_color[11:8] <= wb_dat_i[3:0];  // Бордюр high
+                        5'h05: begin
+                            case (control_logic[4:3])
+                                2'b00:  // CPC mode - не используется для отладки
+                                    border_color <= cpc_converted_color; // Extend to 12 bits
+                                2'b01: begin // EX 6-bit mode
+                                    border_color <= {
+                                        wb_dat_i[5:4], wb_dat_i[5:4],  // R
+                                        wb_dat_i[3:2], wb_dat_i[3:2],  // G
+                                        wb_dat_i[1:0], wb_dat_i[1:0]   // B
+                                    };
+                                end
+                                2'b10: begin // Native 8-bit - MSX2+ КОНВЕРТАЦИЯ!
+                                    border_color <= msx_converted_color;
+                                end
+                                2'b11: begin // Native 12-bit (low byte)
+                                    border_color[7:0] <= wb_dat_i;        // Бордюр low
+                                end
+                            endcase
+                        end
+                        5'h06: begin
+                            case (control_logic[4:3])
+                                2'b11: begin // Native 12-bit (low byte)
+                                    border_color[11:8] <= wb_dat_i[3:0];  // Бордюр high
+                                end
+                            endcase
+                        end
                         default: begin
                             // Ignore writes to undefined logicisters
                         end

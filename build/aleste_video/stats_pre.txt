@@ -65,23 +65,24 @@
 
 === color_palette ===
 
-   Number of wires:                208
-   Number of wire bits:           1961
-   Number of public wires:          29
-   Number of public wire bits:     147
+   Number of wires:                238
+   Number of wire bits:           2252
+   Number of public wires:          30
+   Number of public wire bits:     148
    Number of ports:                 18
    Number of port bits:             75
    Number of memories:               1
    Number of memory bits:         3072
    Number of processes:              8
-   Number of cells:                 22
+   Number of cells:                 24
      $add                            2
      $eq                             1
-     $logic_and                      6
+     $logic_and                      7
      $logic_not                      3
      $logic_or                       1
      $memrd                          3
      $mux                            2
+     $ne                             1
      $or                             1
      $xor                            1
      cpc_colors                      1
@@ -104,17 +105,18 @@
 
 === cpc_colors ===
 
-   Number of wires:                584
-   Number of wire bits:           7033
+   Number of wires:                 61
+   Number of wire bits:            703
    Number of public wires:           4
-   Number of public wire bits:      33
+   Number of public wire bits:      30
    Number of ports:                  3
-   Number of port bits:             21
+   Number of port bits:             18
    Number of memories:               1
-   Number of memory bits:         3072
+   Number of memory bits:          324
    Number of processes:              2
-   Number of cells:                289
-     $meminit_v2                   288
+   Number of cells:                 29
+     $le                             1
+     $meminit_v2                    27
      $memrd                          1
 
 === $paramod$fc279394581cfe18bb58e35abc1514b181bfae21\baud_tick_gen ===
@@ -238,12 +240,12 @@
 
 === $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod ===
 
-   Number of wires:                298
-   Number of wire bits:           1429
-   Number of public wires:         116
-   Number of public wire bits:     450
-   Number of ports:                 40
-   Number of port bits:            143
+   Number of wires:                296
+   Number of wire bits:           1427
+   Number of public wires:         114
+   Number of public wire bits:     448
+   Number of ports:                 39
+   Number of port bits:            142
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:             60
@@ -508,31 +510,32 @@
      video_pll                       1
      wb_simple_reg                   1
 
-   Number of wires:               5846
-   Number of wire bits:          37987
-   Number of public wires:         832
-   Number of public wire bits:    3435
-   Number of ports:                394
-   Number of port bits:           1473
+   Number of wires:               5351
+   Number of wire bits:          31946
+   Number of public wires:         831
+   Number of public wire bits:    3431
+   Number of ports:                393
+   Number of port bits:           1469
    Number of memories:               5
-   Number of memory bits:        26496
+   Number of memory bits:        23748
    Number of processes:            191
-   Number of cells:               1074
+   Number of cells:                816
      $add                           76
      $and                           11
      $div                            2
      $eq                            96
      $ge                             6
      $gt                             5
-     $logic_and                    100
+     $le                             1
+     $logic_and                    101
      $logic_not                     42
      $logic_or                      22
      $lt                            13
-     $meminit_v2                   544
+     $meminit_v2                   283
      $memrd                          7
      $mul                            2
      $mux                           40
-     $ne                             8
+     $ne                             9
      $not                           27
      $or                             3
      $pos                            1

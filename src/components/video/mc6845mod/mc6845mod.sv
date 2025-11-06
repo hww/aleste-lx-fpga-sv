@@ -60,7 +60,7 @@ module mc6845mod #(
     output logic stb_char_o,                 // End of character 1/16 of 27Mhz
     output logic stb_byte_o,                 // Загрузка байта
     output logic stb_pixel_o,                // Пиксельный строб 
-    output logic stb_origin_o,
+    output logic stb_sync_o,
 
     // Memory Address Interface
     output logic [13:0] crtc_ma_o,
@@ -76,7 +76,6 @@ module mc6845mod #(
     output logic [1:0]  cfg_bpp_o,          // 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
     output logic        cfg_linear_pixel_o, // 0=CPC-style, 1=continuous  
     output logic [1:0]  cfg_pixel_rate_o,         // Pixel clock selection
-    output logic        cfg_use_cpc_pal_o,
     
     output logic        cfg_burst_o,        // 1=32-bit burst, 0=16-bit normal
     output logic [2:0]  cfg_addr_mode_o,    // Address mode
@@ -328,14 +327,12 @@ end
 // [1:0] - bpp_mode: 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
 // [2]   - reserved
 // [3]   - reserved  
-// [4]   - linear_pixel: 0=CPC palette, 1=Linear RGB
+// [4]   - linear_pixel:  0=CPC palette,  1=Linear RGB
 // [5]   - use_cpc_modes: 0=Internal bpp, 1=CPC gatearray graphics
-// [6]   - use_cpc_pal: 0=Native palette, 1=CPC palette mode
 // [7]   - reserved
 wire [1:0] bpp_mode        = reg_video_control[1:0];
 wire       linear_pixel    = reg_video_control[4];
 wire       use_cpc_modes   = reg_video_control[5];
-wire       use_cpc_pal     = reg_video_control[6];
 
 // Pixel Control Register (reg_pixel_ctrl) - 8 bits  
 // [1:0] - bytes_per_16clk: 00=2 bytes, 01=4 bytes, 10=8 bytes, 11=16 bytes
@@ -356,7 +353,7 @@ assign cfg_bpp_o= use_cpc_modes ? ~cfg_cpc_bpp_i : bpp_mode;
 assign cfg_linear_pixel_o = linear_pixel;
 assign cfg_addr_mode_o = addr_mode;
 assign cfg_pixel_rate_o = pixel_rate;
-assign cfg_use_cpc_pal_o = use_cpc_pal;
+
 // ============================================================================
 // БЛОК 1: HDMI ПИКСЕЛЬНЫЕ СЧЕТЧИКИ (FIXED TIMING)
 // ============================================================================
@@ -445,7 +442,7 @@ always_ff @(posedge pix_clk_i) begin
         stb_pixel <= 0;
     end else begin
         stb_char <= strobe_1x;       
-        stb_origin_o        <= !start_h_trigger && (crtc_pix_x[2:0] == 3'b011); // 4 and 12
+        stb_sync_o        <= !start_h_trigger && (crtc_pix_x[2:0] == 3'b011); // 4 and 12
 
         case (pixel_rate)
             2'b00: stb_byte <= (crtc_pix_x[2:0] == 3'b011); // 16px/char (2 bytes per 16 pixeld)

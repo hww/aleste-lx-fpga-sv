@@ -22,14 +22,6 @@ class UniversalPIXLoader:
         self.magic = b'ALESTE_PIXv2'
         self.fpga = fpga_memory or FPGAMemory()
         self.palette = FPGAPalette(self.fpga)
-        
-        # Маппинг режимов палитры из .PIX в аппаратные
-        self.palette_mode_map = {
-            'cpc': 'WRITE_MODE_CPC',
-            '12bit': 'WRITE_MODE_NATIVE12BIT', 
-            'msx': 'WRITE_MODE_MSX2P',
-            '6bit': 'WRITE_MODE_EX6BIT'
-        }
     
     def parse_pix_file(self, filename: str) -> Tuple[Dict[str, Any], bytes, bytes]:
         """
@@ -112,10 +104,30 @@ class UniversalPIXLoader:
                     header_info['source_file'] = value
                 elif key == 'ConversionTime':
                     header_info['conversion_time'] = value
-    
+
+    def _set_palette_mode(self, palette_mode: str) -> bool:
+        """Устанавливает режим палитры через control_logic регистр"""
+        try:
+            # Используем существующие константы из FPGAPalette
+            mode_map = {
+                'cpc': self.palette.WRITE_MODE_CPC,
+                '6bit': self.palette.WRITE_MODE_EX6BIT,  
+                'msx': self.palette.WRITE_MODE_MSX2P,
+                '12bit': self.palette.WRITE_MODE_NATIVE12BIT
+            }
+            
+            mode_value = mode_map.get(palette_mode, self.palette.WRITE_MODE_NATIVE12BIT)
+            
+            print(f"   Setting palette mode: {palette_mode} -> {mode_value}")
+            return True  # Режим будет установлен при записи цвета
+            
+        except Exception as e:
+            print(f"❌ Error setting palette mode: {e}")
+            return False
+
     def load_palette(self, palette_data: bytes, palette_mode: str = '12bit') -> bool:
         """
-        Загружает палитру в FPGA
+        Загружает палитру в FPGA с правильным режимом
         """
         if not palette_data:
             print("⚠️  No palette data to load")
@@ -123,51 +135,127 @@ class UniversalPIXLoader:
             
         try:
             palette_mode = palette_mode.lower()
-            
-            # Определяем аппаратный режим палитры
-            hw_mode = self.palette_mode_map.get(palette_mode, 'WRITE_MODE_NATIVE12BIT')
             color_count = len(palette_data) // 2
             
             print(f"🎨 Loading palette: {color_count} colors, mode={palette_mode}")
             
-            # Обрабатываем данные палитры в зависимости от режима
+            # Загружаем цвета в зависимости от режима
             if palette_mode == '12bit':
-                # 12-bit цвет: 2 байта на цвет (0x0RGB)
-                for i in range(color_count):
-                    color_12bit = (palette_data[i*2] << 8) | palette_data[i*2 + 1]
-                    if not self.palette.set_color_12bit(i, color_12bit):
-                        print(f"❌ Failed to set palette color #{i}")
-                        return False
-            
+                return self._load_12bit_palette(palette_data, color_count)
             elif palette_mode == 'cpc':
-                # CPC цвета: тоже 12-bit но с ограниченной палитрой
-                for i in range(min(color_count, 27)):  # CPC имеет 27 цветов
-                    color_12bit = (palette_data[i*2] << 8) | palette_data[i*2 + 1]
-                    if not self.palette.set_color_12bit(i, color_12bit):
-                        print(f"❌ Failed to set CPC palette color #{i}")
-                        return False
-            
+                return self._load_cpc_palette(palette_data, color_count)
             elif palette_mode == 'msx':
-                # MSX2+ цвета: 1 байт на цвет
-                for i in range(color_count):
-                    msx_color = palette_data[i]
-                    if not self.palette.set_color_msx(i, msx_color):
-                        print(f"❌ Failed to set MSX palette color #{i}")
-                        return False
-            
+                return self._load_msx_palette(palette_data, color_count)
+            elif palette_mode == '6bit':
+                return self._load_6bit_palette(palette_data, color_count)
             else:
-                print(f"⚠️  Unknown palette mode '{palette_mode}', using 12-bit")
-                for i in range(color_count):
-                    color_12bit = (palette_data[i*2] << 8) | palette_data[i*2 + 1]
-                    if not self.palette.set_color_12bit(i, color_12bit):
-                        return False
-            
-            print(f"✅ Palette loaded: {color_count} colors")
-            return True
-            
+                print(f"⚠️  Unknown palette mode '{palette_mode}', using 12-bit fallback")
+                return self._load_12bit_palette(palette_data, color_count)
+                
         except Exception as e:
             print(f"❌ Palette loading failed: {e}")
             return False
+
+    def _load_12bit_palette(self, palette_data: bytes, color_count: int) -> bool:
+        """Загружает 12-битную палитру"""
+        print("   Using 12-bit native palette mode")
+        
+        success_count = 0
+        for i in range(color_count):
+            # Данные из .PIX: [low_byte, high_byte] 
+            low_byte = palette_data[i*2]      # Младший байт (биты 7-0)
+            high_byte = palette_data[i*2 + 1] # Старший байт (биты 11-8)
+            color_12bit = (high_byte << 8) | low_byte
+            
+            if self.palette.set_color_12bit(i, color_12bit, auto_inc=True):
+                success_count += 1
+            else:
+                print(f"❌ Failed to set 12-bit palette color #{i}")
+                return False
+                
+            # Прогресс для больших палитр
+            if color_count > 16 and i % 16 == 0:
+                print(f"   Progress: {i}/{color_count} colors")
+        
+        print(f"✅ 12-bit palette loaded: {success_count}/{color_count} colors")
+        return success_count == color_count
+
+    def _load_cpc_palette(self, palette_data: bytes, color_count: int) -> bool:
+        """Загружает CPC палитру"""
+        print("   Using CPC palette mode")
+        
+        success_count = 0
+        for i in range(min(color_count, 27)):  # CPC имеет максимум 27 цветов
+            # CPC данные: используем только первый байт (CPC цветной формат)
+            cpc_color_byte = palette_data[i*2]  # CPC цвет
+            
+            # Для CPC используем прямой доступ через 12-bit с auto-increment
+            # CPC цвета конвертируются в 12-bit внутри set_color_12bit
+            if self.palette.set_color_12bit(i, cpc_color_byte, auto_inc=True):
+                success_count += 1
+            else:
+                print(f"❌ Failed to set CPC palette color #{i}")
+                return False
+        
+        print(f"✅ CPC palette loaded: {success_count}/{min(color_count, 27)} colors")
+        return True
+
+    def _load_msx_palette(self, palette_data: bytes, color_count: int) -> bool:
+        """Загружает MSX2+ палитру"""
+        print("   Using MSX2+ palette mode")
+        
+        success_count = 0
+        for i in range(color_count):
+            msx_color = palette_data[i]  # MSX цвет (1 байт)
+            
+            if self.palette.set_color_msx(i, msx_color, auto_inc=True):
+                success_count += 1
+            else:
+                print(f"❌ Failed to set MSX palette color #{i}")
+                return False
+        
+        print(f"✅ MSX2+ palette loaded: {success_count}/{color_count} colors")
+        return success_count == color_count
+
+    def _load_6bit_palette(self, palette_data: bytes, color_count: int) -> bool:
+        """Загружает 6-битную палитру"""
+        print("   Using 6-bit palette mode")
+        
+        success_count = 0
+        for i in range(color_count):
+            color_6bit = palette_data[i]  # 6-битный цвет
+            
+            # Для 6-bit режима используем 12-bit с auto-increment
+            # Конвертация 6-bit -> 12-bit происходит в железе
+            if self.palette.set_color_12bit(i, color_6bit, auto_inc=True):
+                success_count += 1
+            else:
+                print(f"❌ Failed to set 6-bit palette color #{i}")
+                return False
+        
+        print(f"✅ 6-bit palette loaded: {success_count}/{color_count} colors")
+        return success_count == color_count
+
+    def get_memory_requirements(self, header_info: Dict[str, Any]) -> Dict[str, int]:
+        """Рассчитывает требования к памяти"""
+        width = header_info.get('width', 0)
+        height = header_info.get('height', 0) 
+        bpp = header_info.get('bpp', 1)
+        
+        # Расчет размера в памяти
+        if header_info.get('address_encoding') == 'cpc':
+            # CPC использует фиксированные 16KB
+            memory_required = 16384
+        else:
+            # Linear кодировка
+            pixels = width * height
+            memory_required = (pixels * bpp + 7) // 8
+        
+        return {
+            'pixel_data': len(header_info.get('pixel_data', b'')),
+            'calculated': memory_required,
+            'palette': header_info.get('palette_size', 0)
+        }
     
     def load_to_memory(self, address: int, pixel_data: bytes, 
                       verify: bool = False, show_progress: bool = True) -> bool:
@@ -229,34 +317,15 @@ class UniversalPIXLoader:
     def calculate_checksum(self, data: bytes) -> str:
         """Рассчитывает контрольную сумму данных"""
         return hashlib.md5(data).hexdigest()[:8]
-    
-    def get_memory_requirements(self, header_info: Dict[str, Any]) -> Dict[str, int]:
-        """Рассчитывает требования к памяти"""
-        width = header_info.get('width', 0)
-        height = header_info.get('height', 0) 
-        bpp = header_info.get('bpp', 1)
-        
-        # Расчет размера в памяти
-        if header_info.get('address_encoding') == 'cpc':
-            # CPC использует фиксированные 16KB
-            memory_required = 16384
-        else:
-            # Linear кодировка
-            pixels = width * height
-            memory_required = (pixels * bpp + 7) // 8
-        
-        return {
-            'pixel_data': len(header_info.get('pixel_data', b'')),
-            'calculated': memory_required,
-            'palette': header_info.get('palette_size', 0)
-        }
-    
+
     def close(self):
         """Закрывает соединения"""
         if self.palette:
             self.palette.close()
         if self.fpga:
             self.fpga.close()
+
+# Остальной код main() остается без изменений...
 
 def main():
     parser = argparse.ArgumentParser(

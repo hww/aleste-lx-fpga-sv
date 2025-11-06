@@ -15,7 +15,7 @@ module video_buffer (
     input   logic        pixel_clk_i,
     input   logic        stb_pixel_i,
     input   logic        stb_byte_i,
-    input   logic        stb_origin_i,
+    input   logic        stb_sync_i,
 
     output  logic        stb_pixel_o,
     output  logic        stb_byte_o,
@@ -105,7 +105,7 @@ always @(posedge pixel_clk_i) begin
         data_req <= '0;
     end else begin
 
-        if (stb_origin_i) begin
+        if (stb_sync_i) begin
             case (cfg_rate)
                 2'b00: begin // 2 bytes per 16 pixels
                     data_req <= de_i && !phase1;
@@ -134,7 +134,7 @@ always @(posedge pixel_clk_i) begin
             // T4 or T12
             // T0, T4, T8, T12 
             // T0, T2, T4, T6, T8, T10, T12, T14
-            if (stb_origin_i) begin
+            if (stb_sync_i) begin
                 case (cfg_rate)
                     2'b00: begin // 2 bytes per 16 pixels
                         if (phase1) byte_count <= 2'b00;
@@ -170,10 +170,10 @@ always @(posedge pixel_clk_i) begin
         if (!de_i) begin
             // первый доступ в память прогрев
             phase1 <= '0;                    
-        end else if (stb_origin_i) begin
+        end else if (stb_sync_i) begin
             phase1 <= ~phase1;
         end
-        if (stb_origin_i) begin
+        if (stb_sync_i) begin
             bufer_enable <= de_i; // прогрев пайплайна
             de_delayed <= bufer_enable; 
         end 
