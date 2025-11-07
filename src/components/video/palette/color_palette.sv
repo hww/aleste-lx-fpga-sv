@@ -37,12 +37,7 @@ logic [7:0] palette_modifier = 0;   // Регистр-модификатор п�
 logic [11:0] border_color = 0;      // 12-битный цвет бордюра
 logic [11:0] palette_ram [0:255];   // 256 entries x 12-bit
 
-// Control logicister mapping:
-// [7] - modifier_enable
-// [6] - modifier_type (0=OR, 1=XOR)  
-// [5] - auto_increment
-// [4:3] - palette_write_mode (только для записи!)
-// [2:0] - reserved
+
 logic legacy_access, native_access;
 assign native_access = wb_cs_i;
 // Параметры адресации
@@ -53,9 +48,24 @@ assign wb_grant_o  = legacy_access || native_access;
 
 // Модификация индекса палитры
 logic [7:0] modified_pixel_index;
-logic modifier_enabled = control_logic[7];
-logic modifier_is_xor = control_logic[6];
-logic mode_12bits;
+
+// Control logicister mapping:
+// [7] - modifier_enable
+// [6] - modifier_type (0=OR, 1=XOR)  
+// [5] - auto_increment
+// [4] - reserved
+// [3] - reserved
+// [1:0] - palette_write_mode (только для записи!)
+logic modifier_enabled  = control_logic[7];
+logic modifier_is_xor   = control_logic[6];
+logic auto_increment    = control_logic[5];
+logic palette_write_mode = control_logic[1:0];
+logic yjk_mode          = palette_write_mode[0];
+
+localparam WRITE_MODE_CPC   = 2'b00;
+localparam WRITE_MODE_12BIT = 2'b01;
+localparam WRITE_MODE_MSX   = 2'b10;
+localparam WRITE_MODE_YJK   = 2'b11;
 
 // Вычисляем индекс цвета
 assign modified_pixel_index = 
@@ -75,9 +85,22 @@ cpc_colors u_cpc_colors (
 logic [11:0] msx_converted_color;
 msx_colors u_msx_colors (
     .clk_i(wb_clk_i),
+    .yjk_mode(yjk_mode),
     .hw_register(wb_dat_i), 
     .rgb_color(msx_converted_color)  // Уже pipelined выход
 );
+
+logic wb_cycle_active = '0;
+// Delay cycle one clock give the time to color converters
+always_ff @(posedge wb_clk_i) begin
+    if (wb_rst_i) begin
+        wb_cycle_active <= '0;
+    end else begin 
+        wb_cycle_active <= '0;
+        if (wb_stb_i && wb_cyc_i && wb_grant_o) 
+            wb_cycle_active <= '1;
+    end
+end
 
 // Wishbone write handling
 always_ff @(posedge wb_clk_i) begin
@@ -91,7 +114,7 @@ always_ff @(posedge wb_clk_i) begin
     end else begin
         wb_ack_o <= 1'b0;
         
-        if (wb_stb_i && wb_cyc_i && wb_grant_o) begin
+        if (wb_cycle_active) begin
             wb_ack_o <= 1'b1;
             
             if (wb_we_i) begin
@@ -120,33 +143,29 @@ always_ff @(posedge wb_clk_i) begin
                     case (wb_adr_i[4:0])
                         5'h00: palette_index <= wb_dat_i;
                         5'h01: begin
-                            // Запись в палитру - режим зависит от control_logic[4:3]
-                            case (control_logic[4:3])
-                                2'b00:  // CPC mode - не используется в native
+                            // Запись в палитру - режим зависит от palette_write_mode
+                            case (palette_write_mode)
+                                WRITE_MODE_CPC:  // CPC mode - не используется в native
                                     palette_ram[palette_index] <= cpc_converted_color;
-                                2'b01: begin // EX 6-bit mode simple expansion
-                                    palette_ram[palette_index] <= {
-                                        wb_dat_i[5:4], wb_dat_i[5:4],  // R
-                                        wb_dat_i[3:2], wb_dat_i[3:2],  // G
-                                        wb_dat_i[1:0], wb_dat_i[1:0]   // B
-                                    };
-                                end
-                                2'b10: begin // Native 8-bit - MSX2+ convertion!
-                                    palette_ram[palette_index] <= msx_converted_color;
-                                end
-                                2'b11: begin // Native 12-bit (low byte)
+                                WRITE_MODE_12BIT: begin // Native 12-bit (low byte)
                                     palette_ram[palette_index][7:0] <= wb_dat_i;
                                 end
+                                WRITE_MODE_MSX: begin // Native 8-bit - MSX2+ convertion!
+                                    palette_ram[palette_index] <= msx_converted_color;
+                                end
+                                WRITE_MODE_YJK: begin // Native 8-bit - MSX2+YJK convertion!
+                                    palette_ram[palette_index] <= msx_converted_color;
+                                end                                
                             endcase
-                            if (control_logic[5] && control_logic[4:3] != 2'b11) begin // auto_inc
+                            if (auto_increment && palette_write_mode != WRITE_MODE_12BIT) begin // auto_inc
                                 palette_index <= palette_index + 1;
                             end
                         end
                         5'h02: begin
                             // Native 12-bit (high byte)
-                            if (control_logic[4:3] == 2'b11) begin
+                            if (palette_write_mode == WRITE_MODE_12BIT) begin
                                 palette_ram[palette_index][11:8] <= wb_dat_i[3:0];
-                                if (control_logic[5]) begin // auto_inc для 12-битного режима
+                                if (auto_increment) begin // auto_inc для 12-битного режима
                                     palette_index <= palette_index + 1;
                                 end
                             end
@@ -154,27 +173,23 @@ always_ff @(posedge wb_clk_i) begin
                         5'h03: control_logic <= wb_dat_i;
                         5'h04: palette_modifier <= wb_dat_i;
                         5'h05: begin
-                            case (control_logic[4:3])
-                                2'b00:  // CPC mode - не используется для отладки
+                            case (palette_write_mode)
+                                WRITE_MODE_CPC:  // CPC mode - не используется для отладки
                                     border_color <= cpc_converted_color; // Extend to 12 bits
-                                2'b01: begin // EX 6-bit mode
-                                    border_color <= {
-                                        wb_dat_i[5:4], wb_dat_i[5:4],  // R
-                                        wb_dat_i[3:2], wb_dat_i[3:2],  // G
-                                        wb_dat_i[1:0], wb_dat_i[1:0]   // B
-                                    };
+                                WRITE_MODE_12BIT: begin // Native 12-bit (low byte)
+                                    border_color[7:0] <= wb_dat_i;        // Бордюр low
                                 end
-                                2'b10: begin // Native 8-bit - MSX2+ КОНВЕРТАЦИЯ!
+                                WRITE_MODE_MSX: begin // Native 8-bit - MSX2+ КОНВЕРТАЦИЯ!
                                     border_color <= msx_converted_color;
                                 end
-                                2'b11: begin // Native 12-bit (low byte)
-                                    border_color[7:0] <= wb_dat_i;        // Бордюр low
+                                WRITE_MODE_YJK: begin // Native 8-bit - MSX2+ КОНВЕРТАЦИЯ!
+                                    border_color <= msx_converted_color;
                                 end
                             endcase
                         end
                         5'h06: begin
-                            case (control_logic[4:3])
-                                2'b11: begin // Native 12-bit (low byte)
+                            case (palette_write_mode)
+                                WRITE_MODE_12BIT: begin // Native 12-bit (low byte)
                                     border_color[11:8] <= wb_dat_i[3:0];  // Бордюр high
                                 end
                             endcase

@@ -65,15 +65,15 @@
 
 === color_palette ===
 
-   Number of wires:                238
-   Number of wire bits:           2252
-   Number of public wires:          30
-   Number of public wire bits:     148
+   Number of wires:                219
+   Number of wire bits:           1972
+   Number of public wires:          33
+   Number of public wire bits:     151
    Number of ports:                 18
    Number of port bits:             75
    Number of memories:               1
    Number of memory bits:         3072
-   Number of processes:              8
+   Number of processes:             13
    Number of cells:                 24
      $add                            2
      $eq                             1
@@ -90,33 +90,33 @@
 
 === msx_colors ===
 
-   Number of wires:               3335
-   Number of wire bits:          21613
-   Number of public wires:           3
-   Number of public wire bits:      21
-   Number of ports:                  3
-   Number of port bits:             21
+   Number of wires:                  7
+   Number of wire bits:             55
+   Number of public wires:           5
+   Number of public wire bits:      31
+   Number of ports:                  4
+   Number of port bits:             22
    Number of memories:               1
-   Number of memory bits:         3072
+   Number of memory bits:         6144
    Number of processes:              2
-   Number of cells:                257
-     $meminit_v2                   256
+   Number of cells:                  2
+     $meminit_v2                     1
      $memrd                          1
 
 === cpc_colors ===
 
-   Number of wires:                 61
-   Number of wire bits:            703
-   Number of public wires:           4
-   Number of public wire bits:      30
+   Number of wires:                  6
+   Number of wire bits:             43
+   Number of public wires:           3
+   Number of public wire bits:      18
    Number of ports:                  3
    Number of port bits:             18
    Number of memories:               1
    Number of memory bits:          324
    Number of processes:              2
-   Number of cells:                 29
+   Number of cells:                  3
      $le                             1
-     $meminit_v2                    27
+     $meminit_v2                     1
      $memrd                          1
 
 === $paramod$fc279394581cfe18bb58e35abc1514b181bfae21\baud_tick_gen ===
@@ -510,16 +510,16 @@
      video_pll                       1
      wb_simple_reg                   1
 
-   Number of wires:               5348
-   Number of wire bits:          31943
-   Number of public wires:         832
-   Number of public wire bits:    3432
-   Number of ports:                393
-   Number of port bits:           1469
+   Number of wires:               1946
+   Number of wire bits:           9445
+   Number of public wires:         836
+   Number of public wire bits:    3433
+   Number of ports:                394
+   Number of port bits:           1470
    Number of memories:               5
-   Number of memory bits:        23748
-   Number of processes:            191
-   Number of cells:                811
+   Number of memory bits:        26820
+   Number of processes:            196
+   Number of cells:                530
      $add                           76
      $and                           11
      $div                            2
@@ -531,7 +531,7 @@
      $logic_not                     40
      $logic_or                      24
      $lt                            11
-     $meminit_v2                   283
+     $meminit_v2                     2
      $memrd                          7
      $mul                            2
      $mux                           40

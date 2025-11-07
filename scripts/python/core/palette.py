@@ -1,6 +1,5 @@
 """
-FPGA Palette Controller for Aleste LX
-Соответствует аппаратной реализации color_palette.v
+FPGA Palette Controller for Aleste LX - Updated API with YJK conversion
 """
 
 from .memory import FPGAMemory
@@ -10,7 +9,7 @@ class FPGAPalette:
         self.fpga = fpga_memory or FPGAMemory()
         self.palette_base = base_addr
         
-        # Регистры палитры согласно color_palette.v
+        # Регистры палитры
         self.REG_PALETTE_INDEX = 0x00
         self.REG_PALETTE_DATA_LOW = 0x01 
         self.REG_PALETTE_DATA_HIGH = 0x02
@@ -21,11 +20,145 @@ class FPGAPalette:
         
         # Режимы записи палитры
         self.WRITE_MODE_CPC = 0
-        self.WRITE_MODE_EX6BIT = 1 
-        self.WRITE_MODE_MSX2P = 2
-        self.WRITE_MODE_NATIVE12BIT = 3
+        self.WRITE_MODE_MSX2P = 1
+        self.WRITE_MODE_NATIVE12BIT = 2
+        
+        # Флаги управления
+        self.MODIFIER_ENABLE = 0x80
+        self.MODIFIER_XOR = 0x40
+        self.AUTO_INCREMENT = 0x20
+        self.YJK_MODE = 0x10
+        
+        # Текущий режим записи
+        self.current_write_mode = self.WRITE_MODE_NATIVE12BIT
+        
+        # Таблица преобразования CPC цветов в 12-bit (27 цветов)
+        self.cpc_to_12bit = [
+            0x000,  # 0: Black
+            0x005,  # 1: Blue
+            0x00F,  # 2: Bright Blue
+            0x500,  # 3: Red
+            0x505,  # 4: Magenta
+            0x50F,  # 5: Mauve
+            0xF00,  # 6: Bright Red
+            0xF05,  # 7: Purple
+            0xF0F,  # 8: Bright Magenta
+            0x050,  # 9: Green
+            0x055,  # 10: Cyan
+            0x05F,  # 11: Sky Blue
+            0x550,  # 12: Yellow
+            0x555,  # 13: White
+            0x55F,  # 14: Pastel Blue
+            0xF50,  # 15: Orange
+            0xF55,  # 16: Pink
+            0xF5F,  # 17: Pastel Magenta
+            0x0F0,  # 18: Bright Green
+            0x0F5,  # 19: Sea Green
+            0x0FF,  # 20: Bright Cyan
+            0x5F0,  # 21: Lime
+            0x5F5,  # 22: Pastel Green
+            0x5FF,  # 23: Pastel Cyan
+            0xFF0,  # 24: Bright Yellow
+            0xFF5,  # 25: Pastel Yellow
+            0xFFF   # 26: Bright White
+        ]
+        
+        # Таблицы для YJK конверсии
+        self._init_yjk_tables()
     
-    def _read_register(self, reg):
+    def _init_yjk_tables(self):
+        """Инициализация таблиц для YJK конверсии"""
+        # Таблица для RGB режима (старая)
+        self.msx_rgb_to_12bit = [0] * 256
+        for i in range(256):
+            r_bits = (i >> 5) & 0x7
+            g_bits = (i >> 2) & 0x7
+            b_bits = i & 0x3
+            
+            r_table = [0x0, 0x3, 0x6, 0x9, 0xC, 0xD, 0xE, 0xF]
+            g_table = [0x0, 0x3, 0x6, 0x9, 0xC, 0xD, 0xE, 0xF]
+            b_table = [0x0, 0x5, 0xA, 0xF]
+            
+            r_val = r_table[r_bits]
+            g_val = g_table[g_bits]
+            b_val = b_table[b_bits]
+            
+            self.msx_rgb_to_12bit[i] = (r_val << 8) | (g_val << 4) | b_val
+        
+        # Таблица для настоящего YJK режима
+        self.msx_yjk_to_12bit = [0] * 256
+        for i in range(256):
+            y = (i >> 5) & 0x07  # Luminance (0-7)
+            j = (i >> 2) & 0x07  # Chrominance 1 (0-7)  
+            k = i & 0x03         # Chrominance 2 (0-3)
+            
+            # Настоящее YJK to RGB преобразование MSX2+
+            r_base = (y * 2) + 1
+            g_base = (y * 2) + 1
+            b_base = (y * 2) + 1
+            
+            # J компонент (зеленый/пурпурный)
+            j_effects = [
+                (0, 0), (2, -1), (4, -2), (6, -3),
+                (-2, 1), (-4, 2), (-6, 3), (-8, 4)
+            ]
+            g_j, r_j = j_effects[j]
+            
+            # K компонент (синий/желтый)  
+            k_effects = [
+                (0, 0, 0), (4, -1, -1), (8, -2, -2), (-4, 1, 1)
+            ]
+            b_k, g_k, r_k = k_effects[k]
+            
+            # Суммируем и ограничиваем
+            r_val = max(0, min(15, r_base + r_j + r_k))
+            g_val = max(0, min(15, g_base + g_j + g_k))
+            b_val = max(0, min(15, b_base + b_k))
+            
+            self.msx_yjk_to_12bit[i] = (r_val << 8) | (g_val << 4) | b_val
+    
+    def msx_to_12bit(self, msx_color_byte, yjk_mode=None):
+        """
+        Конвертировать MSX2+ цвет в 12-bit с учетом режима YJK
+        """
+        if yjk_mode is None:
+            # Определяем текущий режим из железа
+            mode_info = self.get_mode()
+            yjk_mode = mode_info['yjk_mode'] if mode_info else False
+        
+        if yjk_mode:
+            # Настоящий YJK режим
+            if 0 <= msx_color_byte < len(self.msx_yjk_to_12bit):
+                return self.msx_yjk_to_12bit[msx_color_byte]
+        else:
+            # Старый RGB режим
+            if 0 <= msx_color_byte < len(self.msx_rgb_to_12bit):
+                return self.msx_rgb_to_12bit[msx_color_byte]
+        
+        print(f"❌ Invalid MSX2+ color byte: {msx_color_byte}")
+        return 0x000
+    
+    def set_yjk_mode(self, enabled):
+        """Включить/выключить YJK режим"""
+        mode_info = self.get_mode()
+        if mode_info:
+            return self.set_mode(
+                mode_info['write_mode'],
+                auto_inc=mode_info['auto_increment'],
+                yjk_mode=enabled,
+                modifier_enable=mode_info['modifier_enabled'],
+                modifier_xor=mode_info['modifier_xor']
+            )
+        return False
+    
+    def get_yjk_mode(self):
+        """Получить состояние YJK режима"""
+        mode_info = self.get_mode()
+        return mode_info['yjk_mode'] if mode_info else False
+    
+    # ===== БАЗОВЫЕ ОПЕРАЦИИ С РЕГИСТРАМИ =====
+    
+    def read_reg(self, reg):
         """Прочитать регистр палитры"""
         try:
             data = self.fpga.read_memory(self.palette_base + reg, 1)
@@ -34,184 +167,187 @@ class FPGAPalette:
             print(f"❌ Palette read error 0x{reg:02X}: {e}")
             return None
     
-    def _write_register(self, reg, value):
+    def write_reg(self, reg, value):
         """Записать регистр палитры"""
-        try:
+        print(f"❌ Write reg 0x{reg:02X}: 0x{value:02X}")
+        try:            
             return self.fpga.write_memory(self.palette_base + reg, bytes([value]))
         except Exception as e:
             print(f"❌ Palette write error 0x{reg:02X}: {e}")
             return False
-
-    def set_write_mode(self, mode, auto_inc=False):
+    
+    # ===== УПРАВЛЕНИЕ РЕЖИМАМИ =====
+    
+    def set_mode(self, mode, auto_inc=False, yjk_mode=False, modifier_enable=False, modifier_xor=False):
         """
-        Установить режим записи палитры
-        
-        Args:
-            mode: один из режимов:
-                - WRITE_MODE_CPC (0) - CPC формат
-                - WRITE_MODE_EX6BIT (1) - 6-битный формат  
-                - WRITE_MODE_MSX2P (2) - MSX2+ формат
-                - WRITE_MODE_NATIVE12BIT (3) - 12-битный нативный формат
-            auto_inc: автоматическое увеличение индекса после записи
+        Установить режим записи палитры с новыми флагами
         """
-        if mode not in [self.WRITE_MODE_CPC, self.WRITE_MODE_EX6BIT, 
+        if mode not in [self.WRITE_MODE_CPC, 
                        self.WRITE_MODE_MSX2P, self.WRITE_MODE_NATIVE12BIT]:
             print(f"❌ Invalid palette write mode: {mode}")
             return False
         
-        # Формируем значение control регистра
-        # [7] - modifier_enable (0 - выключено)
-        # [6] - modifier_type (0 - OR, 1 - XOR)  
-        # [5] - auto_increment
-        # [4:3] - palette_write_mode
-        # [2:0] - reserved
-        control_value = (mode & 0x3) << 3
+        self.current_write_mode = mode
+        
+        control_value = (mode & 0x03)  # [1:0] - palette_write_mode
+        
         if auto_inc:
-            control_value |= (1 << 5)
+            control_value |= self.AUTO_INCREMENT
+        if yjk_mode:
+            control_value |= self.YJK_MODE
+        if modifier_enable:
+            control_value |= self.MODIFIER_ENABLE
+        if modifier_xor:
+            control_value |= self.MODIFIER_XOR
         
-        return self._write_register(self.REG_CONTROL, control_value)
+        return self.write_reg(self.REG_CONTROL, control_value)
     
-    def set_index(self, index):
-        """Установить индекс палитры"""
-        return self._write_register(self.REG_PALETTE_INDEX, index)
+    def get_mode(self):
+        """Получить текущий режим записи и все флаги"""
+        control = self.read_reg(self.REG_CONTROL)
+        if control is None:
+            return None
+        
+        mode_info = {
+            'write_mode': control & 0x03,
+            'auto_increment': bool(control & self.AUTO_INCREMENT),
+            'yjk_mode': bool(control & self.YJK_MODE),
+            'modifier_enabled': bool(control & self.MODIFIER_ENABLE),
+            'modifier_xor': bool(control & self.MODIFIER_XOR)
+        }
+        return mode_info
     
-    def get_index(self):
-        """Получить текущий индекс палитры"""
-        return self._read_register(self.REG_PALETTE_INDEX)
+    def set_modifier(self, value):
+        """Установить значение модификатора"""
+        return self.write_reg(self.REG_MODIFIER, value & 0xFF)
     
-    def set_color_12bit(self, index, color_12bit, auto_inc=False):
-        """Записать 12-bit цвет в палитру"""
-        if not self.set_index(index):
-            return False
-        
-        # Устанавливаем режим записи
-        if not self.set_write_mode(self.WRITE_MODE_NATIVE12BIT, auto_inc):
-            return False
-        
-        # Записываем цвет (12-bit mode)
-        low_byte = color_12bit & 0xFF
-        high_byte = (color_12bit >> 8) & 0x0F
-        
-        if not self._write_register(self.REG_PALETTE_DATA_LOW, low_byte):
-            return False
-        if not self._write_register(self.REG_PALETTE_DATA_HIGH, high_byte):
-            return False
-            
-        return True
+    def get_modifier(self):
+        """Получить значение модификатора"""
+        return self.read_reg(self.REG_MODIFIER)
     
-    def set_color_cpc(self, index, cpc_color, auto_inc=False):
-        """Записать цвет в формате CPC"""
-        if not self.set_index(index):
+    def enable_modifier(self, value, is_xor=False):
+        """Включить модификатор с указанным значением и типом"""
+        if not self.set_modifier(value):
             return False
-        
-        # Устанавливаем режим записи CPC
-        if not self.set_write_mode(self.WRITE_MODE_CPC, auto_inc):
-            return False
-        
-        # Записываем CPC цвет
-        return self._write_register(self.REG_PALETTE_DATA_LOW, cpc_color)
+        return self.set_mode(self.current_write_mode, modifier_enable=True, modifier_xor=is_xor)
     
-    def set_color_msx(self, index, msx_color, auto_inc=False):
-        """Записать цвет в формате MSX2+"""
-        if not self.set_index(index):
-            return False
-        
-        # Устанавливаем режим записи MSX2+
-        if not self.set_write_mode(self.WRITE_MODE_MSX2P, auto_inc):
-            return False
-        
-        # Записываем MSX2+ цвет
-        return self._write_register(self.REG_PALETTE_DATA_LOW, msx_color)
+    def disable_modifier(self):
+        """Выключить модификатор"""
+        mode_info = self.get_mode()
+        if mode_info:
+            return self.set_mode(
+                mode_info['write_mode'],
+                auto_inc=mode_info['auto_increment'],
+                yjk_mode=mode_info['yjk_mode'],
+                modifier_enable=False,
+                modifier_xor=mode_info['modifier_xor']
+            )
+        return False
     
-    def set_color_6bit(self, index, color_6bit, auto_inc=False):
-        """Записать цвет в 6-битном формате"""
-        if not self.set_index(index):
+    # ===== ОПЕРАЦИИ С ЦВЕТАМИ =====
+    
+    def set_color(self, index, color, mode=None, auto_inc=False, yjk_mode=None):
+        """
+        Записать цвет в палитру с поддержкой YJK режима
+        """
+        if mode is not None:
+            yjk_flag = yjk_mode if yjk_mode is not None else False
+            if not self.set_mode(mode, auto_inc, yjk_flag):
+                return False
+        elif auto_inc or yjk_mode is not None:
+            mode_info = self.get_mode() or {}
+            yjk_flag = yjk_mode if yjk_mode is not None else mode_info.get('yjk_mode', False)
+            if not self.set_mode(self.current_write_mode, auto_inc, yjk_flag):
+                return False
+
+        # Устанавливаем индекс
+        if not self.write_reg(self.REG_PALETTE_INDEX, index):
             return False
         
-        # Устанавливаем режим записи 6-bit
-        if not self.set_write_mode(self.WRITE_MODE_EX6BIT, auto_inc):
-            return False
-        
-        # Записываем 6-битный цвет
-        return self._write_register(self.REG_PALETTE_DATA_LOW, color_6bit)
+        # Записываем цвет в зависимости от режима
+        if self.current_write_mode == self.WRITE_MODE_NATIVE12BIT:
+            # 12-битный режим
+            low_byte = color & 0xFF
+            high_byte = (color >> 8) & 0x0F
+            if not self.write_reg(self.REG_PALETTE_DATA_LOW, low_byte):
+                return False
+            return self.write_reg(self.REG_PALETTE_DATA_HIGH, high_byte)
+        else:
+            # Все остальные режимы используют только младший байт
+            return self.write_reg(self.REG_PALETTE_DATA_LOW, color & 0xFF)
     
     def get_color(self, index=None):
-        """Прочитать цвет из палитры"""
+        """
+        Прочитать цвет из палитры (всегда возвращает 12-bit цвет)
+        """
         if index is not None:
-            if not self.set_index(index):
+            if not self.write_reg(self.REG_PALETTE_INDEX, index):
                 return None
         
-        # Читаем младший и старший байты
-        low = self._read_register(self.REG_PALETTE_DATA_LOW)
-        high = self._read_register(self.REG_PALETTE_DATA_HIGH)
+        low = self.read_reg(self.REG_PALETTE_DATA_LOW)
+        high = self.read_reg(self.REG_PALETTE_DATA_HIGH)
         
         if low is None or high is None:
             return None
             
         return ((high & 0x0F) << 8) | low
     
-    def set_border_color(self, color_12bit):
-        """Установить цвет бордюра"""
-        low_byte = color_12bit & 0xFF
-        high_byte = (color_12bit >> 8) & 0x0F
+    def set_palette(self, palette_data, start_index=0, mode=None, yjk_mode=None):
+        """
+        Загрузить всю палитру с поддержкой YJK режима
+        """
+        if mode is not None:
+            self.set_mode(mode, auto_inc=True, yjk_mode=yjk_mode or False)
         
-        if not self._write_register(self.REG_BORDER_LOW, low_byte):
-            return False
-        return self._write_register(self.REG_BORDER_HIGH, high_byte)
-    
-    def get_border_color(self):
-        """Получить цвет бордюра"""
-        low = self._read_register(self.REG_BORDER_LOW)
-        high = self._read_register(self.REG_BORDER_HIGH)
-        
-        if low is None or high is None:
-            return None
-            
-        return ((high & 0x0F) << 8) | low
-    
-    def load_palette(self, palette_data, start_index=0):
-        """Загрузить палитру из списка 12-bit цветов"""
         success_count = 0
         for i, color in enumerate(palette_data):
-            if self.set_color_12bit(start_index + i, color):
+            if self.set_color(start_index + i, color, auto_inc=False):
                 success_count += 1
         return success_count
     
-    def load_palette_from_image(self, image_path, max_colors=256):
-        """Извлечь палитру из изображения и загрузить"""
-        try:
-            from PIL import Image
-            
-            img = Image.open(image_path)
-            if img.mode == 'P':
-                # Изображение с палитрой
-                palette = img.getpalette()
-                colors = []
-                for i in range(min(img.getcolors()[-1][0] if img.getcolors() else 256, max_colors)):
-                    r = palette[i * 3] >> 4
-                    g = palette[i * 3 + 1] >> 4  
-                    b = palette[i * 3 + 2] >> 4
-                    colors.append((r << 8) | (g << 4) | b)
-                return self.load_palette(colors)
+    def get_palette(self, start=0, count=256):
+        """Прочитать диапазон цветов палитры"""
+        palette = []
+        for i in range(count):
+            color = self.get_color(start + i)
+            if color is not None:
+                palette.append(color)
             else:
-                # RGB изображение - извлекаем доминирующие цвета
-                img = img.convert('RGB')
-                # Упрощенная версия - берем первые max_colors уникальных цветов
-                colors = set()
-                for pixel in img.getdata():
-                    r, g, b = pixel
-                    color_12bit = (r >> 4) << 8 | (g >> 4) << 4 | (b >> 4)
-                    colors.add(color_12bit)
-                    if len(colors) >= max_colors:
-                        break
-                return self.load_palette(list(colors))
-                
-        except ImportError:
-            print("❌ PIL required for image palette extraction")
-            return 0
-        except Exception as e:
-            print(f"❌ Image palette error: {e}")
-            return 0
+                palette.append(0)
+        return palette
+    
+    # ===== КОНВЕРСИЯ ЦВЕТОВ =====
+    
+    def cpc_to_12bit(self, cpc_color_index):
+        """
+        Конвертировать CPC цвет в 12-bit через таблицу
+        """
+        if 0 <= cpc_color_index < len(self.cpc_to_12bit):
+            return self.cpc_to_12bit[cpc_color_index]
+        else:
+            print(f"❌ Invalid CPC color index: {cpc_color_index}")
+            return 0x000
+    
+    
+    def set_color_converted(self, index, color, src_mode, auto_inc=False, yjk_mode=None):
+        """
+        Записать цвет с конверсией из указанного режима в 12-bit
+        """
+        # Конвертируем в 12-bit
+        if src_mode == self.WRITE_MODE_CPC:
+            color_12bit = self.cpc_to_12bit(color)
+        elif src_mode == self.WRITE_MODE_MSX2P:
+            color_12bit = self.msx_to_12bit(color, yjk_mode)
+        elif src_mode == self.WRITE_MODE_NATIVE12BIT:
+            color_12bit = color
+        else:
+            print(f"❌ Unknown source mode: {src_mode}")
+            return False
+        
+        # Записываем в 12-bit режиме
+        return self.set_color(index, color_12bit, self.WRITE_MODE_NATIVE12BIT, auto_inc, yjk_mode)
+    
+    # ===== ДЕБАГ И ДАМП =====
     
     def decode_12bit_color(self, color_12bit):
         """Декодировать 12-bit цвет в RGB компоненты"""
@@ -220,19 +356,61 @@ class FPGAPalette:
         b = color_12bit & 0x0F
         return (r, g, b)
     
+    def dump_regs(self):
+        """Дамп всех регистров с новыми флагами"""
+        print("📋 Palette registers dump:")
+        reg_names = {
+            0x00: "PALETTE_INDEX",
+            0x01: "PALETTE_DATA_LOW", 
+            0x02: "PALETTE_DATA_HIGH",
+            0x03: "CONTROL",
+            0x04: "MODIFIER",
+            0x05: "BORDER_LOW",
+            0x06: "BORDER_HIGH"
+        }
+        
+        for reg, name in reg_names.items():
+            value = self.read_reg(reg)
+            if value is not None:
+                if reg == 0x03:  # CONTROL register
+                    mode_bits = value & 0x03
+                    auto_inc = bool(value & self.AUTO_INCREMENT)
+                    yjk_mode = bool(value & self.YJK_MODE)
+                    mod_enable = bool(value & self.MODIFIER_ENABLE)
+                    mod_xor = bool(value & self.MODIFIER_XOR)
+                    
+                    modes = ["CPC", "MSX2P", "12BIT"]
+                    mode_str = f" | MODE:{modes[mode_bits]}"
+                    mode_str += f" | AUTO_INC:{int(auto_inc)}"
+                    mode_str += f" | YJK:{int(yjk_mode)}"
+                    mode_str += f" | MOD_EN:{int(mod_enable)}"
+                    mode_str += f" | MOD_XOR:{int(mod_xor)}"
+                else:
+                    mode_str = ""
+                    
+                print(f"  0x{reg:02X} {name:16} = 0x{value:02X} ({value:3d}){mode_str}")
+            else:
+                print(f"  0x{reg:02X} {name:16} = ❌ ERROR")
+    
+    def dump_yjk_comparison(self):
+        """Сравнение RGB и YJK режимов для MSX2+"""
+        print("🎨 MSX2+ RGB vs YJK comparison:")
+        samples = [0x00, 0x1F, 0x3F, 0x7F, 0x9F, 0xBF, 0xDF, 0xFF]
+        
+        for sample in samples:
+            rgb_color = self.msx_to_12bit(sample, yjk_mode=False)
+            yjk_color = self.msx_to_12bit(sample, yjk_mode=True)
+            
+            r1, g1, b1 = self.decode_12bit_color(rgb_color)
+            r2, g2, b2 = self.decode_12bit_color(yjk_color)
+            
+            print(f"  MSX 0x{sample:02X}:")
+            print(f"    RGB: 0x{rgb_color:03X} = R:{r1:1X} G:{g1:1X} B:{b1:1X}")
+            print(f"    YJK: 0x{yjk_color:03X} = R:{r2:1X} G:{g2:1X} B:{b2:1X}")
+            if rgb_color != yjk_color:
+                print(f"    *** DIFFERENT ***")
+    
     def close(self):
         """Закрыть соединение"""
         if self.fpga:
             self.fpga.close()
-
-    def dump_palette(self, start=0, count=16):
-        """Дамп палитры для отладки"""
-        print(f"🎨 Palette dump #{start}-#{start+count-1}:")
-        for i in range(count):
-            index = start + i
-            color = self.get_color(index)
-            if color is not None:
-                r, g, b = self.decode_12bit_color(color)
-                print(f"  #{index:3d}: 0x{color:03X} = R:{r:1X} G:{g:1X} B:{b:1X}")
-            else:
-                print(f"  #{index:3d}: ❌ Error reading")

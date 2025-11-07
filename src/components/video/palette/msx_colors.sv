@@ -1,58 +1,26 @@
-// RAM-based MSX color converter
 module msx_colors (
     input  logic        clk_i,
-    input  logic [7:0]  hw_register,
+    input  logic        yjk_mode, // 0 = RGB, 1 = YJK
+    input  logic [7:0]  hw_register,  // 8-битный цвет
     output logic [11:0] rgb_color
 );
 
-// 256x12 ROM с предрасчитанными MSX2+ цветами
-(* no_rw_check *)
-logic [11:0] msx_color_rom [0:255];
+// Память 512x12 бит = 2 палитры по 256 цветов
+(* no_rw_check, ram_style = "block" *)
+logic [11:0] color_rom [0:511];
 
+// Загрузка из внешнего файла
 initial begin
-    // Инициализация ROM - предрасчет всех 256 значений
-    for (int i = 0; i < 256; i++) begin
-        logic [3:0] r_val, g_val, b_val;
-        
-        // R component (биты 7-5)
-        case (i[7:5])
-            3'b000: r_val = 4'h0;
-            3'b001: r_val = 4'h3;
-            3'b010: r_val = 4'h6;
-            3'b011: r_val = 4'h9;
-            3'b100: r_val = 4'hC;
-            3'b101: r_val = 4'hD;
-            3'b110: r_val = 4'hE;
-            3'b111: r_val = 4'hF;
-        endcase
-        
-        // G component (биты 4-2)
-        case (i[4:2])
-            3'b000: g_val = 4'h0;
-            3'b001: g_val = 4'h3;
-            3'b010: g_val = 4'h6;
-            3'b011: g_val = 4'h9;
-            3'b100: g_val = 4'hC;
-            3'b101: g_val = 4'hD;
-            3'b110: g_val = 4'hE;
-            3'b111: g_val = 4'hF;
-        endcase
-        
-        // B component (биты 1-0)
-        case (i[1:0])
-            2'b00: b_val = 4'h0;
-            2'b01: b_val = 4'h5;
-            2'b10: b_val = 4'hA;
-            2'b11: b_val = 4'hF;
-        endcase
-        
-        msx_color_rom[i] = {r_val, g_val, b_val};
-    end
+    $readmemh("msx_palette.mem", color_rom);
 end
 
-// Простой lookup из ROM
+// Адрес: palette_mode = старший бит, hw_register = младшие 8 бит
+logic [8:0] rom_address;
+assign rom_address = {yjk_mode, hw_register};
+
+// Один простой доступ к памяти
 always_ff @(posedge clk_i) begin
-    rgb_color <= msx_color_rom[hw_register];
+    rgb_color <= color_rom[rom_address];
 end
 
 endmodule
