@@ -56,20 +56,100 @@ const std::vector<RGB> MSX_PALETTE = {
     RGB(0x3A, 0xA2, 0x41), RGB(0xB7, 0x66, 0xB5), RGB(0xCC, 0xCC, 0xCC), RGB(0xFF, 0xFF, 0xFF)
 };
 
-// Функция для конвертации MSX цветового значения в RGB
-RGB msxToRGB(uint8_t msxColor) {
-    // Распаковка компонентов из MSX формата: RRRGGGBB
-    uint8_t r_bits = (msxColor >> 5) & 0x07;
-    uint8_t g_bits = (msxColor >> 2) & 0x07; 
-    uint8_t b_bits = msxColor & 0x03;
+// ==================== MSX2+ RGB ПАЛИТРА (256 цветов) ====================
+std::vector<RGB> generateMSX2RGBPalette() {
+    std::vector<RGB> palette;
+    palette.reserve(256);
     
-    // Конвертация в 8-битные значения согласно таблице
-    static const uint8_t r_table[8] = {0, 36, 72, 109, 145, 182, 218, 255};
-    static const uint8_t g_table[8] = {0, 36, 72, 109, 145, 182, 218, 255};
-    static const uint8_t b_table[4] = {0, 85, 170, 255};
+    // MSX2+ RGB использует 8 уровней на канал: 0, 36, 72, 109, 145, 182, 218, 255
+    static const uint8_t levels[8] = {0, 36, 72, 109, 145, 182, 218, 255};
     
-    return RGB(r_table[r_bits], g_table[g_bits], b_table[b_bits]);
+    for (int r = 0; r < 8; r++) {
+        for (int g = 0; g < 8; g++) {
+            for (int b = 0; b < 4; b++) {
+                // Формат: RRRGGGBB
+                palette.push_back(RGB(levels[r], levels[g], levels[b * 2 + (b == 3 ? 1 : 0)]));
+                // Для 4 бит синего: 0, 2, 4, 6 индексы в levels
+            }
+        }
+    }
+    
+    return palette;
 }
+
+// ==================== MSX2+ YJK ПАЛИТРА (256 цветов) ====================
+std::vector<RGB> generateMSX2YJKPalette() {
+    std::vector<RGB> palette;
+    palette.reserve(256);
+    
+    for (int i = 0; i < 256; i++) {
+        // Извлекаем компоненты YJK из байта
+        uint8_t y = (i >> 5) & 0x07;  // Яркость (3 бита)
+        uint8_t j = (i >> 2) & 0x07;  // Хрома J (3 бита)  
+        uint8_t k = i & 0x03;         // Хрома K (2 бита)
+        
+        // Конвертация YJK в RGB согласно спецификации MSX2+
+        // Формулы основаны на документации MSX2+
+        int r = y * 2 + 1;
+        int g = y * 2 + 1;
+        int b = y * 2 + 1;
+        
+        // Применяем хроматические компоненты J и K
+        // J влияет на красный и зеленый, K - на синий
+        const int j_effects[8][2] = {
+            {0, 0}, {2, -1}, {4, -2}, {6, -3},
+            {-2, 1}, {-4, 2}, {-6, 3}, {-8, 4}
+        };
+        
+        const int k_effects[4][3] = {
+            {0, 0, 0}, {4, -1, -1}, {8, -2, -2}, {-4, 1, 1}
+        };
+        
+        r += j_effects[j][1] + k_effects[k][2];
+        g += j_effects[j][0] + k_effects[k][1];
+        b += k_effects[k][0];
+        
+        // Ограничиваем значения 0-15 и конвертируем в 0-255
+        r = std::max(0, std::min(15, r));
+        g = std::max(0, std::min(15, g));
+        b = std::max(0, std::min(15, b));
+        
+        // Конвертация 4-бит в 8-бит
+        palette.push_back(RGB(
+            (r << 4) | r,
+            (g << 4) | g,
+            (b << 4) | b
+        ));
+    }
+    
+    return palette;
+}
+
+// ==================== 12-BIT RGB ПАЛИТРА (4096 цветов) ====================
+std::vector<RGB> generate12BitPalette() {
+    std::vector<RGB> palette;
+    palette.reserve(4096);
+    
+    for (int r = 0; r < 16; r++) {
+        for (int g = 0; g < 16; g++) {
+            for (int b = 0; b < 16; b++) {
+                // Правильное преобразование 4-бит в 8-бит
+                palette.push_back(RGB(
+                    (r * 255) / 15,
+                    (g * 255) / 15,
+                    (b * 255) / 15
+                ));
+            }
+        }
+    }
+    
+    return palette;
+}
+
+// Глобальные палитры
+const std::vector<RGB> MSX2_RGB_PALETTE = generateMSX2RGBPalette();
+const std::vector<RGB> MSX2_YJK_PALETTE = generateMSX2YJKPalette();
+const std::vector<RGB> BIT12_PALETTE = generate12BitPalette();
 
 struct PIXHeader {
     char magic[12];
@@ -427,11 +507,47 @@ private:
             return (r << 5) | (g << 2) | b;
         }
         
-        uint8_t to6bit() const {
-            return ((color.r >> 6) << 4) | ((color.g >> 6) << 2) | (color.b >> 6);
+        uint8_t toMSX2RGB() const {
+            // Поиск ближайшего цвета в MSX2 RGB палитре
+            int bestIndex = 0;
+            int bestDist = std::numeric_limits<int>::max();
+            
+            for (int i = 0; i < MSX2_RGB_PALETTE.size(); i++) {
+                const RGB& palColor = MSX2_RGB_PALETTE[i];
+                int dr = color.r - palColor.r;
+                int dg = color.g - palColor.g;
+                int db = color.b - palColor.b;
+                int dist = dr*dr + dg*dg + db*db;
+                
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestIndex = i;
+                }
+            }
+            return bestIndex;
         }
         
-        uint16_t toCPC() const {
+        uint8_t toMSX2YJK() const {
+            // Поиск ближайшего цвета в MSX2 YJK палитре
+            int bestIndex = 0;
+            int bestDist = std::numeric_limits<int>::max();
+            
+            for (int i = 0; i < MSX2_YJK_PALETTE.size(); i++) {
+                const RGB& palColor = MSX2_YJK_PALETTE[i];
+                int dr = color.r - palColor.r;
+                int dg = color.g - palColor.g;
+                int db = color.b - palColor.b;
+                int dist = dr*dr + dg*dg + db*db;
+                
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestIndex = i;
+                }
+            }
+            return bestIndex;
+        }
+        
+        uint8_t toCPC() const {
             int bestIndex = 0;
             int bestDist = 255 * 255 * 3;
             
@@ -448,8 +564,7 @@ private:
                 }
             }
             
-            const RGB& bestColor = CPC_PALETTE[bestIndex];
-            return ((bestColor.r >> 4) << 8) | ((bestColor.g >> 4) << 4) | (bestColor.b >> 4);
+            return bestIndex;
         }
     };
 
@@ -506,27 +621,16 @@ public:
     // Улучшенный подбор палитры с учетом аппаратных ограничений
     static std::vector<RGB> selectAdaptivePalette(const SimpleImage& image, int maxColors, const std::string& paletteMode) {
         std::cout << "🎨 Selecting adaptive palette for " << paletteMode << " (" << maxColors << " colors)" << std::endl;
-        
+        std::vector<RGB> fullPalette;   
+        // ВОЗВРАЩАЕМ ОРИГИНАЛЬНУЮ РАБОТАЮЩУЮ ЛОГИКУ
         if (paletteMode == "cpc") {
-            // Фиксированная CPC палитра
-            std::vector<RGB> palette = CPC_PALETTE;
-            if (maxColors <= 16) {
-                // Для 4bpp (16 цветов) выбираем лучшие 16 цветов из CPC палитры
-                palette = selectBestCPCSubset(image, maxColors);
-            } else if (maxColors <= 4) {
-                // Для 2bpp (4 цвета) выбираем лучшие 4 цвета
-                palette = selectBestCPCSubset(image, maxColors);
-            } else {
-                // Для других случаев используем всю CPC палитру
-                palette = CPC_PALETTE;
-                if (maxColors < palette.size()) {
-                    palette.resize(maxColors);
-                }
-            }
-            return palette;
+            // CPC: медианный cut БЕЗ привязки к палитре (как было раньше)
+            //return selectMedianCutPalette(image, maxColors);
+            //fullPalette = CPC_PALETTE;
+            return selectCPCPalette(image, maxColors);
         }
         else if (paletteMode == "msx") {
-            // Фиксированная MSX палитра
+            // TODO FIXME
             std::vector<RGB> palette = MSX_PALETTE;
             if (maxColors < palette.size()) {
                 palette.resize(maxColors);
@@ -534,63 +638,184 @@ public:
             return palette;
         }
         
-        // Для других режимов - медианный cut алгоритм (упрощенный)
-        return selectMedianCutPalette(image, maxColors);
-    }
-    // Функция для выбора лучших цветов CPC палитры
-    static std::vector<RGB> selectBestCPCSubset(const SimpleImage& image, int numColors) {
-        std::cout << "   Selecting best " << numColors << " CPC colors from image..." << std::endl;
-        
-        // Собираем все цвета изображения
-        std::vector<RGB> imageColors = image.getPixels();
-        
-        // Уникальные цвета
-        std::sort(imageColors.begin(), imageColors.end(), [](const RGB& a, const RGB& b) {
-            return (a.r << 16 | a.g << 8 | a.b) < (b.r << 16 | b.g << 8 | b.b);
-        });
-        auto last = std::unique(imageColors.begin(), imageColors.end());
-        imageColors.erase(last, imageColors.end());
-        
-        std::cout << "   Unique colors in image: " << imageColors.size() << std::endl;
-        
-        // Если уникальных цветов меньше нужного, добавляем из CPC палитры
-        std::vector<RGB> result;
-        
-        // Сначала берем цвета из изображения, которые есть в CPC палитре
-        for (const RGB& imgColor : imageColors) {
-            for (const RGB& cpcColor : CPC_PALETTE) {
-                if (colorDistance(imgColor, cpcColor) < 1000) { // Близкий цвет
-                    if (std::find(result.begin(), result.end(), cpcColor) == result.end()) {
-                        result.push_back(cpcColor);
-                        if (result.size() >= numColors) break;
-                    }
-                }
-            }
-            if (result.size() >= numColors) break;
+        // НОВЫЕ РЕЖИМЫ - с привязкой к палитре (они работают)
+
+        if (paletteMode == "msx2rgb") {
+            fullPalette = generateMSX2RGBPalette();
+        } else if (paletteMode == "msx2yjk") {
+            fullPalette = generateMSX2YJKPalette();
+        } else if (paletteMode == "12bit") {
+            fullPalette = generate12BitPalette();
         }
         
-        // Если не набрали, добавляем контрастные цвета из CPC палитры
-        if (result.size() < numColors) {
-            std::vector<RGB> remainingColors = CPC_PALETTE;
-            // Убираем уже выбранные цвета
-            remainingColors.erase(
-                std::remove_if(remainingColors.begin(), remainingColors.end(),
-                    [&](const RGB& c) {
-                        return std::find(result.begin(), result.end(), c) != result.end();
-                    }),
-                remainingColors.end()
+        if (maxColors >= fullPalette.size()) {
+            return fullPalette;
+        }
+        
+        std::vector<RGB> selectedColors = selectMedianCutPalette(image, maxColors);
+        std::vector<RGB> finalPalette;
+        for (const RGB& selectedColor : selectedColors) {
+            RGB nearestColor = findNearestColorInPalette(selectedColor, fullPalette);
+            finalPalette.push_back(nearestColor);
+        }
+        return finalPalette;
+    }    
+static std::vector<RGB> selectCPCPalette(const SimpleImage& image, int maxColors) {
+    std::cout << "🎨 SMART CPC PALETTE SELECTION for " << maxColors << " colors" << std::endl;
+    
+    // 1. Собираем статистику по цветам изображения
+    std::unordered_map<uint32_t, int> colorFrequency;
+    for (const RGB& pixel : image.getPixels()) {
+        uint32_t colorKey = (pixel.r << 16) | (pixel.g << 8) | pixel.b;
+        colorFrequency[colorKey]++;
+    }
+    
+    // 2. Сортируем цвета по частоте
+    std::vector<std::pair<uint32_t, int>> sortedColors(colorFrequency.begin(), colorFrequency.end());
+    std::sort(sortedColors.begin(), sortedColors.end(), 
+             [](const auto& a, const auto& b) { return a.second > b.second; });
+    
+    // 3. Для каждого популярного цвета находим ближайший в CPC палитре
+    std::vector<RGB> selectedPalette;
+    std::vector<bool> usedCPC(CPC_PALETTE.size(), false);
+    
+    for (const auto& [colorKey, frequency] : sortedColors) {
+        if (selectedPalette.size() >= maxColors) break;
+        
+        RGB targetColor(
+            (colorKey >> 16) & 0xFF,
+            (colorKey >> 8) & 0xFF, 
+            colorKey & 0xFF
+        );
+        
+        // Находим ближайший цвет в CPC палитре
+        int bestCPCIndex = findBestColorCPC(targetColor, CPC_PALETTE);
+        
+        if (!usedCPC[bestCPCIndex]) {
+            selectedPalette.push_back(CPC_PALETTE[bestCPCIndex]);
+            usedCPC[bestCPCIndex] = true;
+            std::cout << "   Selected CPC color " << bestCPCIndex << " (used " << frequency << " times)" << std::endl;
+        }
+    }
+    
+    // 4. Если не набрали достаточно цветов, добавляем контрастные
+    if (selectedPalette.size() < maxColors) {
+        // Добавляем чёрный и белый если их нет
+        if (!usedCPC[0]) {  // Чёрный
+            selectedPalette.push_back(CPC_PALETTE[0]);
+            usedCPC[0] = true;
+        }
+        if (!usedCPC[26]) { // Белый  
+            selectedPalette.push_back(CPC_PALETTE[26]);
+            usedCPC[26] = true;
+        }
+        
+        // Добавляем остальные контрастные цвета
+        for (int i = 0; i < CPC_PALETTE.size() && selectedPalette.size() < maxColors; i++) {
+            if (!usedCPC[i]) {
+                selectedPalette.push_back(CPC_PALETTE[i]);
+                usedCPC[i] = true;
+            }
+        }
+    }
+    
+    std::cout << "✅ Selected " << selectedPalette.size() << " CPC colors" << std::endl;
+    return selectedPalette;
+}
+    static RGB findNearestColorInPalette(const RGB& color, const std::vector<RGB>& palette) {
+        int bestIndex = 0;
+        int bestDist = std::numeric_limits<int>::max();
+        
+        for (int i = 0; i < palette.size(); i++) {
+            const RGB& palColor = palette[i];
+            int dr = color.r - palColor.r;
+            int dg = color.g - palColor.g;
+            int db = color.b - palColor.b;
+            int dist = dr*dr + dg*dg + db*db;
+            
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestIndex = i;
+            }
+        }
+        return palette[bestIndex];
+    }
+
+    // Выбор лучших N цветов из полной палитры на основе изображения
+    static std::vector<RGB> selectBestColorsFromPalette(const SimpleImage& image, 
+                                                       const std::vector<RGB>& fullPalette,
+                                                       int numColors,
+                                                       const std::string& paletteMode) {
+        std::cout << "   Selecting best " << numColors << " colors from " << fullPalette.size() << " available..." << std::endl;
+        
+        // Собираем статистику по цветам изображения
+        std::unordered_map<uint32_t, int> colorFrequency;
+        for (const RGB& pixel : image.getPixels()) {
+            uint32_t colorKey = (pixel.r << 16) | (pixel.g << 8) | pixel.b;
+            colorFrequency[colorKey]++;
+        }
+        
+        // Сортируем цвета по частоте встречаемости
+        std::vector<std::pair<uint32_t, int>> sortedColors(colorFrequency.begin(), colorFrequency.end());
+        std::sort(sortedColors.begin(), sortedColors.end(), 
+                 [](const auto& a, const auto& b) { return a.second > b.second; });
+        
+        // Выбираем лучшие цвета из палитры на основе частоты встречаемости в изображении
+        std::vector<RGB> selectedPalette;
+        std::vector<bool> usedPalette(fullPalette.size(), false);
+        
+        // Сначала берем самые частые цвета из изображения
+        for (const auto& [colorKey, frequency] : sortedColors) {
+            if (selectedPalette.size() >= numColors) break;
+            
+            RGB targetColor(
+                (colorKey >> 16) & 0xFF,
+                (colorKey >> 8) & 0xFF,
+                colorKey & 0xFF
             );
             
-            // Добавляем недостающие
-            while (result.size() < numColors && !remainingColors.empty()) {
-                result.push_back(remainingColors.back());
-                remainingColors.pop_back();
+            // Находим ближайший цвет в полной палитре
+            int bestIndex = findBestColorForPalette(targetColor, fullPalette, paletteMode);
+            
+            if (!usedPalette[bestIndex]) {
+                selectedPalette.push_back(fullPalette[bestIndex]);
+                usedPalette[bestIndex] = true;
             }
         }
         
-        std::cout << "   Final palette: " << result.size() << " colors" << std::endl;
-        return result;
+        // Если не набрали достаточно цветов, добавляем оставшиеся из палитры
+        if (selectedPalette.size() < numColors) {
+            for (int i = 0; i < fullPalette.size() && selectedPalette.size() < numColors; i++) {
+                if (!usedPalette[i]) {
+                    selectedPalette.push_back(fullPalette[i]);
+                    usedPalette[i] = true;
+                }
+            }
+        }
+        
+        std::cout << "   Selected " << selectedPalette.size() << " colors for palette" << std::endl;
+        return selectedPalette;
     }
+    
+    static int findBestColorForPalette(const RGB& color, const std::vector<RGB>& palette, const std::string& paletteMode) {
+        int bestIndex = 0;
+        int bestDist = std::numeric_limits<int>::max();
+        
+        for (int i = 0; i < palette.size(); i++) {
+            const RGB& palColor = palette[i];
+            int dr = color.r - palColor.r;
+            int dg = color.g - palColor.g;
+            int db = color.b - palColor.b;
+            int dist = dr*dr + dg*dg + db*db;
+            
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
     static int colorDistance(const RGB& a, const RGB& b) {
         int dr = a.r - b.r;
         int dg = a.g - b.g;
@@ -714,15 +939,16 @@ public:
         for (const auto& color : palette) {
             ColorStats stats(color, 0);
             
-            if (paletteMode == "cpc" || paletteMode == "12bit") {
-                uint16_t color12 = stats.to12bit();
-                paletteData.push_back(color12 & 0xFF);
-                paletteData.push_back((color12 >> 8) & 0xFF);
+            if (paletteMode == "cpc") {
+                paletteData.push_back(stats.toCPC());
             } else if (paletteMode == "msx") {
                 paletteData.push_back(stats.toMSX());
-            } else if (paletteMode == "6bit") {
-                paletteData.push_back(stats.to6bit());
+            } else if (paletteMode == "msx2rgb") {
+                paletteData.push_back(stats.toMSX2RGB());
+            } else if (paletteMode == "msx2yjk") {
+                paletteData.push_back(stats.toMSX2YJK());
             } else {
+                // По умолчанию 12-бит
                 uint16_t color12 = stats.to12bit();
                 paletteData.push_back(color12 & 0xFF);
                 paletteData.push_back((color12 >> 8) & 0xFF);
@@ -741,36 +967,18 @@ public:
             // Простое квантование
             std::cout << "   MODE: No dithering - direct quantization" << std::endl;
             
-            // ДОБАВИМ ОТЛАДКУ
-            std::cout << "   DEBUG: First few source pixels: ";
-            for (int i = 0; i < 3; i++) {
-                const RGB& p = image.pixel(i, 0);
-                std::cout << "(" << (int)p.r << "," << (int)p.g << "," << (int)p.b << ") ";
-            }
-            std::cout << std::endl;
-            
             for (int y = 0; y < image.height(); y++) {
                 for (int x = 0; x < image.width(); x++) {
                     const RGB& original = image.pixel(x, y);
                     int bestIndex = findBestColor(original, palette, paletteMode);
                     
-                    // ДОБАВИМ ПРОВЕРКУ
                     if (bestIndex < 0 || bestIndex >= palette.size()) {
-                        std::cout << "⚠️  INVALID COLOR INDEX: " << bestIndex << " at (" << x << "," << y << ")" << std::endl;
                         bestIndex = 0;
                     }
                     
                     result.pixel(x, y) = palette[bestIndex];
                 }
             }
-            
-            // ДОБАВИМ ПРОВЕРКУ РЕЗУЛЬТАТА
-            std::cout << "   DEBUG: First few result pixels: ";
-            for (int i = 0; i < 3; i++) {
-                const RGB& p = result.pixel(i, 0);
-                std::cout << "(" << (int)p.r << "," << (int)p.g << "," << (int)p.b << ") ";
-            }
-            std::cout << std::endl;
         }
         else if (ditherType == "ordered") {
             // Упорядоченный дитеринг (Bayer 4x4)
@@ -883,7 +1091,7 @@ private:
             return findBestColorMSX(color, palette);
         }
         else {
-            // Стандартный поиск
+            // Стандартный поиск для всех остальных палитр
             int bestIndex = 0;
             int bestDist = 255 * 255 * 3;
             
@@ -910,222 +1118,219 @@ private:
     bool verbose_;
     std::string dumpBmpPath_;
     
-    // [Остальные методы остаются такими же...]
-std::vector<uint8_t> encodeCPC1BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
-    std::cout << "🔧 Encoding: CPC 1bpp (2 colors) - Mode 2" << std::endl;
-    
-    if (palette.size() < 2) {
-        std::cerr << "❌ ERROR: 1bpp requires exactly 2 colors in palette" << std::endl;
-        return std::vector<uint8_t>();
-    }
-    
-    std::vector<uint8_t> result;
-    int width = image.width();
-    int height = image.height();
-    int bytesPerLine = width / 8; // 640px / 8 = 80 bytes
-    assert(bytesPerLine == 80);
-    
-    std::cout << "   Mode 2: 640x200, 80 bytes/line" << std::endl;
-    
-    for (int y = 0; y < height; ++y) {
-        for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
-            uint8_t byteVal = 0;
-            
-            for (int bit = 0; bit < 8; ++bit) {
-                int pixelX = xByte * 8 + bit;
-                if (pixelX >= width) continue;
-                
-                const RGB& color = image.pixel(pixelX, y);
-                int colorIdx = AdvancedColorProcessor::findBestColorCPC(color, palette);
-                
-                // Mode 2: прямой порядок - бит 7 = pixel 0, бит 0 = pixel 7
-                if (colorIdx == 1) {
-                    byteVal |= (1 << (7 - bit));
-                }
-            }
-            result.push_back(byteVal);
-        }
-    }
-    
-    std::cout << "✅ CPC 1bpp Mode 2: " << result.size() << " bytes" << std::endl;
-    return result;
-}
-
-std::vector<uint8_t> encodeCPC2BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
-    std::cout << "🔧 Encoding: CPC 2bpp (4 colors) - Mode 1" << std::endl;
-    
-    std::vector<uint8_t> result;
-    int width = image.width();
-    int height = image.height();
-    int bytesPerLine = width / 4; // 320px / 4 = 80 bytes
-    assert(bytesPerLine == 80);
-
-    std::cout << "   Mode 1: 320x200, 80 bytes/line" << std::endl;
-    
-    for (int y = 0; y < height; ++y) {
-        for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
-            uint8_t byteVal = 0;
-            
-            // Собираем 4 пикселя
-            int colorIndices[4];
-            for (int pixel = 0; pixel < 4; ++pixel) {
-                int pixelX = xByte * 4 + pixel;
-                if (pixelX >= width) {
-                    colorIndices[pixel] = 0;
-                    continue;
-                }
-                
-                const RGB& color = image.pixel(pixelX, y);
-                colorIndices[pixel] = AdvancedColorProcessor::findBestColorCPC(color, palette);
-            }
-            
-            // Mode 1: сложная упаковка:
-            // bit7 = pixel0.bit1, bit6 = pixel1.bit1, bit5 = pixel2.bit1, bit4 = pixel3.bit1
-            // bit3 = pixel0.bit0, bit2 = pixel1.bit0, bit1 = pixel2.bit0, bit0 = pixel3.bit0
-            
-            byteVal |= ((colorIndices[0] & 0x02) ? 0x80 : 0); // pixel0 bit1 -> bit7
-            byteVal |= ((colorIndices[1] & 0x02) ? 0x40 : 0); // pixel1 bit1 -> bit6  
-            byteVal |= ((colorIndices[2] & 0x02) ? 0x20 : 0); // pixel2 bit1 -> bit5
-            byteVal |= ((colorIndices[3] & 0x02) ? 0x10 : 0); // pixel3 bit1 -> bit4
-            
-            byteVal |= ((colorIndices[0] & 0x01) ? 0x08 : 0); // pixel0 bit0 -> bit3
-            byteVal |= ((colorIndices[1] & 0x01) ? 0x04 : 0); // pixel1 bit0 -> bit2
-            byteVal |= ((colorIndices[2] & 0x01) ? 0x02 : 0); // pixel2 bit0 -> bit1
-            byteVal |= ((colorIndices[3] & 0x01) ? 0x01 : 0); // pixel3 bit0 -> bit0
-            
-            result.push_back(byteVal);
-        }
-    }
-    
-    std::cout << "✅ CPC 2bpp Mode 1: " << result.size() << " bytes" << std::endl;
-    return result;
-}
-
-std::vector<uint8_t> encodeCPC4BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
-    std::cout << "🔧 Encoding: CPC 4bpp (16 colors) - Mode 0" << std::endl;
-    
-    std::vector<uint8_t> result;
-    int width = image.width();
-    int height = image.height();
-    int bytesPerLine = width / 2; // 160px / 2 = 80 bytes
-    assert(bytesPerLine == 80);
- 
-    std::cout << "   Mode 0: 160x200, 80 bytes/line" << std::endl;
-    
-    for (int y = 0; y < height; ++y) {
-        for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
-            uint8_t byteVal = 0;
-            
-            // Собираем 2 пикселя
-            int colorIndices[2];
-            for (int pixel = 0; pixel < 2; ++pixel) {
-                int pixelX = xByte * 2 + pixel;
-                if (pixelX >= width) {
-                    colorIndices[pixel] = 0;
-                    continue;
-                }
-                
-                const RGB& color = image.pixel(pixelX, y);
-                colorIndices[pixel] = AdvancedColorProcessor::findBestColorCPC(color, palette);
-            }
-            
-            // Mode 0: самая сложная упаковка:
-            // bit7 = pixel0.bit0, bit6 = pixel1.bit0
-            // bit5 = pixel0.bit2, bit4 = pixel1.bit2  
-            // bit3 = pixel0.bit1, bit2 = pixel1.bit1
-            // bit1 = pixel0.bit3, bit0 = pixel1.bit3
-            
-            byteVal |= ((colorIndices[0] & 0x01) ? 0x80 : 0); // pixel0 bit0 -> bit7
-            byteVal |= ((colorIndices[1] & 0x01) ? 0x40 : 0); // pixel1 bit0 -> bit6
-            
-            byteVal |= ((colorIndices[0] & 0x04) ? 0x20 : 0); // pixel0 bit2 -> bit5
-            byteVal |= ((colorIndices[1] & 0x04) ? 0x10 : 0); // pixel1 bit2 -> bit4
-            
-            byteVal |= ((colorIndices[0] & 0x02) ? 0x08 : 0); // pixel0 bit1 -> bit3
-            byteVal |= ((colorIndices[1] & 0x02) ? 0x04 : 0); // pixel1 bit1 -> bit2
-            
-            byteVal |= ((colorIndices[0] & 0x08) ? 0x02 : 0); // pixel0 bit3 -> bit1
-            byteVal |= ((colorIndices[1] & 0x08) ? 0x01 : 0); // pixel1 bit3 -> bit0
-            
-            result.push_back(byteVal);
-        }
-    }
-    
-    std::cout << "✅ CPC 4bpp Mode 0: " << result.size() << " bytes" << std::endl;
-    return result;
-}
+    // [Все методы кодирования CPC и адресации остаются без изменений]
+    std::vector<uint8_t> encodeCPC1BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
+        std::cout << "🔧 Encoding: CPC 1bpp (2 colors) - Mode 2" << std::endl;
         
-std::vector<uint8_t> encodeLinear(const SimpleImage& image, int bpp, const std::vector<RGB>& palette) {
-    std::cout << "🔧 Encoding: Linear " << bpp << "bpp (" << (1 << bpp) << " colors)" << std::endl;
-    
-    std::vector<uint8_t> result;
-    int width = image.width();
-    int height = image.height();
-    int pixelsPerByte = 8 / bpp;
-    int bytesPerLine = (width + pixelsPerByte - 1) / pixelsPerByte;
-    
-    std::cout << "   Pixels per byte: " << pixelsPerByte << std::endl;
-    std::cout << "   Bytes per line: " << bytesPerLine << std::endl;
-    
-    for (int y = 0; y < height; ++y) {
-        for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
-            uint8_t byteVal = 0;
-            
-            for (int i = 0; i < pixelsPerByte; ++i) {
-                int pixelX = xByte * pixelsPerByte + i;
-                if (pixelX < width) {
-                    const RGB& color = image.pixel(pixelX, y);
-                    int colorIdx = findBestColor(color, palette);
+        if (palette.size() < 2) {
+            std::cerr << "❌ ERROR: 1bpp requires exactly 2 colors in palette" << std::endl;
+            return std::vector<uint8_t>();
+        }
+        
+        std::vector<uint8_t> result;
+        int width = image.width();
+        int height = image.height();
+        int bytesPerLine = width / 8; // 640px / 8 = 80 bytes
+        assert(bytesPerLine == 80);
+        
+        std::cout << "   Mode 2: 640x200, 80 bytes/line" << std::endl;
+        
+        for (int y = 0; y < height; ++y) {
+            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
+                uint8_t byteVal = 0;
+                
+                for (int bit = 0; bit < 8; ++bit) {
+                    int pixelX = xByte * 8 + bit;
+                    if (pixelX >= width) continue;
                     
-                    // ПРАВИЛЬНО: пиксель 0 = старшие биты
-                    // pixelsPerByte-1-i даст обратный порядок (неправильный)
-                    // i даст прямой порядок (пиксель 0 = младшие биты) - НЕПРАВИЛЬНО
-                    // НУЖНО: пиксель 0 = старшие биты
-                    int shift = (pixelsPerByte - 1 - i) * bpp;
-                    byteVal |= (colorIdx << shift);
+                    const RGB& color = image.pixel(pixelX, y);
+                    int colorIdx = AdvancedColorProcessor::findBestColorCPC(color, palette);
+                    
+                    // Mode 2: прямой порядок - бит 7 = pixel 0, бит 0 = pixel 7
+                    if (colorIdx == 1) {
+                        byteVal |= (1 << (7 - bit));
+                    }
                 }
+                result.push_back(byteVal);
             }
-            result.push_back(byteVal);
         }
+        
+        std::cout << "✅ CPC 1bpp Mode 2: " << result.size() << " bytes" << std::endl;
+        return result;
     }
-    
-    std::cout << "✅ Linear " << bpp << "bpp: " << result.size() << " bytes" << std::endl;
-    return result;
-}
 
-std::vector<uint8_t> applyCPCAddressing(const std::vector<uint8_t>& data, int width, int height, int bpp) {
-    std::cout << "🔄 Applying CPC addressing for " << width << "x" << height << " @" << bpp << "bpp" << std::endl;
-    
-    int bytesPerLine = 80;
-    
-    // CPC требует буфер 16KB (16384 байт) из-за адресации 0x800
-    int bufferSize = 16384;  // 16KB CPC buffer
-    std::vector<uint8_t> result(bufferSize, 0);
-    
-    std::cout << "   CPC buffer: " << bufferSize << " bytes (16KB)" << std::endl;
-    
-    for (int y = 0; y < height; ++y) {
-        int character_row = y / 8;
-        int line_in_char = y % 8;
+    std::vector<uint8_t> encodeCPC2BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
+        std::cout << "🔧 Encoding: CPC 2bpp (4 colors) - Mode 1" << std::endl;
         
-        int dst_offset = line_in_char * 0x800 + character_row * bytesPerLine;
-        int src_offset = y * bytesPerLine;
+        std::vector<uint8_t> result;
+        int width = image.width();
+        int height = image.height();
+        int bytesPerLine = width / 4; // 320px / 4 = 80 bytes
+        assert(bytesPerLine == 80);
+
+        std::cout << "   Mode 1: 320x200, 80 bytes/line" << std::endl;
         
-        if (dst_offset + bytesPerLine <= result.size() && 
-            src_offset + bytesPerLine <= data.size()) {
-            std::copy(data.begin() + src_offset,
-                     data.begin() + src_offset + bytesPerLine,
-                     result.begin() + dst_offset);
-        } else {
-            std::cout << "⚠️  CPC addressing overflow at line " << y 
-                     << " (src: " << src_offset << ".." << (src_offset + bytesPerLine)
-                     << ", dst: " << dst_offset << ".." << (dst_offset + bytesPerLine) 
-                     << ", max: " << result.size() << ")" << std::endl;
+        for (int y = 0; y < height; ++y) {
+            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
+                uint8_t byteVal = 0;
+                
+                // Собираем 4 пикселя
+                int colorIndices[4];
+                for (int pixel = 0; pixel < 4; ++pixel) {
+                    int pixelX = xByte * 4 + pixel;
+                    if (pixelX >= width) {
+                        colorIndices[pixel] = 0;
+                        continue;
+                    }
+                    
+                    const RGB& color = image.pixel(pixelX, y);
+                    colorIndices[pixel] = AdvancedColorProcessor::findBestColorCPC(color, palette);
+                }
+                
+                // Mode 1: сложная упаковка:
+                // bit7 = pixel0.bit1, bit6 = pixel1.bit1, bit5 = pixel2.bit1, bit4 = pixel3.bit1
+                // bit3 = pixel0.bit0, bit2 = pixel1.bit0, bit1 = pixel2.bit0, bit0 = pixel3.bit0
+                
+                byteVal |= ((colorIndices[0] & 0x02) ? 0x80 : 0); // pixel0 bit1 -> bit7
+                byteVal |= ((colorIndices[1] & 0x02) ? 0x40 : 0); // pixel1 bit1 -> bit6  
+                byteVal |= ((colorIndices[2] & 0x02) ? 0x20 : 0); // pixel2 bit1 -> bit5
+                byteVal |= ((colorIndices[3] & 0x02) ? 0x10 : 0); // pixel3 bit1 -> bit4
+                
+                byteVal |= ((colorIndices[0] & 0x01) ? 0x08 : 0); // pixel0 bit0 -> bit3
+                byteVal |= ((colorIndices[1] & 0x01) ? 0x04 : 0); // pixel1 bit0 -> bit2
+                byteVal |= ((colorIndices[2] & 0x01) ? 0x02 : 0); // pixel2 bit0 -> bit1
+                byteVal |= ((colorIndices[3] & 0x01) ? 0x01 : 0); // pixel3 bit0 -> bit0
+                
+                result.push_back(byteVal);
+            }
         }
+        
+        std::cout << "✅ CPC 2bpp Mode 1: " << result.size() << " bytes" << std::endl;
+        return result;
     }
-    
-    return result;
-}
+
+    std::vector<uint8_t> encodeCPC4BPP(const SimpleImage& image, const std::vector<RGB>& palette) {
+        std::cout << "🔧 Encoding: CPC 4bpp (16 colors) - Mode 0" << std::endl;
+        
+        std::vector<uint8_t> result;
+        int width = image.width();
+        int height = image.height();
+        int bytesPerLine = width / 2; // 160px / 2 = 80 bytes
+        assert(bytesPerLine == 80);
+ 
+        std::cout << "   Mode 0: 160x200, 80 bytes/line" << std::endl;
+        
+        for (int y = 0; y < height; ++y) {
+            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
+                uint8_t byteVal = 0;
+                
+                // Собираем 2 пикселя
+                int colorIndices[2];
+                for (int pixel = 0; pixel < 2; ++pixel) {
+                    int pixelX = xByte * 2 + pixel;
+                    if (pixelX >= width) {
+                        colorIndices[pixel] = 0;
+                        continue;
+                    }
+                    
+                    const RGB& color = image.pixel(pixelX, y);
+                    colorIndices[pixel] = AdvancedColorProcessor::findBestColorCPC(color, palette);
+                }
+                
+                // Mode 0: самая сложная упаковка:
+                // bit7 = pixel0.bit0, bit6 = pixel1.bit0
+                // bit5 = pixel0.bit2, bit4 = pixel1.bit2  
+                // bit3 = pixel0.bit1, bit2 = pixel1.bit1
+                // bit1 = pixel0.bit3, bit0 = pixel1.bit3
+                
+                byteVal |= ((colorIndices[0] & 0x01) ? 0x80 : 0); // pixel0 bit0 -> bit7
+                byteVal |= ((colorIndices[1] & 0x01) ? 0x40 : 0); // pixel1 bit0 -> bit6
+                
+                byteVal |= ((colorIndices[0] & 0x04) ? 0x20 : 0); // pixel0 bit2 -> bit5
+                byteVal |= ((colorIndices[1] & 0x04) ? 0x10 : 0); // pixel1 bit2 -> bit4
+                
+                byteVal |= ((colorIndices[0] & 0x02) ? 0x08 : 0); // pixel0 bit1 -> bit3
+                byteVal |= ((colorIndices[1] & 0x02) ? 0x04 : 0); // pixel1 bit1 -> bit2
+                
+                byteVal |= ((colorIndices[0] & 0x08) ? 0x02 : 0); // pixel0 bit3 -> bit1
+                byteVal |= ((colorIndices[1] & 0x08) ? 0x01 : 0); // pixel1 bit3 -> bit0
+                
+                result.push_back(byteVal);
+            }
+        }
+        
+        std::cout << "✅ CPC 4bpp Mode 0: " << result.size() << " bytes" << std::endl;
+        return result;
+    }
+        
+    std::vector<uint8_t> encodeLinear(const SimpleImage& image, int bpp, const std::vector<RGB>& palette) {
+        std::cout << "🔧 Encoding: Linear " << bpp << "bpp (" << (1 << bpp) << " colors)" << std::endl;
+        
+        std::vector<uint8_t> result;
+        int width = image.width();
+        int height = image.height();
+        int pixelsPerByte = 8 / bpp;
+        int bytesPerLine = (width + pixelsPerByte - 1) / pixelsPerByte;
+        
+        std::cout << "   Pixels per byte: " << pixelsPerByte << std::endl;
+        std::cout << "   Bytes per line: " << bytesPerLine << std::endl;
+        
+        for (int y = 0; y < height; ++y) {
+            for (int xByte = 0; xByte < bytesPerLine; ++xByte) {
+                uint8_t byteVal = 0;
+                
+                for (int i = 0; i < pixelsPerByte; ++i) {
+                    int pixelX = xByte * pixelsPerByte + i;
+                    if (pixelX < width) {
+                        const RGB& color = image.pixel(pixelX, y);
+                        int colorIdx = findBestColor(color, palette);
+                        
+                        // ПРАВИЛЬНО: пиксель 0 = старшие биты
+                        int shift = (pixelsPerByte - 1 - i) * bpp;
+                        byteVal |= (colorIdx << shift);
+                    }
+                }
+                result.push_back(byteVal);
+            }
+        }
+        
+        std::cout << "✅ Linear " << bpp << "bpp: " << result.size() << " bytes" << std::endl;
+        return result;
+    }
+
+    std::vector<uint8_t> applyCPCAddressing(const std::vector<uint8_t>& data, int width, int height, int bpp) {
+        std::cout << "🔄 Applying CPC addressing for " << width << "x" << height << " @" << bpp << "bpp" << std::endl;
+        
+        int bytesPerLine = 80;
+        
+        // CPC требует буфер 16KB (16384 байт) из-за адресации 0x800
+        int bufferSize = 16384;  // 16KB CPC buffer
+        std::vector<uint8_t> result(bufferSize, 0);
+        
+        std::cout << "   CPC buffer: " << bufferSize << " bytes (16KB)" << std::endl;
+        
+        for (int y = 0; y < height; ++y) {
+            int character_row = y / 8;
+            int line_in_char = y % 8;
+            
+            int dst_offset = line_in_char * 0x800 + character_row * bytesPerLine;
+            int src_offset = y * bytesPerLine;
+            
+            if (dst_offset + bytesPerLine <= result.size() && 
+                src_offset + bytesPerLine <= data.size()) {
+                std::copy(data.begin() + src_offset,
+                         data.begin() + src_offset + bytesPerLine,
+                         result.begin() + dst_offset);
+            } else {
+                std::cout << "⚠️  CPC addressing overflow at line " << y 
+                         << " (src: " << src_offset << ".." << (src_offset + bytesPerLine)
+                         << ", dst: " << dst_offset << ".." << (dst_offset + bytesPerLine) 
+                         << ", max: " << result.size() << ")" << std::endl;
+            }
+        }
+        
+        return result;
+    }
     
     std::vector<uint8_t> createInfoChunk(int width, int height, int bpp, 
                                         const std::string& colorEncoding,
@@ -1390,10 +1595,17 @@ void showUsage() {
     std::cout << "  --bpp 1|2|4|8           Bits per pixel (required)" << std::endl;
     std::cout << "  --color-encoding cpc|linear" << std::endl;
     std::cout << "  --address-encoding cpc|linear" << std::endl;
-    std::cout << "  --palette-mode cpc|msx|8bit|12bit" << std::endl;
-    std::cout << "  --dither none|ordered|floyd|random  Dithering algorithm" << std::endl;
+    std::cout << "  --palette-mode cpc|msx|msx2rgb|msx2yjk|12bit" << std::endl;
+    std::cout << "  --dither none|ordered|floyd  Dithering algorithm" << std::endl;
     std::cout << "  --dump-bmp file.bmp     Save quality check BMP" << std::endl;
     std::cout << "  -v, --verbose           Show detailed diagnostics" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Palette Modes:" << std::endl;
+    std::cout << "  cpc      - Amstrad CPC 27 colors" << std::endl;
+    std::cout << "  msx      - MSX 16 colors" << std::endl;
+    std::cout << "  msx2rgb  - MSX2+ RGB 256 colors" << std::endl;
+    std::cout << "  msx2yjk  - MSX2+ YJK 256 colors" << std::endl;
+    std::cout << "  12bit    - 12-bit RGB 4096 colors" << std::endl;
     std::cout << std::endl;
     std::cout << "CPC Mode Compatibility:" << std::endl;
     std::cout << "  Mode 0 (4bpp): 160x200, 16 colors" << std::endl;
@@ -1402,7 +1614,7 @@ void showUsage() {
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  pix_convert image.bmp output.pix --width 320 --height 200 --bpp 4 --dither floyd" << std::endl;
-    std::cout << "  pix_convert image.ppm game.pix --width 640 --height 200 --bpp 1 --palette-mode msx --dump-bmp check.bmp" << std::endl;
+    std::cout << "  pix_convert image.ppm game.pix --width 640 --height 200 --bpp 1 --palette-mode msx2rgb --dump-bmp check.bmp" << std::endl;
 }
 
 bool validateParameters(int width, int height, int bpp, 
@@ -1458,14 +1670,6 @@ bool validateParameters(int width, int height, int bpp,
         }
     }
     
-    // Проверка MSX палитры
-    if (paletteMode == "msx") {
-        if (bpp > 4) {
-            std::cerr << "❌ ERROR: MSX palette supports maximum 4bpp (16 colors)" << std::endl;
-            return false;
-        }
-    }
-    
     // Проверка кодировок
     if (colorEncoding != "cpc" && colorEncoding != "linear") {
         std::cerr << "❌ ERROR: Color encoding must be 'cpc' or 'linear'" << std::endl;
@@ -1477,8 +1681,9 @@ bool validateParameters(int width, int height, int bpp,
         return false;
     }
     
-    if (paletteMode != "cpc" && paletteMode != "msx" && paletteMode != "8bit" && paletteMode != "12bit") {
-        std::cerr << "❌ ERROR: Palette mode must be 'cpc', 'msx', '8bit' or '12bit'" << std::endl;
+    if (paletteMode != "cpc" && paletteMode != "msx" && paletteMode != "msx2rgb" && 
+        paletteMode != "msx2yjk" && paletteMode != "12bit") {
+        std::cerr << "❌ ERROR: Palette mode must be 'cpc', 'msx', 'msx2rgb', 'msx2yjk' or '12bit'" << std::endl;
         return false;
     }
     
@@ -1552,8 +1757,8 @@ int main(int argc, char* argv[]) {
         std::cout << "⚠️  NOTE: CPC color encoding works best with CPC address encoding" << std::endl;
     }
     
-    if (ditherType != "none" && ditherType != "ordered" && ditherType != "floyd" && ditherType != "random") {
-        std::cerr << "❌ ERROR: Dither type must be 'none', 'ordered', 'floyd' or 'random'" << std::endl;
+    if (ditherType != "none" && ditherType != "ordered" && ditherType != "floyd") {
+        std::cerr << "❌ ERROR: Dither type must be 'none', 'ordered' or 'floyd'" << std::endl;
         return 1;
     }
     

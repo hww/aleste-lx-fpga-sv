@@ -32,8 +32,9 @@ module pixel_pipeline (
 logic       cfg_linear_latched = 0;
 logic [1:0] cfg_bpp_latched = 0;
 logic [7:0] shift_reg = 0;
-logic de_delayed; 
+logic       de_delayed; 
 
+// keep mode in the registers to prevent artefacts when swicthing
 always @(posedge clk_i) begin
     if (rst_i) begin
         cfg_bpp_latched <= 2'b0;
@@ -53,10 +54,11 @@ always @(posedge clk_i) begin
         de_delayed <= '0;
     end else begin
         if (video_stb_i) begin
+            // Запись байта выдает его наружу сразу
             shift_reg <= video_data_i;
             de_delayed <= pixel_de_i;
         end else if (stb_pixel_i) begin
-            // Сдвиговый регистр
+            // Сдвиговый регистр на каждый пиксель строб
             case (cfg_bpp_latched)
                 2'b00: begin // 1bpp - 8 пикселей из байта
                     shift_reg <= {shift_reg[6:0], 1'b0};
@@ -66,7 +68,10 @@ always @(posedge clk_i) begin
                         shift_reg <= {shift_reg[5:0], 2'b0};
                     end else begin
                         // CPC Mode 1: [3,7], [2,6], [1,5], [0,4]
-                        shift_reg <= {shift_reg[6:0], 1'b0};
+                        // bits 3 and 7 going out
+                        // 7,6,5,4 << 1
+                        // 3,2,1,0 << 1
+                        shift_reg <= {shift_reg[6:4], 1'b0, shift_reg[2:0], 1'b0};
                     end
                 end
                 2'b10: begin // 4bpp - 2 пикселя из байта
@@ -74,7 +79,7 @@ always @(posedge clk_i) begin
                         shift_reg <= {shift_reg[3:0], 4'b0};
                     end else begin
                         // CPC Mode 0: [1,5,3,7], [0,4,2,6]
-                        shift_reg <= {shift_reg[6:0], 1'b0};
+                        shift_reg <= {shift_reg[6], 1'b0, shift_reg[4], 1'b0, shift_reg[2], 1'b0, shift_reg[0], 1'b0};
                     end
                 end
                 // 2'b11: 8bpp - сдвиг не нужен
@@ -95,8 +100,8 @@ always_comb begin
             if (cfg_linear_latched) begin
                 pixel = {6'b0, shift_reg[7:6]};
             end else begin
-                // CPC Mode 1: [3,7], [2,6], [1,5], [0,4]
-                pixel = {6'b0, shift_reg[3], shift_reg[7]};
+                // CPC Mode 1: [7,3], [6,2], [5,1], [4,0]
+                pixel = {6'b0, shift_reg[7], shift_reg[3]};
             end
         end
         2'b10: begin // 4bpp - 2 пикселя из байта

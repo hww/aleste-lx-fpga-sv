@@ -23,6 +23,14 @@ class PaletteTool:
         # Используем ВАШУ библиотеку вместо самостоятельной реализации
         self.palette = FPGAPalette()
         self.force_12bit = False
+        
+        # Маппинг режимов для CLI - ОБНОВЛЕНО!
+        self.mode_map = {
+            'cpc': self.palette.WRITE_MODE_CPC,
+            '12bit': self.palette.WRITE_MODE_12BIT,
+            'msx': self.palette.WRITE_MODE_MSX,      # MSX RGB режим
+            'yjk': self.palette.WRITE_MODE_YJK       # MSX YJK режим
+        }
     
     # ===== ПРОСТЫЕ КОМАНДЫ ДЛЯ ОТЛАДКИ =====
     
@@ -83,22 +91,31 @@ class PaletteTool:
     # ===== MODE MANAGEMENT =====
     
     def set_mode(self, mode_name: str, auto_inc: bool = False) -> bool:
-        """Set palette mode using library"""
-        mode_map = {
-            'cpc': self.palette.WRITE_MODE_CPC,
-            'msx': self.palette.WRITE_MODE_MSX2P, 
-            '12bit': self.palette.WRITE_MODE_NATIVE12BIT,
-            'yjk': self.palette.WRITE_MODE_MSX2P  # YJK uses MSX mode with YJK flag
-        }
-        
-        if mode_name not in mode_map:
+        """Set palette mode using library - ОБНОВЛЕНО!"""
+        if mode_name not in self.mode_map:
             print(f"❌ Invalid palette mode: {mode_name}")
             return False
         
-        mode = mode_map[mode_name]
-        yjk_mode = (mode_name == 'yjk')
+        mode = self.mode_map[mode_name]
         
-        return self.palette.set_mode(mode, auto_inc=auto_inc, yjk_mode=yjk_mode)
+        # Используем новый API без yjk_mode параметра
+        return self.palette.set_mode(mode, auto_inc=auto_inc)
+    
+    def cpc_mode(self, auto_inc: bool = False) -> bool:
+        """CPC режим"""
+        return self.palette.cpc_mode(auto_inc)
+    
+    def native_mode(self, auto_inc: bool = False) -> bool:
+        """12-битный нативный режим"""
+        return self.palette.native_12bit_mode(auto_inc)
+    
+    def msx_mode(self, auto_inc: bool = False) -> bool:
+        """MSX RGB режим"""
+        return self.palette.msx_rgb_mode(auto_inc)
+    
+    def yjk_mode(self, auto_inc: bool = False) -> bool:
+        """MSX YJK режим"""
+        return self.palette.msx_yjk_mode(auto_inc)
     
     def get_mode_info(self):
         """Get current mode information"""
@@ -111,7 +128,7 @@ class PaletteTool:
         if self.force_12bit:
             # Принудительная программная конвертация
             return self.palette.set_color(index, color, 
-                                       mode=self.palette.WRITE_MODE_NATIVE12BIT,
+                                       mode=self.palette.WRITE_MODE_12BIT,
                                        auto_inc=auto_inc)
         else:
             # Используем текущий режим библиотеки
@@ -188,7 +205,7 @@ class PaletteTool:
         original_mode = self.get_mode_info()
         
         # Switch to 12-bit mode for testing
-        if not self.set_mode('12bit'):
+        if not self.native_mode():
             print("❌ Cannot switch to 12-bit mode")
             return False
         
@@ -230,8 +247,14 @@ class PaletteTool:
         
         # Restore original mode
         if original_mode:
-            self.set_mode(original_mode['write_mode'], 
-                         auto_inc=original_mode['auto_increment'])
+            mode_name_map = {
+                self.palette.WRITE_MODE_CPC: 'cpc',
+                self.palette.WRITE_MODE_12BIT: '12bit', 
+                self.palette.WRITE_MODE_MSX: 'msx',
+                self.palette.WRITE_MODE_YJK: 'yjk'
+            }
+            original_mode_name = mode_name_map.get(original_mode['write_mode'], '12bit')
+            self.set_mode(original_mode_name, auto_inc=original_mode['auto_increment'])
         
         if all_passed:
             print("🎉 All memory tests passed!")
@@ -299,7 +322,7 @@ def usage():
     print("./palette_tool.py border 0xF00        # Красный бордюр")
     print("./palette_tool.py registers           # Дамп регистров")
     print("")
-    print("# Режимы палитры: cpc, msx, 12bit, yjk")
+    print("# Режимы палитры: cpc, 12bit, msx, yjk")
     print("# Автоинкремент: --auto-inc")
     print("# Формат цветов: 10 (dec), 0xA (hex), 0xFFF (12-bit)")
 
@@ -328,7 +351,7 @@ def main():
     
     # Mode setting commands
     mode_parser = subparsers.add_parser('mode', help='Set palette mode')
-    mode_parser.add_argument('mode', choices=['cpc', 'msx', '12bit', 'yjk'], 
+    mode_parser.add_argument('mode', choices=['cpc', '12bit', 'msx', 'yjk'], 
                            help='Palette mode')
     mode_parser.add_argument('--auto-inc', action='store_true', help='Auto increment')
     
@@ -407,8 +430,8 @@ def main():
         elif args.command == 'mode':
             mode_switcher = {
                 'cpc': tool.cpc_mode,
-                'msx': tool.msx_mode,
                 '12bit': tool.native_mode,
+                'msx': tool.msx_mode,
                 'yjk': tool.yjk_mode
             }
             if mode_switcher[args.mode](args.auto_inc):

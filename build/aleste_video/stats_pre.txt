@@ -65,18 +65,18 @@
 
 === color_palette ===
 
-   Number of wires:                219
-   Number of wire bits:           1972
+   Number of wires:                248
+   Number of wire bits:           2264
    Number of public wires:          33
-   Number of public wire bits:     151
+   Number of public wire bits:     152
    Number of ports:                 18
    Number of port bits:             75
    Number of memories:               1
    Number of memory bits:         3072
    Number of processes:             13
-   Number of cells:                 24
+   Number of cells:                 26
      $add                            2
-     $eq                             1
+     $eq                             3
      $logic_and                      7
      $logic_not                      3
      $logic_or                       1
@@ -510,20 +510,20 @@
      video_pll                       1
      wb_simple_reg                   1
 
-   Number of wires:               1946
-   Number of wire bits:           9445
+   Number of wires:               1975
+   Number of wire bits:           9737
    Number of public wires:         836
-   Number of public wire bits:    3433
+   Number of public wire bits:    3434
    Number of ports:                394
    Number of port bits:           1470
    Number of memories:               5
    Number of memory bits:        26820
    Number of processes:            196
-   Number of cells:                530
+   Number of cells:                532
      $add                           76
      $and                           11
      $div                            2
-     $eq                            96
+     $eq                            98
      $ge                             6
      $gt                             5
      $le                             1
