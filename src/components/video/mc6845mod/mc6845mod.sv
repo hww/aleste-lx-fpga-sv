@@ -429,10 +429,10 @@ logic stb_char = 0;      // Character increment signal
 logic stb_byte = 0;      // Next byte
 logic stb_pixel = 0;     // Pixel increment signal
 
-wire strobe_1x = (crtc_pix_x[3:0] == 4'b1110);  
-wire strobe_2x = (crtc_pix_x[2:0] == 3'b110); 
-wire strobe_4x = (crtc_pix_x[1:0] == 2'b10);
-wire strobe_8x = (crtc_pix_x[0] == 1'b0);
+wire strobe_1x = (crtc_pix_x[3:0] == 4'b1111);  
+wire strobe_2x = (crtc_pix_x[2:0] == 3'b111); 
+wire strobe_4x = (crtc_pix_x[1:0] == 2'b11);
+wire strobe_8x = (crtc_pix_x[0] == 1'b1);
 wire strobe_16x = 1'b1;
 
 // Configurable pixel character speed
