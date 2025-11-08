@@ -25,7 +25,9 @@ module video_buffer (
     output  logic [7:0]  data_o,
 
     // Debugging
-    output  logic [1:0]  debug_byte_select_o
+    output  logic [1:0]  debug_byte_select_o,
+    output  logic        debug_data_req_o,
+    output  logic        debug_data_valid_o
 );
 
 // Регистры состояния
@@ -78,10 +80,10 @@ always @(posedge vmem_clk_i) begin
         end
         
         VMEM_WAIT: begin
-            if (!data_req) begin
+            //if (!data_req) begin
                 vmem_state <= VMEM_IDLE;
-                data_valid <= '0;
-            end
+                //data_valid <= '0;
+            //end
         end
 
         default: vmem_state <= VMEM_IDLE;
@@ -110,7 +112,8 @@ always @(posedge pixel_clk_i) begin
         output_buffer[3] <= 0;
         data_req <= '0;
     end else begin
-
+        if (data_req)
+            data_req <= '0;
         if (stb_sync1_i || stb_sync2_i) begin
             case (cfg_rate)
                 BYTES_PER_CYCLE_2: begin // 2 bytes per 16 pixels
@@ -200,5 +203,7 @@ assign data_o = de_delayed ? output_buffer[byte_count] : 8'h00;
 assign de_o = de_delayed;
 // debugging
 assign debug_byte_select_o = byte_count;
+assign debug_data_req_o = data_req; 
+assign debug_data_valid_o = data_valid; 
 
 endmodule

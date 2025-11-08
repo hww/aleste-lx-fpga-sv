@@ -108,20 +108,11 @@ GRAPHICS_PRESETS = {
         "devices": {
             "crtc": [
                 # CRTC базовые регистры (такие же как mode0)
-                [0x00, 63, 0xFF],    # R0: HTOTAL
-                [0x01, 40, 0xFF],    # R1: HDISPLAY
-                [0x02, 46, 0xFF],    # R2: HSYNCPOS  
-                [0x03, 142, 0xFF],   # R3: HSYNCWIDTH
-                [0x04, 38, 0x7F],    # R4: VTOTAL
-                [0x05, 0, 0x1F],     # R5: VADJUST
-                [0x06, 25, 0x7F],    # R6: VDISPLAY
-                [0x07, 30, 0x7F],    # R7: VSYNCPOS
-                [0x08, 0, 0x33],     # R8: INTERLACE
-                [0x09, 7, 0x1F],     # R9: MAXSCAN
-                
-                # Адреса
-                [0x0C, 0, 0x3F],     # R12: START_ADDR_H
-                [0x0D, 0, 0xFF],     # R13: START_ADDR_L
+                [0x00, 63, 0xFF],    [0x01, 40, 0xFF],    [0x02, 46, 0xFF],
+                [0x03, 142, 0xFF],   [0x04, 38, 0x7F],    [0x05, 0, 0x1F],
+                [0x06, 25, 0x7F],    [0x07, 30, 0x7F],    [0x08, 0, 0x33],
+                [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
+
                 # Расширенные регистры - не использоавть cpc mode, 
                 # использовать внутренний но с cpc режимом палитры и пикселов
                 [0x12, 0b00000001, 0b00110011], # R18: VIDEO_CONTROL 
@@ -143,20 +134,11 @@ GRAPHICS_PRESETS = {
         "devices": {
             "crtc": [
                 # CRTC базовые регистры
-                [0x00, 63, 0xFF],    # R0: HTOTAL
-                [0x01, 40, 0xFF],    # R1: HDISPLAY  
-                [0x02, 46, 0xFF],    # R2: HSYNCPOS
-                [0x03, 142, 0xFF],   # R3: HSYNCWIDTH (14) + VSYNCWIDTH (8)
-                [0x04, 38, 0x7F],    # R4: VTOTAL (7 bits)
-                [0x05, 0, 0x1F],     # R5: VADJUST (5 bits)
-                [0x06, 25, 0x7F],    # R6: VDISPLAY (7 bits)
-                [0x07, 30, 0x7F],    # R7: VSYNCPOS (7 bits)
-                [0x08, 0, 0x33],     # R8: INTERLACE & SKEW
-                [0x09, 7, 0x1F],     # R9: MAXSCAN (5 bits)
-                
-                # Адреса и курсор
-                [0x0C, 0, 0x3F],     # R12: START_ADDR_H (6 bits)
-                [0x0D, 0, 0xFF],     # R13: START_ADDR_L
+                [0x00, 63, 0xFF],    [0x01, 40, 0xFF],    [0x02, 46, 0xFF],
+                [0x03, 142, 0xFF],   [0x04, 38, 0x7F],    [0x05, 0, 0x1F],
+                [0x06, 25, 0x7F],    [0x07, 30, 0x7F],    [0x08, 0, 0x33],
+                [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
+
                 # Расширенные регистры - не использоавть cpc mode, 
                 # использовать внутренний но с cpc режимом палитры и пикселов
                 [0x12, 0b00000010, 0b00110011], # R18: VIDEO_CONTROL 
@@ -245,28 +227,6 @@ GRAPHICS_PRESETS = {
     }, 
     # =================== 32 KB ======================
 
-    "32k4b": {
-        "name": "LX 320x200 16 colors", 
-        "description": "Extended mode 320x200 with 16 colors, 32KB memory",
-        "devices": {
-            "crtc": [
-                # CRTC базовые регистры
-                [0x00, 63, 0xFF],    [0x01, 40, 0xFF],    [0x02, 46, 0xFF],
-                [0x03, 142, 0xFF],   [0x04, 38, 0x7F],    [0x05, 0, 0x1F],
-                [0x06, 25, 0x7F],    [0x07, 30, 0x7F],    [0x08, 0, 0x33],
-                [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
-                
-                # Расширенные регистры
-                [0x12, 0b00010010, 0b00110011], # R18: VIDEO_CONTROL 
-                [0x14, 0b00000011, 0b00110111], # R20: ADDR_MODE
-                [0x15, 0b00000001, 0b00000011], # R21: PIXEL_CTRL     
-            ],
-            "palette": [
-                #["gradient_16c"]
-            ]
-        }
-    },
-
     "32k2b": {
         "name": "LX 640x200 4 colors",
         "description": "Extended mode 640x200 with 4 colors, 32KB memory",
@@ -289,26 +249,38 @@ GRAPHICS_PRESETS = {
         }
     },
 
+    "32k4b": {
+        "name": "LX 320x200 16 colors", 
+        "description": "Extended mode 320x200 with 16 colors, 32KB memory",
+        "devices": {
+            "crtc": [
+                # CRTC базовые регистры
+                [0x00, 63, 0xFF],    [0x01, 40, 0xFF],    [0x02, 46, 0xFF],
+                [0x03, 142, 0xFF],   [0x04, 38, 0x7F],    [0x05, 0, 0x1F],
+                [0x06, 25, 0x7F],    [0x07, 30, 0x7F],    [0x08, 0, 0x33],
+                [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
+                
+                # Расширенные регистры
+                [0x12, 0b00010010, 0b00110011], # R18: VIDEO_CONTROL 
+                [0x14, 0b00000011, 0b00110111], # R20: ADDR_MODE
+                [0x15, 0b00000001, 0b00000011], # R21: PIXEL_CTRL     
+            ],
+            "palette": [
+                #["gradient_16c"]
+            ]
+        }
+    },
+
     "32k8b": {
         "name": "LX 160x200 256 colors",
         "description": "Extended mode 160x200 with 256 colors, 32KB memory",
         "devices": {
             "crtc": [
                 # CRTC базовые регистры (как у CPC режимов)
-                [0x00, 63, 0xFF],    # R0: HTOTAL
-                [0x01, 40, 0xFF],    # R1: HDISPLAY  
-                [0x02, 46, 0xFF],    # R2: HSYNCPOS
-                [0x03, 142, 0xFF],   # R3: HSYNCWIDTH
-                [0x04, 38, 0x7F],    # R4: VTOTAL
-                [0x05, 0, 0x1F],     # R5: VADJUST
-                [0x06, 25, 0x7F],    # R6: VDISPLAY
-                [0x07, 30, 0x7F],    # R7: VSYNCPOS
-                [0x08, 0, 0x33],     # R8: INTERLACE
-                [0x09, 7, 0x1F],     # R9: MAXSCAN
-                
-                # Адреса
-                [0x0C, 0, 0x3F],     # R12: START_ADDR_H
-                [0x0D, 0, 0xFF],     # R13: START_ADDR_L
+                [0x00, 63, 0xFF],    [0x01, 40, 0xFF],    [0x02, 46, 0xFF],
+                [0x03, 142, 0xFF],   [0x04, 38, 0x7F],    [0x05, 0, 0x1F],
+                [0x06, 25, 0x7F],    [0x07, 30, 0x7F],    [0x08, 0, 0x33],
+                [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
                 
                 # РАСШИРЕННЫЕ РЕГИСТРЫ - КЛЮЧЕВЫЕ ИЗМЕНЕНИЯ!
                 [0x12, 0b00010011, 0b00110011], # R18: VIDEO_CONTROL 
@@ -327,28 +299,6 @@ GRAPHICS_PRESETS = {
 
 
     # =================== 64 KB ======================
-
-    "64k2b": {
-        "name": "LX 640x200 4 colors", 
-        "description": "Extended mode 640x200 with 4 colors, 32KB memory",
-        "devices": {
-            "crtc": [
-                # CRTC базовые регистры
-                [0x00, 63, 0xFF],    [0x01, 40, 0xFF],    [0x02, 46, 0xFF],
-                [0x03, 142, 0xFF],   [0x04, 38, 0x7F],    [0x05, 0, 0x1F],
-                [0x06, 25, 0x7F],    [0x07, 30, 0x7F],    [0x08, 0, 0x33],
-                [0x09, 7, 0x1F],     [0x0C, 0, 0x3F],     [0x0D, 0, 0xFF],
-                
-                # Расширенные регистры
-                [0x12, 0b00010001, 0b00110011], # R18: VIDEO_CONTROL 
-                [0x14, 0b00000111, 0b00000111], # R20: ADDR_MODE
-                [0x15, 0b00000010, 0b00000011], # R21: PIXEL_CTRL     
-            ],
-            "palette": [
-                #["gradient_16c"]
-            ]
-        }
-    },
 
     "64k4b": {
         "name": "LX 640x200 16 colors",

@@ -127,7 +127,8 @@ module aleste_video #(
     logic vbuf_req, vbuf_ack0, vbuf_ack1, vbuf_de_o;
     logic vbuf_burst_request;
     logic vbuf_stb_byte, vbuf_stb_pixel;
-    logic [1:0] vbuf_byte_select;
+    logic [1:0] debug_vbuf_byte_select;
+    logic debug_vbuf_data_req, debug_vbuf_data_valid;
 
     // Color Palette Signals
     logic [11:0] pixel_color;
@@ -546,7 +547,9 @@ module aleste_video #(
         .stb_byte_o(vbuf_stb_byte), // Every video byte character one periond
         .data_o(vbuf_data_o),       // Video byte
         .de_o(vbuf_de_o),             // Border
-        .debug_byte_select_o(vbuf_byte_select)
+        .debug_byte_select_o(debug_vbuf_byte_select),
+        .debug_data_req_o(debug_vbuf_data_req),
+        .debug_data_valid_o(debug_vbuf_data_valid)
     );
 
     // ===========================================
@@ -748,21 +751,21 @@ module aleste_video #(
     
     // Video Buffer Inputs
     assign debug = {
-        vbuf_byte_select[1],
-        vbuf_byte_select[0],
-        vbuf_de_o,
+        debug_vbuf_data_valid,
+        debug_vbuf_data_req,
+        vbuf_req,
         crtc_stb_pixel,          
         crtc_stb_byte,          
         crtc_stb_sync2,              
         crtc_stb_sync1,           
         crtc_de             
     };
-    
+
     /*
     // Video Buffer Outputs
     assign debug = {
-        vbuf_byte_select[1],
-        vbuf_byte_select[0],
+        debug_vbuf_byte_select[1],
+        debug_vbuf_byte_select[0],
         vbuf_req,
         crtc_stb_sync2,          
         crtc_stb_sync1,          

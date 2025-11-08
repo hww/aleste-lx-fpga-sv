@@ -88,18 +88,41 @@ msx_colors u_msx_colors (
     .rgb_color(msx_converted_color)
 );
 
-logic wb_cycle_active = '0;
+// ==========================================================
+// Wishbone cycle
+// ==========================================================
+
+localparam CYCLE_IDLE   = 2'd0;
+localparam CYCLE_ACTIVE = 2'd1;
+localparam CYCLE_WAIT   = 2'd2;
+
+logic [1:0] wb_cycle = '0;
 
 // Delay cycle for color converters
 always_ff @(posedge wb_clk_i) begin
     if (wb_rst_i) begin
-        wb_cycle_active <= '0;
+        wb_cycle <= CYCLE_WAIT;
     end else begin 
-        wb_cycle_active <= '0;
-        if (wb_stb_i && wb_cyc_i && wb_grant_o) 
-            wb_cycle_active <= '1;
+        case (wb_cycle)
+        CYCLE_IDLE: begin
+            if (wb_stb_i && wb_cyc_i && wb_grant_o) 
+                wb_cycle <= CYCLE_ACTIVE;
+        end
+        CYCLE_ACTIVE: begin
+             wb_cycle <= CYCLE_WAIT;
+        end
+        CYCLE_WAIT: begin
+            if (!wb_stb_i)
+               wb_cycle <= CYCLE_IDLE; 
+        end
+        default: ;
+        endcase
     end
 end
+
+// ==========================================================
+// Palette Registers
+// ==========================================================
 
 localparam REG_COLOR_INDEX_CPC = 2'b00;
 localparam REG_COLOR_DATA_CPC  = 2'b01;
@@ -112,7 +135,7 @@ localparam REG_COLOR_BORDER_HI = 5'd4;
 localparam REG_COLOR_DATA_CTRL = 5'd5;
 localparam REG_COLOR_MODIFIER  = 5'd6;
 
-logic [7:0] low_byte_buffer;
+logic [7:0] low_byte_buffer; // keep byte for two bytes operation
 
 // Wishbone write handling
 always_ff @(posedge wb_clk_i) begin
@@ -127,7 +150,7 @@ always_ff @(posedge wb_clk_i) begin
     end else begin
         wb_ack_o <= 1'b0;
         
-        if (wb_cycle_active) begin
+        if (wb_cycle == CYCLE_ACTIVE) begin
             wb_ack_o <= 1'b1;
             
             if (wb_we_i) begin
