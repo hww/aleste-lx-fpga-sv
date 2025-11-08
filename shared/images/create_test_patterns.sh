@@ -1,5 +1,5 @@
 #!/bin/bash
-# create_test_patterns.sh - Создает тестовые изображения
+# create_patterns.sh - Создает тестовые изображения
 
 # Размеры для Aleste
 WIDTH=320
@@ -65,16 +65,16 @@ def circle(x, y, w, h):
         return (0, 0, 0)
 
 # Создаем изображения
-create_bmp('test_checkerboard.bmp', $WIDTH, $HEIGHT, checkerboard)
-create_bmp('test_vertical.bmp', $WIDTH, $HEIGHT, vertical_lines)  
-create_bmp('test_horizontal.bmp', $WIDTH, $HEIGHT, horizontal_lines)
-create_bmp('test_border.bmp', $WIDTH, $HEIGHT, border)
-create_bmp('test_circle.bmp', $WIDTH, $HEIGHT, circle)
+create_bmp('checkerboard.bmp', $WIDTH, $HEIGHT, checkerboard)
+create_bmp('vertical.bmp', $WIDTH, $HEIGHT, vertical_lines)  
+create_bmp('horizontal.bmp', $WIDTH, $HEIGHT, horizontal_lines)
+create_bmp('border.bmp', $WIDTH, $HEIGHT, border)
+create_bmp('circle.bmp', $WIDTH, $HEIGHT, circle)
 
 print('Созданы тестовые изображения:')
-print('- test_checkerboard.bmp (шахматка)')
-print('- test_vertical.bmp (вертикальные линии)')
-print('- test_horizontal.bmp (горизонтальные линии)')
-print('- test_border.bmp (рамка)')
-print('- test_circle.bmp (круг)')
+print('- checkerboard.bmp (шахматка)')
+print('- vertical.bmp (вертикальные линии)')
+print('- horizontal.bmp (горизонтальные линии)')
+print('- border.bmp (рамка)')
+print('- circle.bmp (круг)')
 "

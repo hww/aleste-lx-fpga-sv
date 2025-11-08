@@ -101,6 +101,19 @@ always_ff @(posedge wb_clk_i) begin
     end
 end
 
+localparam REG_COLOR_INDEX_CPC = 2'b00;
+localparam REG_COLOR_DATA_CPC  = 2'b01;
+
+localparam REG_COLOR_INDEX     = 5'd0;
+localparam REG_COLOR_DATA_LO   = 5'd1;
+localparam REG_COLOR_DATA_HI   = 5'd2;
+localparam REG_COLOR_BORDER_LO = 5'd3;
+localparam REG_COLOR_BORDER_HI = 5'd4;
+localparam REG_COLOR_DATA_CTRL = 5'd5;
+localparam REG_COLOR_MODIFIER  = 5'd6;
+
+logic [7:0] low_byte_buffer;
+
 // Wishbone write handling
 always_ff @(posedge wb_clk_i) begin
     if (wb_rst_i) begin
@@ -110,6 +123,7 @@ always_ff @(posedge wb_clk_i) begin
         border_color <= 12'h888;
         wb_ack_o <= 1'b0;
         wb_dat_o <= 8'h00;
+        low_byte_buffer <= 8'h00;
     end else begin
         wb_ack_o <= 1'b0;
         
@@ -121,10 +135,10 @@ always_ff @(posedge wb_clk_i) begin
                 if (legacy_access) begin
                     // Legacy CPC Gate Array access
                     case (wb_dat_i[7:6])
-                        2'b00: begin
+                        REG_COLOR_INDEX_CPC: begin
                             palette_index <= {3'b000, wb_dat_i[4:0]};
                         end
-                        2'b01: begin
+                        REG_COLOR_DATA_CPC: begin
                             if (palette_index[4]) begin
                                 border_color <= cpc_converted_color;
                             end else begin
@@ -136,14 +150,14 @@ always_ff @(posedge wb_clk_i) begin
                 end else if (native_access) begin
                     // Native register access
                     case (wb_adr_i[4:0])
-                        5'h00: palette_index <= wb_dat_i;
-                        5'h01: begin
+                        REG_COLOR_INDEX: palette_index <= wb_dat_i;
+                        REG_COLOR_DATA_LO: begin
                             case (palette_write_mode)
                                 WRITE_MODE_CPC: begin
                                     palette_ram[palette_index] <= cpc_converted_color;
                                 end
                                 WRITE_MODE_12BIT: begin
-                                    palette_ram[palette_index][7:0] <= wb_dat_i;
+                                    low_byte_buffer <= wb_dat_i;
                                 end
                                 WRITE_MODE_MSX: begin
                                     palette_ram[palette_index] <= msx_converted_color;
@@ -157,23 +171,21 @@ always_ff @(posedge wb_clk_i) begin
                                 palette_index <= palette_index + 1;
                             end
                         end
-                        5'h02: begin
+                        REG_COLOR_DATA_HI: begin
                             if (palette_write_mode == WRITE_MODE_12BIT) begin
-                                palette_ram[palette_index][11:8] <= wb_dat_i[3:0];
+                                palette_ram[palette_index] <= {wb_dat_i[3:0],low_byte_buffer};
                                 if (auto_increment) begin
                                     palette_index <= palette_index + 1;
                                 end
                             end
                         end
-                        5'h03: control_logic <= wb_dat_i;
-                        5'h04: palette_modifier <= wb_dat_i;
-                        5'h05: begin
+                        REG_COLOR_BORDER_LO: begin
                             case (palette_write_mode)
+                                WRITE_MODE_12BIT: begin
+                                    low_byte_buffer <= wb_dat_i;
+                                end
                                 WRITE_MODE_CPC: begin
                                     border_color <= cpc_converted_color;
-                                end
-                                WRITE_MODE_12BIT: begin
-                                    border_color[7:0] <= wb_dat_i;
                                 end
                                 WRITE_MODE_MSX: begin
                                     border_color <= msx_converted_color;
@@ -183,11 +195,13 @@ always_ff @(posedge wb_clk_i) begin
                                 end
                             endcase
                         end
-                        5'h06: begin
+                        REG_COLOR_BORDER_HI: begin
                             if (palette_write_mode == WRITE_MODE_12BIT) begin
-                                border_color[11:8] <= wb_dat_i[3:0];
+                                border_color <= {wb_dat_i[3:0], low_byte_buffer};
                             end
                         end
+                        REG_COLOR_DATA_CTRL: control_logic <= wb_dat_i;
+                        REG_COLOR_MODIFIER: palette_modifier <= wb_dat_i;
                         default: begin end
                     endcase
                 end
@@ -195,13 +209,13 @@ always_ff @(posedge wb_clk_i) begin
                 // Read operations
                 if (native_access) begin
                     case (wb_adr_i[4:0])
-                        5'h00: wb_dat_o <= palette_index;
-                        5'h01: wb_dat_o <= palette_ram[palette_index][7:0];
-                        5'h02: wb_dat_o <= {4'b0000, palette_ram[palette_index][11:8]};
-                        5'h03: wb_dat_o <= control_logic;
-                        5'h04: wb_dat_o <= palette_modifier;
-                        5'h05: wb_dat_o <= border_color[7:0];
-                        5'h06: wb_dat_o <= {4'b0000, border_color[11:8]};
+                        REG_COLOR_INDEX:     wb_dat_o <= palette_index;
+                        REG_COLOR_DATA_LO:   wb_dat_o <= palette_ram[palette_index][7:0];
+                        REG_COLOR_DATA_HI:   wb_dat_o <= {4'b0000, palette_ram[palette_index][11:8]};
+                        REG_COLOR_BORDER_LO: wb_dat_o <= border_color[7:0];
+                        REG_COLOR_BORDER_HI: wb_dat_o <= {4'b0000, border_color[11:8]};
+                        REG_COLOR_DATA_CTRL: wb_dat_o <= control_logic;
+                        REG_COLOR_MODIFIER:  wb_dat_o <= palette_modifier;
                         default: wb_dat_o <= 8'h00;
                     endcase
                 end

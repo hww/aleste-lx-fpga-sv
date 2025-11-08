@@ -13,10 +13,10 @@ class FPGAPalette:
         self.REG_PALETTE_INDEX = 0x00
         self.REG_PALETTE_DATA_LOW = 0x01 
         self.REG_PALETTE_DATA_HIGH = 0x02
-        self.REG_CONTROL = 0x03
-        self.REG_MODIFIER = 0x04 
-        self.REG_BORDER_LOW = 0x05
-        self.REG_BORDER_HIGH = 0x06
+        self.REG_BORDER_LOW = 0x03
+        self.REG_BORDER_HIGH = 0x04
+        self.REG_CONTROL = 0x05
+        self.REG_MODIFIER = 0x06 
         
         # НОВЫЕ РЕЖИМЫ ЗАПИСИ - 4 режима как в Verilog
         self.WRITE_MODE_12BIT = 0b00    # 0: 12-битный нативный

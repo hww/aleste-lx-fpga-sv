@@ -659,69 +659,71 @@ public:
             finalPalette.push_back(nearestColor);
         }
         return finalPalette;
-    }    
-static std::vector<RGB> selectCPCPalette(const SimpleImage& image, int maxColors) {
-    std::cout << "🎨 SMART CPC PALETTE SELECTION for " << maxColors << " colors" << std::endl;
-    
-    // 1. Собираем статистику по цветам изображения
-    std::unordered_map<uint32_t, int> colorFrequency;
-    for (const RGB& pixel : image.getPixels()) {
-        uint32_t colorKey = (pixel.r << 16) | (pixel.g << 8) | pixel.b;
-        colorFrequency[colorKey]++;
-    }
-    
-    // 2. Сортируем цвета по частоте
-    std::vector<std::pair<uint32_t, int>> sortedColors(colorFrequency.begin(), colorFrequency.end());
-    std::sort(sortedColors.begin(), sortedColors.end(), 
-             [](const auto& a, const auto& b) { return a.second > b.second; });
-    
-    // 3. Для каждого популярного цвета находим ближайший в CPC палитре
-    std::vector<RGB> selectedPalette;
-    std::vector<bool> usedCPC(CPC_PALETTE.size(), false);
-    
-    for (const auto& [colorKey, frequency] : sortedColors) {
-        if (selectedPalette.size() >= maxColors) break;
+    }   
+
+    static std::vector<RGB> selectCPCPalette(const SimpleImage& image, int maxColors) {
+        std::cout << "🎨 SMART CPC PALETTE SELECTION for " << maxColors << " colors" << std::endl;
         
-        RGB targetColor(
-            (colorKey >> 16) & 0xFF,
-            (colorKey >> 8) & 0xFF, 
-            colorKey & 0xFF
-        );
-        
-        // Находим ближайший цвет в CPC палитре
-        int bestCPCIndex = findBestColorCPC(targetColor, CPC_PALETTE);
-        
-        if (!usedCPC[bestCPCIndex]) {
-            selectedPalette.push_back(CPC_PALETTE[bestCPCIndex]);
-            usedCPC[bestCPCIndex] = true;
-            std::cout << "   Selected CPC color " << bestCPCIndex << " (used " << frequency << " times)" << std::endl;
-        }
-    }
-    
-    // 4. Если не набрали достаточно цветов, добавляем контрастные
-    if (selectedPalette.size() < maxColors) {
-        // Добавляем чёрный и белый если их нет
-        if (!usedCPC[0]) {  // Чёрный
-            selectedPalette.push_back(CPC_PALETTE[0]);
-            usedCPC[0] = true;
-        }
-        if (!usedCPC[26]) { // Белый  
-            selectedPalette.push_back(CPC_PALETTE[26]);
-            usedCPC[26] = true;
+        // 1. Собираем статистику по цветам изображения
+        std::unordered_map<uint32_t, int> colorFrequency;
+        for (const RGB& pixel : image.getPixels()) {
+            uint32_t colorKey = (pixel.r << 16) | (pixel.g << 8) | pixel.b;
+            colorFrequency[colorKey]++;
         }
         
-        // Добавляем остальные контрастные цвета
-        for (int i = 0; i < CPC_PALETTE.size() && selectedPalette.size() < maxColors; i++) {
-            if (!usedCPC[i]) {
-                selectedPalette.push_back(CPC_PALETTE[i]);
-                usedCPC[i] = true;
+        // 2. Сортируем цвета по частоте
+        std::vector<std::pair<uint32_t, int>> sortedColors(colorFrequency.begin(), colorFrequency.end());
+        std::sort(sortedColors.begin(), sortedColors.end(), 
+                [](const auto& a, const auto& b) { return a.second > b.second; });
+        
+        // 3. Для каждого популярного цвета находим ближайший в CPC палитре
+        std::vector<RGB> selectedPalette;
+        std::vector<bool> usedCPC(CPC_PALETTE.size(), false);
+        
+        for (const auto& [colorKey, frequency] : sortedColors) {
+            if (selectedPalette.size() >= maxColors) break;
+            
+            RGB targetColor(
+                (colorKey >> 16) & 0xFF,
+                (colorKey >> 8) & 0xFF, 
+                colorKey & 0xFF
+            );
+            
+            // Находим ближайший цвет в CPC палитре
+            int bestCPCIndex = findBestColorCPC(targetColor, CPC_PALETTE);
+            
+            if (!usedCPC[bestCPCIndex]) {
+                selectedPalette.push_back(CPC_PALETTE[bestCPCIndex]);
+                usedCPC[bestCPCIndex] = true;
+                std::cout << "   Selected CPC color " << bestCPCIndex << " (used " << frequency << " times)" << std::endl;
             }
         }
+        
+        // 4. Если не набрали достаточно цветов, добавляем контрастные
+        if (selectedPalette.size() < maxColors) {
+            // Добавляем чёрный и белый если их нет
+            if (!usedCPC[0]) {  // Чёрный
+                selectedPalette.push_back(CPC_PALETTE[0]);
+                usedCPC[0] = true;
+            }
+            if (!usedCPC[26]) { // Белый  
+                selectedPalette.push_back(CPC_PALETTE[26]);
+                usedCPC[26] = true;
+            }
+            
+            // Добавляем остальные контрастные цвета
+            for (int i = 0; i < CPC_PALETTE.size() && selectedPalette.size() < maxColors; i++) {
+                if (!usedCPC[i]) {
+                    selectedPalette.push_back(CPC_PALETTE[i]);
+                    usedCPC[i] = true;
+                }
+            }
+        }
+        
+        std::cout << "✅ Selected " << selectedPalette.size() << " CPC colors" << std::endl;
+        return selectedPalette;
     }
-    
-    std::cout << "✅ Selected " << selectedPalette.size() << " CPC colors" << std::endl;
-    return selectedPalette;
-}
+
     static RGB findNearestColorInPalette(const RGB& color, const std::vector<RGB>& palette) {
         int bestIndex = 0;
         int bestDist = std::numeric_limits<int>::max();
@@ -1272,7 +1274,7 @@ private:
         int pixelsPerByte = 8 / bpp;
         int bytesPerLine = (width + pixelsPerByte - 1) / pixelsPerByte;
         
-        std::cout << "   Pixels per byte: " << pixelsPerByte << std::endl;
+        std::cout << "   Linear packing: " << pixelsPerByte << " pixels per byte" << std::endl;
         std::cout << "   Bytes per line: " << bytesPerLine << std::endl;
         
         for (int y = 0; y < height; ++y) {
@@ -1281,13 +1283,29 @@ private:
                 
                 for (int i = 0; i < pixelsPerByte; ++i) {
                     int pixelX = xByte * pixelsPerByte + i;
-                    if (pixelX < width) {
-                        const RGB& color = image.pixel(pixelX, y);
-                        int colorIdx = findBestColor(color, palette);
-                        
-                        // ПРАВИЛЬНО: пиксель 0 = старшие биты
-                        int shift = (pixelsPerByte - 1 - i) * bpp;
-                        byteVal |= (colorIdx << shift);
+                    if (pixelX >= width) continue;
+                    
+                    const RGB& color = image.pixel(pixelX, y);
+                    int colorIdx = findBestColor(color, palette);
+                    
+                    // ЛИНЕЙНАЯ УПАКОВКА:
+                    // Пиксели упаковываются последовательно в байт
+                    switch (bpp) {
+                        case 1: // 8 пикселей в байте: [7]=pixel0, [6]=pixel1, ..., [0]=pixel7
+                            byteVal |= (colorIdx << (7 - i));
+                            break;
+                            
+                        case 2: // 4 пикселя в байте: [7:6]=pixel0, [5:4]=pixel1, [3:2]=pixel2, [1:0]=pixel3
+                            byteVal |= (colorIdx << (6 - i * 2));
+                            break;
+                            
+                        case 4: // 2 пикселя в байте: [7:4]=pixel0, [3:0]=pixel1  
+                            byteVal |= (colorIdx << (4 - i * 4));
+                            break;
+                            
+                        case 8: // 1 пиксель в байте: [7:0]=pixel0
+                            byteVal = colorIdx;
+                            break;
                     }
                 }
                 result.push_back(byteVal);

@@ -96,6 +96,11 @@ end
 logic [1:0] byte_count = 0;
 logic bufer_enable, de_delayed;
 
+localparam BYTES_PER_CYCLE_2 = 2'b00;
+localparam BYTES_PER_CYCLE_4 = 2'b01;
+localparam BYTES_PER_CYCLE_8 = 2'b10;
+localparam BYTES_PER_CYCLE_16 = 2'b11;
+
 always @(posedge pixel_clk_i) begin
     if (rst_i) begin
         byte_count <= 2'b00;
@@ -108,16 +113,16 @@ always @(posedge pixel_clk_i) begin
 
         if (stb_sync1_i || stb_sync2_i) begin
             case (cfg_rate)
-                2'b00: begin // 2 bytes per 16 pixels
+                BYTES_PER_CYCLE_2: begin // 2 bytes per 16 pixels
                     data_req <= de_i && stb_sync1_i;
                 end
-                2'b01: begin // 4 bytes per 16 pixels
+                BYTES_PER_CYCLE_4: begin // 4 bytes per 16 pixels
                     data_req <= de_i && stb_sync1_i;
                 end
-                2'b10: begin // 8 bytes per 16 pixels
+                BYTES_PER_CYCLE_8: begin // 8 bytes per 16 pixels
                     data_req <= de_i;
                 end
-                2'b11: begin // 16 bytes per 16 pixels
+                BYTES_PER_CYCLE_16: begin // 16 bytes per 16 pixels
                     data_req <= de_i;
                 end
             endcase
@@ -132,23 +137,25 @@ always @(posedge pixel_clk_i) begin
 
         // Count bytes every byte access
         if (stb_byte_i) begin
-            // T4 or T12
-            // T0, T4, T8, T12 
-            // T0, T2, T4, T6, T8, T10, T12, T14
-            if (stb_sync1_i || stb_sync2_i) begin
+            if (!de_delayed) begin 
+                byte_count <= 2'b00;
+            end else if (stb_sync1_i || stb_sync2_i) begin
+                // T4 or T12
+                // T0, T4, T8, T12 
+                // T0, T2, T4, T6, T8, T10, T12, T14
                 case (cfg_rate)
-                    2'b00: begin // 2 bytes per 16 pixels
+                    BYTES_PER_CYCLE_2: begin // 2 bytes per 16 pixels
                         if (stb_sync2_i) byte_count <= 2'b00;
                         else byte_count <= byte_count + 2'b01;
                     end
-                    2'b01: begin // 4 bytes per 16 pixels
+                    BYTES_PER_CYCLE_4: begin // 4 bytes per 16 pixels
                         if (stb_sync2_i) byte_count <= 2'b00;
                         else byte_count <= byte_count + 2'b01;
                     end
-                    2'b10: begin // 8 bytes per 16 pixels
+                    BYTES_PER_CYCLE_8: begin // 8 bytes per 16 pixels
                         byte_count <= 2'b00;
                     end
-                    2'b11: begin // 16 bytes per 16 pixels
+                    BYTES_PER_CYCLE_16: begin // 16 bytes per 16 pixels
                         byte_count <= 2'b00;
                     end
                 endcase
@@ -169,6 +176,8 @@ always @(posedge pixel_clk_i) begin
     end else begin
         if (stb_sync1_i) begin
             bufer_enable <= de_i; // прогрев пайплайна
+        end 
+        if (stb_sync2_i) begin
             de_delayed <= bufer_enable; 
         end 
     end

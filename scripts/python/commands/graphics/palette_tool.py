@@ -147,32 +147,61 @@ class PaletteTool:
                 success += 1
         return success
     
-    def fill_gradient(self, start: int, count: int, start_color: int, end_color: int) -> int:
-        """Fill palette range with gradient"""
+    def fill_thermal_gradient(self, start: int, count: int) -> int:
+        """Fill palette range with highly distinguishable thermal gradient"""
         success = 0
         
-        # Extract RGB components
-        r1 = (start_color >> 8) & 0x0F
-        g1 = (start_color >> 4) & 0x0F
-        b1 = start_color & 0x0F
+        # Яркие, максимально отличающиеся цвета тепловой палитры
+        thermal_colors = [
+            0x000,  # Черный (для контраста)
+            0xF00,  # Ярко-красный
+            0xF80,  # Оранжевый  
+            0xFF0,  # Ярко-желтый
+            0x0F0,  # Ярко-зеленый
+            0x0FF,  # Голубой
+            0x00F,  # Синий
+            0xF0F,  # Пурпурный
+            0xFFF   # Белый
+        ]
         
-        r2 = (end_color >> 8) & 0x0F
-        g2 = (end_color >> 4) & 0x0F  
-        b2 = end_color & 0x0F
-        
-        for i in range(count):
-            # Linear interpolation
-            factor = i / max(count - 1, 1)
-            r = int(r1 + (r2 - r1) * factor)
-            g = int(g1 + (g2 - g1) * factor)
-            b = int(b1 + (b2 - b1) * factor)
+        # Если нужно больше цветов, чем в базовой палитре, интерполируем
+        if count <= len(thermal_colors):
+            # Используем готовые цвета
+            for i in range(min(count, len(thermal_colors))):
+                if self.write_color(start + i, thermal_colors[i], auto_inc=False):
+                    success += 1
+        else:
+            # Интерполируем между базовыми цветами
+            colors_per_segment = count / (len(thermal_colors) - 1)
             
-            color = (r << 8) | (g << 4) | b
-            if self.write_color(start + i, color, auto_inc=False):
-                success += 1
+            for i in range(count):
+                segment = int(i / colors_per_segment)
+                segment = min(segment, len(thermal_colors) - 2)
+                
+                factor = (i % colors_per_segment) / colors_per_segment
+                
+                start_color = thermal_colors[segment]
+                end_color = thermal_colors[segment + 1]
+                
+                # Интерполяция
+                r1 = (start_color >> 8) & 0x0F
+                g1 = (start_color >> 4) & 0x0F
+                b1 = start_color & 0x0F
+                
+                r2 = (end_color >> 8) & 0x0F
+                g2 = (end_color >> 4) & 0x0F  
+                b2 = end_color & 0x0F
+                
+                r = int(r1 + (r2 - r1) * factor)
+                g = int(g1 + (g2 - g1) * factor)
+                b = int(b1 + (b2 - b1) * factor)
+                
+                color = (r << 8) | (g << 4) | b
+                if self.write_color(start + i, color, auto_inc=False):
+                    success += 1
         
         return success
-    
+
     # ===== BORDER OPERATIONS =====
     
     def set_border(self, color: int) -> bool:
@@ -373,12 +402,10 @@ def main():
     fill_parser.add_argument('--step', type=int, default=1, help='Increment step')
     
     # Gradient command
-    grad_parser = subparsers.add_parser('gradient', help='Fill with gradient')
+    grad_parser = subparsers.add_parser('gradient', help='Fill with thermal gradient')
     grad_parser.add_argument('start', type=int, help='Start index')
     grad_parser.add_argument('count', type=int, help='Number of colors')
-    grad_parser.add_argument('start_color', type=lambda x: int(x, 0), help='Start color')
-    grad_parser.add_argument('end_color', type=lambda x: int(x, 0), help='End color')
-    
+        
     # Test command
     subparsers.add_parser('test', help='Write test pattern')
     
@@ -458,8 +485,8 @@ def main():
             print(f"✅ Filled {count}/{args.count} colors")
             
         elif args.command == 'gradient':
-            count = tool.fill_gradient(args.start, args.count, args.start_color, args.end_color)
-            print(f"✅ Gradient filled {count}/{args.count} colors")
+            count = tool.fill_thermal_gradient(args.start, args.count)
+            print(f"✅ Thermal gradient filled {count}/{args.count} colors")
             
         elif args.command == 'test':
             count = tool.memory_test()

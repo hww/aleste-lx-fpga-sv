@@ -732,6 +732,7 @@ module aleste_video #(
         clk_pixel
     };
     */
+        /*
     // Memory Arbitter
     assign debug = {
         cs[1],
@@ -743,32 +744,34 @@ module aleste_video #(
         uart2ext_stb,
         uart2ext_cyc
     };
-    /*
+    */
+    
+    // Video Buffer Inputs
     assign debug = {
-        system2mem_ack,
-        system2mem_stb,
-        //vbuf_ack1,
-        //vbuf_ack0,
-        //vbuf_req,
-        mem2sdram_ack1,          
-        mem2sdram_ack0,          
-        mem2sdram_req,              
-        debug_mem_video_active,           
-        debug_mem_wb_active             
+        vbuf_byte_select[1],
+        vbuf_byte_select[0],
+        vbuf_de_o,
+        crtc_stb_pixel,          
+        crtc_stb_byte,          
+        crtc_stb_sync2,              
+        crtc_stb_sync1,           
+        crtc_de             
     };
- */
-  /*
+    
+    /*
+    // Video Buffer Outputs
     assign debug = {
-        system2mem_dat_out[0],
-        system2mem_ack,
-        system2mem_stb,           
-        system2mem_cyc, 
-        mem2sdram_data_out[0],            
-        mem2sdram_ack1,             
-        mem2sdram_ack0,          
-        mem2sdram_req              
+        vbuf_byte_select[1],
+        vbuf_byte_select[0],
+        vbuf_req,
+        crtc_stb_sync2,          
+        crtc_stb_sync1,          
+        vbuf_stb_pixel,              
+        vbuf_stb_byte,           
+        vbuf_de_o             
     };
     */
+
     // ===========================================
     // Отладка
     // ===========================================

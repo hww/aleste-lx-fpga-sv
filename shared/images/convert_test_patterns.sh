@@ -20,11 +20,11 @@ echo "Используем конвертер: $CONVERTER"
 
 # Массив тестовых файлов
 declare -a test_files=(
-    #"test_checkerboard.bmp"
-    #"test_vertical.bmp" 
-    #"test_horizontal.bmp"
-    #"test_circle.bmp"
-    #"test_border.bmp"
+    #"checkerboard.bmp"
+    #"vertical.bmp" 
+    #"horizontal.bmp"
+    "circle.bmp"
+    #"border.bmp"
     "pgirl.bmp"
     "vfp.bmp"
 )
@@ -38,51 +38,51 @@ for file in "${test_files[@]}"; do
         echo "Converting $file..."
         
         # Mono version (1bpp, CPC адресация)
-        $CONVERTER "$file" "cpc_${base_name}_1bpp.pix" --width 640 --height 200 --bpp 1 --color-encoding linear --address-encoding cpc --palette-mode cpc $OPTIONS --dump-bmp "cpc_${base_name}_1bpp.dump.bmp"
+        $CONVERTER "$file" "${base_name}_1bpp_cpc.pix" --width 640 --height 200 --bpp 1 --color-encoding linear --address-encoding cpc --palette-mode cpc $OPTIONS --dump-bmp "${base_name}_1bpp_cpc.dump.bmp"
         
         # 2bpp CPC version
-        $CONVERTER "$file" "cpc_${base_name}_2bpp.pix" --width 320 --height 200 --bpp 2 --color-encoding cpc --address-encoding cpc --palette-mode cpc $OPTIONS --dump-bmp "cpc_${base_name}_2bpp.dump.bmp"
+        $CONVERTER "$file" "${base_name}_2bpp_cpc.pix" --width 320 --height 200 --bpp 2 --color-encoding cpc --address-encoding cpc --palette-mode cpc $OPTIONS --dump-bmp "${base_name}_2bpp_cpc.dump.bmp"
         
         # 4bpp CPC version
-        $CONVERTER "$file" "cpc_${base_name}_4bpp.pix" --width 160 --height 200 --bpp 4 --color-encoding cpc --address-encoding cpc --palette-mode cpc $OPTIONS --dump-bmp "cpc_${base_name}_4bpp.dump.bmp"
+        $CONVERTER "$file" "${base_name}_4bpp_cpc.pix" --width 160 --height 200 --bpp 4 --color-encoding cpc --address-encoding cpc --palette-mode cpc $OPTIONS --dump-bmp "${base_name}_4bpp_cpc.dump.bmp"
 
         # ================== LX MODES ==================
 
         # ----- 16 KB -----
         # 4bpp Linear version  
-        $CONVERTER "$file" "linear_${base_name}_1bpp_640.pix" --width 640 --height 200 --bpp 1 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "linear_${base_name}_1bpp_640.dump.bmp" 
+        $CONVERTER "$file" "${base_name}_16k1b.pix" --width 640 --height 200 --bpp 1 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "${base_name}_16k1b.dump.bmp" 
 
         # 4bpp Linear version  
-        $CONVERTER "$file" "linear_${base_name}_2bpp_320.pix" --width 320 --height 200 --bpp 2 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "linear_${base_name}_2bpp_320.dump.bmp" 
+        $CONVERTER "$file" "${base_name}_16k2b.pix" --width 320 --height 200 --bpp 2 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "${base_name}_16k2b.dump.bmp" 
 
         # 4bpp Linear version  
-        $CONVERTER "$file" "linear_${base_name}_4bpp_160.pix" --width 160 --height 200 --bpp 4 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "linear_${base_name}_4bpp_160.dump.bmp" 
+        $CONVERTER "$file" "${base_name}_16k4b.pix" --width 160 --height 200 --bpp 4 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "${base_name}_16k4b.dump.bmp" 
 
         # ----- 32 KB -----
 
         # 4bpp Linear version  
-        $CONVERTER "$file" "linear_${base_name}_2bpp_640.pix" --width 640 --height 200 --bpp 2 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "linear_${base_name}_2bpp_640.dump.bmp" 
+        $CONVERTER "$file" "${base_name}_32k2b.pix" --width 640 --height 200 --bpp 2 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "${base_name}_32k2b.dump.bmp" 
 
         # 4bpp Linear version  
-        $CONVERTER "$file" "linear_${base_name}_4bpp_320.pix" --width 320 --height 200 --bpp 4 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "linear_${base_name}_4bpp_320.dump.bmp" 
+        $CONVERTER "$file" "${base_name}_32k4b.pix" --width 320 --height 200 --bpp 4 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "${base_name}_32k4b.dump.bmp" 
 
         # 8bpp version (256 colors)
-        $CONVERTER "$file" "linear_${base_name}_8bpp_160.pix" --width 160 --height 200 --bpp 8 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "linear_${base_name}_8bpp_160.dump.bmp" 
+        $CONVERTER "$file" "${base_name}_32k8b.pix" --width 160 --height 200 --bpp 8 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "${base_name}_32k8b.dump.bmp" 
 
 
         # ----- 64 KB -----
 
         # 4bpp Linear version  
-        $CONVERTER "$file" "linear_${base_name}_4bpp_640.pix" --width 640 --height 200 --bpp 4 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "linear_${base_name}_4bpp_640.dump.bmp" 
+        $CONVERTER "$file" "${base_name}_64k4b.pix" --width 640 --height 200 --bpp 4 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "${base_name}_64k4b.dump.bmp" 
 
         # 8bpp version (256 colors)
-        $CONVERTER "$file" "linear_${base_name}_8bpp_320.pix" --width 320 --height 200 --bpp 8 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "linear_${base_name}_8bpp_320.dump.bmp" 
+        $CONVERTER "$file" "${base_name}_64k8b.pix" --width 320 --height 200 --bpp 8 --color-encoding linear --address-encoding linear --palette-mode 12bit $OPTIONS --dump-bmp "${base_name}_64k8b.dump.bmp" 
 
         # 8bpp version (256 colors)
-        $CONVERTER "$file" "linear_${base_name}_8bpp_320_yjk.pix" --width 320 --height 200 --bpp 8 --color-encoding linear --address-encoding linear --palette-mode msx2yjk $OPTIONS --dump-bmp "linear_${base_name}_8bpp_320_yjk.dump.bmp" 
+        $CONVERTER "$file" "${base_name}_64k8b_yjk.pix" --width 320 --height 200 --bpp 8 --color-encoding linear --address-encoding linear --palette-mode msx2yjk $OPTIONS --dump-bmp "${base_name}_64k8b_yjk.dump.bmp" 
 
         # 8bpp version (256 colors)
-        $CONVERTER "$file" "linear_${base_name}_8bpp_320_msx.pix" --width 320 --height 200 --bpp 8 --color-encoding linear --address-encoding linear --palette-mode msx2rgb $OPTIONS --dump-bmp "linear_${base_name}_8bpp_320_msx.dump.bmp" 
+        $CONVERTER "$file" "${base_name}_64k8b_msx.pix" --width 320 --height 200 --bpp 8 --color-encoding linear --address-encoding linear --palette-mode msx2rgb $OPTIONS --dump-bmp "${base_name}_64k8b_msx.dump.bmp" 
     else
         echo "⚠️  Warning: $file not found"
     fi

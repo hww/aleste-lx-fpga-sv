@@ -432,7 +432,7 @@ logic stb_pixel = 0;     // Pixel increment signal
 wire strobe_1x = (crtc_pix_x[3:0] == 4'b1111);  
 wire strobe_2x = (crtc_pix_x[2:0] == 3'b111); 
 wire strobe_4x = (crtc_pix_x[1:0] == 2'b11);
-wire strobe_8x = (crtc_pix_x[0] == 1'b1);
+wire strobe_8x = (crtc_pix_x[0]   == 1'b1);
 wire strobe_16x = 1'b1;
 
 // Configurable pixel character speed
@@ -448,7 +448,7 @@ always_ff @(posedge pix_clk_i) begin
 
         case (pixel_rate)
             2'b00: stb_byte <= (crtc_pix_x[2:0] == 3'b011); // 16px/char (2 bytes per 16 pixeld)
-            2'b01: stb_byte <= (crtc_pix_x[1:0] == 2'b01);  // 8px/char  (4 bytes per 16 pixeld)
+            2'b01: stb_byte <= (crtc_pix_x[1:0] == 2'b11);  // 8px/char  (4 bytes per 16 pixeld)
             2'b10: stb_byte <= (crtc_pix_x[0]   == 1'b1);   // 4px/char  (8 bytes per 16 pixeld)
             2'b11: stb_byte <= 1'b1;                        // 2px/char
             default: ;
@@ -589,7 +589,7 @@ always_ff @(posedge pix_clk_i) begin
         end else begin
             if (stb_sync1_o) begin
                 // Первый цикл после VSYNC: только включаем инкрементацию
-                linear_incrementing <= linear_mode;
+                linear_incrementing <= crtc_de_o && linear_mode;
             end
 
             if (linear_incrementing && (stb_sync1_o || (address_rate && stb_sync2_o))) begin

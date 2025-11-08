@@ -47,6 +47,10 @@ always @(posedge clk_i) begin
     end
 end
 
+localparam BITS_PER_PIXELS_1 = 2'b00;
+localparam BITS_PER_PIXELS_2 = 2'b01;
+localparam BITS_PER_PIXELS_4 = 2'b10;
+localparam BITS_PER_PIXELS_8 = 2'b11;
 
 always @(posedge clk_i) begin
     if (rst_i) begin
@@ -60,10 +64,10 @@ always @(posedge clk_i) begin
         end else if (stb_pixel_i) begin
             // Сдвиговый регистр на каждый пиксель строб
             case (cfg_bpp_latched)
-                2'b00: begin // 1bpp - 8 пикселей из байта
+                BITS_PER_PIXELS_1: begin // 1bpp - 8 пикселей из байта
                     shift_reg <= {shift_reg[6:0], 1'b0};
                 end
-                2'b01: begin // 2bpp - 4 пикселя из байта
+                BITS_PER_PIXELS_2: begin // 2bpp - 4 пикселя из байта
                     if (cfg_linear_latched) begin
                         shift_reg <= {shift_reg[5:0], 2'b0};
                     end else begin
@@ -74,7 +78,7 @@ always @(posedge clk_i) begin
                         shift_reg <= {shift_reg[6:4], 1'b0, shift_reg[2:0], 1'b0};
                     end
                 end
-                2'b10: begin // 4bpp - 2 пикселя из байта
+                BITS_PER_PIXELS_4: begin // 4bpp - 2 пикселя из байта
                     if (cfg_linear_latched) begin
                         shift_reg <= {shift_reg[3:0], 4'b0};
                     end else begin
@@ -82,7 +86,9 @@ always @(posedge clk_i) begin
                         shift_reg <= {shift_reg[6], 1'b0, shift_reg[4], 1'b0, shift_reg[2], 1'b0, shift_reg[0], 1'b0};
                     end
                 end
-                // 2'b11: 8bpp - сдвиг не нужен
+                BITS_PER_PIXELS_8: begin
+                    // 2'b11: 8bpp - сдвиг не нужен
+                end
             endcase
         end
     end
@@ -93,10 +99,10 @@ logic [7:0] pixel = 0;
 always_comb begin
     // Формирование пиксельного индекса
     case (cfg_bpp_latched)
-        2'b00: begin // 1bpp - 8 пикселей из байта
+        BITS_PER_PIXELS_1: begin // 1bpp - 8 пикселей из байта
             pixel = {7'b0, shift_reg[7]};
         end
-        2'b01: begin // 2bpp - 4 пикселя из байта
+        BITS_PER_PIXELS_2: begin // 2bpp - 4 пикселя из байта
             if (cfg_linear_latched) begin
                 pixel = {6'b0, shift_reg[7:6]};
             end else begin
@@ -104,7 +110,7 @@ always_comb begin
                 pixel = {6'b0, shift_reg[7], shift_reg[3]};
             end
         end
-        2'b10: begin // 4bpp - 2 пикселя из байта
+        BITS_PER_PIXELS_4: begin // 4bpp - 2 пикселя из байта
             if (cfg_linear_latched) begin
                 pixel = {4'b0, shift_reg[7:4]};
             end else begin
@@ -112,7 +118,7 @@ always_comb begin
                 pixel = {4'b0, shift_reg[1], shift_reg[5], shift_reg[3], shift_reg[7]};
             end
         end
-        2'b11: begin // 8bpp - 1 пиксель из байта
+        BITS_PER_PIXELS_8: begin // 8bpp - 1 пиксель из байта
             pixel = shift_reg;
         end
     endcase
