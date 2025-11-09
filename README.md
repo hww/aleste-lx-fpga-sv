@@ -9,7 +9,7 @@
 
 This project is a modern FPGA implementation of the Aleste 520EX computer, aiming for full hardware compatibility while enhancing it with modern capabilities like SDRAM, advanced sound, and video output.
 
-![AlesteLX Diagramm]/shared/screens/lx_aleste_64k8b.jpg)
+![AlesteLX Diagramm](/shared/screens/lx_aleste_64k8b.jpg)
 
 Key aspects:
 - Faithful recreation of the original Aleste and Amstrad CPC architecture
