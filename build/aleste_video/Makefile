@@ -35,7 +35,7 @@ SCALER      := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
 PALETTE     := $(PALETTE_DIR)/cpc_colors.sv $(PALETTE_DIR)/msx_colors.sv $(PALETTE_DIR)/color_palette.sv
 VIDBUF      := $(VIDBUF_DIR)/video_buffer.sv
 PIXPIPE	    := $(PIXPIPE_DIR)/pixel_pipeline.sv
-SYSTEM      := $(SYSTEM_DIR)/memory_arbiter.sv $(SYSTEM_DIR)/system_arbiter.sv $(SYSTEM_DIR)/address_decoder.sv
+SYSTEM      := $(SYSTEM_DIR)/memory_arbiter.sv $(SYSTEM_DIR)/wb_arbiter.sv $(SYSTEM_DIR)/address_decoder.sv $(SYSTEM_DIR)/video_ctrl.sv 
 TOP_MODULE  := $(SYSTEM_DIR)/aleste_video.sv
 
 # ALL_SOURCES для правильных зависимостей

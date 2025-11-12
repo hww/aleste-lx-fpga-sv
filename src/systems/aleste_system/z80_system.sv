@@ -1,7 +1,7 @@
+`default_nettype none
+
 // =============================================================================
-// Z80 System Wrapper with Debug Interface
-// =============================================================================
-// Complete Z80 system with T80pa CPU, MMUs, and debug front panel
+// Z80 System Wrapper with TV80 CPU Core
 // =============================================================================
 
 module z80_system (
@@ -71,7 +71,7 @@ module z80_system (
 );
 
     // =========================================================================
-    // T80pa Core Interface Signals
+    // TV80 Core Interface Signals
     // =========================================================================
     logic [15:0]    z80_a;                        // Z80 address bus
     logic [7:0]     z80_do;                       // Z80 data output  
@@ -85,12 +85,10 @@ module z80_system (
     logic           z80_halt_n;
     logic           z80_busak_n;
     logic           z80_wait_n;
-    logic           z80_cen_p;
-    
-    // Debug interface to CPU
-    logic [211:0]   z80_reg;                      // Internal CPU registers
-    logic           z80_dirset;
-    logic [211:0]   z80_dir;
+    logic           z80_int_n;
+    logic           z80_nmi_n;
+    logic           z80_busrq_n;
+    logic           z80_reset_n;
 
     // =========================================================================
     // MMU Interface Signals
@@ -105,6 +103,7 @@ module z80_system (
     logic [23:0]    legacy_mmu_adr;
     logic [7:0]     legacy_mmu_dat_o;
     logic           legacy_mmu_wait;
+    logic [7:0]     legacy_mmu_cpu_dat_o;
     
     // Legacy MMU Slave interfaces
     logic [7:0]     legacy_mmu_s_dat_o;
@@ -119,6 +118,7 @@ module z80_system (
     logic [7:0]     native_mmu_dat_o;
     logic           native_mmu_wait;
     logic           native_mmu_s_wb_sel;
+    logic [7:0]     native_mmu_cpu_dout;
     
     // Native MMU Slave interfaces
     logic [7:0]     native_mmu_s_dat_o;
@@ -129,41 +129,43 @@ module z80_system (
     logic           legacy_syscall_we;
 
     // =========================================================================
-    // Debug Module Interface
+    // Debug Module Interface - УДАЛЕН z80_cen_p!
     // =========================================================================
     logic           debug_z80_wait_n;
-    logic           debug_z80_cen_p;
     logic           debug_halt;
 
     // =========================================================================
-    // T80pa CORE INSTANTIATION
+    // TV80 CORE INSTANTIATION (Verilog)
     // =========================================================================
-    T80pa z80_core (
-        .RESET_n(nrst_i),
-        .CLK(clk_i),
-        .CEN_p(z80_cen_p),
-        .WAIT_n(z80_wait_n),
-        .INT_n(~int_req_i),
-        .NMI_n(~nmi_req_i),
-        .BUSRQ_n(~busrq_i),
-        .M1_n(z80_m1_n),
-        .MREQ_n(z80_mreq_n),
-        .IORQ_n(z80_iorq_n),
-        .RD_n(z80_rd_n),
-        .WR_n(z80_wr_n),
-        .RFSH_n(z80_rfsh_n),
-        .HALT_n(z80_halt_n),
-        .BUSAK_n(z80_busak_n),
+    tv80s z80_core (
+        .reset_n(z80_reset_n),
+        .clk(clk_i),
+        .wait_n(z80_wait_n),
+        .int_n(z80_int_n),
+        .nmi_n(z80_nmi_n),
+        .busrq_n(z80_busrq_n),
+        .m1_n(z80_m1_n),
+        .mreq_n(z80_mreq_n),
+        .iorq_n(z80_iorq_n),
+        .rd_n(z80_rd_n),
+        .wr_n(z80_wr_n),
+        .rfsh_n(z80_rfsh_n),
+        .halt_n(z80_halt_n),
+        .busak_n(z80_busak_n),
         .A(z80_a),
-        .DI(z80_di),
-        .DO(z80_do),
-        .REG(z80_reg),                           // Internal state for debug
-        .DIRSet(z80_dirset),                     // Direct register set
-        .DIR(z80_dir)                            // Direct register data
+        .di(z80_di),
+        .dout(z80_do)
     );
 
+    // Подключение сигналов TV80
+    assign z80_reset_n = nrst_i;
+    assign z80_int_n = ~int_req_i;
+    assign z80_nmi_n = ~nmi_req_i;
+    assign z80_busrq_n = ~busrq_i;
+    assign z80_wait_n = debug_z80_wait_n;
+
     // =========================================================================
-    // DEBUG MODULE INSTANTIATION
+    // DEBUG MODULE INSTANTIATION - ОБНОВЛЕНО без cen_p!
     // =========================================================================
     z80_debug debug_module (
         .clk(clk_i),
@@ -191,14 +193,13 @@ module z80_system (
         .z80_halt_n(z80_halt_n),
         .z80_busak_n(z80_busak_n),
         
-        // CPU Control Outputs
+        // CPU Control Outputs - УДАЛЕН z80_cen_p!
         .z80_wait_n(debug_z80_wait_n),
-        .z80_cen_p(debug_z80_cen_p),
         .debug_halt_o(debug_halt)
     );
 
     // =========================================================================
-    // MMU INSTANTIATIONS (from your working code)
+    // MMU INSTANTIATIONS 
     // =========================================================================
 
     // LEGACY MMU INSTANTIATION (CPC 6128 COMPATIBLE)
@@ -234,7 +235,7 @@ module z80_system (
         .cpu_rd_n(z80_rd_n),
         .cpu_wr_n(z80_wr_n),
         .cpu_dat_i(z80_do),
-        .cpu_dat_o(),                            // Connected via mux
+        .cpu_dat_o(legacy_mmu_cpu_dat_o),
         .cpu_wait(legacy_mmu_wait),
 
         // CPC Control Outputs
@@ -264,7 +265,7 @@ module z80_system (
         .cpu_wr_n(z80_wr_n),
         .cpu_m1_n(z80_m1_n),
         .cpu_din(z80_do),
-        .cpu_dout(),                            // Connected via mux
+        .cpu_dout(native_mmu_cpu_dout),
         .cpu_wait(native_mmu_wait),
         
         // Master Wishbone Interface
@@ -317,9 +318,9 @@ module z80_system (
     // Z80 Data Input Mux (from appropriate MMU)
     assign z80_di = native_mode ? native_mmu_cpu_dout : legacy_mmu_cpu_dat_o;
 
-    // CPU Control Signals (from debug module)
-    assign z80_wait_n = debug_z80_wait_n;
-    assign z80_cen_p = debug_z80_cen_p;
+    // Wait State Logic
+    logic z80_wait_n_internal;
+    assign z80_wait_n_internal = legacy_mode ? ~legacy_mmu_wait : ~native_mmu_wait;
 
     // Wishbone Master Muxing
     assign wbm_cyc_o = legacy_mode ? legacy_mmu_cyc : native_mmu_cyc;
@@ -332,9 +333,6 @@ module z80_system (
     assign s_wb_dat_o = legacy_mode ? legacy_mmu_s_dat_o : native_mmu_s_dat_o;
     assign s_wb_ack_o = legacy_mode ? legacy_mmu_s_ack_o : native_mmu_s_ack_o;
     assign s_wb_sel_o = native_mode ? native_mmu_s_wb_sel : legacy_mmu_s_wb_sel;
-
-    // Wait State Logic
-    assign z80_wait_n_internal = legacy_mode ? ~legacy_mmu_wait : ~native_mmu_wait;
 
     // Legacy SysCall Detection
     assign legacy_syscall_detect = legacy_mode && ~z80_iorq_n && ~z80_wr_n && 
@@ -355,3 +353,5 @@ module z80_system (
     assign debug_halt_status = debug_halt;
 
 endmodule
+
+`default_nettype wire

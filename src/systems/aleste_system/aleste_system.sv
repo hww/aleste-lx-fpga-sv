@@ -3,7 +3,7 @@
 // Include configuration
 `include "config_27mhz.vh"
 
-module aleste_video #(
+module aleste_system #(
     parameter BASE_CLOCK    = `BASE_CLOCK,
     parameter SRC_H_VISIBLE      = `SRC_H_VISIBLE,
     parameter SRC_H_FRONT_PORCH  = `SRC_H_FRONT_PORCH,
@@ -72,7 +72,7 @@ module aleste_video #(
     logic clk_27m, clk_270m, clk_54m, clk_108m;
     logic pll_locked;
     logic system_reset;
-    logic clk_pixel, clk_pixel_x2, clk_bus, clk_system;
+    logic clk_pixel, clk_pixel_x2, clk_bus, clk_system, clk_cpu;
 
     video_pll vid_pll(
         .rst(1'b0),
@@ -87,11 +87,13 @@ module aleste_video #(
     localparam CLK_FREQ_SYSTEM = 108_000_000;
     localparam CLK_FREQ_BUS = 54_000_000;
     localparam CLK_FREQ_PIXEL = 27_000_000;
+    localparam CLK_FREQ_CPU = 27_000_000;  // Z80 at 27MHz
 
     assign clk_system = clk_108m;
     assign clk_bus = clk_54m;
     assign clk_pixel = clk_27m;
     assign clk_pixel_x2 = clk_54m;
+    assign clk_cpu = clk_27m;  // Z80 CPU clock
 
     // Системный сброс
     reset_controller reset_inst(
@@ -122,10 +124,10 @@ module aleste_video #(
     logic [7:0] video_debug;
 
     // UART Bridge Signals
-    logic uart2ext_cyc, uart2ext_stb, uart2ext_ack, uart2ext_we, uart2ext_grant, uart2ext_err;
-    logic [23:0] uart2ext_adr;
-    logic [7:0] uart2ext_dat_out, uart2ext_dat_in;
-    logic [1:0] uart2ext_sel;
+    logic uart_cyc, uart_stb, uart_ack, uart_we, uart_grant;
+    logic [23:0] uart_adr;
+    logic [7:0] uart_dat_out, uart_dat_in;
+    logic [1:0] uart_sel;
       
     logic uart_rx_ready, uart_rx_idle, uart_rx_eop;
     logic serial_rx_clk, serial_tx_clk;
@@ -139,14 +141,38 @@ module aleste_video #(
     logic [3:0] debug_uart_cmd_state;
     logic [1:0] debug_uart_bus_state;
 
-    // Debug Register
-    logic [7:0] dbg_data;
+    // Z80 CPU Signals
+    logic z80_cyc, z80_stb, z80_ack, z80_we, z80_grant;
+    logic [23:0] z80_adr;
+    logic [7:0] z80_dat_out, z80_dat_in;
+    logic [1:0] z80_tga;
+    
+    // Z80 System Control
+    logic [1:0] z80_graphic_mode;
+    logic z80_irq_control;
+    logic z80_supervisor_mode;
+    logic z80_legacy_mode;
+    logic z80_native_mode;
+    logic z80_debug_halt_status;
+    logic [7:0] z80_debug_control;
 
-    // SDRAM Controller Signals
+    // System Arbiter Signals
+    logic sys_cyc, sys_stb, sys_ack, sys_we;
+    logic [23:0] sys_adr;
+    logic [7:0] sys_dat_out, sys_dat_in;
+    logic [1:0] sys_tga;
+    
+    logic [1:0] debug_arbiter_state;
+    logic debug_z80_active, debug_uart_active;
+
+    // Memory Controller Signals
     logic [2:0] debug_sdram_state;
     logic debug_sdram_init_complete;
     logic debug_sdram_ready;
     logic debug_sdram_busy;
+
+    // Debug Register
+    logic [7:0] dbg_data;
 
     // Configuration
     logic cfg_legacy = 1'b0;
@@ -177,14 +203,14 @@ module aleste_video #(
         .uart_tx_busy(uart_tx_busy),
 
         // Wishbone Master Interface
-        .wb_cyc_o(uart2ext_cyc),
-        .wb_stb_o(uart2ext_stb),
-        .wb_we_o(uart2ext_we),
-        .wb_adr_o(uart2ext_adr),
-        .wb_dat_o(uart2ext_dat_out),
-        .wb_dat_i(uart2ext_dat_in),
-        .wb_ack_i(uart2ext_ack),
-        .wb_err_i(uart2ext_err),
+        .wb_cyc_o(uart_cyc),
+        .wb_stb_o(uart_stb),
+        .wb_we_o(uart_we),
+        .wb_adr_o(uart_adr),
+        .wb_dat_o(uart_dat_out),
+        .wb_dat_i(uart_dat_in),
+        .wb_ack_i(uart_ack),
+        .wb_err_i(1'b0),  // No error detection for now
 
         .dbg_cyc_o(uart2dbg_cyc),
         .dbg_stb_o(uart2dbg_stb),
@@ -201,18 +227,104 @@ module aleste_video #(
         .bus_stb_o(debug_uart_bus_stb)
     );
 
-    // Debug Register
-    wb_simple_reg dbg_reg (
-        // Wishbone interface
-        .clk_i(clk_bus),
+    // ===========================================
+    // Z80 CPU System
+    // ===========================================
+    z80_system z80_cpu (
+        // Clock and Reset
+        .clk_i(clk_cpu),                    // 27MHz CPU clock
+        .nrst_i(~system_reset),
+        
+        // Main Wishbone Master Interface
+        .wbm_adr_o(z80_adr),
+        .wbm_tga_o(z80_tga),
+        .wbm_dat_i(z80_dat_in),
+        .wbm_dat_o(z80_dat_out),
+        .wbm_cyc_o(z80_cyc),
+        .wbm_stb_o(z80_stb),
+        .wbm_we_o(z80_we),
+        .wbm_ack_i(z80_ack),
+        
+        // Wishbone Slave Interface (for MMU register access)
+        .s_wb_cyc_i(sys_cyc),               // From system bus
+        .s_wb_stb_i(sys_stb),
+        .s_wb_we_i(sys_we),
+        .s_wb_adr_i(sys_adr),
+        .s_wb_dat_i(sys_dat_out),
+        .s_wb_dat_o(sys_dat_in),            // To system bus
+        .s_wb_ack_o(sys_ack),
+        .s_wb_sel_o(),
+
+        // Debug Bus Interface
+        .dbg_adr_i(8'h00),                  // Not used for now
+        .dbg_dat_o(),
+        .dbg_dat_i(8'h00),
+        .dbg_we_i(1'b0),
+        .dbg_stb_i(1'b0),
+        .dbg_cs_i(1'b0),
+        .dbg_ack_o(),
+        
+        // Z80-specific Interface
+        .nmi_req_i(1'b0),                   // No NMI for now
+        .int_req_i(1'b0),                   // No interrupts for now
+        .busrq_i(1'b0),                     // No bus requests for now
+        .busak_o(),
+        
+        // System Control Outputs
+        .graphic_mode(z80_graphic_mode),
+        .irq_control(z80_irq_control),
+        .supervisor_mode_o(z80_supervisor_mode),
+        .legacy_mode_o(z80_legacy_mode),
+        .native_mode_o(z80_native_mode),
+
+        // Debug Status Outputs
+        .debug_halt_status(z80_debug_halt_status),
+        .debug_control_o(z80_debug_control)
+    );
+
+    // ===========================================
+    // System Wishbone Arbiter
+    // ===========================================
+    system_arbiter sys_arbiter (
+        // Clock and Reset
+        .clk_i(clk_bus),                    // 54MHz bus clock
         .rst_i(system_reset),
-        .stb_i(uart2dbg_stb),
-        .we_i(uart2dbg_we),
-        .adr_i(uart2dbg_adr),
-        .dat_i(uart2dbg_dat_out),
-        .dat_o(uart2dbg_dat_in),
-        .ack_o(uart2dbg_ack),
-        .reg_out(dbg_data)
+        
+        // Z80 CPU Interface
+        .z80_cyc_i(z80_cyc),
+        .z80_stb_i(z80_stb),
+        .z80_we_i(z80_we),
+        .z80_adr_i(z80_adr),
+        .z80_dat_i(z80_dat_out),
+        .z80_tga_i(z80_tga),
+        .z80_dat_o(z80_dat_in),
+        .z80_ack_o(z80_ack),
+        .z80_grant_o(z80_grant),
+        
+        // UART Bridge Interface
+        .uart_cyc_i(uart_cyc),
+        .uart_stb_i(uart_stb),
+        .uart_we_i(uart_we),
+        .uart_adr_i(uart_adr),
+        .uart_dat_i(uart_dat_out),
+        .uart_dat_o(uart_dat_in),
+        .uart_ack_o(uart_ack),
+        .uart_grant_o(uart_grant),
+        
+        // System Wishbone Master Interface
+        .sys_cyc_o(sys_cyc),
+        .sys_stb_o(sys_stb),
+        .sys_we_o(sys_we),
+        .sys_adr_o(sys_adr),
+        .sys_dat_o(sys_dat_out),
+        .sys_tga_o(sys_tga),
+        .sys_dat_i(sys_dat_in),
+        .sys_ack_i(sys_ack),
+        
+        // Debug Outputs
+        .debug_state_o(debug_arbiter_state),
+        .debug_z80_active_o(debug_z80_active),
+        .debug_uart_active_o(debug_uart_active)
     );
 
     // ===========================================
@@ -253,14 +365,14 @@ module aleste_video #(
         .system_reset(system_reset),
         
         // Wishbone Slave Interface
-        .wb_cyc_i(uart2ext_cyc),
-        .wb_stb_i(uart2ext_stb),
-        .wb_we_i(uart2ext_we),
-        .wb_adr_i(uart2ext_adr),
-        .wb_dat_i(uart2ext_dat_out),
-        .wb_dat_o(uart2ext_dat_in),
-        .wb_ack_o(uart2ext_ack),
-        .wb_tag_i(2'b00), // Можно добавить теги при необходимости
+        .wb_cyc_i(sys_cyc),
+        .wb_stb_i(sys_stb),
+        .wb_we_i(sys_we),
+        .wb_adr_i(sys_adr),
+        .wb_dat_i(sys_dat_out),
+        .wb_dat_o(sys_dat_in),
+        .wb_ack_o(sys_ack),
+        .wb_tag_i(sys_tga),
         
         // Memory Interface
         .mem_addr_o(video2mem_addr),
@@ -358,20 +470,6 @@ module aleste_video #(
     OBUFDS OBUFDS_clk( .I(clk_27m),          .O(gpdi_clock_p), .OB(gpdi_clock_n) );
 
     // ===========================================
-    // Watchdog Timer
-    // ===========================================
-    wb_wdt_simple #(
-        .TIMEOUT_CYCLES(32)
-    ) wb_wdt (
-        .clk_i(clk_bus),
-        .rst_i(system_reset),
-        .cyc_i(uart2ext_cyc),
-        .stb_i(uart2ext_stb),
-        .ack_i(uart2ext_ack),
-        .err_o(uart2ext_err)
-    );
-
-    // ===========================================
     // Отладочные сигналы
     // ===========================================
     
@@ -379,86 +477,19 @@ module aleste_video #(
     assign debug_leds = {
         debug_sdram_ready,      
         debug_sdram_init_complete, 
-        uart2ext_err
+        debug_z80_active
     };
 
     // Debug output - можно выбрать разные источники для отладки
-    assign debug = video_debug; // Используем отладку из видеоконтроллера
-
-    /*
-    // Альтернативные варианты отладки:
-    
-    // UART Bridge debug
     assign debug = {
-        debug_sdram_ready,     
-        debug_sdram_init_complete, 
-        uart_rx_ready,         
-        uart2ext_err,          
-        uart2ext_ack,           
-        uart2ext_we,           
-        uart2ext_stb,          
-        uart2ext_cyc             
-    };
-    
-    // SDRAM debug  
-    assign debug = {
-        debug_sdram_state,
-        debug_sdram_init_complete,
-        debug_sdram_ready,
-        debug_sdram_busy,
-        video2mem_req,
-        video2mem_ack0,
-        video2mem_ack1,
+        debug_arbiter_state,
+        debug_z80_active,
+        debug_uart_active, 
+        z80_legacy_mode,
+        z80_native_mode,
+        z80_debug_halt_status,
         system_reset
     };
-    */
 
 endmodule
 
-`default_nettype none
-
-// ===========================================
-// Вспомогательные модули
-// ===========================================
-
-module wb_simple_reg (
-    // Wishbone interface
-    input  logic        clk_i,
-    input  logic        rst_i,
-    input  logic        stb_i,
-    input  logic        we_i,
-    input  logic [7:0]  adr_i,
-    input  logic [7:0]  dat_i,
-    output logic [7:0]  dat_o,
-    output logic        ack_o,
-
-    // Register output
-    output logic [7:0]  reg_out
-);
-
-    logic [7:0] register = 8'h00;
-
-    // Wishbone transaction
-    always @(posedge clk_i) begin
-        if (rst_i) begin
-            register <= 8'h00;
-            ack_o <= 1'b0;
-        end else begin
-            ack_o <= 1'b0;
-            
-            if (stb_i && !ack_o) begin
-                ack_o <= 1'b1;
-                
-                if (we_i) begin
-                    // Write operation
-                    register <= dat_i;
-                end
-            end
-        end
-    end
-
-    // Read operation
-    assign dat_o = register;
-    assign reg_out = register;
-
-endmodule

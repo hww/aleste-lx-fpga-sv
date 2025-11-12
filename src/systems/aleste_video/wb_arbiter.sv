@@ -1,7 +1,7 @@
 // wb_arbiter_internal.v - ПРОСТОЙ распределитель
 `default_nettype none
 
-module system_arbiter (
+module wb_arbiter (
     input logic         clk, 
     input logic         rst,
     
