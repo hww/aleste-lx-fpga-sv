@@ -240,15 +240,15 @@
 
 === $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod ===
 
-   Number of wires:                298
-   Number of wire bits:           1429
+   Number of wires:                299
+   Number of wire bits:           1430
    Number of public wires:         116
    Number of public wire bits:     450
    Number of ports:                 39
    Number of port bits:            142
    Number of memories:               0
    Number of memory bits:            0
-   Number of processes:             60
+   Number of processes:             61
    Number of cells:                 81
      $add                            8
      $div                            2
@@ -510,15 +510,15 @@
      video_pll                       1
      wb_simple_reg                   1
 
-   Number of wires:               1957
-   Number of wire bits:           9475
+   Number of wires:               1958
+   Number of wire bits:           9476
    Number of public wires:         841
    Number of public wire bits:    3447
    Number of ports:                396
    Number of port bits:           1472
    Number of memories:               5
    Number of memory bits:        26820
-   Number of processes:            196
+   Number of processes:            197
    Number of cells:                535
      $add                           76
      $and                           11

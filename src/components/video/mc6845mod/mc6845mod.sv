@@ -141,6 +141,10 @@ logic [7:0] wb_data_out;
 logic address_lines;
 logic legacy_cs;
 
+// ============================================================================
+// Crystal select and grant access
+// ============================================================================
+
 // Chip select
 localparam LEGACY_ADDRESS = 16'hBC00;
 // Legacy mode when enabled is on the TAG[2]
@@ -154,7 +158,10 @@ assign wb_ack_o = wb_ack;
 assign wb_dat_o = wb_data_out;
 assign wb_data_in = wb_dat_i;
 
+// ============================================================================
 // Wishbone interface
+// ============================================================================
+
 always_ff @(posedge wb_clk_i) begin
     if (wb_rst_i) begin
         wb_ack <= 1'b0;
@@ -240,7 +247,6 @@ always_ff @(posedge wb_clk_i) begin
             reg_addr_mode <= 8'b0000_0000; 
             reg_high_address <= 8'h00;
         end
-        
 
     end else begin
         // Default assignments
@@ -322,6 +328,7 @@ end
 // ============================================================================
 // РАСШИРЕННЫЕ СИГНАЛЫ УПРАВЛЕНИЯ
 // ============================================================================
+
 // Video Control Register (reg_video_control) - 8 bits
 // [1:0] - bpp_mode: 00=1bpp, 01=2bpp, 10=4bpp, 11=8bpp
 // [2]   - reserved
@@ -392,7 +399,7 @@ always_ff @(posedge pix_clk_i) begin
 end
 
 // ============================================================================
-// НОВАЯ ЛОГИКА: УПРАВЛЕНИЕ СКОРОСТЬЮ ПИКСЕЛЕЙ
+// УПРАВЛЕНИЕ СКОРОСТЬЮ ПИКСЕЛЕЙ
 // ============================================================================
 
 // Pixel counters with configurable speed
@@ -424,6 +431,10 @@ always_ff @(posedge pix_clk_i) begin
         end
     end
 end
+
+// ============================================================================
+// Generate strobes for output signals
+// ============================================================================
 
 logic stb_char = 0;      // Character increment signal
 logic stb_byte = 0;      // Next byte
@@ -540,12 +551,11 @@ always_ff @(posedge pix_clk_i) begin
 end
 
 // ============================================================================
-// АДРЕСНЫЙ ГЕНЕРАТОР (адаптированный под новые счетчики) - ПЕРЕМЕЩЕН ВПЕРЕД
+// АДРЕСНЫЙ ГЕНЕРАТОР (адаптированный под новые счетчики) cd
 // ============================================================================
 
 // Display enable
-logic crtc_de;
-assign crtc_de = (crtc_h_count < reg_h_displayed) && 
+logic crtc_de = (crtc_h_count < reg_h_displayed) && 
                  (crtc_v_count < reg_v_displayed);
 
 // Traditional CRTC address
@@ -600,8 +610,10 @@ always_ff @(posedge pix_clk_i) begin
     end
 end
 
-
+// ============================================================================
 // Extended address output with proper mode selection
+// ============================================================================
+
 always_comb begin
     if (linear_mode) begin
         // Linear addressing modes

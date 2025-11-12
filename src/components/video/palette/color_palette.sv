@@ -30,46 +30,68 @@ module color_palette (
 );
 
 
+// ==========================================================
 // Internal logicisters
+// ==========================================================
+
 logic [7:0] palette_index = 0;      // Текущий индекс палитры
 logic [7:0] control_logic = 0;      // Регистр управления
 logic [7:0] palette_modifier = 0;   // Регистр-модификатор палитры
 logic [11:0] border_color = 0;      // 12-битный цвет бордюра
 logic [11:0] palette_ram [0:255];   // 256 entries x 12-bit
-
+logic [7:0] low_byte_buffer;        // keep byte for two bytes operation
 
 logic legacy_access, native_access;
+
+// ==========================================================
+// Chip select and access grant
+// ==========================================================
+
 assign native_access = wb_cs_i;
 assign legacy_access = cfg_legacy_i && wb_tag_i[2] && !wb_dat_i[7] && (!wb_adr_i[15] && wb_adr_i[14]);
 assign wb_grant_o  = legacy_access || native_access;
 
-// Модификация индекса палитры
-logic [7:0] modified_pixel_index;
+// ==========================================================
+// Special registers
+// ==========================================================
 
+localparam REG_COLOR_INDEX_CPC = 2'b00;
+localparam REG_COLOR_DATA_CPC  = 2'b01;
+
+localparam REG_COLOR_INDEX     = 5'd0;
+localparam REG_COLOR_DATA_LO   = 5'd1;
+localparam REG_COLOR_DATA_HI   = 5'd2;
+localparam REG_COLOR_BORDER_LO = 5'd3;
+localparam REG_COLOR_BORDER_HI = 5'd4;
+localparam REG_COLOR_DATA_CTRL = 5'd5;
+localparam REG_COLOR_MODIFIER  = 5'd6;
+
+// ==========================================================
 // Control register mapping:
+// ==========================================================
+
+// Основные режимы палитры конвертируют цвет при записи
+localparam WRITE_MODE_CPC   = 2'b01;
+localparam WRITE_MODE_12BIT = 2'b00;
+localparam WRITE_MODE_MSX   = 2'b10;
+localparam WRITE_MODE_YJK   = 2'b11;
+
 // [7] - modifier_enable
 // [6] - modifier_type (0=OR, 1=XOR)  
 // [5] - auto_increment
 // [4] - reserved
 // [3] - reserved
 // [1:0] - palette_write_mode
-logic modifier_enabled  = control_logic[7];
-logic modifier_is_xor   = control_logic[6];
-logic auto_increment    = control_logic[5];
-logic [1:0] palette_write_mode = control_logic[1:0];
-
-localparam WRITE_MODE_CPC   = 2'b01;
-localparam WRITE_MODE_12BIT = 2'b00;
-localparam WRITE_MODE_MSX   = 2'b10;
-localparam WRITE_MODE_YJK   = 2'b11;
+logic modifier_enabled          = control_logic[7];
+logic modifier_is_xor           = control_logic[6];
+logic auto_increment            = control_logic[5];
+logic [1:0] palette_write_mode  = control_logic[1:0];
 
 logic yjk_mode = (palette_write_mode == WRITE_MODE_YJK);
 
-// Вычисляем индекс цвета
-assign modified_pixel_index = 
-    (!modifier_enabled) ? pixel_index_i :
-    (modifier_is_xor)   ? pixel_index_i ^ palette_modifier :
-                          pixel_index_i | palette_modifier;
+// ==========================================================
+// Color converters
+// ==========================================================
 
 // CPC colors converter
 logic [11:0] cpc_converted_color;
@@ -83,7 +105,7 @@ cpc_colors u_cpc_colors (
 logic [11:0] msx_converted_color;
 msx_colors u_msx_colors (
     .clk_i(wb_clk_i),
-    .yjk_mode(yjk_mode),                    // Теперь правильно!
+    .yjk_mode(yjk_mode),
     .hw_register(wb_dat_i), 
     .rgb_color(msx_converted_color)
 );
@@ -124,20 +146,6 @@ end
 // Palette Registers
 // ==========================================================
 
-localparam REG_COLOR_INDEX_CPC = 2'b00;
-localparam REG_COLOR_DATA_CPC  = 2'b01;
-
-localparam REG_COLOR_INDEX     = 5'd0;
-localparam REG_COLOR_DATA_LO   = 5'd1;
-localparam REG_COLOR_DATA_HI   = 5'd2;
-localparam REG_COLOR_BORDER_LO = 5'd3;
-localparam REG_COLOR_BORDER_HI = 5'd4;
-localparam REG_COLOR_DATA_CTRL = 5'd5;
-localparam REG_COLOR_MODIFIER  = 5'd6;
-
-logic [7:0] low_byte_buffer; // keep byte for two bytes operation
-
-// Wishbone write handling
 always_ff @(posedge wb_clk_i) begin
     if (wb_rst_i) begin
         palette_index <= 8'h00;
@@ -154,9 +162,11 @@ always_ff @(posedge wb_clk_i) begin
             wb_ack_o <= 1'b1;
             
             if (wb_we_i) begin
+                // ------------------------------------------
                 // Write operations with priority
+                // ------------------------------------------
                 if (legacy_access) begin
-                    // Legacy CPC Gate Array access
+                    // **** Legacy CPC Gate Array access ****
                     case (wb_dat_i[7:6])
                         REG_COLOR_INDEX_CPC: begin
                             palette_index <= {3'b000, wb_dat_i[4:0]};
@@ -170,8 +180,9 @@ always_ff @(posedge wb_clk_i) begin
                         end
                         default: begin end
                     endcase
+
                 end else if (native_access) begin
-                    // Native register access
+                    // ******** Native register access *******
                     case (wb_adr_i[4:0])
                         REG_COLOR_INDEX: palette_index <= wb_dat_i;
                         REG_COLOR_DATA_LO: begin
@@ -216,7 +227,7 @@ always_ff @(posedge wb_clk_i) begin
                                 WRITE_MODE_YJK: begin
                                     border_color <= msx_converted_color;
                                 end
-                            endcase
+                    endcase
                         end
                         REG_COLOR_BORDER_HI: begin
                             if (palette_write_mode == WRITE_MODE_12BIT) begin
@@ -229,7 +240,9 @@ always_ff @(posedge wb_clk_i) begin
                     endcase
                 end
             end else begin
+                // ------------------------------------------
                 // Read operations
+                // ------------------------------------------
                 if (native_access) begin
                     case (wb_adr_i[4:0])
                         REG_COLOR_INDEX:     wb_dat_o <= palette_index;
@@ -247,7 +260,25 @@ always_ff @(posedge wb_clk_i) begin
     end
 end
 
+// ==========================================================
+// Color modifier
+// ==========================================================
+
+// Модификация индекса палитры
+logic [7:0] modified_pixel_index;
+
+// Вычисляем индекс цвета модифицируя его. Это позволяет 
+// иметь несколько банков палитр в 16 кветных режимах или
+// быстро модифицировать все цвета при необходимости
+assign modified_pixel_index = 
+    (!modifier_enabled) ? pixel_index_i :
+    (modifier_is_xor)   ? pixel_index_i ^ palette_modifier :
+                          pixel_index_i | palette_modifier;
+
+// ==========================================================
 // Pixel color lookup
+// ==========================================================
+
 always_ff @(posedge pixel_clk_i) begin
     if (wb_rst_i) begin    
         pixel_color_o <= 0;
