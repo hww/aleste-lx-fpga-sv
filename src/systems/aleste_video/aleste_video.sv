@@ -37,30 +37,30 @@ module aleste_video #(
     input  logic clk_25mhz,
     
     // HDMI выход
-    output logic [2:0] gpdi_dp,  // TMDS данные
-    output logic [2:0] gpdi_dn,
-    output logic gpdi_clock_p,   // TMDS clock
-    output logic gpdi_clock_n,
+    output logic [2:0]      gpdi_dp,  // TMDS данные
+    output logic [2:0]      gpdi_dn,
+    output logic            gpdi_clock_p,   // TMDS clock
+    output logic            gpdi_clock_n,
     
     // SDRAM интерфейс
-    output logic sdram_clock,
-    output logic sdram_cke,
-    output logic sdram_cs_n,
-    output logic sdram_ras_n,
-    output logic sdram_cas_n,
-    output logic sdram_we_n,
-    output logic [12:0] sdram_a,
-    output logic [1:0] sdram_ba,
-    output logic [1:0] sdram_dm,
-    inout  logic [15:0] sdram_dq,
+    output logic            sdram_clock,
+    output logic            sdram_cke,
+    output logic            sdram_cs_n,
+    output logic            sdram_ras_n,
+    output logic            sdram_cas_n,
+    output logic            sdram_we_n,
+    output logic [12:0]     sdram_a,
+    output logic [1:0]      sdram_ba,
+    output logic [1:0]      sdram_dm,
+    inout  logic [15:0]     sdram_dq,
     
     // UART интерфейс
-    input  logic serial_rx,
-    output logic serial_tx,
+    input  logic            serial_rx,
+    output logic            serial_tx,
     
     // Отладочные выходы
-    output logic [2:0] debug_leds,
-    output logic [7:0] debug
+    output logic [2:0]      debug_leds,
+    output logic [7:0]      debug
 );
 
     localparam HDMI_H_TOTAL       = HDMI_H_VISIBLE + HDMI_H_FRONT_PORCH + HDMI_H_SYNC_PULSE + HDMI_H_BACK_PORCH;
@@ -122,20 +122,20 @@ module aleste_video #(
     logic [7:0] video_debug;
 
     // UART Bridge Signals
-    logic uart2ext_cyc, uart2ext_stb, uart2ext_ack, uart2ext_we, uart2ext_grant, uart2ext_err;
-    logic [23:0] uart2ext_adr;
-    logic [7:0] uart2ext_dat_out, uart2ext_dat_in;
-    logic [1:0] uart2ext_sel;
+    logic wb_cyc, wb_stb, wb_ack, wb_we, wb_grant, wb_err;
+    logic [23:0] wb_adr;
+    logic [7:0] wb_dat_out, wb_dat_in;
+    logic [1:0] wb_sel;
       
     logic uart_rx_ready, uart_rx_idle, uart_rx_eop;
     logic serial_rx_clk, serial_tx_clk;
     logic uart_tx_busy;
 
-    logic uart2dbg_cyc, uart2dbg_stb, uart2dbg_we, uart2dbg_ack;
+    logic       uart2dbg_cyc, uart2dbg_stb, uart2dbg_we, uart2dbg_ack;
     logic [7:0] uart2dbg_adr;
     logic [7:0] uart2dbg_dat_in, uart2dbg_dat_out;
     logic [1:0] uart2dbg_sel;
-    logic debug_uart_bus_stb, debug_uart_bus_ack;
+    logic       debug_uart_bus_stb, debug_uart_bus_ack;
     logic [3:0] debug_uart_cmd_state;
     logic [1:0] debug_uart_bus_state;
 
@@ -177,14 +177,14 @@ module aleste_video #(
         .uart_tx_busy(uart_tx_busy),
 
         // Wishbone Master Interface
-        .wb_cyc_o(uart2ext_cyc),
-        .wb_stb_o(uart2ext_stb),
-        .wb_we_o(uart2ext_we),
-        .wb_adr_o(uart2ext_adr),
-        .wb_dat_o(uart2ext_dat_out),
-        .wb_dat_i(uart2ext_dat_in),
-        .wb_ack_i(uart2ext_ack),
-        .wb_err_i(uart2ext_err),
+        .wb_cyc_o(wb_cyc),
+        .wb_stb_o(wb_stb),
+        .wb_we_o(wb_we),
+        .wb_adr_o(wb_adr),
+        .wb_dat_o(wb_dat_out),
+        .wb_dat_i(wb_dat_in),
+        .wb_ack_i(wb_ack),
+        .wb_err_i(wb_err),
 
         .dbg_cyc_o(uart2dbg_cyc),
         .dbg_stb_o(uart2dbg_stb),
@@ -214,6 +214,29 @@ module aleste_video #(
         .ack_o(uart2dbg_ack),
         .reg_out(dbg_data)
     );
+
+    // ===========================================
+    // Address Decoder
+    // ===========================================
+
+    // Address Decoder Signals
+    logic [7:0] cs;
+    logic [7:0] cs_system;
+    logic [7:0] cs_legacy;
+    logic [2:0] wb_tag;
+
+    address_decoder adu (
+        .cfg_legacy_i(cfg_legacy),
+        .wb_adr_i(wb_adr),
+        
+        .wb_tag_o(wb_tag),
+        .cs_o(cs),                  // Native space 256 bytes blocks
+        .cs_system_o(cs_system),    // Native (system space) 32 bytes blocks
+        .cs_legacy_o(cs_legacy)     // Native (legacy space) 32 bytes blocks
+    );
+
+    logic wb_cs_pal  = cs_legacy[0];
+    logic wb_cs_crtc = cs_legacy[1];
 
     // ===========================================
     // Video Controller
@@ -253,15 +276,17 @@ module aleste_video #(
         .system_reset(system_reset),
         
         // Wishbone Slave Interface
-        .wb_cyc_i(uart2ext_cyc),
-        .wb_stb_i(uart2ext_stb),
-        .wb_we_i(uart2ext_we),
-        .wb_adr_i(uart2ext_adr),
-        .wb_dat_i(uart2ext_dat_out),
-        .wb_dat_o(uart2ext_dat_in),
-        .wb_ack_o(uart2ext_ack),
-        .wb_tag_i(2'b00), // Можно добавить теги при необходимости
-        
+        .wb_cyc_i(wb_cyc),
+        .wb_stb_i(wb_stb),
+        .wb_we_i(wb_we),
+        .wb_adr_i(wb_adr),
+        .wb_dat_i(wb_dat_out),
+        .wb_dat_o(wb_dat_in),
+        .wb_ack_o(wb_ack),
+        .wb_tag_i(wb_tag), 
+        .wb_cs_pal_i(wb_cs_pal),
+        .wb_cs_crt_i(wb_cs_crtc),
+
         // Memory Interface
         .mem_addr_o(video2mem_addr),
         .mem_data_o(video2mem_data_out),
@@ -365,10 +390,10 @@ module aleste_video #(
     ) wb_wdt (
         .clk_i(clk_bus),
         .rst_i(system_reset),
-        .cyc_i(uart2ext_cyc),
-        .stb_i(uart2ext_stb),
-        .ack_i(uart2ext_ack),
-        .err_o(uart2ext_err)
+        .cyc_i(wb_cyc),
+        .stb_i(wb_stb),
+        .ack_i(wb_ack),
+        .err_o(wb_err)
     );
 
     // ===========================================
@@ -379,7 +404,7 @@ module aleste_video #(
     assign debug_leds = {
         debug_sdram_ready,      
         debug_sdram_init_complete, 
-        uart2ext_err
+        wb_err
     };
 
     // Debug output - можно выбрать разные источники для отладки
@@ -393,11 +418,11 @@ module aleste_video #(
         debug_sdram_ready,     
         debug_sdram_init_complete, 
         uart_rx_ready,         
-        uart2ext_err,          
-        uart2ext_ack,           
-        uart2ext_we,           
-        uart2ext_stb,          
-        uart2ext_cyc             
+        wb_err,          
+        wb_ack,           
+        wb_we,           
+        wb_stb,          
+        wb_cyc             
     };
     
     // SDRAM debug  

@@ -30,51 +30,54 @@ module video_ctrl #(
     parameter SDRAM_DATA_WIDTH = 16
 )(
     // Тактирование
-    input  logic clk_system,      // 108MHz
-    input  logic clk_bus,         // 54MHz  
-    input  logic clk_pixel,       // 27MHz
-    input  logic clk_pixel_x2,    // 54MHz
-    input  logic clk_270m,        // 270MHz для TMDS
+    input  logic        clk_system,      // 108MHz
+    input  logic        clk_bus,         // 54MHz  
+    input  logic        clk_pixel,       // 27MHz
+    input  logic        clk_pixel_x2,    // 54MHz
+    input  logic        clk_270m,        // 270MHz для TMDS
     
     // Сброс
-    input  logic system_reset,
+    input  logic        system_reset,
     
     // Wishbone Slave Interface (для конфигурации)
-    input  logic wb_cyc_i,
-    input  logic wb_stb_i,
-    input  logic wb_we_i,
+    input  logic        wb_cyc_i,
+    input  logic        wb_stb_i,
+    input  logic        wb_we_i,
     input  logic [23:0] wb_adr_i,
-    input  logic [7:0] wb_dat_i,
-    output logic [7:0] wb_dat_o,
-    output logic wb_ack_o,
-    input  logic [1:0] wb_tag_i,
+    input  logic [7:0]  wb_dat_i,
+    output logic [7:0]  wb_dat_o,
+    output logic        wb_ack_o,
+    output logic        wb_grant_o,    
+    input  logic [1:0]  wb_tag_i,
+    input  logic        wb_cs_crt_i,
+    input  logic        wb_cs_pal_i,
     
     // Memory Interface (к SDRAM контроллеру)
     output logic [23:0] mem_addr_o,
     output logic [15:0] mem_data_o,
     input  logic [15:0] mem_data_i,
-    output logic mem_we_o,
-    output logic mem_req_o,
-    input  logic mem_ack0_i,
-    input  logic mem_ack1_i,
-    output logic [1:0] mem_sel_o,
+    output logic        mem_we_o,
+    output logic        mem_req_o,
+    input  logic        mem_ack0_i,
+    input  logic        mem_ack1_i,
+    output logic [1:0]  mem_sel_o,
     
     // HDMI Video Output
-    output logic tmds_red,
-    output logic tmds_green, 
-    output logic tmds_blue,
-    output logic hdmi_rd,
-    output logic hdmi_newline,
-    output logic hdmi_newframe,
+    output logic        tmds_red,
+    output logic        tmds_green, 
+    output logic        tmds_blue,
+    output logic        hdmi_rd,
+    output logic        hdmi_newline,
+    output logic        hdmi_newframe,
     input  logic [10:0] hdmi_x,
-    input  logic [9:0] hdmi_y,
+    input  logic [9:0]  hdmi_y,
     
     // Отладочные выходы
-    output logic [2:0] debug_leds,
-    output logic [7:0] debug,
+    output logic [2:0]  debug_leds,
+    output logic [7:0]  debug,
     
     // Конфигурационные сигналы
-    input  logic cfg_legacy_i
+    input  logic        cfg_legacy_i
 );
 
     localparam HDMI_H_TOTAL       = HDMI_H_VISIBLE + HDMI_H_FRONT_PORCH + HDMI_H_SYNC_PULSE + HDMI_H_BACK_PORCH;
@@ -139,27 +142,6 @@ module video_ctrl #(
     logic [11:0] scaler_pixel_o;
     logic src_buffer, dst_buffer;
 
-    // Address Decoder Signals
-    logic [7:0] cs, cs_system, cs_legacy;
-    logic pal_cs, crtc_cs;
-    logic [2:0] tag;
-
-    // ===========================================
-    // Address Decoder
-    // ===========================================
-    address_decoder adu (
-        .cfg_legacy_i(cfg_legacy_i),
-        .wb_adr_i(wb_adr_i),
-        
-        .wb_tag_o(tag),
-        .cs_o(cs),
-        .cs_system_o(cs_system),
-        .cs_legacy_o(cs_legacy)
-    );
-
-    assign pal_cs = cs_legacy[0];
-    assign crtc_cs = cs_legacy[1];
-
     // ===========================================
     // Internal WB Arbiter
     // ===========================================
@@ -170,13 +152,13 @@ module video_ctrl #(
         // External WB Interface
         .wb_ext_cyc_i(wb_cyc_i),
         .wb_ext_stb_i(wb_stb_i),
-        .wb_ext_grant_o(wb_ack_o),  // Используем ack как grant
-        .wb_ext_ack_o(),            // Не используется напрямую
+        .wb_ext_grant_o(wb_grant_o),
+        .wb_ext_ack_o(wb_ack_o),    
         .wb_ext_we_i(wb_we_i),
         .wb_ext_adr_i(wb_adr_i),
         .wb_ext_dat_i(wb_dat_i),
         .wb_ext_dat_o(wb_dat_o),
-        .wb_ext_tag_i(tag),
+        .wb_ext_tag_i(wb_tag_i),
 
         // Palette Interface
         .palette_cyc_o(system2palette_cyc),
@@ -238,7 +220,7 @@ module video_ctrl #(
         .wb_ack_o(system2crtc_ack),
         .wb_dat_o(system2crtc_dat_in),
         .wb_grant_o(system2crtc_grant),
-        .wb_cs_i(crtc_cs),
+        .wb_cs_i(wb_cs_crt_i),
         .wb_tag_i(system2crtc_tag),
 
         // Pixel Clock Domain  
@@ -404,7 +386,7 @@ module video_ctrl #(
         .wb_grant_o(system2palette_grant),
         .wb_ack_o(system2palette_ack),
         .wb_tag_i(system2palette_tag),
-        .wb_cs_i(pal_cs),
+        .wb_cs_i(wb_cs_pal_i),
         
         // Pixel interface
         .pixel_clk_i(clk_pixel),

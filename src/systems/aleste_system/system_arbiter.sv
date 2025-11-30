@@ -21,7 +21,6 @@ module system_arbiter (
     input  logic        z80_we_i,                 // Z80 write enable
     input  logic [23:0] z80_adr_i,                // Z80 address
     input  logic [7:0]  z80_dat_i,                // Z80 data out
-    input  logic [1:0]  z80_tga_i,                // Z80 address tag
     output logic [7:0]  z80_dat_o,                // Z80 data in
     output logic        z80_ack_o,                // Z80 acknowledge
     output logic        z80_grant_o,              // Z80 bus grant
@@ -46,7 +45,6 @@ module system_arbiter (
     output logic        sys_we_o,                 // System write enable
     output logic [23:0] sys_adr_o,                // System address
     output logic [7:0]  sys_dat_o,                // System data out
-    output logic [1:0]  sys_tga_o,                // System address tag
     input  logic [7:0]  sys_dat_i,                // System data in
     input  logic        sys_ack_i,                // System acknowledge
     
@@ -151,7 +149,6 @@ module system_arbiter (
     assign sys_we_o  = z80_bus_grant ? z80_we_i  : uart_we_i;
     assign sys_adr_o = z80_bus_grant ? z80_adr_i : uart_adr_i;
     assign sys_dat_o = z80_bus_grant ? z80_dat_i : uart_dat_i;
-    assign sys_tga_o = z80_bus_grant ? z80_tga_i : 2'b00; // UART always memory access
 
     // =========================================================================
     // Master Data and Acknowledge

@@ -51,7 +51,9 @@ module mmu_native (
     input  logic        s_wb_we_i,                // Write enable
     input  logic [23:0] s_wb_adr_i,               // 24-bit address
     input  logic [7:0]  s_wb_dat_i,               // Data in
-    output logic        s_wb_sel_o,               // Device selected
+    input  logic [2:0]  s_wb_tag_i,               // The legacy units selected by the tag[2]
+    input  logic        s_wb_cs_i,                // Select the unit
+    output logic        s_wb_grant_o,             // Device was selected
     output logic [7:0]  s_wb_dat_o,               // Data out
     output logic        s_wb_ack_o,               // Transfer acknowledge
 
@@ -158,30 +160,27 @@ module mmu_native (
     assign mmio_sel = (s_wb_adr_i[23:16] == 8'hFF);
 
     // MMIO space partitioning
-    assign mmio_hi_sel = mmio_sel && (s_wb_adr_i[15] == 1'b1);   // Upper 32KB
-    assign mmio_lo_sel = mmio_sel && (s_wb_adr_i[15] == 1'b0);   // Lower 32KB
+    assign mmio_hi_sel = s_wb_tag_i[2];                    // Upper 48KB
+    assign mmio_lo_sel = s_wb_tag_i[1];                    // Lower 16KB
 
     // MMU registers within MMIO_LO space (FF00C0-FF00FF)
     assign mmu_reg_sel = mmio_lo_sel && 
-                        (s_wb_adr_i[14:8] == 0) &&              // FF00xx
-                        (s_wb_adr_i[7] == 1'b1) &&              // 80-FF range
-                        (s_wb_adr_i[6] == 1'b1);                // C0-FF range
+                        (s_wb_adr_i[14:8] == 0) &&         // FF00xx
+                        (s_wb_adr_i[7] == 1'b1) &&         // 80-FF range
+                        (s_wb_adr_i[6] == 1'b1);           // C0-FF range
 
     // SysCall register access (both Native and Legacy modes)
-    assign syscall_sel = mmio_sel && (
-                        (s_wb_adr_i[15:0] == 16'h00D4) ||       // Native: FF00D4
-                        (s_wb_adr_i[15:0] == 16'hD400)          // Legacy: FFD400
-                        );
-
+    assign syscall_sel = s_wb_cs_i ||                                     // Native
+                         (mmio_hi_sel && (s_wb_adr_i[15:0] == 16'hD400)); // Legacy: FFD400
     // Device selection output for Wishbone interconnect
-    assign s_wb_sel_o = mmu_reg_sel || syscall_sel;
+    assign s_wb_grant_o = mmu_reg_sel || syscall_sel;
 
 
     // =========================================================================
     // OPERATION MODES CONTROL
     // =========================================================================
-    assign native_mode_o    = reg_control[0];     // Native mode enable
-    assign legacy_mode_o    = ~reg_control[0];    // Legacy mode enable
+    assign native_mode_o    =  reg_control[0];             // Native mode enable
+    assign legacy_mode_o    = ~reg_control[0];             // Legacy mode enable
 
 
     // =========================================================================
@@ -316,13 +315,11 @@ module mmu_native (
     assign debug_current_slot_o  = current_slot;
     assign debug_bank_index_o    = debug_bank_index;
 
-
     // =========================================================================
     // SYSCALL TRIGGER GENERATION
     // =========================================================================
     assign syscall_trigger_o = syscall_sel && s_wb_we_i && 
-                              s_wb_cyc_i && s_wb_stb_i;
-
+                               s_wb_cyc_i && s_wb_stb_i;
 
     // =========================================================================
     // WISHBONE SLAVE INTERFACE HANDLING
@@ -484,7 +481,6 @@ module mmu_native (
         m_wb_dat_o = cpu_din;
         cpu_dout   = 8'hFF;
 
-        
         // ---------------------------------------------------------------------
         // MEMORY ACCESS (MREQ) - BANK SWITCHING
         // ---------------------------------------------------------------------

@@ -177,6 +177,7 @@ module tv80_lx_wb (
     // =========================================================================
     // LEGACY MMU INSTANTIATION (CPC 6128 COMPATIBLE)
     // =========================================================================
+    (* keep_hierarchy *) 
     mmu_legacy legacy_mmu (
         // Clock and Reset
         .clk(clk_i),
@@ -228,6 +229,7 @@ module tv80_lx_wb (
     // =========================================================================
     // NATIVE MMU INSTANTIATION (ALESTE LX EXTENDED)
     // =========================================================================
+    (* keep_hierarchy *) 
     mmu_native native_mmu (
         // Clock and Reset
         .clk(clk_i),

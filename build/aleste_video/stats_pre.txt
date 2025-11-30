@@ -55,7 +55,7 @@
      $logic_and                     28
      $logic_not                      2
 
-=== system_arbiter ===
+=== wb_arbiter ===
 
    Number of wires:                 54
    Number of wire bits:            245
@@ -146,25 +146,24 @@
 
 === $paramod$53f82b585305d76c6a460db88bafbc20e95e1ab8\video_ctrl ===
 
-   Number of wires:                121
-   Number of wire bits:            550
-   Number of public wires:         112
-   Number of public wire bits:     501
-   Number of ports:                 33
-   Number of port bits:            153
+   Number of wires:                118
+   Number of wire bits:            524
+   Number of public wires:         109
+   Number of public wire bits:     475
+   Number of ports:                 36
+   Number of port bits:            156
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:              0
-   Number of cells:                  9
+   Number of cells:                  8
      $paramod$2cbd44edbf047fb5030bdc8e3ba7dfd139b2488d\llhdmi      1
      $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod      1
      $paramod$86178f6322c302bd8017170cfd1dd3de731221eb\hdmi_scaler      1
-     address_decoder                 1
      color_palette                   1
      memory_arbiter                  1
      pixel_pipeline                  1
-     system_arbiter                  1
      video_buffer                    1
+     wb_arbiter                      1
 
 === $paramod$86178f6322c302bd8017170cfd1dd3de731221eb\hdmi_scaler ===
 
@@ -263,22 +262,23 @@
 
 === aleste_video ===
 
-   Number of wires:                 84
-   Number of wire bits:            281
-   Number of public wires:          81
-   Number of public wire bits:     278
+   Number of wires:                 92
+   Number of wire bits:            312
+   Number of public wires:          87
+   Number of public wire bits:     307
    Number of ports:                 19
    Number of port bits:             61
    Number of memories:               0
    Number of memory bits:            0
-   Number of processes:              1
-   Number of cells:                 12
+   Number of processes:              3
+   Number of cells:                 13
      $paramod$15735d5b5f42338dfdadf2e6027e61400cba37fc\uart_bridge      1
      $paramod$53f82b585305d76c6a460db88bafbc20e95e1ab8\video_ctrl      1
      $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone      1
      $paramod\wb_wdt_simple\TIMEOUT_CYCLES=s32'00000000000000000000000000100000      1
      OBUFDS                          4
      ODDRX1F                         1
+     address_decoder                 1
      reset_controller                1
      video_pll                       1
      wb_simple_reg                   1
@@ -509,30 +509,30 @@
        $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod      1
        $paramod$86178f6322c302bd8017170cfd1dd3de731221eb\hdmi_scaler      1
          $paramod$3af06abfd9dc8c730854c9711a7b5f0ef6bccd56\dual_port_ram      2
-       address_decoder               1
        color_palette                 1
          cpc_colors                  1
          msx_colors                  1
        memory_arbiter                1
        pixel_pipeline                1
-       system_arbiter                1
        video_buffer                  1
+       wb_arbiter                    1
      $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone      1
      $paramod\wb_wdt_simple\TIMEOUT_CYCLES=s32'00000000000000000000000000100000      1
      OBUFDS                          4
+     address_decoder                 1
      reset_controller                1
      video_pll                       1
      wb_simple_reg                   1
 
-   Number of wires:               1982
-   Number of wire bits:           9583
-   Number of public wires:         868
-   Number of public wire bits:    3579
-   Number of ports:                429
-   Number of port bits:           1625
+   Number of wires:               1987
+   Number of wire bits:           9588
+   Number of public wires:         871
+   Number of public wire bits:    3582
+   Number of ports:                432
+   Number of port bits:           1628
    Number of memories:               5
    Number of memory bits:        26820
-   Number of processes:            195
+   Number of processes:            197
    Number of cells:                534
      $add                           76
      $and                           11

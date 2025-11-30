@@ -34,12 +34,13 @@ module mmu_legacy (
     output logic        m_wb_cyc_o,               // Cycle valid
     output logic        m_wb_stb_o,               // Strobe
     output logic        m_wb_we_o,                // Write enable
-    output logic        m_wb_tga_o,               // Address type: 0=MEM, 1=IO
     output logic [23:0] m_wb_adr_o,               // 24-bit physical address
     output logic [7:0]  m_wb_dat_o,               // Data out
     input  logic [7:0]  m_wb_dat_i,               // Data in
     input  logic        m_wb_ack_i,               // Transfer acknowledge
     output logic        s_wb_sel_o,               // Unit selected on WB but
+    input  logic [2:0]  m_tag_i,                  // The legacy units selected by the tag[2]
+
     // -------------------------------------------------------------------------
     // Z80 Bus Interface
     // -------------------------------------------------------------------------
@@ -297,7 +298,6 @@ module mmu_legacy (
             m_wb_cyc_o  <= 1'b0;
             m_wb_stb_o  <= 1'b0;
             m_wb_we_o   <= 1'b0;
-            m_wb_tga_o  <= 1'b0;
             wb_busy     <= 1'b0;
         end else begin
             // Clear strobe on acknowledge
@@ -311,7 +311,6 @@ module mmu_legacy (
                 m_wb_cyc_o  <= 1'b1;
                 m_wb_stb_o  <= 1'b1;
                 m_wb_we_o   <= ~cpu_wr_n;         // Write enable
-                m_wb_tga_o  <= is_io_access;      // 0=MEM, 1=IO
                 m_wb_adr_o  <= physical_address;  // 24-bit physical address
                 m_wb_dat_o  <= cpu_dat_i;          // Data to write
                 wb_busy     <= 1'b1;
@@ -319,7 +318,6 @@ module mmu_legacy (
             // Release bus when no activity
             else if (~is_mem_access && ~is_io_access && ~wb_busy) begin
                 m_wb_cyc_o <= 1'b0;
-                m_wb_tga_o <= 1'b0;
             end
         end
     end

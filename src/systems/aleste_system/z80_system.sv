@@ -31,6 +31,8 @@ module z80_system (
     input  logic        s_wb_we_i,                // Slave write enable
     input  logic [23:0] s_wb_adr_i,               // Slave address
     input  logic [7:0]  s_wb_dat_i,               // Slave data input
+    input  logic [2:0]  s_wb_tag_i,               // The tag for bus
+    input  logic [2:0]  s_cs_native_mmu_i,        // Crystal select native mmu
     output logic [7:0]  s_wb_dat_o,               // Slave data output
     output logic        s_wb_ack_o,               // Slave acknowledge
     output logic        s_wb_sel_o,               // Unity is selected on WB
@@ -211,6 +213,7 @@ module z80_system (
         // Slave Wishbone Interface
         .s_wb_cyc_i(s_wb_cyc_i & legacy_mode),
         .s_wb_stb_i(s_wb_stb_i & legacy_mode),
+        .s_wb_tag_i(s_wb_tag_i),
         .s_wb_we_i(s_wb_we_i),
         .s_wb_adr_i(s_wb_adr_i),
         .s_wb_dat_i(s_wb_dat_i),
@@ -281,8 +284,10 @@ module z80_system (
         .s_wb_cyc_i(s_wb_cyc_i & (native_mode | legacy_syscall_detect)),
         .s_wb_stb_i(s_wb_stb_i & (native_mode | legacy_syscall_detect)),
         .s_wb_we_i(s_wb_we_i | legacy_syscall_we),
-        .s_wb_adr_i(legacy_syscall_detect ? 24'hFF00D4 : s_wb_adr_i),
-        .s_wb_dat_i(legacy_syscall_detect ? z80_do : s_wb_dat_i),
+        .s_wb_tag_i(s_wb_tag),
+        .s_wb_cs_i(s_cs_native_mmu),
+        .s_wb_adr_i(s_wb_adr_i),
+        .s_wb_dat_i(s_wb_dat_i),
         .s_wb_dat_o(native_mmu_s_dat_o),
         .s_wb_ack_o(native_mmu_s_ack_o),
         .s_wb_sel_o(native_mmu_s_wb_sel),

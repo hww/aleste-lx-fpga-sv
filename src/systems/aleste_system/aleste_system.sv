@@ -160,8 +160,8 @@ module aleste_system #(
     logic sys_cyc, sys_stb, sys_ack, sys_we;
     logic [23:0] sys_adr;
     logic [7:0] sys_dat_out, sys_dat_in;
-    logic [1:0] sys_tga;
-    
+    logic [2:0] sys_tag;
+        
     logic [1:0] debug_arbiter_state;
     logic debug_z80_active, debug_uart_active;
 
@@ -176,6 +176,8 @@ module aleste_system #(
 
     // Configuration
     logic cfg_legacy = 1'b0;
+
+
 
     // ===========================================
     // UART Bridge
@@ -254,6 +256,7 @@ module aleste_system #(
         .s_wb_dat_o(sys_dat_in),            // To system bus
         .s_wb_ack_o(sys_ack),
         .s_wb_sel_o(),
+        .s_wb_tag_i(sys_tag),
 
         // Debug Bus Interface
         .dbg_adr_i(8'h00),                  // Not used for now
@@ -317,7 +320,6 @@ module aleste_system #(
         .sys_we_o(sys_we),
         .sys_adr_o(sys_adr),
         .sys_dat_o(sys_dat_out),
-        .sys_tga_o(sys_tga),
         .sys_dat_i(sys_dat_in),
         .sys_ack_i(sys_ack),
         
@@ -326,6 +328,31 @@ module aleste_system #(
         .debug_z80_active_o(debug_z80_active),
         .debug_uart_active_o(debug_uart_active)
     );
+
+
+    // ===========================================
+    // Address Decoder
+    // ===========================================
+
+    // Address Decoder Signals
+    logic [7:0] cs_native;          // Native space 256 bytes blocks
+    logic [7:0] cs_system;          // Native (system space) 32 bytes blocks
+    logic [7:0] cs_legacy;          // Native (legacy space) 32 bytes blocks
+
+
+    address_decoder adu (
+        .cfg_legacy_i(cfg_legacy),  // Legacy mode
+
+        .wb_adr_i(sys_adr),         // Input address lines
+        
+        .wb_tag_o(sys_tag),         // The result TAG
+        .cs_native_o(cs_native),    // Native space 256 bytes blocks
+        .cs_system_o(cs_system),    // Native (system space) 32 bytes blocks
+        .cs_legacy_o(cs_legacy)     // Native (legacy space) 32 bytes blocks
+    );
+
+    logic wb_cs_pal  = cs_legacy[0];
+    logic wb_cs_crtc = cs_legacy[1];
 
     // ===========================================
     // Video Controller
@@ -372,7 +399,7 @@ module aleste_system #(
         .wb_dat_i(sys_dat_out),
         .wb_dat_o(sys_dat_in),
         .wb_ack_o(sys_ack),
-        .wb_tag_i(sys_tga),
+        .wb_tag_i(sys_tag),
         
         // Memory Interface
         .mem_addr_o(video2mem_addr),
