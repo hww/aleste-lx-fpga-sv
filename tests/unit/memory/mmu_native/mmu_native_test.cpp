@@ -92,7 +92,6 @@ public:
             
             // Generate ACK immediately
             top->m_wb_ack_i = 1;
-            log_registers();
 
             if (top->m_wb_we_o) {
                 // Write transaction
@@ -135,12 +134,6 @@ public:
         top->cpu_a = 0;
         top->cpu_din = 0;
         
-        top->s_wb_cyc_i = 0;
-        top->s_wb_stb_i = 0;
-        top->s_wb_we_i = 0;
-        top->s_wb_adr_i = 0;
-        top->s_wb_dat_i = 0;
-        
         top->m_wb_dat_i = 0;
         top->m_wb_ack_i = 0;
         top->supervisor_mode_i = 0;
@@ -157,93 +150,7 @@ public:
         }
     }
 
-    // Wishbone Slave operations (exactly as in your example)
-    void wb_idle() {
-        top->s_wb_cyc_i = 0;
-        top->s_wb_stb_i = 0;
-        top->s_wb_we_i = 0;
-        top->s_wb_adr_i = 0;
-        top->s_wb_dat_i = 0;
-        eval(SETUP_TIME);
-    }
-
-    void wb_write_reg(uint32_t addr, uint8_t data) {
-        std::cout << "  WB Write: addr=0x" << std::hex << addr << " data=0x" << (int)data << std::dec << std::endl;
-        
-        // Rising edge
-        clock_high(SETUP_TIME);
-        
-        // Set signals after clock edge
-        top->s_wb_adr_i = addr;
-        top->s_wb_dat_i = data;
-        top->s_wb_we_i = 1;
-        top->s_wb_cyc_i = 1;
-        top->s_wb_stb_i = 1;
-        eval(CLK_REST_TIME);
-        
-        // Falling edge
-        clock_low(CLK_HALF_PERIOD);
-        
-        // Wait for ACK
-        int timeout = 15;
-        while (!top->s_wb_ack_o && timeout-- > 0) {
-            // Rising edge
-            clock_high(SETUP_TIME);
-            eval(CLK_REST_TIME);
-            
-            // Falling edge
-            clock_low(CLK_HALF_PERIOD);
-        }
-        
-        if (timeout <= 0) {
-            std::cout << "WISHBONE write timeout" << std::endl;
-        }
-        
-        // End transaction
-        clock_high(SETUP_TIME);
-        wb_idle();
-        eval(CLK_REST_TIME);
-        clock_low(CLK_HALF_PERIOD);
-    }
-
-    uint8_t wb_read_reg(uint32_t addr) {
-        // Rising edge
-        clock_high(SETUP_TIME);
-        
-        // Set signals after clock edge
-        top->s_wb_adr_i = addr;
-        top->s_wb_we_i = 0;
-        top->s_wb_cyc_i = 1;
-        top->s_wb_stb_i = 1;
-        eval(CLK_REST_TIME);
-        
-        // Falling edge
-        clock_low(CLK_HALF_PERIOD);
-        
-        // Wait for ACK
-        int timeout = 16;
-        while (!top->s_wb_ack_o && timeout-- > 0) {
-            clock_high(SETUP_TIME);
-            eval(CLK_REST_TIME);
-            clock_low(CLK_HALF_PERIOD);
-        }
-        
-        uint8_t data = top->s_wb_dat_o;
-
-        if (timeout <= 0) {
-            std::cout << "WISHBONE read timeout" << std::endl;
-        }
-
-        // End transaction
-        clock_high(SETUP_TIME);
-        wb_idle();
-        eval(CLK_REST_TIME);
-        clock_low(CLK_HALF_PERIOD);
-         std::cout << "  WB Read:  addr=0x" << std::hex << addr << " data=0x" << (int)data << std::dec << std::endl;
-        return data;
-    }
-
-    // Z80 Bus simulation in the same style
+    // Z80 Bus simulation
     void z80_bus_idle() {
         top->cpu_mreq_n = 1;
         top->cpu_iorq_n = 1;
@@ -254,15 +161,11 @@ public:
     }
 
     void simulate_z80_memory_access(uint16_t addr, bool is_write, uint8_t data = 0) {
-
         if (is_write)
             std::cout << "  Z80 Memory Write: addr=0x" << std::hex << addr 
-                    << " " << (is_write ? "WRITE" : "READ") 
                     << " data=0x" << (int)data << std::dec << std::endl;
         else
-            std::cout << "  Z80 Memory Read:  addr=0x" << std::hex << addr 
-                    << " " << (is_write ? "WRITE" : "READ") 
-                    << " data=0x" << (int)data << std::dec << std::endl;
+            std::cout << "  Z80 Memory Read:  addr=0x" << std::hex << addr << std::dec << std::endl;
 
         z80_bus_idle();
         
@@ -289,15 +192,11 @@ public:
     }
 
     void simulate_z80_io_access(uint16_t addr, bool is_write, uint8_t data = 0) {
-
         if (is_write)
-            std::cout << "  Z80 IO Write: addr=0x" << std::hex << addr 
-                    << " " << (is_write ? "WRITE" : "READ") 
+            std::cout << "  Z80 IO Write: port=0x" << std::hex << addr 
                     << " data=0x" << (int)data << std::dec << std::endl;
         else
-            std::cout << "  Z80 IO Read:  addr=0x" << std::hex << addr 
-                    << " " << (is_write ? "WRITE" : "READ") 
-                    << " data=0x" << (int)data << std::dec << std::endl;
+            std::cout << "  Z80 IO Read:  port=0x" << std::hex << addr << std::dec << std::endl;
         
         z80_bus_idle();
         
@@ -343,6 +242,20 @@ public:
         z80_bus_idle();
         eval(CLK_REST_TIME);
         clock_low(CLK_HALF_PERIOD);
+    }
+
+    // Direct CPU register access (new methods for simplified architecture)
+    void cpu_write_reg(uint8_t reg_addr, uint8_t data) {
+        std::cout << "  CPU Write Register: port=0x" << std::hex << (int)reg_addr 
+                  << " data=0x" << (int)data << std::dec << std::endl;
+        simulate_z80_io_access(reg_addr, true, data);
+    }
+
+    uint8_t cpu_read_reg(uint8_t reg_addr) {
+        simulate_z80_io_access(reg_addr, false, 0);
+        // Note: In real hardware, data would be available on cpu_dout
+        // For simulation, we need to capture it differently
+        return 0;
     }
 
     // Assertion functions
@@ -407,7 +320,7 @@ public:
 
     void log_registers() {
         std::cout << "  REGS: control=0x" << std::hex << (int)get_control() 
-                  << ", mmio_page=0x" << (int)get_control() 
+                  << ", mmio_page=0x" << (int)get_page()
                   << ", active_slot=0x" << (int)get_active_slot()
                   << ", super_slot=0x" << (int)get_super_slot()
                   << ", user_slot=0x" << (int)get_user_slot() 
@@ -448,6 +361,30 @@ public:
     int get_test_failures() { return test_failures; }
 };
 
+// Define register addresses (CPU I/O ports)
+namespace CPUPorts {
+    const uint8_t CONTROL      = 0xD7;
+    const uint8_t MMIO_PAGE    = 0xD3;
+    const uint8_t SUPER_SLOT   = 0xD9;
+    const uint8_t USER_SLOT    = 0xDB;
+    const uint8_t BANK_0       = 0xDC;
+    const uint8_t BANK_1       = 0xDD;
+    const uint8_t BANK_2       = 0xDE;
+    const uint8_t BANK_3       = 0xDF;
+    const uint8_t SYSCALL      = 0xD4;
+    // Extended bank registers
+    const uint8_t BANK_EXT_0   = 0xE0;
+    const uint8_t BANK_EXT_15  = 0xEF;
+}
+
+// Define control register bits
+namespace ControlRegister {
+    const uint8_t NATIVE_MODE      = (1 << 0);
+    const uint8_t SUPERVISOR_MODE  = (1 << 1);
+    const uint8_t SUPERVISOR_HOOK  = (1 << 2);
+    const uint8_t MMIO_USERLOCK    = (1 << 4);
+}
+
 // ===== TEST FUNCTIONS =====
 
 void test_default_state(MMUNativeTestUtils& utils) {
@@ -456,21 +393,23 @@ void test_default_state(MMUNativeTestUtils& utils) {
     utils.assert_equal(utils.get_mmio_userlock(), 1, "Default mmio_userlock should be 1");
     utils.assert_equal(utils.get_supervisor_mode(), 1, "Default supervisor_mode should be 1");
     utils.assert_equal(utils.get_syscall_trig(), 0, "Default syscall_trig should be 0");
-    utils.assert_equal(utils.get_legacy_mode(), 0, "Default should be legacy mode");
-    utils.assert_equal(utils.get_native_mode(), 1, "Default should not be native mode");
+    utils.assert_equal(utils.get_native_mode(), 1, "Default should be native mode");
+    utils.assert_equal(utils.get_legacy_mode(), 0, "Default should not be legacy mode");
 }
 
 void test_syscall_mechanism(MMUNativeTestUtils& utils) {
     std::cout << "\n=== TESTING SYSCALL MECHANISM ===" << std::endl;
     utils.log_registers();
     
-    utils.wb_write_reg(WishboneAddress::SYSCALL_REG, 0x55);
+    // Write to syscall register via CPU port
+    utils.cpu_write_reg(CPUPorts::SYSCALL, 0x55);
     utils.log_registers();
 
     utils.assert_equal(utils.get_syscall_data(), 0x55, "SysCall data should be captured");
     utils.assert_syscall_trig_seen(true, "SysCall should activate trig");
     
-    utils.wb_write_reg(WishboneAddress::SYSCALL_LEG, 0xAA);
+    // Second syscall
+    utils.cpu_write_reg(CPUPorts::SYSCALL, 0xAA);
     utils.log_registers();
     utils.assert_equal(utils.get_syscall_data(), 0xAA, "Second SysCall should update data");
     utils.assert_syscall_trig_seen(true, "Second SysCall should activate trig");
@@ -479,11 +418,13 @@ void test_syscall_mechanism(MMUNativeTestUtils& utils) {
 void test_control_register(MMUNativeTestUtils& utils) {
     std::cout << "\n=== TESTING CONTROL REGISTER ===" << std::endl;
     
-    utils.wb_write_reg(WishboneAddress::CONTROL, ControlRegister::NATIVE_MODE | ControlRegister::MMIO_USERLOCK);
+    // Write to control register via CPU port
+    utils.cpu_write_reg(CPUPorts::CONTROL, 
+                       ControlRegister::NATIVE_MODE | ControlRegister::MMIO_USERLOCK);
     utils.log_registers();
     utils.assert_equal(utils.get_control(), 0x11, "Control register write");
     
-    utils.wb_write_reg(WishboneAddress::CONTROL, ControlRegister::NATIVE_MODE);
+    utils.cpu_write_reg(CPUPorts::CONTROL, ControlRegister::NATIVE_MODE);
     utils.log_registers();
     utils.assert_equal(utils.get_control(), 0x01, "Overwrite control register");
 }
@@ -492,13 +433,13 @@ void test_supervisor_exit(MMUNativeTestUtils& utils) {
     std::cout << "\n=== TESTING SUPERVISOR EXIT ===" << std::endl;
     
     // Enable supervisor mode
-    utils.wb_write_reg(WishboneAddress::CONTROL, 
-                      ControlRegister::NATIVE_MODE | ControlRegister::SUPERVISOR_MODE);
+    utils.cpu_write_reg(CPUPorts::CONTROL, 
+                       ControlRegister::NATIVE_MODE | ControlRegister::SUPERVISOR_MODE);
     utils.log_registers();
     utils.assert_equal(utils.get_supervisor_mode(), 1, "Supervisor mode should be enabled");
     
     // Try to exit supervisor mode
-    utils.wb_write_reg(WishboneAddress::CONTROL, ControlRegister::NATIVE_MODE);
+    utils.cpu_write_reg(CPUPorts::CONTROL, ControlRegister::NATIVE_MODE);
     utils.log_registers();
     
     // Should trigger delayed exit
@@ -506,13 +447,12 @@ void test_supervisor_exit(MMUNativeTestUtils& utils) {
     utils.assert_equal(utils.get_supervisor_mode(), 0, "Supervisor mode should be disabled after M1");
 }
 
-
 void test_hardware_trap(MMUNativeTestUtils& utils) {
     std::cout << "\n=== TESTING HARDWARE TRAP ===" << std::endl;
     
     // Enable hardware trap
-    utils.wb_write_reg(WishboneAddress::CONTROL, 
-                      ControlRegister::NATIVE_MODE | ControlRegister::SUPERVISOR_HOOK);
+    utils.cpu_write_reg(CPUPorts::CONTROL, 
+                       ControlRegister::NATIVE_MODE | ControlRegister::SUPERVISOR_HOOK);
     utils.log_registers();
     
     // Simulate access to trap addresses
@@ -529,79 +469,103 @@ void test_hardware_trap(MMUNativeTestUtils& utils) {
 void test_register_access(MMUNativeTestUtils& utils) {
     std::cout << "\n=== TESTING REGISTER ACCESS ===" << std::endl;
     
-    // Test all bank registers
+    // Test all bank registers via CPU ports
     for (int i = 0; i < 16; i++) {
         uint8_t test_data = 0x10 + i;
-        utils.wb_write_reg(WishboneAddress::BANK_0 + i, test_data);
-        // Can't read back directly, but we can verify through debug
+        uint8_t port_addr = CPUPorts::BANK_EXT_0 + i;
+        utils.cpu_write_reg(port_addr, test_data);
     }
     
     // Test other registers
-    utils.wb_write_reg(WishboneAddress::MMIO_PAGE, 0xCD);
-    utils.wb_write_reg(WishboneAddress::SUPER_SLOT, 0x02);
-    utils.wb_write_reg(WishboneAddress::USER_SLOT, 0x01);
+    utils.cpu_write_reg(CPUPorts::MMIO_PAGE, 0xCD);
+    utils.cpu_write_reg(CPUPorts::SUPER_SLOT, 0x02);
+    utils.cpu_write_reg(CPUPorts::USER_SLOT, 0x01);
     utils.log_registers();
     
     utils.assert_true(true, "All register writes completed");
 }
+
 void test_address_translation(MMUNativeTestUtils& utils) {
     std::cout << "\n=== TESTING ADDRESS TRANSLATION ===" << std::endl;
     
-    utils.wb_write_reg(WishboneAddress::CONTROL, ControlRegister::NATIVE_MODE);
+    utils.cpu_write_reg(CPUPorts::CONTROL, ControlRegister::NATIVE_MODE);
     utils.log_registers();
 
-    // Setup banks
-    utils.wb_write_reg(WishboneAddress::BANK_0, 0x11);  // Page 0
-    utils.wb_write_reg(WishboneAddress::BANK_1, 0x22);  // Page 1
-    utils.wb_write_reg(WishboneAddress::BANK_2, 0x33);  // Page 2
-    utils.wb_write_reg(WishboneAddress::BANK_3, 0x44);  // Page 3
+    // Setup banks via CPU ports
+    utils.cpu_write_reg(CPUPorts::BANK_0, 0x11);  // Page 0
+    utils.cpu_write_reg(CPUPorts::BANK_1, 0x22);  // Page 1
+    utils.cpu_write_reg(CPUPorts::BANK_2, 0x33);  // Page 2
+    utils.cpu_write_reg(CPUPorts::BANK_3, 0x44);  // Page 3
 
-    uint8_t b0 = utils.wb_read_reg(WishboneAddress::BANK_0);
-    uint8_t b1 = utils.wb_read_reg(WishboneAddress::BANK_1);
-    uint8_t b2 = utils.wb_read_reg(WishboneAddress::BANK_2);
-    uint8_t b3 = utils.wb_read_reg(WishboneAddress::BANK_3);
+    utils.log_registers();
 
-    std::cout << "  REGS: bank 0 0x" << std::hex << (int)b0 << std::dec << std::endl;
-    std::cout << "  REGS: bank 1 0x" << std::hex << (int)b1 << std::dec << std::endl;
-    std::cout << "  REGS: bank 2 0x" << std::hex << (int)b2 << std::dec << std::endl;
-    std::cout << "  REGS: bank 3 0x" << std::hex << (int)b3 << std::dec << std::endl;
-
-    // Test memory access
+    // Test memory access - page 0
     utils.clear_m_wb_transaction();
     utils.simulate_z80_memory_access(0x0000, false);
     
     if (utils.was_m_wb_transaction()) {
-        utils.assert_equal(utils.get_last_m_wb_addr(), 0xC44000, "Memory translation page 0");
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x110000, "Memory translation page 0 (0x11 << 16)");
     } else {
         utils.assert_true(false, "No Wishbone transaction occurred for memory access");
     }
     
-    // Test page 3
+    // Test page 1 (0x4000-0x7FFF)
+    utils.clear_m_wb_transaction();
+    utils.simulate_z80_memory_access(0x4000, false);
+    
+    if (utils.was_m_wb_transaction()) {
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x220000, "Memory translation page 1 (0x22 << 16)");
+    } else {
+        utils.assert_true(false, "No Wishbone transaction occurred for page 1 access");
+    }
+    
+    // Test page 2 (0x8000-0xBFFF)
+    utils.clear_m_wb_transaction();
+    utils.simulate_z80_memory_access(0x8000, false);
+    
+    if (utils.was_m_wb_transaction()) {
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x330000, "Memory translation page 2 (0x33 << 16)");
+    } else {
+        utils.assert_true(false, "No Wishbone transaction occurred for page 2 access");
+    }
+    
+    // Test page 3 (0xC000-0xFFFF)
     utils.clear_m_wb_transaction();
     utils.simulate_z80_memory_access(0xC000, false);
     
     if (utils.was_m_wb_transaction()) {
-        utils.assert_equal(utils.get_last_m_wb_addr(), 0xD10000, "Memory translation page 3");
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x440000, "Memory translation page 3 (0x44 << 16)");
     } else {
-        utils.assert_true(false, "No Wishbone transaction occurred for memory access");
+        utils.assert_true(false, "No Wishbone transaction occurred for page 3 access");
     }
 }
 
 void test_mmio_translation(MMUNativeTestUtils& utils) {
     std::cout << "\n=== TESTING MMIO TRANSLATION ===" << std::endl;
     
-    utils.wb_write_reg(WishboneAddress::MMIO_PAGE, 0xAB);
-    utils.wb_write_reg(WishboneAddress::CONTROL, 
-                      ControlRegister::NATIVE_MODE | ControlRegister::SUPERVISOR_MODE);
+    utils.cpu_write_reg(CPUPorts::MMIO_PAGE, 0xAB);
+    utils.cpu_write_reg(CPUPorts::CONTROL, 
+                       ControlRegister::NATIVE_MODE | ControlRegister::SUPERVISOR_MODE);
     
-    // Test MMIO access
+    // Test MMIO access (port 0x50)
     utils.clear_m_wb_transaction();
     utils.simulate_z80_io_access(0x0050, false);
     
     if (utils.was_m_wb_transaction()) {
-        utils.assert_equal(utils.get_last_m_wb_addr(), 0xFFAB50, "MMIO translation");
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0xFFAB50, "MMIO translation (FF + page AB + port 50)");
     } else {
         utils.assert_true(false, "No Wishbone transaction occurred for MMIO access");
+    }
+    
+    // Test MMIO write
+    utils.clear_m_wb_transaction();
+    utils.simulate_z80_io_access(0x0030, true, 0x77);
+    
+    if (utils.was_m_wb_transaction()) {
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0xFFAB30, "MMIO write translation");
+        utils.assert_equal(utils.get_last_m_wb_data(), 0x77, "MMIO write data");
+    } else {
+        utils.assert_true(false, "No Wishbone transaction occurred for MMIO write");
     }
 }
 
@@ -609,26 +573,41 @@ void test_z80_io_protection(MMUNativeTestUtils& utils) {
     std::cout << "\n=== TESTING Z80 IO PROTECTION ===" << std::endl;
     
     // Enable protection and go to user mode
-    utils.wb_write_reg(WishboneAddress::CONTROL, 
-                      ControlRegister::NATIVE_MODE | ControlRegister::MMIO_USERLOCK);
+    utils.cpu_write_reg(CPUPorts::CONTROL, 
+                       ControlRegister::NATIVE_MODE | ControlRegister::MMIO_USERLOCK);
+    
+    // Wait for supervisor mode to exit
+    utils.wait_cycles(2);
     
     utils.assert_equal(utils.get_supervisor_mode(), 0, "Should be in user mode for protection test");
     
-    // Try to access IO port in user mode - should be blocked
+    // Try to access protected IO port in user mode - should be blocked
+    utils.clear_m_wb_transaction();
+    utils.simulate_z80_io_access(0x00D7, false); // Control register port
+    
+    // Should NOT generate Wishbone transaction
+    utils.assert_equal(utils.was_m_wb_transaction(), false, "Protected Z80 IO access should be blocked in user mode");
+    
+    // Now test in supervisor mode
+    utils.cpu_write_reg(CPUPorts::CONTROL, 
+                       ControlRegister::NATIVE_MODE | ControlRegister::SUPERVISOR_MODE | ControlRegister::MMIO_USERLOCK);
+    
     utils.clear_m_wb_transaction();
     utils.simulate_z80_io_access(0x00D7, false);
     
-    // Should NOT generate Wishbone transaction
-    utils.assert_equal(utils.was_m_wb_transaction(), false, "Z80 IO access should be blocked in user mode");
+    // Should generate Wishbone transaction in supervisor mode
+    utils.assert_equal(utils.was_m_wb_transaction(), true, "IO access should be allowed in supervisor mode");
 }
 
-// Обновим тест защиты доступа
 void test_access_protection(MMUNativeTestUtils& utils) {
     std::cout << "\n=== TESTING ACCESS PROTECTION ===" << std::endl;
     
     // Включаем защиту и переходим в user mode
-    utils.wb_write_reg(WishboneAddress::CONTROL, 
-                      ControlRegister::NATIVE_MODE | ControlRegister::MMIO_USERLOCK);
+    utils.cpu_write_reg(CPUPorts::CONTROL, 
+                       ControlRegister::NATIVE_MODE | ControlRegister::MMIO_USERLOCK);
+    
+    // Ждем выхода из supervisor mode
+    utils.wait_cycles(2);
     
     // Убедимся, что мы в user mode
     utils.assert_equal(utils.get_supervisor_mode(), 0, "Should be in user mode for protection test");
@@ -636,41 +615,105 @@ void test_access_protection(MMUNativeTestUtils& utils) {
     uint8_t before = utils.get_control();
     std::cout << "Control register before test: 0x" << std::hex << (int)before << std::dec << std::endl;
     
-    // Пытаемся записать в защищенный регистр
-    // ДОЛЖНО БЫТЬ ЗАБЛОКИРОВАНО, но в текущей реализации MMU защита работает только для Z80 IO доступа,
-    // а не для Wishbone Slave доступа!
-    utils.wb_write_reg(WishboneAddress::CONTROL, 0xFF);
+    // Пытаемся записать в защищенный регистр из user mode - должно быть заблокировано
+    utils.clear_m_wb_transaction();
+    utils.simulate_z80_io_access(CPUPorts::CONTROL, true, 0xFF);
     
+    // Проверяем, что не было Wishbone транзакции (доступ заблокирован)
+    utils.assert_equal(utils.was_m_wb_transaction(), false, "Protected register write should be blocked in user mode");
+    
+    // Проверяем, что значение регистра не изменилось
     uint8_t after = utils.get_control();
-    std::cout << "Control register after write: 0x" << std::hex << (int)after << std::dec << std::endl;
-    
-    // В текущей реализации MMU защита MMIO_USERLOCK работает только для Z80 IO портов (0xD0-0xFF),
-    // а не для Wishbone Slave доступа! Поэтому этот тест должен проходить.
-    // Изменим ожидание:
-    utils.assert_equal(after, 0xFF, "WB access should work regardless of MMIO_USERLOCK (only affects Z80 IO)");
+    utils.assert_equal(after, before, "Control register should not change when write is blocked");
 }
 
-
-// Добавим тест для проверки, что в supervisor mode доступ разрешен
 void test_supervisor_access(MMUNativeTestUtils& utils) {
     std::cout << "\n=== TESTING SUPERVISOR ACCESS ===" << std::endl;
     
     // Enable protection but stay in supervisor mode
-    utils.wb_write_reg(WishboneAddress::CONTROL, 
-                      ControlRegister::NATIVE_MODE | ControlRegister::SUPERVISOR_MODE | ControlRegister::MMIO_USERLOCK);
+    utils.cpu_write_reg(CPUPorts::CONTROL, 
+                       ControlRegister::NATIVE_MODE | ControlRegister::SUPERVISOR_MODE | ControlRegister::MMIO_USERLOCK);
     
     uint8_t before = utils.get_control();
     std::cout << "Control register before supervisor write: 0x" << std::hex << (int)before << std::dec << std::endl;
     
-    // Try to access MMIO registers in supervisor mode - должен быть разрешен
-    utils.wb_write_reg(WishboneAddress::CONTROL, 0x55);
+    // Try to access protected register in supervisor mode - должен быть разрешен
+    utils.clear_m_wb_transaction();
+    utils.simulate_z80_io_access(CPUPorts::CONTROL, true, 0x55);
     
+    // Должна быть Wishbone транзакция
+    utils.assert_equal(utils.was_m_wb_transaction(), true, "Register access should generate WB transaction in supervisor mode");
+    
+    // Проверяем, что значение изменилось
     uint8_t after = utils.get_control();
-    std::cout << "Control register after supervisor write: 0x" << std::hex << (int)after << std::dec << std::endl;
-    
-    // Проверяем, что значение изменилось (доступ разрешен)
-    utils.assert_equal(after, 0x55, "MMIO access should be allowed in supervisor mode");
+    utils.assert_equal(after, 0x55, "MMIO access should be allowed and change register in supervisor mode");
 }
+
+void test_slot_selection(MMUNativeTestUtils& utils) {
+    std::cout << "\n=== TESTING SLOT SELECTION ===" << std::endl;
+    
+    // Настройка слотов
+    utils.cpu_write_reg(CPUPorts::SUPER_SLOT, 0x00); // Supervisor: slot 0 для всех страниц
+    utils.cpu_write_reg(CPUPorts::USER_SLOT, 0x55);   // User: slot 1 для page0, slot 0 для page1, slot 1 для page2, slot 0 для page3
+    
+    // Переходим в supervisor mode
+    utils.cpu_write_reg(CPUPorts::CONTROL, 
+                       ControlRegister::NATIVE_MODE | ControlRegister::SUPERVISOR_MODE);
+    
+    // Настраиваем банки для разных слотов
+    // Slot 0 banks
+    utils.cpu_write_reg(CPUPorts::BANK_EXT_0, 0x10);  // Slot 0, Page 0
+    utils.cpu_write_reg(CPUPorts::BANK_EXT_1, 0x11);  // Slot 0, Page 1
+    utils.cpu_write_reg(CPUPorts::BANK_EXT_2, 0x12);  // Slot 0, Page 2
+    utils.cpu_write_reg(CPUPorts::BANK_EXT_3, 0x13);  // Slot 0, Page 3
+    
+    // Slot 1 banks
+    utils.cpu_write_reg(CPUPorts::BANK_EXT_4, 0x20);  // Slot 1, Page 0
+    utils.cpu_write_reg(CPUPorts::BANK_EXT_5, 0x21);  // Slot 1, Page 1
+    utils.cpu_write_reg(CPUPorts::BANK_EXT_6, 0x22);  // Slot 1, Page 2
+    utils.cpu_write_reg(CPUPorts::BANK_EXT_7, 0x23);  // Slot 1, Page 3
+    
+    utils.log_registers();
+    
+    // Test supervisor mode access (should use slot 0 for all pages)
+    std::cout << "Testing supervisor mode (slot 0 for all pages):" << std::endl;
+    
+    // Page 0 should use bank 0x10 (slot 0, page 0)
+    utils.clear_m_wb_transaction();
+    utils.simulate_z80_memory_access(0x0000, false);
+    if (utils.was_m_wb_transaction()) {
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x100000, "Supervisor page 0 should use slot 0 bank 0x10");
+    }
+    
+    // Page 1 should use bank 0x11 (slot 0, page 1)
+    utils.clear_m_wb_transaction();
+    utils.simulate_z80_memory_access(0x4000, false);
+    if (utils.was_m_wb_transaction()) {
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x110000, "Supervisor page 1 should use slot 0 bank 0x11");
+    }
+    
+    // Switch to user mode
+    utils.cpu_write_reg(CPUPorts::CONTROL, ControlRegister::NATIVE_MODE);
+    utils.wait_cycles(3); // Wait for mode switch
+    
+    std::cout << "Testing user mode (slot selection per page):" << std::endl;
+    utils.log_registers();
+    
+    // User mode: page 0 should use slot 1 (bank 0x20)
+    utils.clear_m_wb_transaction();
+    utils.simulate_z80_memory_access(0x0000, false);
+    if (utils.was_m_wb_transaction()) {
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x200000, "User page 0 should use slot 1 bank 0x20");
+    }
+    
+    // User mode: page 1 should use slot 0 (bank 0x11)
+    utils.clear_m_wb_transaction();
+    utils.simulate_z80_memory_access(0x4000, false);
+    if (utils.was_m_wb_transaction()) {
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x110000, "User page 1 should use slot 0 bank 0x11");
+    }
+}
+
 // ===== MAIN TEST SUITE =====
 
 int main(int argc, char** argv) {
@@ -686,13 +729,18 @@ int main(int argc, char** argv) {
     
     MMUNativeTestUtils utils(top, main_time, tfp);
     
-    std::cout << "=== COMPLETE MMU NATIVE TEST SUITE ===" << std::endl;
-     // Set up Wishbone delegates
+    std::cout << "=== COMPLETE MMU NATIVE TEST SUITE (SIMPLIFIED ARCHITECTURE) ===" << std::endl;
+    
+    // Set up Wishbone delegates
     utils.set_m_wb_delegates(
         // Read callback
         [](uint32_t addr) -> uint8_t {
-            std::cout << "  WB Msater Read: addr=0x" << std::hex << addr << std::dec << std::endl;
-            return 0xAA; // Return dummy data
+            std::cout << "  WB Master Read: addr=0x" << std::hex << addr << std::dec << std::endl;
+            // Return predictable data based on address
+            if (addr >= 0xFF0000 && addr <= 0xFFFFFF) {
+                return 0xCC; // MMIO space
+            }
+            return 0xAA; // Memory space
         },
         // Write callback  
         [](uint32_t addr, uint8_t data) {
@@ -707,11 +755,13 @@ int main(int argc, char** argv) {
     test_default_state(utils);
     test_control_register(utils);
     test_syscall_mechanism(utils);
+    test_slot_selection(utils);  // Новый тест для слотов
     test_address_translation(utils);
     test_mmio_translation(utils);
     test_supervisor_exit(utils);
     test_access_protection(utils);
-    test_supervisor_access(utils);  // Добавляем новый тест
+    test_z80_io_protection(utils);
+    test_supervisor_access(utils);
     test_hardware_trap(utils);
     test_register_access(utils);
     
