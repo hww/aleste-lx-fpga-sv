@@ -4,6 +4,7 @@
 // Amstrad CPC 6128 Compatibility Mode Memory Management Unit
 // Provides full hardware and software compatibility with Amstrad CPC 6128
 // =============================================================================
+`default_nettype none
 
 module mmu_legacy (
     // -------------------------------------------------------------------------
@@ -18,20 +19,7 @@ module mmu_legacy (
     input  logic        legacy_mode_i,            // Legacy mode active
     
     // -------------------------------------------------------------------------
-    // SLAVE Wishbone Interface (Configuration Access)
-    // -------------------------------------------------------------------------
-    input  logic        s_wb_cyc_i,               // Cycle valid
-    input  logic        s_wb_stb_i,               // Strobe
-    input  logic        s_wb_we_i,                // Write enable
-    input  logic [23:0] s_wb_adr_i,               // 24-bit address
-    input  logic [7:0]  s_wb_dat_i,               // Data in
-    input  logic [2:0]  s_wb_tag_i,               // The legacy units selected by the tag[2]
-    output logic [7:0]  s_wb_dat_o,               // Data out
-    output logic        s_wb_ack_o,               // Transfer acknowledge
-    output logic        s_wb_grant_o,             // Unit selected on WB but
-
-    // -------------------------------------------------------------------------
-    // MASTER Wishbone Interface (Memory and I/O Access)
+    // MASTER Wishbone Interface (Memory and I/O Access ONLY)
     // -------------------------------------------------------------------------
     output logic        m_wb_cyc_o,               // Cycle valid
     output logic        m_wb_stb_o,               // Strobe
@@ -49,8 +37,8 @@ module mmu_legacy (
     input  logic        cpu_iorq_n,               // I/O request
     input  logic        cpu_rd_n,                 // Read strobe
     input  logic        cpu_wr_n,                 // Write strobe
-    input  logic [7:0]  cpu_dat_i,                // Z80 data out
-    output logic [7:0]  cpu_dat_o,                // Z80 data in  
+    input  logic [7:0]  cpu_din,                  // Z80 data out
+    output logic [7:0]  cpu_dout,                 // Z80 data in  
     output logic        cpu_wait,                 // CPU wait signal
 
     // -------------------------------------------------------------------------
@@ -58,6 +46,10 @@ module mmu_legacy (
     // -------------------------------------------------------------------------
     output logic [1:0]  graphic_mode,             // CPC graphics mode
     output logic        irq_control,              // Interrupt control
+    
+    // -------------------------------------------------------------------------
+    // Debug Outputs (optional)
+    // -------------------------------------------------------------------------
     output logic        debug_rom_access_o,
     output logic        debug_ram_access_o,
     output logic        debug_io_access_o
@@ -81,11 +73,11 @@ module mmu_legacy (
     logic        is_mem_read;                     // Memory read operation
     logic        is_io_access;                    // I/O access active
     logic        is_internal_io;                  // Internal I/O register access
+    logic        is_gate_array_reg_write;         // Gate Array register write
 
     // =========================================================================
     // Gate Array Control Signals
     // =========================================================================
-    logic        gate_array_select;               // Gate Array register selected
     logic [1:0]  gate_array_reg;                  // Gate Array register type
 
     // =========================================================================
@@ -97,7 +89,6 @@ module mmu_legacy (
     // =========================================================================
     // Address Calculation
     // =========================================================================
-
     logic [23:0] physical_address;                // Адрес для доступа
     logic [23:0] ram_physical_address;            // Адрес для доступа к RAM
     logic [23:0] rom_physical_address;            // Адрес для доступа к ROM    
@@ -128,15 +119,11 @@ module mmu_legacy (
 
     // Internal I/O registers (handled internally, not forwarded to Wishbone)
     assign is_internal_io = is_7fxx_write | is_dfxx_write;
-
-    // Gate Array register selection
-    assign gate_array_select = is_7fxx_write & legacy_mode_i;
-    assign gate_array_reg    = cpu_dat_i[7:6];     // Register type from data bits
-
-    assign s_wb_grant_o = legacy_mode_i || s_wb_cyc_i || s_wb_stb_i;
+    assign is_gate_array_reg_write = is_7fxx_write & legacy_mode_i;
+    assign gate_array_reg = cpu_din[7:6];         // Register type from data bits
 
     // =========================================================================
-    // CPC REGISTER UPDATE FROM Z80 BUS
+    // CPC REGISTER UPDATE FROM Z80 BUS (DIRECT CPU ACCESS)
     // =========================================================================
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -145,52 +132,19 @@ module mmu_legacy (
             reg_mmr        <= 8'b11000000;        // Default MMR: Config 0, Bank 0
             reg_upper_rom  <= 8'h00;              // Default upper ROM bank 0
         end else if (legacy_mode_i) begin
-            // Gate Array register writes
-            if (gate_array_select) begin
+            // Gate Array register writes (7Fxxh)
+            if (is_gate_array_reg_write) begin
                 case (gate_array_reg)
-                    2'b10: reg_rmr <= cpu_dat_i;   // RMR write (Configuration)
-                    2'b11: reg_mmr <= cpu_dat_i;   // MMR write (Memory mapping)
-                    default: ;                    // Ignore other values - НОВАЯ СТРОКА
+                    2'b10: reg_rmr <= cpu_din;   // RMR write (Configuration)
+                    2'b11: reg_mmr <= cpu_din;   // MMR write (Memory mapping)
+                    // Other values (2'b00, 2'b01) are for palette, ignored here
+                    default: ;
                 endcase
             end
 
-            // Upper ROM selection write
+            // Upper ROM selection write (DFxxh)
             if (is_dfxx_write) begin
-                reg_upper_rom <= cpu_dat_i;        // Upper ROM bank select
-            end
-        end
-    end
-
-
-    // =========================================================================
-    // CPC REGISTER ACCESS VIA WISHBONE (SUPERVISOR MODE)
-    // =========================================================================
-    always_ff @(posedge clk) begin
-        if (reset) begin
-            s_wb_ack_o <= 1'b0;
-            s_wb_dat_o <= 8'h00;
-        end else begin
-            s_wb_ack_o <= 1'b0;                   // Default no acknowledge
-            
-            if (s_wb_cyc_i & s_wb_stb_i & ~s_wb_ack_o) begin
-                s_wb_ack_o <= 1'b1;               // Acknowledge valid access
-                
-                if (s_wb_we_i) begin
-                    // Supervisor write to CPC registers
-                    case (s_wb_adr_i)
-                        24'hFC0100: reg_rmr       <= s_wb_dat_i;  // RMR register
-                        24'hFC0101: reg_mmr       <= s_wb_dat_i;  // MMR register
-                        24'hFC0140: reg_upper_rom <= s_wb_dat_i;  // Upper ROM select
-                    endcase
-                end else begin
-                    // Supervisor read from CPC registers
-                    case (s_wb_adr_i)
-                        24'hFC0100: s_wb_dat_o <= reg_rmr;        // Read RMR
-                        24'hFC0101: s_wb_dat_o <= reg_mmr;        // Read MMR
-                        24'hFC0140: s_wb_dat_o <= reg_upper_rom;  // Read Upper ROM
-                        default:    s_wb_dat_o <= 8'hFF;          // Default response
-                    endcase
-                end
+                reg_upper_rom <= cpu_din;        // Upper ROM bank select
             end
         end
     end
@@ -238,14 +192,24 @@ module mmu_legacy (
                     endcase
                 end
                 
-                // Additional CPC 6128 configurations can be added here...
+                // Config 3: RAM 0,1,2,3 (with bank offset)
+                3'b011: begin
+                    case (cpu_a[15:14])
+                        2'b00: ram_physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
+                        2'b01: ram_physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
+                        2'b10: ram_physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
+                        2'b11: ram_physical_address = {memory_bank + 3'd3, cpu_a[13:0]};
+                    endcase
+                end
+                
+                // Config 4-7: Similar patterns
                 default: ram_physical_address = {memory_bank, cpu_a[15:0]};
             endcase
 
             // ROM access overrides (CPC ROM banking)
             if (cpu_a[15:14] == 2'b00 && ~reg_rmr[2]) begin
                 // Lower ROM access (0000-3FFF) when enabled
-                rom_physical_address = {10'b0100000000, cpu_a[13:0]};
+                rom_physical_address = {10'b0100000000, cpu_a[13:0]}; // Fixed ROM address
                 rom_access = 1'b1;
                 ram_access = 1'b0;
             end
@@ -264,6 +228,7 @@ module mmu_legacy (
         end
     end
 
+    // Final physical address selection
     always_comb begin
         if (is_io_access) begin
             physical_address = io_physical_address;
@@ -276,15 +241,18 @@ module mmu_legacy (
         end
     end
 
-    assign debug_rom_access_o = rom_access;
-    assign debug_ram_access_o = ram_access;
-    assign debug_io_access_o = is_io_access;
-
     // =========================================================================
     // CPC CONTROL OUTPUTS
     // =========================================================================
     assign graphic_mode = reg_rmr[1:0];           // CPC graphics mode (0-3)
     assign irq_control  = reg_rmr[4];             // Interrupt generation control
+
+    // =========================================================================
+    // DEBUG OUTPUTS
+    // =========================================================================
+    assign debug_rom_access_o = rom_access;
+    assign debug_ram_access_o = ram_access;
+    assign debug_io_access_o = is_io_access;
 
     // =========================================================================
     // WISHBONE MASTER INTERFACE CONTROL
@@ -294,6 +262,8 @@ module mmu_legacy (
             m_wb_cyc_o  <= 1'b0;
             m_wb_stb_o  <= 1'b0;
             m_wb_we_o   <= 1'b0;
+            m_wb_adr_o  <= 24'h000000;
+            m_wb_dat_o  <= 8'h00;
             wb_busy     <= 1'b0;
         end else begin
             // Clear strobe on acknowledge
@@ -306,9 +276,9 @@ module mmu_legacy (
             if ((is_mem_access | (is_io_access & ~is_internal_io)) && ~wb_busy) begin
                 m_wb_cyc_o  <= 1'b1;
                 m_wb_stb_o  <= 1'b1;
-                m_wb_we_o   <= ~cpu_wr_n;         // Write enable
-                m_wb_adr_o  <= physical_address;  // 24-bit physical address
-                m_wb_dat_o  <= cpu_dat_i;          // Data to write
+                m_wb_we_o   <= is_mem_write | (is_io_access & ~cpu_wr_n);
+                m_wb_adr_o  <= physical_address;
+                m_wb_dat_o  <= cpu_din;
                 wb_busy     <= 1'b1;
             end 
             // Release bus when no activity
@@ -319,16 +289,14 @@ module mmu_legacy (
     end
 
     // =========================================================================
-    // CPU DATA READING - ПРОСТОЕ ЧТЕНИЕ ДЛЯ ПРОЦЕССОРА
+    // CPU DATA READING
     // =========================================================================
-    always_comb begin
-        // По умолчанию - данные от Wishbone
-        cpu_dat_o = 8'hFF;  // Значение по умолчанию
-        if (is_mem_read && m_wb_ack_i) begin
-            cpu_dat_o = m_wb_dat_i;
-        end 
-    end
+    // Простое чтение данных от Wishbone
+    assign cpu_dout = m_wb_dat_i;
 
     // Wait state generation for Wishbone transactions
-    assign cpu_wait = (!m_wb_cyc_o || !m_wb_ack_i);
+    // NOTE: CPU should NOT wait when accessing internal registers (7Fxx, DFxx)
+    assign cpu_wait = (!is_internal_io) && 
+                     (m_wb_cyc_o && !m_wb_ack_i);
+
 endmodule

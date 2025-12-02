@@ -26,8 +26,10 @@ public:
     // Public access methods
     uint8_t get_graphic_mode() { return top->graphic_mode; }
     uint8_t get_irq_control() { return top->irq_control; }
-    uint8_t get_m_wb_tga() { return top->m_wb_tga_o; }
-    uint8_t get_m_wb_adr_high() { return top->m_wb_adr_o >> 16; }
+    // Legacy MMU no longer exposes a separate TGA/tag signal; IO mapping
+    // is now done by creating addresses in the 0xFFxxxx space. Provide
+    // helpers to inspect the master address high byte.
+    uint8_t get_m_wb_adr_high() { return (top->m_wb_adr_o >> 16) & 0xFF; }
 
     int get_failures() {return test_failures; }
 
@@ -61,7 +63,7 @@ public:
         std::cout << "Z80 IO Write: addr=0x" << std::hex << addr << " data=0x" << (int)data << std::dec << std::endl;
         
         top->cpu_a = addr;
-        top->cpu_dat_i = data;
+        top->cpu_din = data;
         top->cpu_iorq_n = 0;
         top->cpu_wr_n = 0;
         eval(SETUP_TIME);
@@ -79,7 +81,7 @@ public:
         std::cout << "Z80 MEM Write: addr=0x" << std::hex << addr << " data=0x" << (int)data << std::dec << std::endl;
         
         top->cpu_a = addr;
-        top->cpu_dat_i = data;
+        top->cpu_din = data;
         top->cpu_mreq_n = 0;
         top->cpu_wr_n = 0;
         eval(SETUP_TIME);
@@ -224,7 +226,7 @@ int main(int argc, char** argv) {
     top->cpu_mreq_n = 1;
     top->cpu_wr_n = 1;
     top->cpu_a = 0;
-    top->cpu_dat_i = 0;
+    top->cpu_din = 0;
     utils.set_legacy_mode_i(true);
     
     // Reset
