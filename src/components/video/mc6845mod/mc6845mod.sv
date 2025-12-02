@@ -78,7 +78,7 @@ module mc6845mod #(
     output logic        cfg_linear_pixel_o, // 0=CPC-style, 1=continuous  
     output logic [1:0]  cfg_pixel_rate_o,         // Pixel clock selection
     
-    output logic [2:0]  cfg_addr_mode_o,    // Address mode
+    output logic [2:0]  cfg_addr_mode_o    // Address mode
 );
 
 // ============================================================================

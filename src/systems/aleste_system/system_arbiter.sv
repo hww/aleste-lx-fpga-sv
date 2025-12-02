@@ -21,6 +21,7 @@ module system_arbiter (
     input  logic        z80_we_i,                 // Z80 write enable
     input  logic [23:0] z80_adr_i,                // Z80 address
     input  logic [7:0]  z80_dat_i,                // Z80 data out
+    input  logic [1:0]  z80_tga_i,
     output logic [7:0]  z80_dat_o,                // Z80 data in
     output logic        z80_ack_o,                // Z80 acknowledge
     output logic        z80_grant_o,              // Z80 bus grant

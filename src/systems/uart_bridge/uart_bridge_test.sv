@@ -83,12 +83,11 @@ module uart_bridge_test #(
     logic [7:0] uart_dbg_adr;
     logic [7:0] uart_dbg_dat_o, uart_dbg_dat_i;
     logic [1:0] uart_dbg_sel;
-    logic uart_rx_ready, uart_rx_idle, uart_rx_eop;
+    logic uart_rx_ready, uart_rx_idle, uart_rx_eop, uart_tx_busy;
 
     logic serial_rx_clk, serial_tx_clk;
     logic [3:0] cmd_state;
     logic [2:0] bus_state;
-    logic uart_rx_ready, uart_tx_busy;
     logic bus_stb, bus_ack;
 
 

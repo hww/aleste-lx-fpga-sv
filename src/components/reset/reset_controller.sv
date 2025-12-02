@@ -5,7 +5,7 @@ module reset_controller (
     input clke,
     input pll_locked,
     output reg system_reset,
-    output reg boot_complete
+    output boot_complete
 );
 
 localparam RESET_END = 8'hFF;
@@ -31,4 +31,3 @@ end
 assign boot_complete = system_reset_ff && !system_reset;
 
 endmodule
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    

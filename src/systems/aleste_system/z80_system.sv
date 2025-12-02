@@ -110,7 +110,7 @@ module z80_system (
     // Legacy MMU Slave interfaces
     logic [7:0]     legacy_mmu_s_dat_o;
     logic           legacy_mmu_s_ack_o;
-    logic           legacy_mmu_s_wb_sel;
+    logic           legacy_mmu_s_wb_grant;
 
     // Native MMU interfaces
     logic           native_mmu_cyc;
@@ -119,7 +119,7 @@ module z80_system (
     logic [23:0]    native_mmu_adr;
     logic [7:0]     native_mmu_dat_o;
     logic           native_mmu_wait;
-    logic           native_mmu_s_wb_sel;
+    logic           native_mmu_s_wb_grant;
     logic [7:0]     native_mmu_cpu_dout;
     
     // Native MMU Slave interfaces
@@ -219,13 +219,12 @@ module z80_system (
         .s_wb_dat_i(s_wb_dat_i),
         .s_wb_dat_o(legacy_mmu_s_dat_o),
         .s_wb_ack_o(legacy_mmu_s_ack_o),
-        .s_wb_sel_o(legacy_mmu_s_wb_sel),
+        .s_wb_grant_o(legacy_mmu_s_wb_grant),
 
         // Master Wishbone Interface
         .m_wb_cyc_o(legacy_mmu_cyc),
         .m_wb_stb_o(legacy_mmu_stb),
         .m_wb_we_o(legacy_mmu_we),
-        .m_wb_tga_o(),
         .m_wb_adr_o(legacy_mmu_adr),
         .m_wb_dat_o(legacy_mmu_dat_o),
         .m_wb_dat_i(wbm_dat_i),
@@ -284,13 +283,13 @@ module z80_system (
         .s_wb_cyc_i(s_wb_cyc_i & (native_mode | legacy_syscall_detect)),
         .s_wb_stb_i(s_wb_stb_i & (native_mode | legacy_syscall_detect)),
         .s_wb_we_i(s_wb_we_i | legacy_syscall_we),
-        .s_wb_tag_i(s_wb_tag),
-        .s_wb_cs_i(s_cs_native_mmu),
+        .s_wb_tag_i(s_wb_tag_i),
+        .s_wb_cs_i(s_cs_native_mmu_i),
         .s_wb_adr_i(s_wb_adr_i),
         .s_wb_dat_i(s_wb_dat_i),
         .s_wb_dat_o(native_mmu_s_dat_o),
         .s_wb_ack_o(native_mmu_s_ack_o),
-        .s_wb_sel_o(native_mmu_s_wb_sel),
+        .s_wb_grant_o(native_mmu_s_wb_grant),
 
         // Control Outputs
         .supervisor_mode_o(supervisor_mode_o),
@@ -337,7 +336,7 @@ module z80_system (
     // Wishbone Slave Muxing
     assign s_wb_dat_o = legacy_mode ? legacy_mmu_s_dat_o : native_mmu_s_dat_o;
     assign s_wb_ack_o = legacy_mode ? legacy_mmu_s_ack_o : native_mmu_s_ack_o;
-    assign s_wb_sel_o = native_mode ? native_mmu_s_wb_sel : legacy_mmu_s_wb_sel;
+    assign s_wb_sel_o = native_mode ? native_mmu_s_wb_grant : legacy_mmu_s_wb_grant;
 
     // Legacy SysCall Detection
     assign legacy_syscall_detect = legacy_mode && ~z80_iorq_n && ~z80_wr_n && 

@@ -55,7 +55,7 @@ module video_pll
         .CLKOP_DIV(2),        // 540 MHz / 2 = 270 MHz 
         .CLKOS_DIV(20),       // 540 MHz / 20 = 27 MHz
         .CLKOS2_DIV(10),      // 540 MHz / 10 = 54 MHz
-        .CLKOS3_DIV(5),       // 540 MHz / 5 = 108 MHz
+        .CLKOS3_DIV(5)        // 540 MHz / 5 = 108 MHz
     )
     pll_video
     (

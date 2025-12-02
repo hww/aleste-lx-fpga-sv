@@ -25,8 +25,10 @@ module mmu_legacy (
     input  logic        s_wb_we_i,                // Write enable
     input  logic [23:0] s_wb_adr_i,               // 24-bit address
     input  logic [7:0]  s_wb_dat_i,               // Data in
+    input  logic [2:0]  s_wb_tag_i,               // The legacy units selected by the tag[2]
     output logic [7:0]  s_wb_dat_o,               // Data out
     output logic        s_wb_ack_o,               // Transfer acknowledge
+    output logic        s_wb_grant_o,             // Unit selected on WB but
 
     // -------------------------------------------------------------------------
     // MASTER Wishbone Interface (Memory and I/O Access)
@@ -38,8 +40,6 @@ module mmu_legacy (
     output logic [7:0]  m_wb_dat_o,               // Data out
     input  logic [7:0]  m_wb_dat_i,               // Data in
     input  logic        m_wb_ack_i,               // Transfer acknowledge
-    output logic        s_wb_sel_o,               // Unit selected on WB but
-    input  logic [2:0]  m_tag_i,                  // The legacy units selected by the tag[2]
 
     // -------------------------------------------------------------------------
     // Z80 Bus Interface
@@ -110,7 +110,6 @@ module mmu_legacy (
     // =========================================================================
     logic        wb_busy;                         // Wishbone transaction busy
 
-
     // =========================================================================
     // Z80 BUS DECODING
     // =========================================================================
@@ -134,7 +133,7 @@ module mmu_legacy (
     assign gate_array_select = is_7fxx_write & legacy_mode_i;
     assign gate_array_reg    = cpu_dat_i[7:6];     // Register type from data bits
 
-    assign s_wb_sel_o = legacy_mode_i || s_wb_cyc_i || s_wb_stb_i;
+    assign s_wb_grant_o = legacy_mode_i || s_wb_cyc_i || s_wb_stb_i;
 
     // =========================================================================
     // CPC REGISTER UPDATE FROM Z80 BUS
@@ -196,13 +195,11 @@ module mmu_legacy (
         end
     end
 
-
     // =========================================================================
     // MEMORY CONFIGURATION DECODING
     // =========================================================================
     assign memory_config = reg_mmr[2:0];          // Memory configuration bits
     assign memory_bank   = {reg_mmr[5:3], 2'b00}; // 64KB memory bank base address
-
 
     // =========================================================================
     // COMPLEX MEMORY ADDRESS CALCULATION (CPC 6128 COMPATIBLE)
@@ -288,7 +285,6 @@ module mmu_legacy (
     // =========================================================================
     assign graphic_mode = reg_rmr[1:0];           // CPC graphics mode (0-3)
     assign irq_control  = reg_rmr[4];             // Interrupt generation control
-
 
     // =========================================================================
     // WISHBONE MASTER INTERFACE CONTROL

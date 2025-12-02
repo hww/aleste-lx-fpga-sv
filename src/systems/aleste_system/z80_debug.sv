@@ -1,4 +1,6 @@
 // z80_debug.sv - обновленный без cen_p
+`default_nettype none
+
 module z80_debug (
     input  logic        clk,
     input  logic        reset,

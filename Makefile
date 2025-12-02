@@ -32,7 +32,8 @@ lint:
 
 
 # Targets
-all: sim
+## Default: build only the aleste_system (use build/aleste_system Makefile)
+all: aleste_system
 
 # Simulation with Verilator
 sim: sim-verilator-clk sim-verilator-sdram
@@ -86,3 +87,7 @@ clean:
 	rm -rf obj_dir *.vcd *.json *.bin
 
 .PHONY: all sim synth prog clean
+
+.PHONY: aleste_system
+aleste_system:
+	$(MAKE) -C build/aleste_system

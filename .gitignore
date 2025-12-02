@@ -23,3 +23,9 @@ __pycache__
 obj_dir
 stats_pre.txt
 stats_synt.txt
+build/aleste_video/stats_pre.txt
+.hdl_checker/cache.json
+build/aleste_system/aleste_system.config
+build/aleste_system/aleste_system.json
+build/aleste_system/aleste_system.ys
+build/aleste_video/stats_pre.txt

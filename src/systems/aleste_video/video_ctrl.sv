@@ -1,5 +1,6 @@
 `default_nettype none
-
+// Include configuration
+`include "config_27mhz.vh"
 module video_ctrl #(
     parameter BASE_CLOCK    = `BASE_CLOCK,
     parameter SRC_H_VISIBLE      = `SRC_H_VISIBLE,
@@ -69,8 +70,8 @@ module video_ctrl #(
     output logic        hdmi_rd,
     output logic        hdmi_newline,
     output logic        hdmi_newframe,
-    input  logic [10:0] hdmi_x,
-    input  logic [9:0]  hdmi_y,
+    output  logic [10:0] hdmi_x,
+    output  logic [9:0]  hdmi_y,
     
     // Отладочные выходы
     output logic [2:0]  debug_leds,

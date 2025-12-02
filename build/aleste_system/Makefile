@@ -72,7 +72,7 @@ CONSTRAINTS := icesugar_pro.lpf
 
 # Configuration
 YOSYS_DEFINE := -DCONFIG_27MHZ -I../../src/config
-YOSYS_INCLUDE := -I.
+YOSYS_INCLUDE := -I. -I$(SYSTEM_DIR)
 
 .PHONY: all
 all: $(BITSTREAM)
@@ -139,7 +139,7 @@ $(BITSTREAM): $(CONFIG_FILE)
 clean:
 	@echo "Cleaning build artifacts..."
 	rm -f $(YOSYS_SCRIPT) $(JSON_FILE) $(CONFIG_FILE) $(BITSTREAM) $(SVF_FILE)
-	rm -f *.ys *.json *.config *.bit *.svf
+	rm -f aleste_system.ys *.json *.config *.bit *.svf
 	find . -name "*.tmp" -delete
 
 .PHONY: check-sources

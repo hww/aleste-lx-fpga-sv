@@ -57,7 +57,7 @@ CONSTRAINTS := icesugar_pro.lpf
 
 # Configuration
 YOSYS_DEFINE := -DCONFIG_27MHZ -I../../src/config
-YOSYS_INCLUDE := -I.
+YOSYS_INCLUDE := -I. -I$(SYSTEM_DIR)
 
 .PHONY: all
 all: $(BITSTREAM)
