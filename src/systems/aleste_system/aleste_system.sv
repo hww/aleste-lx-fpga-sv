@@ -160,7 +160,12 @@ module aleste_system #(
     logic sys_cyc, sys_stb, sys_ack, sys_we;
     logic [23:0] sys_adr;
     logic [7:0] sys_dat_out, sys_dat_in;
-    logic [2:0] sys_tag;
+    // Intermediate slave outputs (non-multiplexed). We capture each slave's
+    // response here and then combine them into `sys_dat_in/sys_ack` to avoid
+    // multiple drivers on the same signal.
+    logic [7:0] z80_slave_dat, video_slave_dat;
+    logic       z80_slave_ack, video_slave_ack;
+    // Note: `sys_tag` is registered later after address decoding to break combinational loops
         
     logic [1:0] debug_arbiter_state;
     logic debug_z80_active, debug_uart_active;
@@ -176,8 +181,6 @@ module aleste_system #(
 
     // Configuration
     logic cfg_legacy = 1'b0;
-
-
 
     // ===========================================
     // UART Bridge
@@ -253,10 +256,14 @@ module aleste_system #(
         .s_wb_we_i(sys_we),
         .s_wb_adr_i(sys_adr),
         .s_wb_dat_i(sys_dat_out),
-        .s_wb_dat_o(sys_dat_in),            // To system bus
-        .s_wb_ack_o(sys_ack),
+        // MMU / register interface (slave outputs are captured to intermediate
+        // signals and later multiplexed onto the global system bus lines to
+        // avoid multiple drivers).
+        .s_wb_dat_o(z80_slave_dat),            // MMU -> slave data
+        .s_wb_ack_o(z80_slave_ack),
         .s_wb_sel_o(),
         .s_wb_tag_i(sys_tag),
+        .s_cs_native_mmu_i( ),
 
         // Debug Bus Interface
         .dbg_adr_i(8'h00),                  // Not used for now
@@ -334,22 +341,46 @@ module aleste_system #(
     // Address Decoder
     // ===========================================
 
-    // Address Decoder Signals
+    // Address Decoder Signals (registered outputs to avoid combinational loops)
+    // comb_* wires receive combinational outputs from address_decoder; then
+    // we register them on the bus clock so arbitration/decoding paths do not
+    // create combinational feedback that tools (Yosys/abc9) can't resolve.
+    logic [7:0] cs_native_comb;
+    logic [7:0] cs_system_comb;
+    logic [7:0] cs_legacy_comb;
+
+    // Registered versions: used throughout the system
     logic [7:0] cs_native;          // Native space 256 bytes blocks
     logic [7:0] cs_system;          // Native (system space) 32 bytes blocks
     logic [7:0] cs_legacy;          // Native (legacy space) 32 bytes blocks
-
+    logic [2:0] sys_tag_comb;
+    logic [2:0] sys_tag;
 
     address_decoder adu (
         .cfg_legacy_i(cfg_legacy),  // Legacy mode
 
         .wb_adr_i(sys_adr),         // Input address lines
         
-        .wb_tag_o(sys_tag),         // The result TAG
-        .cs_native_o(cs_native),    // Native space 256 bytes blocks
-        .cs_system_o(cs_system),    // Native (system space) 32 bytes blocks
-        .cs_legacy_o(cs_legacy)     // Native (legacy space) 32 bytes blocks
+        .wb_tag_o(sys_tag_comb),    // The result TAG (comb)
+        .cs_native_o(cs_native_comb),// Native space 256 bytes blocks (comb)
+        .cs_system_o(cs_system_comb),// Native (system space) 32 bytes blocks (comb)
+        .cs_legacy_o(cs_legacy_comb) // Native (legacy space) 32 bytes blocks (comb)
     );
+
+    // Register decoder outputs on the bus clock to break combinational paths
+    always_ff @(posedge clk_bus or posedge system_reset) begin
+        if (system_reset) begin
+            cs_native <= '0;
+            cs_system <= '0;
+            cs_legacy <= '0;
+            sys_tag   <= '0;
+        end else begin
+            cs_native <= cs_native_comb;
+            cs_system <= cs_system_comb;
+            cs_legacy <= cs_legacy_comb;
+            sys_tag   <= sys_tag_comb;
+        end
+    end
 
     logic wb_cs_pal  = cs_legacy[0];
     logic wb_cs_crtc = cs_legacy[1];
@@ -397,8 +428,8 @@ module aleste_system #(
         .wb_we_i(sys_we),
         .wb_adr_i(sys_adr),
         .wb_dat_i(sys_dat_out),
-        .wb_dat_o(sys_dat_in),
-        .wb_ack_o(sys_ack),
+        .wb_dat_o(video_slave_dat),
+        .wb_ack_o(video_slave_ack),
         .wb_tag_i(sys_tag),
         
         // Memory Interface
@@ -428,6 +459,24 @@ module aleste_system #(
         // Конфигурационные сигналы
         .cfg_legacy_i(cfg_legacy)
     );
+
+    // -----------------------------------------------------------
+    // Multiplex slave responses onto the system bus signals
+    // to avoid multiple drivers on `sys_dat_in` / `sys_ack`.
+    // Priority: video_controller responses first, then z80 slave.
+    always_comb begin
+        // Defaults
+        sys_dat_in = '0;
+        sys_ack = 1'b0;
+
+        if (video_slave_ack) begin
+            sys_dat_in = video_slave_dat;
+            sys_ack     = video_slave_ack;
+        end else if (z80_slave_ack) begin
+            sys_dat_in = z80_slave_dat;
+            sys_ack     = z80_slave_ack;
+        end
+    end
 
     // ===========================================
     // SDRAM Controller

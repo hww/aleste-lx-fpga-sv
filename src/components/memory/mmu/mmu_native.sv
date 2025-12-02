@@ -308,7 +308,20 @@ module mmu_native (
     end
 
     // Current bank selection for memory access
-    assign selected_bank = reg_bank[{current_slot, cpu_page}];
+    // NOTE: read the bank value into a registered stage to avoid potential
+    // combinational feedback paths that create logic loops during synthesis.
+    // This introduces one-cycle latency for bank selection which is safe for
+    // the MMU path (Wishbone handshake gives time) and helps tools like
+    // Yosys/abc9 avoid the `no_loops` assertion.
+    logic [7:0] selected_bank_reg;
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            selected_bank_reg <= 8'h00;
+        end else begin
+            selected_bank_reg <= reg_bank[{current_slot, cpu_page}];
+        end
+    end
+    assign selected_bank = selected_bank_reg;
 
     // Debug outputs
     assign debug_selected_bank_o = selected_bank;
