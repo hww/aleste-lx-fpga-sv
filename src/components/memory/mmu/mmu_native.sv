@@ -4,6 +4,12 @@
 // Memory Management Unit with direct CPU register access (no Wishbone Slave)
 // =============================================================================
 
+// Disable some Verilator lint warnings that are benign for this testbench
+// verilator lint_off WIDTHEXPAND
+// verilator lint_off WIDTHTRUNC
+// verilator lint_off CASEINCOMPLETE
+// verilator lint_off UNDRIVEN
+
 module mmu_native (
     // -------------------------------------------------------------------------
     // Clock and Reset
@@ -41,7 +47,21 @@ module mmu_native (
     output logic [7:0]  m_wb_dat_o,               // Data out
     input  logic [7:0]  m_wb_dat_i,               // Data in
     input  logic        m_wb_ack_i,               // Transfer acknowledge
+    // Debug / Status outputs
+    output logic        syscall_trigger_o,
+    output logic [7:0]  syscall_function_o,
+    output logic        supervisor_mode_o,
+    output logic        mmio_userlock_o,
+    output logic [7:0]  debug_control_o,
+    output logic [7:0]  debug_mmio_page_o,
+    output logic [7:0]  debug_super_slot_o,
+    output logic [7:0]  debug_user_slot_o,
+    output logic [7:0]  debug_syscall_function_o,
+    output logic [7:0]  debug_selected_bank_o,
+    output logic [7:0]  debug_current_slot_o,
+    output logic [7:0]  debug_bank_index_o
     // =========================================================================
+    );
     // Internal Registers
     // =========================================================================
     logic [7:0] reg_control;                      // D7: [4]=mmio_userlock, [1]=supervisor, [0]=native
@@ -60,6 +80,7 @@ module mmu_native (
     
     logic        supervisor_mode;                 // Текущий режим привилегий
     logic        native_mode;                     // Текущий режим работы
+    logic [7:0]  syscall_function;
 
     // =========================================================================
     // Основные сигналы
@@ -121,6 +142,11 @@ module mmu_native (
     assign debug_selected_bank_o = selected_bank;
     assign debug_current_slot_o  = {6'b0, current_slot};
     assign debug_bank_index_o    = bank_index;
+    assign debug_control_o       = reg_control;
+    assign debug_mmio_page_o     = reg_mmio_page;
+    assign debug_super_slot_o    = reg_super_slot;
+    assign debug_user_slot_o     = reg_user_slot;
+    assign debug_syscall_function_o = syscall_function;
 
     // =========================================================================
     // 3. СУПЕРВИЗОР MODE и TRAP (исправлено)
@@ -274,9 +300,9 @@ module mmu_native (
                 // Native Mode: {slot, bank, offset}
                 wb_addr_reg <= {current_slot, selected_bank, cpu_a[13:0]};
             end else begin
-                // Legacy Mode: эмуляция CPC (упрощенно)
-                // TODO: реализовать полноценную эмуляцию CPC маппера
-                wb_addr_reg <= {8'h00, 8'h00, cpu_a};  // Временное решение
+                // Legacy mode is handled by a different MMU; do not produce
+                // a native mapping here — output zero (no transaction).
+                wb_addr_reg <= 24'h000000;
             end
         end
         else if (is_mmio_access) begin

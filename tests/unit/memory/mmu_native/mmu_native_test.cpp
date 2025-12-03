@@ -549,9 +549,9 @@ void test_mmio_translation(MMUNativeTestUtils& utils) {
     
     // ВНИМАНИЕ: Для MMIO доступа нужно использовать IO доступ, не memory!
     // Давайте тестировать IO доступ к порту 0x50:
-    top->cpu_a = 0x0050;
-    top->cpu_iorq_n = 0;
-    top->cpu_rd_n = 0;
+    utils.get_top()->cpu_a = 0x0050;
+    utils.get_top()->cpu_iorq_n = 0;
+    utils.get_top()->cpu_rd_n = 0;
     utils.clock_tick();
     utils.z80_bus_idle();
     
@@ -577,9 +577,9 @@ void test_z80_io_protection(MMUNativeTestUtils& utils) {
     utils.clear_m_wb_transaction();
     
     // Попытка доступа к порту D7 (регистр управления)
-    top->cpu_a = 0x00D7;
-    top->cpu_iorq_n = 0;
-    top->cpu_rd_n = 0;
+    utils.get_top()->cpu_a = 0x00D7;
+    utils.get_top()->cpu_iorq_n = 0;
+    utils.get_top()->cpu_rd_n = 0;
     utils.clock_tick();
     utils.z80_bus_idle();
     
