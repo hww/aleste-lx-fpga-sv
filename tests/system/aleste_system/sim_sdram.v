@@ -16,6 +16,7 @@ module sim_sdram #(
 );
     reg [15:0] memory[0:DEPTH-1];
     reg ack;
+    integer fh;
     
     // Простая Z80 программа: NOP, NOP, HALT
     // Адрес 0x0000: 0x00 0x00 0x76
@@ -23,6 +24,15 @@ module sim_sdram #(
         memory[0] = 16'h7600;  // HALT, NOP (little-endian)
         memory[1] = 16'h0000;  // NOP, NOP
         // Можно добавить больше кода...
+        // Если присутствует файл инициализации `sdram_init.hex`, загрузим его
+        fh = $fopen("sdram_init.hex", "r");
+        if (fh) begin
+            $fclose(fh);
+            $display("sim_sdram: Loading SDRAM init from sdram_init.hex");
+            $readmemh("sdram_init.hex", memory);
+        end else begin
+            // No init file found
+        end
     end
     
     always @(posedge clk) begin
