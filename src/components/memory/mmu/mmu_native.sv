@@ -179,9 +179,9 @@ module mmu_native (
     // =========================================================================
 
     wire addr_is_0000_00ff = (cpu_a[15:8] == 0);
-    wire addr_is_XXd0_XXff = (cpu_a[7:0] >= 8'hD0);
-    wire addr_is_mmio_space = !addr_is_XXd0_XXff && addr_is_0000_00ff;
-    wire addr_is_mmu_space  =  addr_is_XXd0_XXff && addr_is_0000_00ff;
+    wire addr_is_XX80_XXff = (cpu_a[7]);
+    wire addr_is_mmio_space = !addr_is_XX80_XXff && addr_is_0000_00ff;
+    wire addr_is_mmu_space  =  addr_is_XX80_XXff && addr_is_0000_00ff && (cpu_a[7] && cpu_a[6] && (cpu_a[5] || cpu_a[4]));
 
     // Разрешение доступа к портам: разрешено если supervisor ИЛИ unlock установлен
     // По архитектуре: user+lock блокирует, supervisor или unlock разрешает
@@ -212,9 +212,9 @@ module mmu_native (
     logic       cpu_reg_read_valid;
 
     // SysCall
-    assign debug_syscall_trigger_o = is_mmu_access && is_write && 
-                              (cpu_a[7:0] == 8'hD4);
-    
+    wire is_syscall_trigger_address = (8'hD4 == (native_mode ?  cpu_a[7:0] : cpu_a[15:8]));
+    assign debug_syscall_trigger_o = is_mmu_access && is_write && is_syscall_trigger_address;   
+
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
             // По спецификации: после сброса supervisor=1, native=1, mmio_userlock=1
@@ -342,8 +342,7 @@ module mmu_native (
     // =========================================================================
     // 9. WAIT STATES 
     // =========================================================================
-    assign cpu_wait = m_wb_cyc_o && ~m_wb_ack_i;
-
+    assign cpu_wait = ~is_mmu_access && m_wb_cyc_o && ~m_wb_ack_i;
 
     // =========================================================================
     // 10. Other Outputs

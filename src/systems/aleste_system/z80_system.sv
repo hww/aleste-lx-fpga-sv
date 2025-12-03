@@ -112,9 +112,6 @@ module z80_system (
     logic           native_mmio_userlock;
     logic [7:0]     native_syscall_function;
     logic           native_syscall_trigger;
-    
-    // Legacy SysCall Detection
-    logic           legacy_syscall_detect;
 
     // =========================================================================
     // Debug Module Interface
@@ -125,7 +122,6 @@ module z80_system (
     // =========================================================================
     // Mode Selection and Control
     // =========================================================================
-    logic           active_mmu_select;            // 0=Legacy, 1=Native
     logic           legacy_syscall_handled;       // Legacy syscall processed
 
     // =========================================================================
@@ -191,17 +187,6 @@ module z80_system (
         .z80_wait_n(debug_z80_wait_n),
         .debug_halt_o(debug_halt)
     );
-
-    // =========================================================================
-    // MODE SELECTION LOGIC
-    // =========================================================================
-    // Native MMU контролирует режимы через свои регистры
-    // Legacy режим активируется когда native_mode = 0
-    assign active_mmu_select = native_mode;       // 0=Legacy, 1=Native
-    
-    // Legacy SysCall detection (порт D400h в Legacy режиме)
-    assign legacy_syscall_detect = legacy_mode && ~z80_iorq_n && ~z80_wr_n && 
-                                  (z80_a == 16'hD400);
 
     // =========================================================================
     // MMU INSTANTIATIONS (NO WISHBONE SLAVE INTERFACES!)
@@ -293,24 +278,20 @@ module z80_system (
     // =========================================================================
     // LOCAL MMU MULTIPLEXER
     // =========================================================================
-    
-    // Wishbone Master Output Multiplexer
-    assign wbm_cyc_o = active_mmu_select ? native_mmu_cyc : legacy_mmu_cyc;
-    assign wbm_stb_o = active_mmu_select ? native_mmu_stb : legacy_mmu_stb;
-    assign wbm_we_o  = active_mmu_select ? native_mmu_we  : legacy_mmu_we;
-    assign wbm_adr_o = active_mmu_select ? native_mmu_adr : legacy_mmu_adr;
-    assign wbm_dat_o = active_mmu_select ? native_mmu_dat_o : legacy_mmu_dat_o;
 
     // Z80 Data Input Multiplexer
-    assign z80_di = active_mmu_select ? native_mmu_cpu_dout : legacy_mmu_cpu_dout;
+    assign z80_di = native_mode ? native_mmu_cpu_dout : legacy_mmu_cpu_dout;
 
     // Wait State Logic
-    // Обработка Legacy SysCall как особого случая
-    logic z80_wait_internal;
-    assign z80_wait_internal = active_mmu_select ? native_mmu_wait : legacy_mmu_wait;
+    wire z80_wait = native_mode ? native_mmu_wait : legacy_mmu_wait;
     
-    // Для Legacy SysCall не должно быть wait states
-    assign debug_z80_wait_n = ~(z80_wait_internal && ~legacy_syscall_detect);
+    // Wishbone Master Output Multiplexer
+    assign wbm_cyc_o = native_mode ? native_mmu_cyc : legacy_mmu_cyc;
+    assign wbm_stb_o = native_mode ? native_mmu_stb : legacy_mmu_stb;
+    assign wbm_we_o  = native_mode ? native_mmu_we  : legacy_mmu_we;
+    assign wbm_adr_o = native_mode ? native_mmu_adr : legacy_mmu_adr;
+    assign wbm_dat_o = native_mode ? native_mmu_dat_o : legacy_mmu_dat_o;
+    assign debug_z80_wait_n = ~z80_wait;
 
     // Address Tag Generation
     always_comb begin
@@ -324,26 +305,6 @@ module z80_system (
         end else begin
             // Memory Access
             wbm_tga_o = 2'b00;                    // Memory Space
-        end
-    end
-
-    // =========================================================================
-    // SYSCALL HANDLING FOR LEGACY MODE
-    // =========================================================================
-    // В Legacy режиме порт D400h эмулирует Native SysCall порт D4h
-    always_ff @(posedge clk_i) begin
-        if (~nrst_i) begin
-            legacy_syscall_handled <= 1'b0;
-        end else begin
-            if (legacy_syscall_detect) begin
-                // Legacy SysCall детектирован
-                // Здесь должна быть логика обработки Legacy SysCall
-                // Например, переход в Native режим для обработки
-                legacy_syscall_handled <= 1'b1;
-            end else if (native_syscall_trigger) begin
-                // Native SysCall обработан
-                legacy_syscall_handled <= 1'b0;
-            end
         end
     end
 
