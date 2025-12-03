@@ -145,7 +145,7 @@ module aleste_system #(
     logic z80_cyc, z80_stb, z80_ack, z80_we, z80_grant;
     logic [23:0] z80_adr;
     logic [7:0] z80_dat_out, z80_dat_in;
-    logic [1:0] z80_tga;
+    logic [2:0] z80_tag;  // TAG from address decoder
     
     // Z80 System Control
     logic [1:0] z80_graphic_mode;
@@ -235,14 +235,13 @@ module aleste_system #(
     // ===========================================
     // Z80 CPU System
     // ===========================================
-    z80_system z80_cpu (
+    z80_system z80_sys (
         // Clock and Reset
         .clk_i(clk_cpu),                    // 27MHz CPU clock
         .nrst_i(~system_reset),
         
         // Main Wishbone Master Interface
         .wbm_adr_o(z80_adr),
-        .wbm_tga_o(z80_tga),
         .wbm_dat_i(z80_dat_in),
         .wbm_dat_o(z80_dat_out),
         .wbm_cyc_o(z80_cyc),
@@ -294,7 +293,6 @@ module aleste_system #(
         .z80_we_i(z80_we),
         .z80_adr_i(z80_adr),
         .z80_dat_i(z80_dat_out),
-        .z80_tga_i(z80_tga),
         .z80_dat_o(z80_dat_in),
         .z80_ack_o(z80_ack),
         .z80_grant_o(z80_grant),
@@ -349,30 +347,16 @@ module aleste_system #(
 
         .wb_adr_i(sys_adr),         // Input address lines
         
-        .wb_tag_o(sys_tag_comb),    // The result TAG (comb)
-        .cs_native_o(cs_native_comb),// Native space 256 bytes blocks (comb)
-        .cs_system_o(cs_system_comb),// Native (system space) 32 bytes blocks (comb)
-        .cs_legacy_o(cs_legacy_comb) // Native (legacy space) 32 bytes blocks (comb)
+        .wb_tag_o(sys_tag),    // The result TAG (comb)
+        .cs_native_o(cs_native),// Native space 256 bytes blocks (comb)
+        .cs_system_o(cs_system),// Native (system space) 32 bytes blocks (comb)
+        .cs_legacy_o(cs_legacy) // Native (legacy space) 32 bytes blocks (comb)
     );
 
-    // Register decoder outputs on the bus clock to break combinational paths
-    always_ff @(posedge clk_bus or posedge system_reset) begin
-        if (system_reset) begin
-            cs_native <= '0;
-            cs_system <= '0;
-            cs_legacy <= '0;
-            sys_tag   <= '0;
-        end else begin
-            cs_native <= cs_native_comb;
-            cs_system <= cs_system_comb;
-            cs_legacy <= cs_legacy_comb;
-            sys_tag   <= sys_tag_comb;
-        end
-    end
 
     logic wb_cs_pal  = cs_legacy[0];
     logic wb_cs_crtc = cs_legacy[1];
-
+    
     // ===========================================
     // Video Controller
     // ===========================================
