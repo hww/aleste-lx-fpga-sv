@@ -4,6 +4,8 @@
 // Memory Management Unit with direct CPU register access (no Wishbone Slave)
 // =============================================================================
 
+`default_nettype none
+
 // Disable some Verilator lint warnings that are benign for this testbench
 // verilator lint_off WIDTHEXPAND
 // verilator lint_off WIDTHTRUNC
@@ -99,12 +101,15 @@ module mmu_native (
     wire is_write      = ~cpu_wr_n;
     wire is_read       = ~cpu_rd_n;
     wire m1_detected   = ~cpu_m1_n & ~cpu_mreq_n;
-    
-    assign cpu_page = cpu_a[15:14];
+    // For memory acces the page selected by A[15:14]
+    // but for IO acces the page selected by A[1:0]
+    assign cpu_page = is_io_access ? cpu_a[1:0] : cpu_a[15:14];
 
     // =========================================================================
     // 1. ВЫБОР ТЕКУЩЕГО СЛОТА (исправлено)
     // =========================================================================
+    // Current slot is bales of A[15:14] bits for memory access
+    // amd based of A[1:0] for IO access
     always_comb begin
         if (supervisor_mode_comb) begin
             // Supervisor всегда использует свой слот
@@ -128,6 +133,10 @@ module mmu_native (
     // =========================================================================
     // 2. ВЫБОР БАНКА (с регистром для разрыва комбинаторной петли!)
     // =========================================================================
+    // cpu page is
+    // for memory acces the page selected by A[15:14]
+    // but for IO acces the page selected by A[1:0]
+    assign bank_index = {current_slot, cpu_page};
 
     assign selected_bank = reg_bank[bank_index];  
     
@@ -168,39 +177,40 @@ module mmu_native (
     // =========================================================================
     // 4. ДОСТУП К РЕГИСТРАМ MMU (исправленная защита)
     // =========================================================================
-    logic addr_is_0000_00ff = (cpu_a[15:8] == 0);
-    logic addr_is_XXd0_XXff = (cpu_a[7:0] >= 8'hD0);
-    logic addr_is_mmio_space = !addr_is_XXd0_XXff && addr_is_0000_00ff;
-    logic addr_is_mmu_space  =  addr_is_XXd0_XXff && addr_is_0000_00ff;
+
+    wire addr_is_0000_00ff = (cpu_a[15:8] == 0);
+    wire addr_is_XXd0_XXff = (cpu_a[7:0] >= 8'hD0);
+    wire addr_is_mmio_space = !addr_is_XXd0_XXff && addr_is_0000_00ff;
+    wire addr_is_mmu_space  =  addr_is_XXd0_XXff && addr_is_0000_00ff;
 
     // Разрешение доступа к портам: разрешено если supervisor ИЛИ unlock установлен
     // По архитектуре: user+lock блокирует, supervisor или unlock разрешает
-    logic port_access_grant = supervisor_mode_comb || ~mmio_userlock;  // supervisor OR user-unlock
+    wire port_access_grant = supervisor_mode_comb || ~mmio_userlock;  // supervisor OR user-unlock
     
     // Is this an MMU register port (D0-DF)
-    logic is_mmu_access = is_io_access && 
-                          addr_is_mmu_space &&
-                          native_mode &&       // Только в Native режиме
-                          port_access_grant;            
+    wire is_mmu_access = is_io_access && 
+                         addr_is_mmu_space &&
+                         native_mode &&       // Только в Native режиме
+                         port_access_grant;            
 
     // =========================================================================
     // 5. MMIO ACCESS (порты 00-BF) с защитой
     // =========================================================================
-    logic is_mmio_access = is_io_access && 
-                           addr_is_mmio_space &&
-                           native_mode &&               // Только в Native режиме
-                           port_access_grant;
+    wire is_mmio_access = is_io_access && 
+                          addr_is_mmio_space &&
+                          native_mode &&               // Только в Native режиме
+                          port_access_grant;
 
     // Helper: allow forwarding of generic IO ports to Wishbone
     // Rules: forward IO if supervisor OR user-unlock, but never forward MMU register ports (D0..EF)
-    logic is_io_wb_access = is_io_access && ~addr_is_mmu_space;
+    wire is_io_wb_access = is_io_access && ~addr_is_mmu_space;
 
     // =========================================================================
     // 6. ОБРАБОТКА РЕГИСТРОВ
     // =========================================================================
     logic [7:0] cpu_reg_read_data;
     logic       cpu_reg_read_valid;
-    
+
     // SysCall
     assign debug_syscall_trigger_o = is_mmu_access && is_write && 
                               (cpu_a[7:0] == 8'hD4);
