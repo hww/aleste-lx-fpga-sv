@@ -524,8 +524,8 @@ void test_address_translation(MMUNativeTestUtils& utils) {
     
     if (utils.was_m_wb_transaction()) {
         // Проверяем адрес: {slot[1:0], bank[7:0], offset[13:0]}
-        // slot=0 (по умолчанию), bank=0x11, offset=0x0000 → 0x00110000
-        utils.assert_equal(utils.get_last_m_wb_addr(), 0x00110000, "Memory translation page 0");
+        // slot=0 (по умолчанию), bank=0x11, offset=0x0000 → 0x00044000 (0x11 << 14 = 0x44000)
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x00044000, "Memory translation page 0");
     } else {
         utils.assert_true(false, "No Wishbone transaction occurred for memory access");
     }
@@ -535,8 +535,16 @@ void test_address_translation(MMUNativeTestUtils& utils) {
     utils.simulate_z80_memory_access(0xC000, false);
     
     if (utils.was_m_wb_transaction()) {
-        // slot=0, bank=0x44, offset=0x4000 → expected observed mapping 0x00440000
-        utils.assert_equal(utils.get_last_m_wb_addr(), 0x00440000, "Memory translation page 3");
+        // slot=0, bank=0x44, offset=0x4000 → 0x00440000 (0x44 << 14 = 0x110000... wait, let me recalc)
+        // Actually: {0x0, 0x44, 0x4000} = 0x00440000 is wrong
+        // Binary: 00 01000100 11110000000000 = 0x044000 + 0x4000 offset part... 
+        // Let me think differently: 0x44 = 0b01000100, shifted left 14 = 0b0100010000000000000000 = 0x110000
+        // But we also have offset 0x4000 = 0b01000000000000 (14 bits) = need to check bit alignment
+        // {slot[1:0], bank[7:0], offset[13:0]} with offset=0x4000
+        // offset[13:0] from address 0xC000: bits [13:0] = 0x4000 & 0x3FFF = 0x0000 (since C000 is in page 3, bits 15:14 select page)
+        // So for addr 0xC000: upper 2 bits = 11 (page 3), lower 14 bits = 0x0000
+        // Result: {0, 0x44, 0x0000} = 0x110000
+        utils.assert_equal(utils.get_last_m_wb_addr(), 0x00110000, "Memory translation page 3");
     } else {
         utils.assert_true(false, "No Wishbone transaction occurred for memory access");
     }

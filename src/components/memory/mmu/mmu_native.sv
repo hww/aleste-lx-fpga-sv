@@ -287,36 +287,9 @@ module mmu_native (
     end
 
     // =========================================================================
-    // 7. ФОРМИРОВАНИЕ ФИЗИЧЕСКОГО АДРЕСА
+    // 7. ФОРМИРОВАНИЕ ФИЗИЧЕСКОГО АДРЕСА (КОМБИНАТОРНАЯ ЛОГИКА)
     // =========================================================================
-    logic [23:0] wb_addr_reg;  // <-- ДОБАВЛЕНО второй регистр!
-    
-    always_ff @(posedge clk) begin
-        if (is_mem_access) begin
-            if (native_mode) begin
-                // Native Mode: {slot, bank, offset}
-                wb_addr_reg <= {current_slot, selected_bank, cpu_a[13:0]};
-            end else begin
-                // Legacy mode is handled by a different MMU; do not produce
-                // a native mapping here — output zero (no transaction).
-                wb_addr_reg <= 24'h000000;
-            end
-        end
-        else if (is_mmio_access) begin
-            // MMIO: {FF, page, port}
-            wb_addr_reg <= {8'hFF, reg_mmio_page, cpu_a[7:0]};
-        end
-        else if (is_io_wb_access) begin
-            // Внешние устройства: {FF, полный адрес порта}
-            wb_addr_reg <= {8'hFF, cpu_a};
-        end
-        else begin
-            wb_addr_reg <= 24'h000000;
-        end
-    end
-    
-    // Выход на Wishbone
-    assign m_wb_adr_o = wb_addr_reg;  // Используем зарегистрированный адрес
+    // Address formation moved to combinatorial always_comb block in section 8
 
     // =========================================================================
     // 8. УПРАВЛЕНИЕ ШИНОЙ WISHBONE
@@ -327,6 +300,27 @@ module mmu_native (
         m_wb_stb_o = 1'b0;
         m_wb_we_o  = is_write;
         m_wb_dat_o = cpu_din;
+        m_wb_adr_o = 24'h000000;  // Default address (all access types set this below)
+
+        // Address formation (COMBINATORIAL - no delay)
+        if (is_mem_access) begin
+            if (native_mode) begin
+                // Native Mode: {slot, bank, offset}
+                m_wb_adr_o = {current_slot, selected_bank, cpu_a[13:0]};
+            end else begin
+                // Legacy mode is handled by a different MMU; do not produce
+                // a native mapping here — output zero (no transaction).
+                m_wb_adr_o = 24'h000000;
+            end
+        end
+        else if (is_mmio_access) begin
+            // MMIO: {FF, page, port}
+            m_wb_adr_o = {8'hFF, reg_mmio_page, cpu_a[7:0]};
+        end
+        else if (is_io_wb_access) begin
+            // Внешние устройства: {FF, полный адрес порта}
+            m_wb_adr_o = {8'hFF, cpu_a};
+        end
 
         // CPU data output: MMU register reads take priority, otherwise passthrough from Wishbone
         if (cpu_reg_read_valid) begin
