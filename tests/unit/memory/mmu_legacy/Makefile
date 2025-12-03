@@ -6,7 +6,6 @@ VERILATOR_FLAGS = \
 	--x-assign unique \
 	--x-initial unique \
 	--timing \
-	--debug \
 	--timescale "1ns/1ps" \
 	--converge-limit 2000
 

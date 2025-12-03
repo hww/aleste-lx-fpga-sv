@@ -163,8 +163,8 @@ module aleste_system #(
     // Intermediate slave outputs (non-multiplexed). We capture each slave's
     // response here and then combine them into `sys_dat_in/sys_ack` to avoid
     // multiple drivers on the same signal.
-    logic [7:0] z80_slave_dat, video_slave_dat;
-    logic       z80_slave_ack, video_slave_ack;
+    logic [7:0] video_slave_dat;
+    logic       video_slave_ack;
     // Note: `sys_tag` is registered later after address decoding to break combinational loops
         
     logic [1:0] debug_arbiter_state;
@@ -250,20 +250,8 @@ module aleste_system #(
         .wbm_we_o(z80_we),
         .wbm_ack_i(z80_ack),
         
-        // Wishbone Slave Interface (for MMU register access)
-        .s_wb_cyc_i(sys_cyc),               // From system bus
-        .s_wb_stb_i(sys_stb),
-        .s_wb_we_i(sys_we),
-        .s_wb_adr_i(sys_adr),
-        .s_wb_dat_i(sys_dat_out),
-        // MMU / register interface (slave outputs are captured to intermediate
-        // signals and later multiplexed onto the global system bus lines to
-        // avoid multiple drivers).
-        .s_wb_dat_o(z80_slave_dat),            // MMU -> slave data
-        .s_wb_ack_o(z80_slave_ack),
-        .s_wb_sel_o(),
-        .s_wb_tag_i(sys_tag),
-        .s_cs_native_mmu_i( ),
+        // (No Wishbone Slave interface - MMU registers accessed directly
+        // via Z80 I/O ports)
 
         // Debug Bus Interface
         .dbg_adr_i(8'h00),                  // Not used for now
@@ -463,7 +451,7 @@ module aleste_system #(
     // -----------------------------------------------------------
     // Multiplex slave responses onto the system bus signals
     // to avoid multiple drivers on `sys_dat_in` / `sys_ack`.
-    // Priority: video_controller responses first, then z80 slave.
+    // Currently only video_controller provides slave responses here.
     always_comb begin
         // Defaults
         sys_dat_in = '0;
@@ -472,9 +460,6 @@ module aleste_system #(
         if (video_slave_ack) begin
             sys_dat_in = video_slave_dat;
             sys_ack     = video_slave_ack;
-        end else if (z80_slave_ack) begin
-            sys_dat_in = z80_slave_dat;
-            sys_ack     = z80_slave_ack;
         end
     end
 

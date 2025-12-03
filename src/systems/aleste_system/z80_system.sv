@@ -1,7 +1,12 @@
 `default_nettype none
 
 // =============================================================================
-// Z80 System Wrapper with TV80 CPU Core
+// Z80 System Wrapper with TV80 CPU Core - SIMPLIFIED VERSION
+// =============================================================================
+// Features:
+// - No Wishbone Slave interfaces on MMU modules
+// - Direct CPU register access for both MMUs
+// - Local multiplexer for Native/Legacy MMU selection
 // =============================================================================
 
 module z80_system (
@@ -23,20 +28,6 @@ module z80_system (
     output logic        wbm_we_o,                 // Write enable
     input  logic        wbm_ack_i,                // Transfer acknowledge
     
-    // -------------------------------------------------------------------------
-    // Wishbone Slave Interface (for MMU register access)
-    // -------------------------------------------------------------------------
-    input  logic        s_wb_cyc_i,               // Slave cycle
-    input  logic        s_wb_stb_i,               // Slave strobe  
-    input  logic        s_wb_we_i,                // Slave write enable
-    input  logic [23:0] s_wb_adr_i,               // Slave address
-    input  logic [7:0]  s_wb_dat_i,               // Slave data input
-    input  logic [2:0]  s_wb_tag_i,               // The tag for bus
-    input  logic [2:0]  s_cs_native_mmu_i,        // Crystal select native mmu
-    output logic [7:0]  s_wb_dat_o,               // Slave data output
-    output logic        s_wb_ack_o,               // Slave acknowledge
-    output logic        s_wb_sel_o,               // Unity is selected on WB
-
     // -------------------------------------------------------------------------
     // Debug Bus Interface (8-bit)
     // -------------------------------------------------------------------------
@@ -98,43 +89,44 @@ module z80_system (
     logic           legacy_mode;
     logic           native_mode;
     
-    // Legacy MMU interfaces
+    // Legacy MMU Master interfaces
     logic           legacy_mmu_cyc;
     logic           legacy_mmu_stb;
     logic           legacy_mmu_we;
     logic [23:0]    legacy_mmu_adr;
     logic [7:0]     legacy_mmu_dat_o;
     logic           legacy_mmu_wait;
-    logic [7:0]     legacy_mmu_cpu_dat_o;
+    logic [7:0]     legacy_mmu_cpu_dout;
     
-    // Legacy MMU Slave interfaces
-    logic [7:0]     legacy_mmu_s_dat_o;
-    logic           legacy_mmu_s_ack_o;
-    logic           legacy_mmu_s_wb_grant;
-
-    // Native MMU interfaces
+    // Native MMU Master interfaces
     logic           native_mmu_cyc;
     logic           native_mmu_stb;
     logic           native_mmu_we;
     logic [23:0]    native_mmu_adr;
     logic [7:0]     native_mmu_dat_o;
     logic           native_mmu_wait;
-    logic           native_mmu_s_wb_grant;
     logic [7:0]     native_mmu_cpu_dout;
     
-    // Native MMU Slave interfaces
-    logic [7:0]     native_mmu_s_dat_o;
-    logic           native_mmu_s_ack_o;
+    // Native MMU Control outputs
+    logic           native_supervisor_mode;
+    logic           native_mmio_userlock;
+    logic [7:0]     native_syscall_function;
+    logic           native_syscall_trigger;
     
-    // SysCall Bridge Signals
+    // Legacy SysCall Detection
     logic           legacy_syscall_detect;
-    logic           legacy_syscall_we;
 
     // =========================================================================
-    // Debug Module Interface - УДАЛЕН z80_cen_p!
+    // Debug Module Interface
     // =========================================================================
     logic           debug_z80_wait_n;
     logic           debug_halt;
+
+    // =========================================================================
+    // Mode Selection and Control
+    // =========================================================================
+    logic           active_mmu_select;            // 0=Legacy, 1=Native
+    logic           legacy_syscall_handled;       // Legacy syscall processed
 
     // =========================================================================
     // TV80 CORE INSTANTIATION (Verilog)
@@ -167,7 +159,7 @@ module z80_system (
     assign z80_wait_n = debug_z80_wait_n;
 
     // =========================================================================
-    // DEBUG MODULE INSTANTIATION - ОБНОВЛЕНО без cen_p!
+    // DEBUG MODULE INSTANTIATION
     // =========================================================================
     z80_debug debug_module (
         .clk(clk_i),
@@ -195,13 +187,24 @@ module z80_system (
         .z80_halt_n(z80_halt_n),
         .z80_busak_n(z80_busak_n),
         
-        // CPU Control Outputs - УДАЛЕН z80_cen_p!
+        // CPU Control Outputs
         .z80_wait_n(debug_z80_wait_n),
         .debug_halt_o(debug_halt)
     );
 
     // =========================================================================
-    // MMU INSTANTIATIONS 
+    // MODE SELECTION LOGIC
+    // =========================================================================
+    // Native MMU контролирует режимы через свои регистры
+    // Legacy режим активируется когда native_mode = 0
+    assign active_mmu_select = native_mode;       // 0=Legacy, 1=Native
+    
+    // Legacy SysCall detection (порт D400h в Legacy режиме)
+    assign legacy_syscall_detect = legacy_mode && ~z80_iorq_n && ~z80_wr_n && 
+                                  (z80_a == 16'hD400);
+
+    // =========================================================================
+    // MMU INSTANTIATIONS (NO WISHBONE SLAVE INTERFACES!)
     // =========================================================================
 
     // LEGACY MMU INSTANTIATION (CPC 6128 COMPATIBLE)
@@ -210,18 +213,7 @@ module z80_system (
         .reset(~nrst_i),
         .legacy_mode_i(legacy_mode),
         
-        // Slave Wishbone Interface
-        .s_wb_cyc_i(s_wb_cyc_i & legacy_mode),
-        .s_wb_stb_i(s_wb_stb_i & legacy_mode),
-        .s_wb_tag_i(s_wb_tag_i),
-        .s_wb_we_i(s_wb_we_i),
-        .s_wb_adr_i(s_wb_adr_i),
-        .s_wb_dat_i(s_wb_dat_i),
-        .s_wb_dat_o(legacy_mmu_s_dat_o),
-        .s_wb_ack_o(legacy_mmu_s_ack_o),
-        .s_wb_grant_o(legacy_mmu_s_wb_grant),
-
-        // Master Wishbone Interface
+        // Master Wishbone Interface ONLY
         .m_wb_cyc_o(legacy_mmu_cyc),
         .m_wb_stb_o(legacy_mmu_stb),
         .m_wb_we_o(legacy_mmu_we),
@@ -236,14 +228,15 @@ module z80_system (
         .cpu_iorq_n(z80_iorq_n),
         .cpu_rd_n(z80_rd_n),
         .cpu_wr_n(z80_wr_n),
-        .cpu_dat_i(z80_do),
-        .cpu_dat_o(legacy_mmu_cpu_dat_o),
+        .cpu_din(z80_do),
+        .cpu_dout(legacy_mmu_cpu_dout),
         .cpu_wait(legacy_mmu_wait),
 
         // CPC Control Outputs
         .graphic_mode(graphic_mode),
         .irq_control(irq_control),
 
+        // Debug Outputs
         .debug_rom_access_o(),
         .debug_ram_access_o(),
         .debug_io_access_o()
@@ -257,7 +250,7 @@ module z80_system (
         // Mode Control
         .legacy_mode_o(legacy_mode),
         .native_mode_o(native_mode),
-        .supervisor_mode_i(1'b0),
+        .debug_supervisor_mode_i(1'b0),
         
         // Z80 Bus Interface
         .cpu_a(z80_a),
@@ -270,7 +263,7 @@ module z80_system (
         .cpu_dout(native_mmu_cpu_dout),
         .cpu_wait(native_mmu_wait),
         
-        // Master Wishbone Interface
+        // Master Wishbone Interface ONLY
         .m_wb_cyc_o(native_mmu_cyc),
         .m_wb_stb_o(native_mmu_stb),
         .m_wb_we_o(native_mmu_we),
@@ -279,72 +272,84 @@ module z80_system (
         .m_wb_dat_i(wbm_dat_i),
         .m_wb_ack_i(wbm_ack_i),
         
-        // Slave Wishbone Interface
-        .s_wb_cyc_i(s_wb_cyc_i & (native_mode | legacy_syscall_detect)),
-        .s_wb_stb_i(s_wb_stb_i & (native_mode | legacy_syscall_detect)),
-        .s_wb_we_i(s_wb_we_i | legacy_syscall_we),
-        .s_wb_tag_i(s_wb_tag_i),
-        .s_wb_cs_i(s_cs_native_mmu_i),
-        .s_wb_adr_i(s_wb_adr_i),
-        .s_wb_dat_i(s_wb_dat_i),
-        .s_wb_dat_o(native_mmu_s_dat_o),
-        .s_wb_ack_o(native_mmu_s_ack_o),
-        .s_wb_grant_o(native_mmu_s_wb_grant),
+        // Control Outputs (debug-prefixed)
+        .debug_supervisor_mode_o(native_supervisor_mode),
+        .debug_mmio_userlock_o(native_mmio_userlock),
 
-        // Control Outputs
-        .supervisor_mode_o(supervisor_mode_o),
-        .mmio_userlock_o(),
-        
-        // SysCall Interface
-        .syscall_function_o(),
-        .syscall_trigger_o(),
-        
+        // SysCall Interface (debug-prefixed)
+        .debug_syscall_function_o(native_syscall_function),
+        .debug_syscall_trigger_o(native_syscall_trigger),
+
         // Debug Outputs
         .debug_control_o(debug_control_o),
         .debug_mmio_page_o(),
         .debug_super_slot_o(),
         .debug_user_slot_o(),
-        .debug_syscall_function_o(),
         .debug_selected_bank_o(),
         .debug_current_slot_o(),
-        .debug_bank_index_o(),
-        .debug_mmio_sel_o(),
-        .debug_mmio_hi_sel_o(),
-        .debug_mmio_lo_sel_o(),
-        .debug_mmu_reg_sel_o(),
-        .debug_syscall_sel_o()
+        .debug_bank_index_o()
     );
 
     // =========================================================================
-    // INTERCONNECT AND SIGNAL MUXING
+    // LOCAL MMU MULTIPLEXER
     // =========================================================================
+    
+    // Wishbone Master Output Multiplexer
+    assign wbm_cyc_o = active_mmu_select ? native_mmu_cyc : legacy_mmu_cyc;
+    assign wbm_stb_o = active_mmu_select ? native_mmu_stb : legacy_mmu_stb;
+    assign wbm_we_o  = active_mmu_select ? native_mmu_we  : legacy_mmu_we;
+    assign wbm_adr_o = active_mmu_select ? native_mmu_adr : legacy_mmu_adr;
+    assign wbm_dat_o = active_mmu_select ? native_mmu_dat_o : legacy_mmu_dat_o;
 
-    // Z80 Data Input Mux (from appropriate MMU)
-    assign z80_di = native_mode ? native_mmu_cpu_dout : legacy_mmu_cpu_dat_o;
+    // Z80 Data Input Multiplexer
+    assign z80_di = active_mmu_select ? native_mmu_cpu_dout : legacy_mmu_cpu_dout;
 
     // Wait State Logic
-    logic z80_wait_n_internal;
-    assign z80_wait_n_internal = legacy_mode ? ~legacy_mmu_wait : ~native_mmu_wait;
-
-    // Wishbone Master Muxing
-    assign wbm_cyc_o = legacy_mode ? legacy_mmu_cyc : native_mmu_cyc;
-    assign wbm_stb_o = legacy_mode ? legacy_mmu_stb : native_mmu_stb;
-    assign wbm_we_o  = legacy_mode ? legacy_mmu_we  : native_mmu_we;
-    assign wbm_adr_o = legacy_mode ? legacy_mmu_adr : native_mmu_adr;
-    assign wbm_dat_o = legacy_mode ? legacy_mmu_dat_o : native_mmu_dat_o;
-
-    // Wishbone Slave Muxing
-    assign s_wb_dat_o = legacy_mode ? legacy_mmu_s_dat_o : native_mmu_s_dat_o;
-    assign s_wb_ack_o = legacy_mode ? legacy_mmu_s_ack_o : native_mmu_s_ack_o;
-    assign s_wb_sel_o = native_mode ? native_mmu_s_wb_grant : legacy_mmu_s_wb_grant;
-
-    // Legacy SysCall Detection
-    assign legacy_syscall_detect = legacy_mode && ~z80_iorq_n && ~z80_wr_n && 
-                                  (z80_a == 16'hD400);
-    assign legacy_syscall_we = legacy_syscall_detect;
+    // Обработка Legacy SysCall как особого случая
+    logic z80_wait_internal;
+    assign z80_wait_internal = active_mmu_select ? native_mmu_wait : legacy_mmu_wait;
+    
+    // Для Legacy SysCall не должно быть wait states
+    assign debug_z80_wait_n = ~(z80_wait_internal && ~legacy_syscall_detect);
 
     // Address Tag Generation
-    assign wbm_tga_o = (~z80_iorq_n ? 2'b01 : 2'b00);
+    always_comb begin
+        if (~z80_iorq_n) begin
+            // I/O Access
+            if (z80_a[15:8] == 8'hFF) begin
+                wbm_tga_o = 2'b10;                // MMIO Space
+            end else begin
+                wbm_tga_o = 2'b01;                // Regular I/O Space
+            end
+        end else begin
+            // Memory Access
+            wbm_tga_o = 2'b00;                    // Memory Space
+        end
+    end
+
+    // =========================================================================
+    // SYSCALL HANDLING FOR LEGACY MODE
+    // =========================================================================
+    // В Legacy режиме порт D400h эмулирует Native SysCall порт D4h
+    always_ff @(posedge clk_i) begin
+        if (~nrst_i) begin
+            legacy_syscall_handled <= 1'b0;
+        end else begin
+            if (legacy_syscall_detect) begin
+                // Legacy SysCall детектирован
+                // Здесь должна быть логика обработки Legacy SysCall
+                // Например, переход в Native режим для обработки
+                legacy_syscall_handled <= 1'b1;
+            end else if (native_syscall_trigger) begin
+                // Native SysCall обработан
+                legacy_syscall_handled <= 1'b0;
+            end
+        end
+    end
+
+    // =========================================================================
+    // OUTPUT SIGNALS
+    // =========================================================================
 
     // Bus Acknowledge
     assign busak_o = ~z80_busak_n;
@@ -352,6 +357,7 @@ module z80_system (
     // Mode Outputs
     assign legacy_mode_o = legacy_mode;
     assign native_mode_o = native_mode;
+    assign supervisor_mode_o = native_supervisor_mode;
 
     // Debug Status
     assign debug_halt_status = debug_halt;
