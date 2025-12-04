@@ -318,6 +318,10 @@ module aleste_video #(
     // ===========================================
     // SDRAM Controller
     // ===========================================
+    // will have inoout port sdram_dq
+    logic [15:0] sdram_dq_i, sdram_dq_o;
+    logic sdram_dq_oen; 
+
     sdram_wishbone #(
         .CLK_FREQ(CLK_FREQ_SYSTEM),
         .WB_ADDR_WIDTH(24),
@@ -340,7 +344,8 @@ module aleste_video #(
         .wb_refresh_i('0),
 
         // SDRAM Physical Interface
-        .SDRAM_DQ(sdram_dq),
+        .SDRAM_DQ_I(sdram_dq_i),
+        .SDRAM_DQ_O(sdram_dq_o),
         .SDRAM_A(sdram_a),
         .SDRAM_BA(sdram_ba),
         .SDRAM_nCS(sdram_cs_n),
@@ -362,6 +367,9 @@ module aleste_video #(
         .debug_rst_done(),
         .debug_cfg_busy()
     );
+    
+    assign sdram_dq_i = sdram_dq;
+    assign sdram_dq = sdram_dq_oen ? sdram_dq_o : {16{1'bz}};
 
     // ===========================================
     // Clock Outputs

@@ -73,11 +73,11 @@
         +----------Local Count, excluding submodules.
         | 
       101 wires
-      544 wire bits
+      547 wire bits
        48 public wires
-      285 public wire bits
+      286 public wire bits
        37 ports
-      223 port bits
+      224 port bits
         2 processes
        13 cells
         3   $eq
@@ -154,8 +154,8 @@
 
         +----------Local Count, excluding submodules.
         | 
-      118 wires
-      524 wire bits
+      119 wires
+      525 wire bits
       109 public wires
       475 public wire bits
        36 ports
@@ -273,14 +273,15 @@
 
         +----------Local Count, excluding submodules.
         | 
-       92 wires
-      312 wire bits
-       87 public wires
-      307 public wire bits
+       96 wires
+      362 wire bits
+       90 public wires
+      341 public wire bits
        19 ports
        61 port bits
         3 processes
-        1 cells
+        2 cells
+        1   $mux
         1   ODDRX1F
        12 submodules
         1   $paramod$15735d5b5f42338dfdadf2e6027e61400cba37fc\uart_bridge
@@ -332,21 +333,21 @@
 
         +----------Local Count, excluding submodules.
         | 
-       92 wires
-      357 wire bits
-       48 public wires
-      224 public wire bits
-       32 ports
-      135 port bits
+       93 wires
+      358 wire bits
+       50 public wires
+      241 public wire bits
+       34 ports
+      152 port bits
         2 processes
-       26 cells
+       25 cells
         2   $add
         1   $and
         3   $eq
         2   $ge
         8   $logic_and
         2   $logic_not
-        3   $mux
+        2   $mux
         2   $ne
         2   $not
         1   $or
@@ -525,7 +526,7 @@
        13   memory_arbiter
         9   video_buffer
         1   wb_arbiter
-       26 $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone
+       25 $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone
         3 $paramod\wb_wdt_simple\TIMEOUT_CYCLES=s32'00000000000000000000000000100000
         1 OBUFDS
        55 address_decoder
@@ -535,12 +536,12 @@
 
         +----------Count including submodules.
         | 
-     1987 wires
-     9588 wire bits
-      871 public wires
-     3582 public wire bits
-      432 ports
-     1628 port bits
+     1993 wires
+     9643 wire bits
+      876 public wires
+     3634 public wire bits
+      434 ports
+     1646 port bits
         5 memories
     26820 memory bits
       197 processes
