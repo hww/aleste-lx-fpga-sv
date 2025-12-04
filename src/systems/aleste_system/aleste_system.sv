@@ -52,8 +52,13 @@ module aleste_system #(
     output logic [12:0] sdram_a,
     output logic [1:0] sdram_ba,
     output logic [1:0] sdram_dm,
-    inout  logic [15:0] sdram_dq,
-    
+    inout logic [15:0] sdram_dq,
+`ifdef SIMULATION
+    input  logic [15:0] sdram_dq_i,
+    output logic [15:0] sdram_dq_o,
+    output logic sdram_dq_oen,
+`endif
+
     // UART интерфейс
     input  logic serial_rx,
     output logic serial_tx,
@@ -109,7 +114,7 @@ module aleste_system #(
     // ===========================================
     
     // Video Controller Signals
-    logic [23:0] video2mem_addr;
+    logic [24:0] video2mem_addr; // The memory address for video controller, 25 bits for 32MB
     logic [15:0] video2mem_data_out;
     logic [15:0] video2mem_data_in; 
     logic video2mem_we, video2mem_req, video2mem_ack0, video2mem_ack1;
@@ -175,6 +180,16 @@ module aleste_system #(
     logic debug_sdram_init_complete;
     logic debug_sdram_ready;
     logic debug_sdram_busy;
+
+`ifdef SIMULATION
+    // will have ports sdram_dq_i, sdram_dq_o
+`else
+    // will have inoout port sdram_dq
+    logic [15:0] sdram_dq_i, sdram_dq_o;
+    logic sdram_dq_oen; 
+    assign sdram_dq_i = sdram_dq;
+    assign sdram_dq = sdram_dq_oen ? sdram_dq_o : {16{1'bz}};
+`endif
 
     // Debug Register
     logic [7:0] dbg_data;
@@ -472,7 +487,8 @@ module aleste_system #(
         .wb_refresh_i('0),
 
         // SDRAM Physical Interface
-        .SDRAM_DQ(sdram_dq),
+        .SDRAM_DQ_I(sdram_dq_i),
+        .SDRAM_DQ_O(sdram_dq_o),
         .SDRAM_A(sdram_a),
         .SDRAM_BA(sdram_ba),
         .SDRAM_nCS(sdram_cs_n),
@@ -481,7 +497,8 @@ module aleste_system #(
         .SDRAM_nCAS(sdram_cas_n),
         .SDRAM_CKE(sdram_cke),
         .SDRAM_DQM(sdram_dm),
-        
+        .SDRAM_DQOEN(sdram_dq_oen),
+
         // Debug Interface
         .debug_state(debug_sdram_state),
         .debug_init_complete(debug_sdram_init_complete),

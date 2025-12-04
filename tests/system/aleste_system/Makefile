@@ -51,8 +51,7 @@ TEST_SOURCES = \
     tb_aleste.cpp \
     ODDRX1F.v \
     OBUFDS.v \
-    video_pll.v \
-    sim_sdram.v
+    video_pll.v
 
 all: compile run
 

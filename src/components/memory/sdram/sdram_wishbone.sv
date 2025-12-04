@@ -54,7 +54,8 @@ module sdram_wishbone #(
 )
 (
     // SDRAM Physical Interface
-    inout  logic [SDRAM_DATA_WIDTH-1:0] SDRAM_DQ,
+    input  logic [SDRAM_DATA_WIDTH-1:0] SDRAM_DQ_I,
+    output logic [SDRAM_DATA_WIDTH-1:0] SDRAM_DQ_O,
     output logic [12:0]                 SDRAM_A,
     output logic [1:0]                  SDRAM_BA,
     output logic                        SDRAM_nCS,  // not strictly necessary, always 0
@@ -63,6 +64,7 @@ module sdram_wishbone #(
     output logic                        SDRAM_nCAS,
     output logic                        SDRAM_CKE,  // not strictly necessary, always 1
     output logic [SDRAM_DQM_WIDTH-1:0]  SDRAM_DQM,
+    output logic                        SDRAM_DQOEN,
 
     // Wishbone Interface
     input  logic                        wb_clk_i,
@@ -322,11 +324,11 @@ always @(posedge wb_clk_i) begin
 end
 
 // ========== УПРАВЛЕНИЕ ДАННЫМИ SDRAM ==========
-assign dq_in = SDRAM_DQ;
-assign SDRAM_DQ = dq_oen ? dq_out : {SDRAM_DATA_WIDTH{1'bz}};
+assign dq_in = SDRAM_DQ_I;   // input data
+assign SDRAM_DQ_O = dq_out;  // output data
+assign SDRAM_DQOEN = dq_oen; // out direction   
 assign SDRAM_CKE = 1'b1;
 assign SDRAM_nCS = 1'b0;
-
 assign wb_dat_o = dq_in;
 assign wb_busy_o = busy;
 assign wb_ack0_o = wb_ack0;
