@@ -51,8 +51,7 @@ TEST_SOURCES = \
     tb_aleste.cpp \
     ODDRX1F.v \
     OBUFDS.v \
-    video_pll.v \
-    sim_sdram.v
+    video_pll.v
 
 all: compile run
 
@@ -62,8 +61,7 @@ find_loops:
 		$(SOURCES) $(TEST_SOURCES) \
 		--Mdir obj_dir \
 		-o Vsim \
-        2>&1 | grep -i "loop\|latch\|unstable\|oscillat" || echo "РЇРІРЅС‹С… РїРµС‚РµР»СЊ РЅРµ РЅР°Р№РґРµРЅРѕ"
-
+	2>&1 | grep -i "loop\|latch\|unstable\|oscillat" || echo "No lint issues found (no loops/latches/unstable/oscillation detected)"
 compile:
 	$(VERILATOR) $(VERILATOR_FLAGS) \
 		--top-module aleste_system \
@@ -71,8 +69,8 @@ compile:
 		--Mdir obj_dir \
 		-o Vsim
 
-run:
-	./obj_dir/Vsim
+run: compile
+	./obj_dir/Vsim $(SIM_ARGS)
 
 wave:
 	gtkwave waveform.vcd &

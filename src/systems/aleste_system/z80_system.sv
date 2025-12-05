@@ -20,7 +20,6 @@ module z80_system (
     // Main Wishbone Master Interface (to memory/devices)
     // -------------------------------------------------------------------------
     output logic [23:0] wbm_adr_o,                // 24-bit physical address
-    output logic [1:0]  wbm_tga_o,                // Address tag: 00=MEM, 01=IO, 10=MMIO
     input  logic [7:0]  wbm_dat_i,                // Data input from bus
     output logic [7:0]  wbm_dat_o,                // Data output to bus
     output logic        wbm_cyc_o,                // Cycle valid
@@ -293,20 +292,8 @@ module z80_system (
     assign wbm_dat_o = native_mode ? native_mmu_dat_o : legacy_mmu_dat_o;
     assign debug_z80_wait_n = ~z80_wait;
 
-    // Address Tag Generation
-    always_comb begin
-        if (~z80_iorq_n) begin
-            // I/O Access
-            if (z80_a[15:8] == 8'hFF) begin
-                wbm_tga_o = 2'b10;                // MMIO Space
-            end else begin
-                wbm_tga_o = 2'b01;                // Regular I/O Space
-            end
-        end else begin
-            // Memory Access
-            wbm_tga_o = 2'b00;                    // Memory Space
-        end
-    end
+    // Address Tag Generation moved to aleste_system address_decoder
+    // TAG generation is now centralized for all bus masters
 
     // =========================================================================
     // OUTPUT SIGNALS

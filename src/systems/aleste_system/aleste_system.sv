@@ -52,8 +52,13 @@ module aleste_system #(
     output logic [12:0] sdram_a,
     output logic [1:0] sdram_ba,
     output logic [1:0] sdram_dm,
-    inout  logic [15:0] sdram_dq,
-    
+    inout logic [15:0] sdram_dq,
+`ifdef SIMULATION
+    input  logic [15:0] sdram_dq_i,
+    output logic [15:0] sdram_dq_o,
+    output logic sdram_dq_oen,
+`endif
+
     // UART интерфейс
     input  logic serial_rx,
     output logic serial_tx,
@@ -109,7 +114,7 @@ module aleste_system #(
     // ===========================================
     
     // Video Controller Signals
-    logic [23:0] video2mem_addr;
+    logic [24:0] video2mem_addr; // The memory address for video controller, 25 bits for 32MB
     logic [15:0] video2mem_data_out;
     logic [15:0] video2mem_data_in; 
     logic video2mem_we, video2mem_req, video2mem_ack0, video2mem_ack1;
@@ -145,7 +150,7 @@ module aleste_system #(
     logic z80_cyc, z80_stb, z80_ack, z80_we, z80_grant;
     logic [23:0] z80_adr;
     logic [7:0] z80_dat_out, z80_dat_in;
-    logic [1:0] z80_tga;
+    logic [2:0] z80_tag;  // TAG from address decoder
     
     // Z80 System Control
     logic [1:0] z80_graphic_mode;
@@ -175,6 +180,16 @@ module aleste_system #(
     logic debug_sdram_init_complete;
     logic debug_sdram_ready;
     logic debug_sdram_busy;
+
+`ifdef SIMULATION
+    // will have ports sdram_dq_i, sdram_dq_o
+`else
+    // will have inoout port sdram_dq
+    logic [15:0] sdram_dq_i, sdram_dq_o;
+    logic sdram_dq_oen; 
+    assign sdram_dq_i = sdram_dq;
+    assign sdram_dq = sdram_dq_oen ? sdram_dq_o : {16{1'bz}};
+`endif
 
     // Debug Register
     logic [7:0] dbg_data;
@@ -235,14 +250,13 @@ module aleste_system #(
     // ===========================================
     // Z80 CPU System
     // ===========================================
-    z80_system z80_cpu (
+    z80_system z80_sys (
         // Clock and Reset
         .clk_i(clk_cpu),                    // 27MHz CPU clock
         .nrst_i(~system_reset),
         
         // Main Wishbone Master Interface
         .wbm_adr_o(z80_adr),
-        .wbm_tga_o(z80_tga),
         .wbm_dat_i(z80_dat_in),
         .wbm_dat_o(z80_dat_out),
         .wbm_cyc_o(z80_cyc),
@@ -294,7 +308,6 @@ module aleste_system #(
         .z80_we_i(z80_we),
         .z80_adr_i(z80_adr),
         .z80_dat_i(z80_dat_out),
-        .z80_tga_i(z80_tga),
         .z80_dat_o(z80_dat_in),
         .z80_ack_o(z80_ack),
         .z80_grant_o(z80_grant),
@@ -329,19 +342,11 @@ module aleste_system #(
     // Address Decoder
     // ===========================================
 
-    // Address Decoder Signals (registered outputs to avoid combinational loops)
-    // comb_* wires receive combinational outputs from address_decoder; then
-    // we register them on the bus clock so arbitration/decoding paths do not
-    // create combinational feedback that tools (Yosys/abc9) can't resolve.
-    logic [7:0] cs_native_comb;
-    logic [7:0] cs_system_comb;
-    logic [7:0] cs_legacy_comb;
-
     // Registered versions: used throughout the system
     logic [7:0] cs_native;          // Native space 256 bytes blocks
     logic [7:0] cs_system;          // Native (system space) 32 bytes blocks
     logic [7:0] cs_legacy;          // Native (legacy space) 32 bytes blocks
-    logic [2:0] sys_tag_comb;
+
     logic [2:0] sys_tag;
 
     address_decoder adu (
@@ -349,30 +354,16 @@ module aleste_system #(
 
         .wb_adr_i(sys_adr),         // Input address lines
         
-        .wb_tag_o(sys_tag_comb),    // The result TAG (comb)
-        .cs_native_o(cs_native_comb),// Native space 256 bytes blocks (comb)
-        .cs_system_o(cs_system_comb),// Native (system space) 32 bytes blocks (comb)
-        .cs_legacy_o(cs_legacy_comb) // Native (legacy space) 32 bytes blocks (comb)
+        .wb_tag_o(sys_tag),    // The result TAG (comb)
+        .cs_native_o(cs_native),// Native space 256 bytes blocks (comb)
+        .cs_system_o(cs_system),// Native (system space) 32 bytes blocks (comb)
+        .cs_legacy_o(cs_legacy) // Native (legacy space) 32 bytes blocks (comb)
     );
 
-    // Register decoder outputs on the bus clock to break combinational paths
-    always_ff @(posedge clk_bus or posedge system_reset) begin
-        if (system_reset) begin
-            cs_native <= '0;
-            cs_system <= '0;
-            cs_legacy <= '0;
-            sys_tag   <= '0;
-        end else begin
-            cs_native <= cs_native_comb;
-            cs_system <= cs_system_comb;
-            cs_legacy <= cs_legacy_comb;
-            sys_tag   <= sys_tag_comb;
-        end
-    end
 
     logic wb_cs_pal  = cs_legacy[0];
     logic wb_cs_crtc = cs_legacy[1];
-
+    
     // ===========================================
     // Video Controller
     // ===========================================
@@ -419,7 +410,9 @@ module aleste_system #(
         .wb_dat_o(video_slave_dat),
         .wb_ack_o(video_slave_ack),
         .wb_tag_i(sys_tag),
-        
+        .wb_cs_pal_i(wb_cs_pal),
+        .wb_cs_crt_i(wb_cs_crtc),
+   
         // Memory Interface
         .mem_addr_o(video2mem_addr),
         .mem_data_o(video2mem_data_out),
@@ -486,9 +479,11 @@ module aleste_system #(
         .wb_dat_o(video2mem_data_in),
         .wb_sel_i(video2mem_sel),  
         .wb_refresh_i('0),
-
+        
         // SDRAM Physical Interface
-        .SDRAM_DQ(sdram_dq),
+        .SDRAM_DQ_I(sdram_dq_i),
+        .SDRAM_DQ_O(sdram_dq_o),
+        .SDRAM_DQOEN(sdram_dq_oen),
         .SDRAM_A(sdram_a),
         .SDRAM_BA(sdram_ba),
         .SDRAM_nCS(sdram_cs_n),
@@ -497,7 +492,7 @@ module aleste_system #(
         .SDRAM_nCAS(sdram_cas_n),
         .SDRAM_CKE(sdram_cke),
         .SDRAM_DQM(sdram_dm),
-        
+
         // Debug Interface
         .debug_state(debug_sdram_state),
         .debug_init_complete(debug_sdram_init_complete),

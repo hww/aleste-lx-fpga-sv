@@ -107,7 +107,7 @@ module aleste_video #(
     // ===========================================
     
     // Video Controller Signals
-    logic [23:0] video2mem_addr;
+    logic [24:0] video2mem_addr; // Meory 32MB so it uses 25 bits address
     logic [15:0] video2mem_data_out;
     logic [15:0] video2mem_data_in; 
     logic video2mem_we, video2mem_req, video2mem_ack0, video2mem_ack1;
@@ -220,7 +220,7 @@ module aleste_video #(
     // ===========================================
 
     // Address Decoder Signals
-    logic [7:0] cs;
+    logic [7:0] cs_native;
     logic [7:0] cs_system;
     logic [7:0] cs_legacy;
     logic [2:0] wb_tag;
@@ -230,7 +230,7 @@ module aleste_video #(
         .wb_adr_i(wb_adr),
         
         .wb_tag_o(wb_tag),
-        .cs_o(cs),                  // Native space 256 bytes blocks
+        .cs_native_o(cs_native),    // Native space 256 bytes blocks
         .cs_system_o(cs_system),    // Native (system space) 32 bytes blocks
         .cs_legacy_o(cs_legacy)     // Native (legacy space) 32 bytes blocks
     );
@@ -318,6 +318,10 @@ module aleste_video #(
     // ===========================================
     // SDRAM Controller
     // ===========================================
+    // will have inoout port sdram_dq
+    logic [15:0] sdram_dq_i, sdram_dq_o;
+    logic sdram_dq_oen; 
+
     sdram_wishbone #(
         .CLK_FREQ(CLK_FREQ_SYSTEM),
         .WB_ADDR_WIDTH(24),
@@ -340,7 +344,9 @@ module aleste_video #(
         .wb_refresh_i('0),
 
         // SDRAM Physical Interface
-        .SDRAM_DQ(sdram_dq),
+        .SDRAM_DQ_I(sdram_dq_i),
+        .SDRAM_DQ_O(sdram_dq_o),
+        .SDRAM_DQOEN(sdram_dq_oen),
         .SDRAM_A(sdram_a),
         .SDRAM_BA(sdram_ba),
         .SDRAM_nCS(sdram_cs_n),
@@ -362,6 +368,9 @@ module aleste_video #(
         .debug_rst_done(),
         .debug_cfg_busy()
     );
+    
+    assign sdram_dq_i = sdram_dq;
+    assign sdram_dq = sdram_dq_oen ? sdram_dq_o : {16{1'bz}};
 
     // ===========================================
     // Clock Outputs

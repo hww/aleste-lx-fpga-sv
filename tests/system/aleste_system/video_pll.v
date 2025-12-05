@@ -9,10 +9,9 @@ module video_pll(
     output wire locked
 );
 
-    reg clk_270M_reg = 0;
-    reg clk_54M_reg = 0;
-    reg clk_27M_reg = 0;
-    reg clk_108M_reg = 0;  // simulation stub for 108MHz output
+    reg [3:0] divider = 4'h00;
+
+
     reg locked_reg = 0;
 
     // Simulation-friendly clock generation: toggle derived clocks on incoming
@@ -20,15 +19,9 @@ module video_pll(
     // caused by # delays during initialization.
     always_ff @(posedge clkin_25M or posedge rst) begin
         if (rst) begin
-            clk_270M_reg <= 1'b0;
-            clk_54M_reg  <= 1'b0;
-            clk_27M_reg  <= 1'b0;
-            clk_108M_reg <= 1'b0;
+            divider <= 0;
         end else begin
-            clk_270M_reg <= ~clk_270M_reg;
-            clk_54M_reg  <= ~clk_54M_reg;
-            clk_27M_reg  <= ~clk_27M_reg;
-            clk_108M_reg <= ~clk_108M_reg;
+            divider <= divider + 1;
         end
     end
 
@@ -45,10 +38,10 @@ module video_pll(
         end
     end
     
-    assign clk_270M = clk_270M_reg;
-    assign clk_54M = clk_54M_reg;
-    assign clk_27M = clk_27M_reg;
-    assign clk_108M = clk_108M_reg; 
+    assign clk_270M = clkin_25M;
+    assign clk_108M = divider[0]; 
+    assign clk_54M = divider[1];
+    assign clk_27M = divider[2];
     assign locked = locked_reg;
 
 endmodule

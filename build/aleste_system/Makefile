@@ -37,8 +37,8 @@ SCALER      := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv
 PALETTE     := $(PALETTE_DIR)/cpc_colors.sv $(PALETTE_DIR)/msx_colors.sv $(PALETTE_DIR)/color_palette.sv
 VIDBUF      := $(VIDBUF_DIR)/video_buffer.sv
 PIXPIPE	    := $(PIXPIPE_DIR)/pixel_pipeline.sv
-VIDEO       := $(VIDEO_DIR)/memory_arbiter.sv $(VIDEO_DIR)/wb_arbiter.sv $(VIDEO_DIR)/video_ctrl.sv
-SYSTEM      := $(SYSTEM_DIR)/z80_system.sv $(SYSTEM_DIR)/system_arbiter.sv $(SYSTEM_DIR)/address_decoder.sv $(SYSTEM_DIR)/z80_debug.sv 
+VIDEO       := $(VIDEO_DIR)/memory_arbiter.sv $(VIDEO_DIR)/wb_arbiter.sv $(VIDEO_DIR)/video_ctrl.sv $(VIDEO_DIR)/address_decoder.sv 
+SYSTEM      := $(SYSTEM_DIR)/z80_system.sv $(SYSTEM_DIR)/system_arbiter.sv $(SYSTEM_DIR)/z80_debug.sv 
 MMU         := $(MMU_DIR)/mmu_legacy.sv $(MMU_DIR)/mmu_native.sv
 
 # TV80 Verilog CPU core

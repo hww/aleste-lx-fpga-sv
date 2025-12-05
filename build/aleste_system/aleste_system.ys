@@ -17,9 +17,9 @@ read_verilog -sv ../../src/components/io/uart/uart.v ../../src/components/io/uar
 read_verilog -sv ../../src/components/video/mc6845mod/mc6845mod.sv 
 read_verilog -sv ../../src/components/video/hdmi_scaler/dual_port_ram.sv ../../src/components/video/hdmi_scaler/hdmi_scaler.sv
 read_verilog -sv ../../src/components/video/palette/cpc_colors.sv ../../src/components/video/palette/msx_colors.sv ../../src/components/video/palette/color_palette.sv
-read_verilog -sv ../../src/systems/aleste_video/memory_arbiter.sv ../../src/systems/aleste_video/wb_arbiter.sv ../../src/systems/aleste_video/video_ctrl.sv
+read_verilog -sv ../../src/systems/aleste_video/memory_arbiter.sv ../../src/systems/aleste_video/wb_arbiter.sv ../../src/systems/aleste_video/video_ctrl.sv ../../src/systems/aleste_video/address_decoder.sv 
 read_verilog -sv ../../src/components/memory/mmu/mmu_legacy.sv ../../src/components/memory/mmu/mmu_native.sv
-read_verilog -sv ../../src/systems/aleste_system/z80_system.sv ../../src/systems/aleste_system/system_arbiter.sv ../../src/systems/aleste_system/address_decoder.sv ../../src/systems/aleste_system/z80_debug.sv 
+read_verilog -sv ../../src/systems/aleste_system/z80_system.sv ../../src/systems/aleste_system/system_arbiter.sv ../../src/systems/aleste_system/z80_debug.sv 
 read_verilog -sv ../../src/components/video/pixel_pipeline/pixel_pipeline.sv
 read_verilog -sv ../../src/components/clocks/system_clock.sv
 read_verilog -sv ../../src/components/reset/reset_controller.sv

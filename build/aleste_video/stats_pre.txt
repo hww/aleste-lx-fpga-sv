@@ -72,11 +72,11 @@
 === memory_arbiter ===
 
    Number of wires:                101
-   Number of wire bits:            544
+   Number of wire bits:            547
    Number of public wires:          48
-   Number of public wire bits:     285
+   Number of public wire bits:     286
    Number of ports:                 37
-   Number of port bits:            223
+   Number of port bits:            224
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:              2
@@ -146,8 +146,8 @@
 
 === $paramod$53f82b585305d76c6a460db88bafbc20e95e1ab8\video_ctrl ===
 
-   Number of wires:                118
-   Number of wire bits:            524
+   Number of wires:                119
+   Number of wire bits:            525
    Number of public wires:         109
    Number of public wire bits:     475
    Number of ports:                 36
@@ -262,16 +262,17 @@
 
 === aleste_video ===
 
-   Number of wires:                 92
-   Number of wire bits:            312
-   Number of public wires:          87
-   Number of public wire bits:     307
+   Number of wires:                 96
+   Number of wire bits:            362
+   Number of public wires:          90
+   Number of public wire bits:     341
    Number of ports:                 19
    Number of port bits:             61
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:              3
-   Number of cells:                 13
+   Number of cells:                 14
+     $mux                            1
      $paramod$15735d5b5f42338dfdadf2e6027e61400cba37fc\uart_bridge      1
      $paramod$53f82b585305d76c6a460db88bafbc20e95e1ab8\video_ctrl      1
      $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone      1
@@ -319,23 +320,23 @@
 
 === $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone ===
 
-   Number of wires:                 92
-   Number of wire bits:            357
-   Number of public wires:          48
-   Number of public wire bits:     224
-   Number of ports:                 32
-   Number of port bits:            135
+   Number of wires:                 93
+   Number of wire bits:            358
+   Number of public wires:          50
+   Number of public wire bits:     241
+   Number of ports:                 34
+   Number of port bits:            152
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:              2
-   Number of cells:                 26
+   Number of cells:                 25
      $add                            2
      $and                            1
      $eq                             3
      $ge                             2
      $logic_and                      8
      $logic_not                      2
-     $mux                            3
+     $mux                            2
      $ne                             2
      $not                            2
      $or                             1
@@ -524,12 +525,12 @@
      video_pll                       1
      wb_simple_reg                   1
 
-   Number of wires:               1987
-   Number of wire bits:           9588
-   Number of public wires:         871
-   Number of public wire bits:    3582
-   Number of ports:                432
-   Number of port bits:           1628
+   Number of wires:               1993
+   Number of wire bits:           9643
+   Number of public wires:         876
+   Number of public wire bits:    3634
+   Number of ports:                434
+   Number of port bits:           1646
    Number of memories:               5
    Number of memory bits:        26820
    Number of processes:            197
