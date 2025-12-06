@@ -11,6 +11,24 @@
 #include <iomanip>
 #include <cassert>
 
+// »нициализаци€ времени
+vluint64_t sim_time = 0;
+Valeste_system* top;
+VerilatedVcdC* tfp;
+void eval()
+{
+    top->eval();  
+    tfp->dump(sim_time);
+    sim_time += 20;  // 20ps на каждый цикл оценки        
+}
+
+void tick()
+{
+    top->clk_25mhz = !top->clk_25mhz;
+    eval();
+}
+
+
 // ==============================================
 // SDRAM модель
 // ==============================================
@@ -201,7 +219,7 @@ public:
         bool error_received = false;
         
         while (timeout > 0) {
-            top->eval();
+            eval();
             
             if (top->debug_wb_ack_o) {
                 ack_received = true;
@@ -335,7 +353,7 @@ public:
         
         top->debug_wb_cyc_i = 0;
         top->debug_wb_stb_i = 0;
-        top->eval();
+        eval();
         
         if (got_error) {
             passed_tests++;
@@ -394,8 +412,8 @@ int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     Verilated::traceEverOn(true);
     
-    Valeste_system* top = new Valeste_system;
-    VerilatedVcdC* tfp = new VerilatedVcdC;
+    top = new Valeste_system;
+    tfp = new VerilatedVcdC;
     top->trace(tfp, 99);
     tfp->open("waveform.vcd");
     
@@ -430,14 +448,14 @@ int main(int argc, char** argv) {
     int sdram_reads = 0;
     
     WBDebugTester tester;
-    
+
+
     // ==============================================
     // Ётап 1: —брос и инициализаци€
     // ==============================================
     std::cout << "\nPhase 1: Reset and initialization" << std::endl;
-    for (int cycle = 0; cycle < 1000; cycle++) {
-        top->clk_25mhz = !top->clk_25mhz;
-        top->eval();
+    for (int cycle = 0; cycle < 100000; cycle++) {
+        tick();
         
         // SDRAM эмул€ци€
         if (!top->sdram_cs_n && 
@@ -472,8 +490,6 @@ int main(int argc, char** argv) {
             top->sdram_dq_i = 0x0000;
         }
         
-        tfp->dump(cycle * 20);
-        
         if (cycle % 200 == 0) {
             std::cout << "Init cycle " << cycle << ": debug=0x" 
                       << std::hex << (int)top->debug << std::endl;
@@ -491,8 +507,7 @@ int main(int argc, char** argv) {
     // ==============================================
     std::cout << "\nPhase 3: Final delay and cleanup" << std::endl;
     for (int cycle = 0; cycle < 1000; cycle++) {
-        top->clk_25mhz = !top->clk_25mhz;
-        top->eval();
+        tick();
         
         // ѕродолжаем эмул€цию SDRAM
         if (!top->sdram_cs_n && 
@@ -526,8 +541,7 @@ int main(int argc, char** argv) {
         } else {
             top->sdram_dq_i = 0x0000;
         }
-        
-        tfp->dump(1000 * 20 + cycle * 20);
+
     }
     
     // ==============================================
