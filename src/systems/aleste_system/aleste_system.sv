@@ -129,10 +129,10 @@ module aleste_system #(
     logic [7:0] video_debug;
 
     // UART Bridge Signals
-    logic uart_cyc, uart_stb, uart_ack, uart_we, uart_grant;
-    logic [23:0] uart_adr;
-    logic [7:0] uart_dat_out, uart_dat_in;
-    logic [1:0] uart_sel;
+    logic uart2wb_cyc, uart2wb_stb, uart2wb_ack, uart2wb_we, uart2wb_grant, uart2wb_err;
+    logic [23:0] uart2wb_adr;
+    logic [7:0] uart2wb_dat_out, uart2wb_dat_in;
+    logic [1:0] uart2wb_sel;
       
     logic uart_rx_ready, uart_rx_idle, uart_rx_eop;
     logic serial_rx_clk, serial_tx_clk;
@@ -215,14 +215,14 @@ module aleste_system #(
         .uart_tx_busy(uart_tx_busy),
 
         // Wishbone Master Interface
-        .wb_cyc_o(uart_cyc),
-        .wb_stb_o(uart_stb),
-        .wb_we_o(uart_we),
-        .wb_adr_o(uart_adr),
-        .wb_dat_o(uart_dat_out),
-        .wb_dat_i(uart_dat_in),
-        .wb_ack_i(uart_ack),
-        .wb_err_i(1'b0),  // No error detection for now
+        .wb_cyc_o(uart2wb_cyc),
+        .wb_stb_o(uart2wb_stb),
+        .wb_we_o(uart2wb_we),
+        .wb_adr_o(uart2wb_adr),
+        .wb_dat_o(uart2wb_dat_out),
+        .wb_dat_i(uart2wb_dat_in),
+        .wb_ack_i(uart2wb_ack),
+        .wb_err_i(uart2wb_err),  
 
         .dbg_cyc_o(uart2dbg_cyc),
         .dbg_stb_o(uart2dbg_stb),
@@ -260,13 +260,13 @@ module aleste_system #(
         // via Z80 I/O ports)
 
         // Debug Bus Interface
-        .dbg_adr_i(8'h00),                  // Not used for now
-        .dbg_dat_o(),
-        .dbg_dat_i(8'h00),
-        .dbg_we_i(1'b0),
-        .dbg_stb_i(1'b0),
-        .dbg_cs_i(1'b0),
-        .dbg_ack_o(),
+        .dbg_adr_i(uart2dbg_adr),                  // Not used for now
+        .dbg_dat_o(uart2dbg_dat_in),
+        .dbg_dat_i(uart2dbg_dat_out),
+        .dbg_we_i(uart2dbg_we),
+        .dbg_stb_i(uart2dbg_stb),
+        .dbg_cs_i(uart2dbg_stb),
+        .dbg_ack_o(uart2dbg_ack),           // immediate answer
         
         // Z80-specific Interface
         .nmi_req_i(1'b0),                   // No NMI for now
@@ -322,15 +322,15 @@ module aleste_system #(
         .z80_err_o(),                      // Not used
         
         // UART Bridge Interface
-        .uart_cyc_i(uart_cyc),
-        .uart_stb_i(uart_stb),
-        .uart_we_i(uart_we),
-        .uart_adr_i(uart_adr),
-        .uart_dat_i(uart_dat_out),
-        .uart_dat_o(uart_dat_in),
-        .uart_ack_o(uart_ack),
-        .uart_grant_o(uart_grant),
-        .uart_err_o(),                     // Not used
+        .uart_cyc_i(uart2wb_cyc),
+        .uart_stb_i(uart2wb_stb),
+        .uart_we_i(uart2wb_we),
+        .uart_adr_i(uart2wb_adr),
+        .uart_dat_i(uart2wb_dat_out),
+        .uart_dat_o(uart2wb_dat_in),
+        .uart_ack_o(uart2wb_ack),
+        .uart_grant_o(uart2wb_grant),
+        .uart_err_o(uart2wb_err),                     
         
         // Video Controller Interface
         .vid_cyc_o(vid_cyc),

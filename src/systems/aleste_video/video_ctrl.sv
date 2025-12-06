@@ -112,17 +112,20 @@ module video_ctrl #(
     logic system2palette_cyc, system2palette_stb, system2palette_ack, system2palette_we, system2palette_grant;
     logic [23:0] system2palette_adr;
     logic [7:0] system2palette_dat_in, system2palette_dat_out;
-    logic [1:0] system2palette_sel, system2palette_tag;
+    logic [1:0] system2palette_sel;
+    logic [2:0] system2palette_tag;
 
     logic system2crtc_cyc, system2crtc_stb, system2crtc_ack, system2crtc_we, system2crtc_grant;
     logic [23:0] system2crtc_adr;
     logic [7:0] system2crtc_dat_in, system2crtc_dat_out;
-    logic [1:0] system2crtc_sel, system2crtc_tag;
+    logic [1:0] system2crtc_sel;
+    logic [2:0] system2crtc_tag;
 
     logic system2mem_cyc, system2mem_stb, system2mem_ack, system2mem_we, system2mem_grant;
     logic [23:0] system2mem_adr;
     logic [7:0] system2mem_dat_in, system2mem_dat_out;
-    logic [1:0] system2mem_sel, system2mem_tag;
+    logic [1:0] system2mem_sel;
+    logic [2:0] system2mem_tag;
     logic [1:0] debug_mem_arbiter_state;
     logic debug_mem_video_active, debug_mem_wb_active;
 
