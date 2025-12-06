@@ -35,7 +35,7 @@ module memory_arbiter (
     input  logic [1:0]  gpu_sel_i,
 
     // SDRAM Controller Interface
-    output logic [24:0] sdram_addr_o,
+    output logic [23:0] sdram_addr_o,
     output logic [15:0] sdram_data_o,
     input  logic [15:0] sdram_data_i,
     output logic        sdram_we_o,
@@ -232,12 +232,11 @@ always_comb begin
 
     if (current_state != STATE_IDLE) begin
         // Всегда выставляем запрос к SDRAM в активном состоянии
-        // 25 result bits for 32MB memory
+        // 24 result bits for 32MB memory, ignores a0
         sdram_addr_o = {
             saved_addr[23:22],                     // BANK 2 bits 
             1'b0, saved_addr[13:2],                // ROW 13 bits (half of memory is unused)
-            saved_addr[21:14], saved_addr[1],      // COL  9 bits (сохраняем для burst)
-            1'b0                                   // 1 bit will be ignored by SDRAM controller
+            saved_addr[21:14], saved_addr[1]      // COL  9 bits (сохраняем для burst)
         };
         //sdram_addr_o = saved_addr;
         sdram_we_o = saved_we;

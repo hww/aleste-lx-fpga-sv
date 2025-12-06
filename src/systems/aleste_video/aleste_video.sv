@@ -107,7 +107,7 @@ module aleste_video #(
     // ===========================================
     
     // Video Controller Signals
-    logic [24:0] video2mem_addr; // Meory 32MB so it uses 25 bits address
+    logic [23:0] video2mem_addr; // Meory 32MB so it uses 24 bits address of 16bits word
     logic [15:0] video2mem_data_out;
     logic [15:0] video2mem_data_in; 
     logic video2mem_we, video2mem_req, video2mem_ack0, video2mem_ack1;

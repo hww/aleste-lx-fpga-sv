@@ -72,11 +72,11 @@
 === memory_arbiter ===
 
    Number of wires:                101
-   Number of wire bits:            547
+   Number of wire bits:            544
    Number of public wires:          48
-   Number of public wire bits:     286
+   Number of public wire bits:     285
    Number of ports:                 37
-   Number of port bits:            224
+   Number of port bits:            223
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:              2
@@ -146,8 +146,8 @@
 
 === $paramod$53f82b585305d76c6a460db88bafbc20e95e1ab8\video_ctrl ===
 
-   Number of wires:                119
-   Number of wire bits:            525
+   Number of wires:                118
+   Number of wire bits:            524
    Number of public wires:         109
    Number of public wire bits:     475
    Number of ports:                 36
@@ -263,9 +263,9 @@
 === aleste_video ===
 
    Number of wires:                 96
-   Number of wire bits:            362
+   Number of wire bits:            361
    Number of public wires:          90
-   Number of public wire bits:     341
+   Number of public wire bits:     340
    Number of ports:                 19
    Number of port bits:             61
    Number of memories:               0
@@ -525,12 +525,12 @@
      video_pll                       1
      wb_simple_reg                   1
 
-   Number of wires:               1993
-   Number of wire bits:           9643
+   Number of wires:               1992
+   Number of wire bits:           9638
    Number of public wires:         876
-   Number of public wire bits:    3634
+   Number of public wire bits:    3632
    Number of ports:                434
-   Number of port bits:           1646
+   Number of port bits:           1645
    Number of memories:               5
    Number of memory bits:        26820
    Number of processes:            197

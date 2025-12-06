@@ -49,7 +49,7 @@ module video_ctrl #(
     output logic [7:0]  wb_dat_o,
     output logic        wb_ack_o,
     output logic        wb_grant_o,    
-    input  logic [1:0]  wb_tag_i,
+    input  logic [2:0]  wb_tag_i,
     input  logic        wb_cs_crt_i,
     input  logic        wb_cs_pal_i,
     

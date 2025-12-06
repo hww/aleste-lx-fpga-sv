@@ -28,7 +28,7 @@ module sdram_wishbone #(
     parameter CLK_FREQ        = 100_000_000,     // Hz
 
     // Wishbone
-    parameter WB_ADDR_WIDTH   = 25,  // Для 32 МБ нужно 25 линий
+    parameter WB_ADDR_WIDTH   = 24,  // Для 32 МБ нужно 24 линий для 16 битной памяти
     parameter WB_DATA_WIDTH   = 16,
 
     // for IS42S16160B 
@@ -135,7 +135,7 @@ logic busy;
 // ========== АДАПТАЦИЯ ИНТЕРФЕЙСА ==========
 assign rd = wb_cyc_i && wb_stb_i && !wb_we_i;
 assign wr = wb_cyc_i && wb_stb_i &&  wb_we_i;
-assign addr = wb_adr_i[WB_ADDR_WIDTH-1:1];
+assign addr = wb_adr_i[WB_ADDR_WIDTH-1:0];
 
 // ========== FSM  ДЛЯ IS42S16160B ==========
 always @(posedge wb_clk_i) begin

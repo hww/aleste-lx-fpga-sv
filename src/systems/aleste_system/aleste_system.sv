@@ -114,7 +114,7 @@ module aleste_system #(
     // ===========================================
     
     // Video Controller Signals
-    logic [24:0] video2mem_addr; // The memory address for video controller, 25 bits for 32MB
+    logic [23:0] video2mem_addr; // The memory address for video controller, 24 bits for 16bits and 32MB memory 
     logic [15:0] video2mem_data_out;
     logic [15:0] video2mem_data_in; 
     logic video2mem_we, video2mem_req, video2mem_ack0, video2mem_ack1;
@@ -150,7 +150,6 @@ module aleste_system #(
     logic z80_cyc, z80_stb, z80_ack, z80_we, z80_grant;
     logic [23:0] z80_adr;
     logic [7:0] z80_dat_out, z80_dat_in;
-    logic [2:0] z80_tag;  // TAG from address decoder
     
     // Z80 System Control
     logic [1:0] z80_graphic_mode;
@@ -162,18 +161,11 @@ module aleste_system #(
     logic [7:0] z80_debug_control;
 
     // System Arbiter Signals
-    logic sys_cyc, sys_stb, sys_ack, sys_we;
-    logic [23:0] sys_adr;
-    logic [7:0] sys_dat_out, sys_dat_in;
-    // Intermediate slave outputs (non-multiplexed). We capture each slave's
-    // response here and then combine them into `sys_dat_in/sys_ack` to avoid
-    // multiple drivers on the same signal.
-    logic [7:0] video_slave_dat;
-    logic       video_slave_ack;
-    // Note: `sys_tag` is registered later after address decoding to break combinational loops
-        
+    logic vid_cyc, vid_stb, vid_ack, vid_we, vid_grant;
+    logic [23:0] vid_adr;
+    logic [7:0] vid_dat_to_slave;  // От арбитра к слейву
+    logic [7:0] vid_dat_from_slave; // От слейва к арбитру
     logic [1:0] debug_arbiter_state;
-    logic debug_z80_active, debug_uart_active;
 
     // Memory Controller Signals
     logic [2:0] debug_sdram_state;
@@ -297,10 +289,26 @@ module aleste_system #(
     // ===========================================
     // System Wishbone Arbiter
     // ===========================================
+    logic sys_cyc, sys_stb, sys_we, sys_ack, sys_err;
+    logic [23:0] sys_adr;
+    logic [7:0] sys_dat_to_slaves;  // Данные от мастера к слейвам
+    logic [7:0] sys_dat_from_slaves; // Данные от слейвов к мастеру
+    logic [2:0] sys_tag;  // TAG от декодера адресов
+    logic debug_z80_active, debug_uart_active;
+
     system_arbiter sys_arbiter (
         // Clock and Reset
         .clk_i(clk_bus),                    // 54MHz bus clock
         .rst_i(system_reset),
+
+        // System bus for monitoring only
+        .sys_cyc_o(sys_cyc),               // SYS cycle
+        .sys_stb_o(sys_stb),               // SYS strobe
+        .sys_we_o(sys_we),                 // SYS write enable
+        .sys_adr_o(sys_adr),               // SYS address
+        .sys_dat_o(sys_dat_to_slaves),     // SYS data out (to slaves)
+        .sys_ack_o(sys_ack),               // SYS acknowledge (from slaves)
+        .sys_err_i(sys_err),               // SYS error (from WDT)
         
         // Z80 CPU Interface
         .z80_cyc_i(z80_cyc),
@@ -311,6 +319,7 @@ module aleste_system #(
         .z80_dat_o(z80_dat_in),
         .z80_ack_o(z80_ack),
         .z80_grant_o(z80_grant),
+        .z80_err_o(),                      // Not used
         
         // UART Bridge Interface
         .uart_cyc_i(uart_cyc),
@@ -321,22 +330,23 @@ module aleste_system #(
         .uart_dat_o(uart_dat_in),
         .uart_ack_o(uart_ack),
         .uart_grant_o(uart_grant),
+        .uart_err_o(),                     // Not used
         
-        // System Wishbone Master Interface
-        .sys_cyc_o(sys_cyc),
-        .sys_stb_o(sys_stb),
-        .sys_we_o(sys_we),
-        .sys_adr_o(sys_adr),
-        .sys_dat_o(sys_dat_out),
-        .sys_dat_i(sys_dat_in),
-        .sys_ack_i(sys_ack),
-        
+        // Video Controller Interface
+        .vid_cyc_o(vid_cyc),
+        .vid_stb_o(vid_stb),
+        .vid_we_o(vid_we),
+        .vid_adr_o(vid_adr),
+        .vid_dat_o(vid_dat_to_slave),
+        .vid_dat_i(vid_dat_from_slave),
+        .vid_ack_i(vid_ack),
+        .vid_grant_i(vid_grant),
+
         // Debug Outputs
         .debug_state_o(debug_arbiter_state),
-        .debug_z80_active_o(debug_z80_active),
-        .debug_uart_active_o(debug_uart_active)
+        .debug_z80_active_o(debug_z80_active_o),
+        .debug_uart_active_o(debug_uart_active_o)
     );
-
 
     // ===========================================
     // Address Decoder
@@ -347,23 +357,21 @@ module aleste_system #(
     logic [7:0] cs_system;          // Native (system space) 32 bytes blocks
     logic [7:0] cs_legacy;          // Native (legacy space) 32 bytes blocks
 
-    logic [2:0] sys_tag;
-
     address_decoder adu (
         .cfg_legacy_i(cfg_legacy),  // Legacy mode
 
         .wb_adr_i(sys_adr),         // Input address lines
         
-        .wb_tag_o(sys_tag),    // The result TAG (comb)
-        .cs_native_o(cs_native),// Native space 256 bytes blocks (comb)
-        .cs_system_o(cs_system),// Native (system space) 32 bytes blocks (comb)
-        .cs_legacy_o(cs_legacy) // Native (legacy space) 32 bytes blocks (comb)
+        .wb_tag_o(sys_tag),         // The result TAG (comb)
+        .cs_native_o(cs_native),    // Native space 256 bytes blocks (comb)
+        .cs_system_o(cs_system),    // Native (system space) 32 bytes blocks (comb)
+        .cs_legacy_o(cs_legacy)     // Native (legacy space) 32 bytes blocks (comb)
     );
 
+    // Chip select для видео контроллера (легаси устройства)
+    logic vid_cs_pal  = cs_legacy[0];
+    logic vid_cs_crtc = cs_legacy[1];
 
-    logic wb_cs_pal  = cs_legacy[0];
-    logic wb_cs_crtc = cs_legacy[1];
-    
     // ===========================================
     // Video Controller
     // ===========================================
@@ -402,16 +410,17 @@ module aleste_system #(
         .system_reset(system_reset),
         
         // Wishbone Slave Interface
-        .wb_cyc_i(sys_cyc),
-        .wb_stb_i(sys_stb),
-        .wb_we_i(sys_we),
-        .wb_adr_i(sys_adr),
-        .wb_dat_i(sys_dat_out),
-        .wb_dat_o(video_slave_dat),
-        .wb_ack_o(video_slave_ack),
+        .wb_cyc_i(vid_cyc),
+        .wb_stb_i(vid_stb),
+        .wb_we_i(vid_we),
+        .wb_adr_i(vid_adr),
+        .wb_dat_i(vid_dat_to_slave),
+        .wb_dat_o(vid_dat_from_slave),
+        .wb_ack_o(vid_ack),
         .wb_tag_i(sys_tag),
-        .wb_cs_pal_i(wb_cs_pal),
-        .wb_cs_crt_i(wb_cs_crtc),
+        .wb_grant_o(vid_grant),
+        .wb_cs_pal_i(vid_cs_pal),
+        .wb_cs_crt_i(vid_cs_crtc),
    
         // Memory Interface
         .mem_addr_o(video2mem_addr),
@@ -440,21 +449,6 @@ module aleste_system #(
         // Конфигурационные сигналы
         .cfg_legacy_i(cfg_legacy)
     );
-
-    // -----------------------------------------------------------
-    // Multiplex slave responses onto the system bus signals
-    // to avoid multiple drivers on `sys_dat_in` / `sys_ack`.
-    // Currently only video_controller provides slave responses here.
-    always_comb begin
-        // Defaults
-        sys_dat_in = '0;
-        sys_ack = 1'b0;
-
-        if (video_slave_ack) begin
-            sys_dat_in = video_slave_dat;
-            sys_ack     = video_slave_ack;
-        end
-    end
 
     // ===========================================
     // SDRAM Controller
@@ -526,21 +520,34 @@ module aleste_system #(
     OBUFDS OBUFDS_clk( .I(clk_27m),          .O(gpdi_clock_p), .OB(gpdi_clock_n) );
 
     // ===========================================
+    // Watchdog Timer
+    // ===========================================
+    wb_wdt_simple #(
+        .TIMEOUT_CYCLES(32)
+    ) wb_wdt (
+        .clk_i(clk_bus),
+        .rst_i(system_reset),
+        .cyc_i(sys_cyc),
+        .stb_i(sys_stb),
+        .ack_i(sys_ack),
+        .err_o(sys_err)
+    );
+
+    // ===========================================
     // Отладочные сигналы
     // ===========================================
     
     // RGB LED
     assign debug_leds = {
         debug_sdram_ready,      
-        debug_sdram_init_complete, 
-        debug_z80_active
+        debug_sdram_init_complete
     };
 
     // Debug output - можно выбрать разные источники для отладки
     assign debug = {
         debug_arbiter_state,
-        debug_z80_active,
-        debug_uart_active, 
+        debug_uart_active,
+        debug_z80_active, 
         z80_legacy_mode,
         z80_native_mode,
         z80_debug_halt_status,
@@ -549,3 +556,4 @@ module aleste_system #(
 
 endmodule
 
+`default_nettype wire
