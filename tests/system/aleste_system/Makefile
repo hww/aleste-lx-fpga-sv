@@ -15,11 +15,11 @@ SOURCES = \
     ../../../src/systems/aleste_system/aleste_system.sv \
     ../../../src/systems/aleste_system/z80_system.sv \
     ../../../src/systems/aleste_system/system_arbiter.sv \
-    ../../../src/systems/aleste_system/address_decoder.sv \
     ../../../src/systems/aleste_system/z80_debug.sv \
     ../../../src/systems/aleste_video/video_ctrl.sv \
     ../../../src/systems/aleste_video/wb_arbiter.sv \
     ../../../src/systems/aleste_video/memory_arbiter.sv \
+    ../../../src/systems/aleste_video/address_decoder.sv \
     ../../../src/components/io/uart/uart.v \
     ../../../src/components/io/uart/uart_rx.v \
     ../../../src/components/io/uart/uart_tx.v \
@@ -47,8 +47,14 @@ SOURCES = \
     ../../../src/components/cpu/tv80/tv80_alu.v \
     ../../../src/components/cpu/tv80/tv80_mcode.v
 # 
-TEST_SOURCES = \
-    tb_aleste.cpp \
+TEST_SOURCES_Z80 = \
+    tb_aleste_z80.cpp \
+    ODDRX1F.v \
+    OBUFDS.v \
+    video_pll.v
+
+TEST_SOURCES_WB = \
+    tb_aleste_wb.cpp \
     ODDRX1F.v \
     OBUFDS.v \
     video_pll.v
@@ -58,18 +64,28 @@ all: compile run
 find_loops:
 	$(VERILATOR) $(VERILATOR_FLAGS) \
 		--lint-only --top-module aleste_system \
-		$(SOURCES) $(TEST_SOURCES) \
+		$(SOURCES) $(TEST_SOURCES_Z80) \
 		--Mdir obj_dir \
 		-o Vsim \
 	2>&1 | grep -i "loop\|latch\|unstable\|oscillat" || echo "No lint issues found (no loops/latches/unstable/oscillation detected)"
-compile:
+
+compile_z80:
 	$(VERILATOR) $(VERILATOR_FLAGS) \
 		--top-module aleste_system \
-		$(SOURCES) $(TEST_SOURCES) \
+		$(SOURCES) $(TEST_SOURCES_Z80) \
+		--Mdir obj_dir \
+		-o Vsim
+compile_wb:
+	$(VERILATOR) $(VERILATOR_FLAGS) \
+		--top-module aleste_system \
+		$(SOURCES) $(TEST_SOURCES_WB) \
 		--Mdir obj_dir \
 		-o Vsim
 
-run: compile
+run: compile_z80
+	./obj_dir/Vsim $(SIM_ARGS)
+
+run_wb: compile_wb
 	./obj_dir/Vsim $(SIM_ARGS)
 
 wave:

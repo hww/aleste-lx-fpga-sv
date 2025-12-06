@@ -53,10 +53,23 @@ module aleste_system #(
     output logic [1:0] sdram_ba,
     output logic [1:0] sdram_dm,
     inout logic [15:0] sdram_dq,
+
 `ifdef SIMULATION
     input  logic [15:0] sdram_dq_i,
     output logic [15:0] sdram_dq_o,
     output logic sdram_dq_oen,
+`endif
+
+`ifdef SIMULATION
+    // the UART bridge replacement for simulation
+    input  logic        debug_wb_cyc_i,
+    input  logic        debug_wb_stb_i,
+    input  logic        debug_wb_we_i,
+    input  logic [23:0] debug_wb_adr_i,
+    input  logic [7:0]  debug_wb_dat_i,
+    output logic [7:0]  debug_wb_dat_o,
+    output logic        debug_wb_ack_o,
+    output logic        debug_wb_err_o,
 `endif
 
     // UART интерфейс
@@ -215,6 +228,17 @@ module aleste_system #(
         .uart_tx_busy(uart_tx_busy),
 
         // Wishbone Master Interface
+
+`ifdef SIMULATION     
+        .wb_cyc_o(),
+        .wb_stb_o(),
+        .wb_we_o(),
+        .wb_adr_o(),
+        .wb_dat_o(),
+        .wb_dat_i(8'd0),
+        .wb_ack_i(1'b0),
+        .wb_err_i(1'b0),  
+`else   
         .wb_cyc_o(uart2wb_cyc),
         .wb_stb_o(uart2wb_stb),
         .wb_we_o(uart2wb_we),
@@ -223,7 +247,7 @@ module aleste_system #(
         .wb_dat_i(uart2wb_dat_in),
         .wb_ack_i(uart2wb_ack),
         .wb_err_i(uart2wb_err),  
-
+`endif
         .dbg_cyc_o(uart2dbg_cyc),
         .dbg_stb_o(uart2dbg_stb),
         .dbg_we_o(uart2dbg_we),
@@ -238,6 +262,18 @@ module aleste_system #(
         .bus_ack_o(debug_uart_bus_ack),
         .bus_stb_o(debug_uart_bus_stb)
     );
+
+`ifdef SIMULATION   
+    // В симуляции напрямую подключаем debug интерфейс
+    assign uart2wb_cyc = debug_wb_cyc_i;
+    assign uart2wb_stb = debug_wb_stb_i;
+    assign uart2wb_we = debug_wb_we_i;
+    assign uart2wb_adr = debug_wb_adr_i;
+    assign uart2wb_dat_out = debug_wb_dat_i;
+    assign debug_wb_dat_o = uart2wb_dat_in;
+    assign debug_wb_ack_o = uart2wb_ack;
+    assign debug_wb_err_o = uart2wb_err;
+`endif
 
     // ===========================================
     // Z80 CPU System
@@ -344,8 +380,8 @@ module aleste_system #(
 
         // Debug Outputs
         .debug_state_o(debug_arbiter_state),
-        .debug_z80_active_o(debug_z80_active_o),
-        .debug_uart_active_o(debug_uart_active_o)
+        .debug_z80_active_o(debug_z80_active),
+        .debug_uart_active_o(debug_uart_active)
     );
 
     // ===========================================
