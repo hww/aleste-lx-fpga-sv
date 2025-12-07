@@ -114,7 +114,7 @@ module aleste_system #(
     assign clk_cpu = clk_27m;  // Z80 CPU clock
 
     // Системный сброс
-    reset_controller reset_inst(
+    reset_controller reset_ctrl_inst(
         .clk(clk_system),
         .clke(clk_pixel),
         .pll_locked(pll_locked),
@@ -278,7 +278,7 @@ module aleste_system #(
     // ===========================================
     // Z80 CPU System
     // ===========================================
-    z80_system z80_sys (
+    z80_system z80_sys_inst (
         // Clock and Reset
         .clk_i(clk_cpu),                    // 27MHz CPU clock
         .nrst_i(~system_reset),
@@ -332,7 +332,7 @@ module aleste_system #(
     logic [2:0] sys_tag;  // TAG от декодера адресов
     logic debug_z80_active, debug_uart_active;
 
-    system_arbiter sys_arbiter (
+    system_arbiter sys_arbiter_inst (
         // Clock and Reset
         .clk_i(clk_bus),                    // 54MHz bus clock
         .rst_i(system_reset),
@@ -393,7 +393,7 @@ module aleste_system #(
     logic [7:0] cs_system;          // Native (system space) 32 bytes blocks
     logic [7:0] cs_legacy;          // Native (legacy space) 32 bytes blocks
 
-    address_decoder adu (
+    address_decoder addr_dec_inst (
         .cfg_legacy_i(cfg_legacy),  // Legacy mode
 
         .wb_adr_i(sys_adr),         // Input address lines
@@ -434,7 +434,7 @@ module aleste_system #(
         .DATA_INDICES(DATA_INDICES),
         .SDRAM_ADDR_WIDTH(SDRAM_ADDR_WIDTH),
         .SDRAM_DATA_WIDTH(SDRAM_DATA_WIDTH)
-    ) video_controller (
+    ) video_ctrl_inst (
         // Тактирование
         .clk_system(clk_system),
         .clk_bus(clk_bus),
@@ -493,7 +493,7 @@ module aleste_system #(
         .CLK_FREQ(CLK_FREQ_SYSTEM),
         .WB_ADDR_WIDTH(24),
         .WB_DATA_WIDTH(16)
-    ) sdram_ctrl (
+    ) sdram_ctrl_inst (
         // Wishbone Interface
         .wb_clk_i(clk_system),
         .wb_rst_i(system_reset),
@@ -560,7 +560,7 @@ module aleste_system #(
     // ===========================================
     wb_wdt_simple #(
         .TIMEOUT_CYCLES(32)
-    ) wb_wdt (
+    ) wb_wdt_inst (
         .clk_i(clk_bus),
         .rst_i(system_reset),
         .cyc_i(sys_cyc),

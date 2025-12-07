@@ -39,7 +39,6 @@ module mmu_legacy (
     input  logic        cpu_wr_n,                 // Write strobe
     input  logic [7:0]  cpu_din,                  // Z80 data out
     output logic [7:0]  cpu_dout,                 // Z80 data in  
-    output logic        cpu_wait,                 // CPU wait signal
 
     // -------------------------------------------------------------------------
     // CPC Control Outputs
@@ -294,9 +293,6 @@ module mmu_legacy (
     // Простое чтение данных от Wishbone
     assign cpu_dout = m_wb_dat_i;
 
-    // Wait state generation for Wishbone transactions
-    // NOTE: CPU should NOT wait when accessing internal registers (7Fxx, DFxx)
-    assign cpu_wait = (!is_internal_io) && 
-                     (m_wb_cyc_o && !m_wb_ack_i);
+
 
 endmodule

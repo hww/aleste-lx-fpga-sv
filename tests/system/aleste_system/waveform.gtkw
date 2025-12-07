@@ -1,0 +1,81 @@
+[*]
+[*] GTKWave Analyzer v3.3.125 (w)1999-2025 BSI
+[*] Sun Dec  7 12:40:00 2025
+[*]
+[dumpfile] "/home/valery/aleste-lx-fpga-sv/tests/system/aleste_system/waveform.vcd"
+[dumpfile_mtime] "Sun Dec  7 12:36:08 2025"
+[dumpfile_size] 8051959
+[savefile] "/home/valery/aleste-lx-fpga-sv/tests/system/aleste_system/waveform.gtkw"
+[timestart] 3499271
+[size] 1920 1113
+[pos] -1 -1
+*-10.606181 3502021 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.aleste_system.
+[treeopen] TOP.aleste_system.video_ctrl_inst.
+[treeopen] TOP.aleste_system.z80_sys_inst.
+[sst_width] 290
+[signals_width] 158
+[sst_expanded] 1
+[sst_vpaned_height] 335
+@28
+TOP.sdram_clock
+@22
+TOP.sdram_a[12:0]
+@28
+TOP.sdram_ba[1:0]
+TOP.sdram_cs_n
+TOP.sdram_ras_n
+TOP.sdram_cas_n
+TOP.sdram_cke
+TOP.sdram_dm[1:0]
+@22
+TOP.sdram_dq[15:0]
+TOP.sdram_dq_i[15:0]
+TOP.sdram_dq_o[15:0]
+@28
+TOP.sdram_dq_oen
+TOP.sdram_we_n
+@22
+TOP.aleste_system.addr_dec_inst.wb_adr_i[23:0]
+TOP.aleste_system.addr_dec_inst.cs_legacy_o[7:0]
+TOP.aleste_system.addr_dec_inst.cs_system_o[7:0]
+TOP.aleste_system.addr_dec_inst.cs_native_o[7:0]
+@200
+-
+@22
+TOP.aleste_system.z80_sys_inst.z80_a[15:0]
+@28
+TOP.aleste_system.z80_sys_inst.z80_busak_n
+TOP.aleste_system.z80_sys_inst.z80_busrq_n
+@22
+TOP.aleste_system.z80_sys_inst.z80_di[7:0]
+TOP.aleste_system.z80_sys_inst.z80_do[7:0]
+@28
+TOP.aleste_system.z80_sys_inst.z80_halt_n
+TOP.aleste_system.z80_sys_inst.z80_int_n
+TOP.aleste_system.z80_sys_inst.z80_iorq_n
+TOP.aleste_system.z80_sys_inst.z80_m1_n
+TOP.aleste_system.z80_sys_inst.z80_mreq_n
+TOP.aleste_system.z80_sys_inst.z80_nmi_n
+TOP.aleste_system.z80_sys_inst.z80_rd_n
+TOP.aleste_system.z80_sys_inst.z80_reset_n
+TOP.aleste_system.z80_sys_inst.z80_rfsh_n
+TOP.aleste_system.z80_sys_inst.z80_wait_n
+TOP.aleste_system.z80_sys_inst.z80_wr_n
+@200
+-
+@22
+TOP.aleste_system.z80_sys_inst.wbm_adr_o[23:0]
+@28
+TOP.aleste_system.z80_sys_inst.wbm_cyc_o
+TOP.aleste_system.z80_sys_inst.wbm_stb_o
+TOP.aleste_system.z80_sys_inst.wbm_we_o
+@22
+TOP.aleste_system.z80_sys_inst.wbm_dat_i[7:0]
+TOP.aleste_system.z80_sys_inst.wbm_dat_o[7:0]
+@28
+TOP.aleste_system.z80_sys_inst.wbm_ack_i
+TOP.aleste_system.z80_sys_inst.wb_state[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

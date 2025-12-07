@@ -36,7 +36,6 @@ module mmu_native (
     input  logic        cpu_m1_n,                 // Machine cycle 1
     input  logic [7:0]  cpu_din,                  // Z80 data in
     output logic [7:0]  cpu_dout,                 // Z80 data out
-    output logic        cpu_wait,                 // Wait state control
 
     // -------------------------------------------------------------------------
     // MASTER Wishbone Interface (Memory/Device Access ONLY)
@@ -339,10 +338,6 @@ module mmu_native (
         end
     end
 
-    // =========================================================================
-    // 9. WAIT STATES 
-    // =========================================================================
-    assign cpu_wait = ~is_mmu_access && m_wb_cyc_o && ~m_wb_ack_i;
 
     // =========================================================================
     // 10. Other Outputs

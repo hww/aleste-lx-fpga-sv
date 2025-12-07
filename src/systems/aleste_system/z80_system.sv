@@ -1,130 +1,97 @@
 `default_nettype none
 
-// =============================================================================
-// Z80 System Wrapper with TV80 CPU Core - SIMPLIFIED VERSION
-// =============================================================================
-// Features:
-// - No Wishbone Slave interfaces on MMU modules
-// - Direct CPU register access for both MMUs
-// - Local multiplexer for Native/Legacy MMU selection
-// =============================================================================
-
 module z80_system (
-    // -------------------------------------------------------------------------
     // Clock and Reset
-    // -------------------------------------------------------------------------
-    input  logic        clk_i,                    // System clock
-    input  logic        nrst_i,                   // Active low reset
+    input  logic        clk_i,
+    input  logic        nrst_i,
     
-    // -------------------------------------------------------------------------
-    // Main Wishbone Master Interface (to memory/devices)
-    // -------------------------------------------------------------------------
-    output logic [23:0] wbm_adr_o,                // 24-bit physical address
-    input  logic [7:0]  wbm_dat_i,                // Data input from bus
-    output logic [7:0]  wbm_dat_o,                // Data output to bus
-    output logic        wbm_cyc_o,                // Cycle valid
-    output logic        wbm_stb_o,                // Strobe
-    output logic        wbm_we_o,                 // Write enable
-    input  logic        wbm_ack_i,                // Transfer acknowledge
+    // Wishbone Master Interface
+    output logic [23:0] wbm_adr_o,
+    input  logic [7:0]  wbm_dat_i,
+    output logic [7:0]  wbm_dat_o,
+    output logic        wbm_cyc_o,
+    output logic        wbm_stb_o,
+    output logic        wbm_we_o,
+    input  logic        wbm_ack_i,
     
-    // -------------------------------------------------------------------------
-    // Debug Bus Interface (8-bit)
-    // -------------------------------------------------------------------------
-    input  logic [7:0]  dbg_adr_i,                // Debug address bus
-    output logic [7:0]  dbg_dat_o,                // Debug data output
-    input  logic [7:0]  dbg_dat_i,                // Debug data input
-    input  logic        dbg_we_i,                 // Debug write enable
-    input  logic        dbg_stb_i,                // Debug strobe
-    input  logic        dbg_cs_i,                 // Debug chip select
-    output logic        dbg_ack_o,                // Debug acknowledge
+    // Debug Interface
+    input  logic [7:0]  dbg_adr_i,
+    output logic [7:0]  dbg_dat_o,
+    input  logic [7:0]  dbg_dat_i,
+    input  logic        dbg_we_i,
+    input  logic        dbg_stb_i,
+    input  logic        dbg_cs_i,
+    output logic        dbg_ack_o,
     
-    // -------------------------------------------------------------------------
-    // Z80-specific Interface
-    // -------------------------------------------------------------------------
-    input  logic        nmi_req_i,                // NMI request
-    input  logic        int_req_i,                // INT request
-    input  logic        busrq_i,                  // Bus request
-    output logic        busak_o,                  // Bus acknowledge
+    // Z80 Interface
+    input  logic        nmi_req_i,
+    input  logic        int_req_i,
+    input  logic        busrq_i,
+    output logic        busak_o,
 
-    // -------------------------------------------------------------------------
-    // System Control Outputs
-    // -------------------------------------------------------------------------
-    output logic [1:0]  graphic_mode,             // CPC graphics mode
-    output logic        irq_control,              // Interrupt control
-    output logic        supervisor_mode_o,        // Current supervisor mode
+    // System Outputs
+    output logic [1:0]  graphic_mode,
+    output logic        irq_control,
+    output logic        supervisor_mode_o,
     output logic        legacy_mode_o,
     output logic        native_mode_o,
 
-    // -------------------------------------------------------------------------
-    // Debug Status Outputs
-    // -------------------------------------------------------------------------
-    output logic        debug_halt_status,        // CPU halt status
-    output logic [7:0]  debug_control_o           // Control register for debug
+    // Debug Outputs
+    output logic        debug_halt_status,
+    output logic [7:0]  debug_control_o
 );
 
     // =========================================================================
-    // TV80 Core Interface Signals
+    // Z80 CPU Signals
     // =========================================================================
-    logic [15:0]    z80_a;                        // Z80 address bus
-    logic [7:0]     z80_do;                       // Z80 data output  
-    logic [7:0]     z80_di;                       // Z80 data input
-    logic           z80_m1_n;
-    logic           z80_mreq_n;
-    logic           z80_iorq_n;
-    logic           z80_rd_n;
-    logic           z80_wr_n;
-    logic           z80_rfsh_n;
-    logic           z80_halt_n;
-    logic           z80_busak_n;
-    logic           z80_wait_n;
-    logic           z80_int_n;
-    logic           z80_nmi_n;
-    logic           z80_busrq_n;
-    logic           z80_reset_n;
+    logic [15:0]    z80_a;
+    logic [7:0]     z80_do, z80_di;
+    logic           z80_m1_n, z80_mreq_n, z80_iorq_n, z80_rd_n, z80_wr_n;
+    logic           z80_rfsh_n, z80_halt_n, z80_busak_n;
+    logic           z80_wait_n, z80_int_n, z80_nmi_n, z80_busrq_n, z80_reset_n;
 
     // =========================================================================
-    // MMU Interface Signals
+    // MMU Signals
     // =========================================================================
-    logic           legacy_mode;
-    logic           native_mode;
+    logic           legacy_mode, native_mode;
     
-    // Legacy MMU Master interfaces
-    logic           legacy_mmu_cyc;
-    logic           legacy_mmu_stb;
-    logic           legacy_mmu_we;
+    // Legacy MMU - УБИРАЕМ wait выход!
+    logic           legacy_mmu_cyc, legacy_mmu_stb, legacy_mmu_we;
     logic [23:0]    legacy_mmu_adr;
-    logic [7:0]     legacy_mmu_dat_o;
-    logic           legacy_mmu_wait;
-    logic [7:0]     legacy_mmu_cpu_dout;
+    logic [7:0]     legacy_mmu_dat_o, legacy_mmu_cpu_dout;
+    // logic legacy_mmu_wait; // УБРАТЬ!
     
-    // Native MMU Master interfaces
-    logic           native_mmu_cyc;
-    logic           native_mmu_stb;
-    logic           native_mmu_we;
+    // Native MMU - УБИРАЕМ wait выход!
+    logic           native_mmu_cyc, native_mmu_stb, native_mmu_we;
     logic [23:0]    native_mmu_adr;
-    logic [7:0]     native_mmu_dat_o;
-    logic           native_mmu_wait;
-    logic [7:0]     native_mmu_cpu_dout;
+    logic [7:0]     native_mmu_dat_o, native_mmu_cpu_dout;
+    // logic native_mmu_wait; // УБРАТЬ!
     
-    // Native MMU Control outputs
+    // Native MMU Control
     logic           native_supervisor_mode;
-    logic           native_mmio_userlock;
-    logic [7:0]     native_syscall_function;
-    logic           native_syscall_trigger;
 
     // =========================================================================
-    // Debug Module Interface
+    // Debug Signals
     // =========================================================================
-    logic           debug_z80_wait_n;
-    logic           debug_halt;
+    logic           debug_z80_wait_n, debug_halt;
 
     // =========================================================================
-    // Mode Selection and Control
+    // Wishbone Controller
     // =========================================================================
-    logic           legacy_syscall_handled;       // Legacy syscall processed
+    logic [7:0]     wb_read_data;
+    logic           wb_data_valid;
+    
+    // Состояния FSM
+    typedef enum logic [1:0] {
+        WB_IDLE        = 2'b00,  // Ожидание, нет цикла
+        WB_STB_ACTIVE  = 2'b01,  // STB=1, ждём ACK
+        WB_CYC_ACTIVE  = 2'b10   // STB=0, CYC=1 (данные готовы, CPU может забрать)
+    } wb_state_t;
+    
+    wb_state_t wb_state;
 
     // =========================================================================
-    // TV80 CORE INSTANTIATION (Verilog)
+    // TV80 CORE
     // =========================================================================
     tv80s z80_core (
         .reset_n(z80_reset_n),
@@ -146,7 +113,6 @@ module z80_system (
         .dout(z80_do)
     );
 
-    // Подключение сигналов TV80
     assign z80_reset_n = nrst_i;
     assign z80_int_n = ~int_req_i;
     assign z80_nmi_n = ~nmi_req_i;
@@ -154,13 +120,84 @@ module z80_system (
     assign z80_wait_n = debug_z80_wait_n;
 
     // =========================================================================
-    // DEBUG MODULE INSTANTIATION
+    // WISHBONE CONTROLLER - ПРАВИЛЬНАЯ ВЕРСИЯ
+    // =========================================================================
+    
+    // Select active MMU
+    logic active_cyc, active_stb, active_we;
+    logic [23:0] active_adr;
+    logic [7:0] active_dat_o;
+    
+    assign active_cyc = native_mode ? native_mmu_cyc : legacy_mmu_cyc;
+    assign active_stb = native_mode ? native_mmu_stb : legacy_mmu_stb;
+    assign active_we  = native_mode ? native_mmu_we  : legacy_mmu_we;
+    assign active_adr = native_mode ? native_mmu_adr : legacy_mmu_adr;
+    assign active_dat_o = native_mode ? native_mmu_dat_o : legacy_mmu_dat_o;
+    
+    // Wishbone FSM
+    always_ff @(posedge clk_i or negedge nrst_i) begin
+        if (!nrst_i) begin
+            wb_state <= WB_IDLE;
+            wbm_cyc_o <= 1'b0;
+            wbm_stb_o <= 1'b0;
+            wb_read_data <= 8'h00;
+            wb_data_valid <= 1'b0;
+        end else begin
+            // По умолчанию сбрасываем data_valid
+            wb_data_valid <= 1'b0;
+            
+            case (wb_state)
+                WB_IDLE: begin
+                    if (active_cyc && active_stb) begin
+                        // Начинаем новый цикл Wishbone
+                        wb_state <= WB_STB_ACTIVE;
+                        wbm_cyc_o <= 1'b1;
+                        wbm_stb_o <= 1'b1;
+                        wbm_we_o <= active_we;
+                        wbm_adr_o <= active_adr;
+                        wbm_dat_o <= active_dat_o;
+                    end else begin
+                        wbm_cyc_o <= 1'b0;
+                        wbm_stb_o <= 1'b0;
+                    end
+                end
+                
+                WB_STB_ACTIVE: begin
+                    if (wbm_ack_i) begin
+                        // ACK получен
+                        wbm_stb_o <= 1'b0;  // Снимаем STB
+                        
+                        if (!wbm_we_o) begin
+                            // Чтение: защёлкиваем данные
+                            wb_read_data <= wbm_dat_i;
+                            wb_data_valid <= 1'b1;  // Данные готовы!
+                        end
+                        
+                        // Переходим в состояние с CYC=1, STB=0
+                        wb_state <= WB_CYC_ACTIVE;
+                    end
+                end
+                
+                WB_CYC_ACTIVE: begin
+                    // CYC=1, STB=0 - данные готовы для CPU
+                    // Ждём пока CPU снимет запрос (MREQ/IORQ)
+                    
+                    if (!active_cyc) begin
+                        // CPU завершил цикл
+                        wbm_cyc_o <= 1'b0;
+                        wb_state <= WB_IDLE;
+                    end
+                end
+            endcase
+        end
+    end
+
+    // =========================================================================
+    // DEBUG MODULE
     // =========================================================================
     z80_debug debug_module (
         .clk(clk_i),
         .reset(~nrst_i),
-        
-        // Debug Bus Interface
         .dbus_addr_i(dbg_adr_i),
         .dbus_data_o(dbg_dat_o),
         .dbus_data_i(dbg_dat_i),
@@ -168,8 +205,6 @@ module z80_system (
         .dbus_stb_i(dbg_stb_i),
         .dbus_cs_i(dbg_cs_i),
         .dbus_ack_o(dbg_ack_o),
-        
-        // Z80 CPU Interface
         .z80_a(z80_a),
         .z80_do(z80_do),
         .z80_di(z80_di),
@@ -181,23 +216,18 @@ module z80_system (
         .z80_rfsh_n(z80_rfsh_n),
         .z80_halt_n(z80_halt_n),
         .z80_busak_n(z80_busak_n),
-        
-        // CPU Control Outputs
         .z80_wait_n(debug_z80_wait_n),
         .debug_halt_o(debug_halt)
     );
 
     // =========================================================================
-    // MMU INSTANTIATIONS (NO WISHBONE SLAVE INTERFACES!)
+    // MMU INSTANCES - УБИРАЕМ wait ВЫХОДЫ!
     // =========================================================================
 
-    // LEGACY MMU INSTANTIATION (CPC 6128 COMPATIBLE)
     mmu_legacy legacy_mmu (
         .clk(clk_i),
         .reset(~nrst_i),
         .legacy_mode_i(legacy_mode),
-        
-        // Master Wishbone Interface ONLY
         .m_wb_cyc_o(legacy_mmu_cyc),
         .m_wb_stb_o(legacy_mmu_stb),
         .m_wb_we_o(legacy_mmu_we),
@@ -205,8 +235,6 @@ module z80_system (
         .m_wb_dat_o(legacy_mmu_dat_o),
         .m_wb_dat_i(wbm_dat_i),
         .m_wb_ack_i(wbm_ack_i),
-
-        // Z80 Bus Interface
         .cpu_a(z80_a),
         .cpu_mreq_n(z80_mreq_n),
         .cpu_iorq_n(z80_iorq_n),
@@ -214,29 +242,20 @@ module z80_system (
         .cpu_wr_n(z80_wr_n),
         .cpu_din(z80_do),
         .cpu_dout(legacy_mmu_cpu_dout),
-        .cpu_wait(legacy_mmu_wait),
-
-        // CPC Control Outputs
+        // .cpu_wait(legacy_mmu_wait), // УБРАТЬ - генерация wait здесь!
         .graphic_mode(graphic_mode),
         .irq_control(irq_control),
-
-        // Debug Outputs
         .debug_rom_access_o(),
         .debug_ram_access_o(),
         .debug_io_access_o()
     );
 
-    // NATIVE MMU INSTANTIATION (ALESTE LX EXTENDED)
     mmu_native native_mmu (
         .clk(clk_i),
         .reset(~nrst_i),
-        
-        // Mode Control
         .legacy_mode_o(legacy_mode),
         .native_mode_o(native_mode),
         .debug_supervisor_mode_i(1'b0),
-        
-        // Z80 Bus Interface
         .cpu_a(z80_a),
         .cpu_mreq_n(z80_mreq_n),
         .cpu_iorq_n(z80_iorq_n),
@@ -245,9 +264,7 @@ module z80_system (
         .cpu_m1_n(z80_m1_n),
         .cpu_din(z80_do),
         .cpu_dout(native_mmu_cpu_dout),
-        .cpu_wait(native_mmu_wait),
-        
-        // Master Wishbone Interface ONLY
+        // .cpu_wait(native_mmu_wait), // УБРАТЬ - генерация wait здесь!
         .m_wb_cyc_o(native_mmu_cyc),
         .m_wb_stb_o(native_mmu_stb),
         .m_wb_we_o(native_mmu_we),
@@ -255,16 +272,10 @@ module z80_system (
         .m_wb_dat_o(native_mmu_dat_o),
         .m_wb_dat_i(wbm_dat_i),
         .m_wb_ack_i(wbm_ack_i),
-        
-        // Control Outputs (debug-prefixed)
         .debug_supervisor_mode_o(native_supervisor_mode),
-        .debug_mmio_userlock_o(native_mmio_userlock),
-
-        // SysCall Interface (debug-prefixed)
-        .debug_syscall_function_o(native_syscall_function),
-        .debug_syscall_trigger_o(native_syscall_trigger),
-
-        // Debug Outputs
+        .debug_mmio_userlock_o(),
+        .debug_syscall_function_o(),
+        .debug_syscall_trigger_o(),
         .debug_control_o(debug_control_o),
         .debug_mmio_page_o(),
         .debug_super_slot_o(),
@@ -275,39 +286,56 @@ module z80_system (
     );
 
     // =========================================================================
-    // LOCAL MMU MULTIPLEXER
+    // Z80 DATA INPUT
     // =========================================================================
+    // Даём данные CPU когда они защёлканы и валидны
+    always_comb begin
+        if (wb_data_valid) begin
+            // Данные из Wishbone (чтение)
+            z80_di = wb_read_data;
+        end else begin
+            // Данные от MMU (для внутренних регистров MMU)
+            z80_di = native_mode ? native_mmu_cpu_dout : legacy_mmu_cpu_dout;
+        end
+    end
 
-    // Z80 Data Input Multiplexer
-    assign z80_di = native_mode ? native_mmu_cpu_dout : legacy_mmu_cpu_dout;
-
-    // Wait State Logic
-    wire z80_wait = native_mode ? native_mmu_wait : legacy_mmu_wait;
+    // =========================================================================
+    // Z80 WAIT SIGNAL - ЦЕНТРАЛИЗОВАННАЯ ГЕНЕРАЦИЯ!
+    // =========================================================================
+    // Правила:
+    // 1. По умолчанию wait = 0 (CPU может работать)
+    // 2. При доступе к внутренним регистрам MMU - wait = 0 (данные сразу)
+    // 3. При доступе наружу (через Wishbone) - wait = 1 пока не получим ACK
     
-    // Wishbone Master Output Multiplexer
-    assign wbm_cyc_o = native_mode ? native_mmu_cyc : legacy_mmu_cyc;
-    assign wbm_stb_o = native_mode ? native_mmu_stb : legacy_mmu_stb;
-    assign wbm_we_o  = native_mode ? native_mmu_we  : legacy_mmu_we;
-    assign wbm_adr_o = native_mode ? native_mmu_adr : legacy_mmu_adr;
-    assign wbm_dat_o = native_mode ? native_mmu_dat_o : legacy_mmu_dat_o;
-    assign debug_z80_wait_n = ~z80_wait;
-
-    // Address Tag Generation moved to aleste_system address_decoder
-    // TAG generation is now centralized for all bus masters
+    // Определяем: внутренний ли доступ?
+    // Если MMU не поставили CYC/STB - значит доступ внутренний
+    logic internal_access;
+    assign internal_access = !(active_cyc && active_stb);
+    
+    // Генерация wait
+    always_comb begin
+        if (wb_state == WB_STB_ACTIVE) begin
+            // Внешний доступ: ждём ACK от Wishbone
+            debug_z80_wait_n = 1'b0;
+        end else if (internal_access && wb_state == WB_IDLE) begin
+            // Внутренний доступ: данные сразу от MMU
+            debug_z80_wait_n = 1'b1;
+        end else begin
+            // Все остальные случаи: CPU может работать
+            debug_z80_wait_n = 1'b1;
+        end
+    end
+    
+    // Или более компактно:
+    // assign debug_z80_wait_n = !(wb_state == WB_STB_ACTIVE);
 
     // =========================================================================
     // OUTPUT SIGNALS
     // =========================================================================
-
-    // Bus Acknowledge
     assign busak_o = ~z80_busak_n;
-
-    // Mode Outputs
     assign legacy_mode_o = legacy_mode;
     assign native_mode_o = native_mode;
     assign supervisor_mode_o = native_supervisor_mode;
-
-    // Debug Status
     assign debug_halt_status = debug_halt;
 
 endmodule
