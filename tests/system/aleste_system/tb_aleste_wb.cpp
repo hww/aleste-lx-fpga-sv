@@ -11,27 +11,27 @@
 #include <iomanip>
 #include <cassert>
 
-// Инициализация времени
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РІСЂРµРјРµРЅРё
 vluint64_t sim_time = 0;
 Valeste_system* top;
 VerilatedVcdC* tfp;
 
-// Простая фазовая система
-int phase = 0; // 0-3 фазы
+// РџСЂРѕСЃС‚Р°СЏ С„Р°Р·РѕРІР°СЏ СЃРёСЃС‚РµРјР°
+int phase = 0; // 0-3 С„Р°Р·С‹
 
-// Выполнить одну фазу
+// Р’С‹РїРѕР»РЅРёС‚СЊ РѕРґРЅСѓ С„Р°Р·Сѓ
 void execute_phase() {
     switch (phase) {
         case 0: // F1: clock 0 -> 1
             top->clk_25mhz = 1;
             break;
-        case 1: // F2: wb signals change state (25% сдвиг)
-            // WB сигналы устанавливаются отдельно
+        case 1: // F2: wb signals change state (25% СЃРґРІРёРі)
+            // WB СЃРёРіРЅР°Р»С‹ СѓСЃС‚Р°РЅР°РІР»РёРІР°СЋС‚СЃСЏ РѕС‚РґРµР»СЊРЅРѕ
             break;
         case 2: // F3: clock 1 -> 0
             top->clk_25mhz = 0;
             break;
-        case 3: // F4: ничего
+        case 3: // F4: РЅРёС‡РµРіРѕ
             break;
     }
     
@@ -42,7 +42,7 @@ void execute_phase() {
     phase = (phase + 1) % 4;
 }
 
-// Выполнить N фаз
+// Р’С‹РїРѕР»РЅРёС‚СЊ N С„Р°Р·
 void execute_n_phases(int n) {
     for (int i = 0; i < n; i++) {
         execute_phase();
@@ -50,7 +50,7 @@ void execute_n_phases(int n) {
 }
 
 // ==============================================
-// SDRAM модель
+// SDRAM РјРѕРґРµР»СЊ
 // ==============================================
 class SDRAM_Model {
 private:
@@ -98,7 +98,7 @@ public:
             return false;
         }
         
-        // Преобразование байтов в 16-битные слова (little-endian)
+        // РџСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ Р±Р°Р№С‚РѕРІ РІ 16-Р±РёС‚РЅС‹Рµ СЃР»РѕРІР° (little-endian)
         for (size_t i = 0; i < word_count; i++) {
             uint8_t low_byte = buffer[i * 2];
             uint8_t high_byte = (i * 2 + 1 < buffer.size()) ? buffer[i * 2 + 1] : 0;
@@ -145,52 +145,52 @@ private:
 public:
     WBDebugTester() : total_tests(0), passed_tests(0), failed_tests(0) {}
     
-    // Публичные геттеры
+    // РџСѓР±Р»РёС‡РЅС‹Рµ РіРµС‚С‚РµСЂС‹
     int get_total_tests() const { return total_tests; }
     int get_passed_tests() const { return passed_tests; }
     int get_failed_tests() const { return failed_tests; }
     
-    // Выполнить цикл чтения через Wishbone
+    // Р’С‹РїРѕР»РЅРёС‚СЊ С†РёРєР» С‡С‚РµРЅРёСЏ С‡РµСЂРµР· Wishbone
     bool wb_read(Valeste_system* top, uint32_t addr, uint8_t& data, bool check_err = true) {
         total_tests++;
         
-        // Сброс сигналов
+        // РЎР±СЂРѕСЃ СЃРёРіРЅР°Р»РѕРІ
         top->debug_wb_cyc_i = 0;
         top->debug_wb_stb_i = 0;
         top->debug_wb_we_i = 0;
         top->debug_wb_adr_i = 0;
         top->debug_wb_dat_i = 0;
         
-        // Ждем фронта clk и устанавливаем WB с задержкой в 1 фазу
-        execute_n_phases(4); // Завершаем текущий цикл
+        // Р–РґРµРј С„СЂРѕРЅС‚Р° clk Рё СѓСЃС‚Р°РЅР°РІР»РёРІР°РµРј WB СЃ Р·Р°РґРµСЂР¶РєРѕР№ РІ 1 С„Р°Р·Сѓ
+        execute_n_phases(4); // Р—Р°РІРµСЂС€Р°РµРј С‚РµРєСѓС‰РёР№ С†РёРєР»
         
         // F1: clock 0 -> 1
         execute_phase();
         
-        // F2: wb signals change state (25% сдвиг)
-        // Устанавливаем сигналы WB
+        // F2: wb signals change state (25% СЃРґРІРёРі)
+        // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј СЃРёРіРЅР°Р»С‹ WB
         top->debug_wb_adr_i = addr;
         top->debug_wb_we_i = 0;
         top->debug_wb_cyc_i = 1;
         top->debug_wb_stb_i = 1;
-        execute_phase(); // WB сигналы установлены
+        execute_phase(); // WB СЃРёРіРЅР°Р»С‹ СѓСЃС‚Р°РЅРѕРІР»РµРЅС‹
         
         // F3: clock 1 -> 0
         execute_phase();
         
-        // F4: ничего
+        // F4: РЅРёС‡РµРіРѕ
         execute_phase();
         
-        // Ждем ack (продолжаем тактирование)
+        // Р–РґРµРј ack (РїСЂРѕРґРѕР»Р¶Р°РµРј С‚Р°РєС‚РёСЂРѕРІР°РЅРёРµ)
         int timeout = 100;
         bool ack_received = false;
         bool error_received = false;
         
         while (timeout > 0) {
-            // Продолжаем фазы
+            // РџСЂРѕРґРѕР»Р¶Р°РµРј С„Р°Р·С‹
             execute_phase();
             
-            // Проверяем ack в фазе F1 (после фронта clk)
+            // РџСЂРѕРІРµСЂСЏРµРј ack РІ С„Р°Р·Рµ F1 (РїРѕСЃР»Рµ С„СЂРѕРЅС‚Р° clk)
             if (phase == 0 && top->debug_wb_ack_o) {
                 ack_received = true;
                 data = top->debug_wb_dat_o;
@@ -205,13 +205,13 @@ public:
             timeout--;
         }
         
-        // Завершаем транзакцию
-        // F2: сбрасываем WB сигналы
+        // Р—Р°РІРµСЂС€Р°РµРј С‚СЂР°РЅР·Р°РєС†РёСЋ
+        // F2: СЃР±СЂР°СЃС‹РІР°РµРј WB СЃРёРіРЅР°Р»С‹
         top->debug_wb_cyc_i = 0;
         top->debug_wb_stb_i = 0;
-        execute_phase(); // F2 - WB сигналы сброшены
+        execute_phase(); // F2 - WB СЃРёРіРЅР°Р»С‹ СЃР±СЂРѕС€РµРЅС‹
         
-        // Завершаем цикл
+        // Р—Р°РІРµСЂС€Р°РµРј С†РёРєР»
         execute_phase(); // F3
         execute_phase(); // F4
         
@@ -232,48 +232,48 @@ public:
         return true;
     }
     
-    // Выполнить цикл записи через Wishbone
+    // Р’С‹РїРѕР»РЅРёС‚СЊ С†РёРєР» Р·Р°РїРёСЃРё С‡РµСЂРµР· Wishbone
     bool wb_write(Valeste_system* top, uint32_t addr, uint8_t data, bool check_err = true) {
         total_tests++;
         
-        // Сброс сигналов
+        // РЎР±СЂРѕСЃ СЃРёРіРЅР°Р»РѕРІ
         top->debug_wb_cyc_i = 0;
         top->debug_wb_stb_i = 0;
         top->debug_wb_we_i = 0;
         top->debug_wb_adr_i = 0;
         top->debug_wb_dat_i = 0;
         
-        // Ждем фронта clk и устанавливаем WB с задержкой в 1 фазу
-        execute_n_phases(4); // Завершаем текущий цикл
+        // Р–РґРµРј С„СЂРѕРЅС‚Р° clk Рё СѓСЃС‚Р°РЅР°РІР»РёРІР°РµРј WB СЃ Р·Р°РґРµСЂР¶РєРѕР№ РІ 1 С„Р°Р·Сѓ
+        execute_n_phases(4); // Р—Р°РІРµСЂС€Р°РµРј С‚РµРєСѓС‰РёР№ С†РёРєР»
         
         // F1: clock 0 -> 1
         execute_phase();
         
-        // F2: wb signals change state (25% сдвиг)
-        // Устанавливаем сигналы WB
+        // F2: wb signals change state (25% СЃРґРІРёРі)
+        // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј СЃРёРіРЅР°Р»С‹ WB
         top->debug_wb_adr_i = addr;
         top->debug_wb_dat_i = data;
         top->debug_wb_we_i = 1;
         top->debug_wb_cyc_i = 1;
         top->debug_wb_stb_i = 1;
-        execute_phase(); // WB сигналы установлены
+        execute_phase(); // WB СЃРёРіРЅР°Р»С‹ СѓСЃС‚Р°РЅРѕРІР»РµРЅС‹
         
         // F3: clock 1 -> 0
         execute_phase();
         
-        // F4: ничего
+        // F4: РЅРёС‡РµРіРѕ
         execute_phase();
         
-        // Ждем ack (продолжаем тактирование)
+        // Р–РґРµРј ack (РїСЂРѕРґРѕР»Р¶Р°РµРј С‚Р°РєС‚РёСЂРѕРІР°РЅРёРµ)
         int timeout = 100;
         bool ack_received = false;
         bool error_received = false;
         
         while (timeout > 0) {
-            // Продолжаем фазы
+            // РџСЂРѕРґРѕР»Р¶Р°РµРј С„Р°Р·С‹
             execute_phase();
             
-            // Проверяем ack в фазе F1 (после фронта clk)
+            // РџСЂРѕРІРµСЂСЏРµРј ack РІ С„Р°Р·Рµ F1 (РїРѕСЃР»Рµ С„СЂРѕРЅС‚Р° clk)
             if (phase == 0 && top->debug_wb_ack_o) {
                 ack_received = true;
                 break;
@@ -287,13 +287,13 @@ public:
             timeout--;
         }
         
-        // Завершаем транзакцию
-        // F2: сбрасываем WB сигналы
+        // Р—Р°РІРµСЂС€Р°РµРј С‚СЂР°РЅР·Р°РєС†РёСЋ
+        // F2: СЃР±СЂР°СЃС‹РІР°РµРј WB СЃРёРіРЅР°Р»С‹
         top->debug_wb_cyc_i = 0;
         top->debug_wb_stb_i = 0;
-        execute_phase(); // F2 - WB сигналы сброшены
+        execute_phase(); // F2 - WB СЃРёРіРЅР°Р»С‹ СЃР±СЂРѕС€РµРЅС‹
         
-        // Завершаем цикл
+        // Р—Р°РІРµСЂС€Р°РµРј С†РёРєР»
         execute_phase(); // F3
         execute_phase(); // F4
         
@@ -314,18 +314,18 @@ public:
         return true;
     }
     
-    // Проверка чтения/записи с верификацией
+    // РџСЂРѕРІРµСЂРєР° С‡С‚РµРЅРёСЏ/Р·Р°РїРёСЃРё СЃ РІРµСЂРёС„РёРєР°С†РёРµР№
     bool wb_read_write_verify(Valeste_system* top, uint32_t addr, uint8_t test_value) {
-        // Запись
+        // Р—Р°РїРёСЃСЊ
         if (!wb_write(top, addr, test_value)) {
             results.push_back({"VERIFY WRITE 0x" + to_hex(addr), false, "Write failed"});
             return false;
         }
         
-        // Небольшая задержка между записью и чтением
+        // РќРµР±РѕР»СЊС€Р°СЏ Р·Р°РґРµСЂР¶РєР° РјРµР¶РґСѓ Р·Р°РїРёСЃСЊСЋ Рё С‡С‚РµРЅРёРµРј
         execute_n_phases(16);
         
-        // Чтение и проверка
+        // Р§С‚РµРЅРёРµ Рё РїСЂРѕРІРµСЂРєР°
         uint8_t read_value;
         if (!wb_read(top, addr, read_value)) {
             results.push_back({"VERIFY READ 0x" + to_hex(addr), false, "Read failed"});
@@ -346,11 +346,11 @@ public:
         return true;
     }
     
-    // Запустить серию тестов
+    // Р—Р°РїСѓСЃС‚РёС‚СЊ СЃРµСЂРёСЋ С‚РµСЃС‚РѕРІ
     void run_tests(Valeste_system* top) {
         std::cout << "\n=== Starting Wishbone Debug Bus Tests ===" << std::endl;
         
-        // Тест 1: Чтение ячеек 0-5
+        // РўРµСЃС‚ 1: Р§С‚РµРЅРёРµ СЏС‡РµРµРє 0-5
         std::cout << "\nTest 1: Reading addresses 0x0-0x5" << std::endl;
         for (uint32_t addr = 0; addr <= 5; addr++) {
             uint8_t data;
@@ -363,16 +363,16 @@ public:
             }
         }
         
-        // Небольшая пауза между тестами
+        // РќРµР±РѕР»СЊС€Р°СЏ РїР°СѓР·Р° РјРµР¶РґСѓ С‚РµСЃС‚Р°РјРё
         execute_n_phases(8);
         
-        // Тест 2: Запись в нулевую ячейку
+        // РўРµСЃС‚ 2: Р—Р°РїРёСЃСЊ РІ РЅСѓР»РµРІСѓСЋ СЏС‡РµР№РєСѓ
         std::cout << "\nTest 2: Write to address 0x0" << std::endl;
         if (wb_write(top, 0x0, 0xAA)) {
             std::cout << "  Write 0xAA to 0x0 [OK]" << std::endl;
         }
         
-        // Проверка записи в 0x0
+        // РџСЂРѕРІРµСЂРєР° Р·Р°РїРёСЃРё РІ 0x0
         execute_n_phases(8);
         uint8_t verify_data;
         if (wb_read(top, 0x0, verify_data, false)) {
@@ -380,26 +380,26 @@ public:
                       << std::dec << " [OK]" << std::endl;
         }
         
-        // Тест 3: Запись в FF0100
+        // РўРµСЃС‚ 3: Р—Р°РїРёСЃСЊ РІ FF0100
         std::cout << "\nTest 3: Write to address 0xFF0100" << std::endl;
         if (wb_write(top, 0xFF0100, 0x55)) {
             std::cout << "  Write 0x55 to 0xFF0100 [OK]" << std::endl;
         }
         
-        // Тест 4: Запись в FF0120
+        // РўРµСЃС‚ 4: Р—Р°РїРёСЃСЊ РІ FF0120
         std::cout << "\nTest 4: Write to address 0xFF0120" << std::endl;
         if (wb_write(top, 0xFF0120, 0x99)) {
             std::cout << "  Write 0x99 to 0xFF0120 [OK]" << std::endl;
         }
         
-        // Тест 5: Верификация записи/чтения по разным адресам
+        // РўРµСЃС‚ 5: Р’РµСЂРёС„РёРєР°С†РёСЏ Р·Р°РїРёСЃРё/С‡С‚РµРЅРёСЏ РїРѕ СЂР°Р·РЅС‹Рј Р°РґСЂРµСЃР°Рј
         std::cout << "\nTest 5: Write/Read verification at different addresses" << std::endl;
         wb_read_write_verify(top, 0x1000, 0x11);
         wb_read_write_verify(top, 0x2000, 0x22);
         wb_read_write_verify(top, 0x3000, 0x33);
     }
     
-    // Вывести результаты
+    // Р’С‹РІРµСЃС‚Рё СЂРµР·СѓР»СЊС‚Р°С‚С‹
     void print_results() {
         std::cout << "\n=== Test Results ===" << std::endl;
         std::cout << "Total tests: " << total_tests << std::endl;
@@ -439,7 +439,7 @@ private:
 };
 
 // ==============================================
-// Главная функция
+// Р“Р»Р°РІРЅР°СЏ С„СѓРЅРєС†РёСЏ
 // ==============================================
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
@@ -451,19 +451,19 @@ int main(int argc, char** argv) {
     tfp->open("waveform.vcd");
     
     // ==============================================
-    // Инициализация SDRAM
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ SDRAM
     // ==============================================
     SDRAM_Model sdram(0x4000);
     sdram.fill_increment();
     
     // ==============================================
-    // Инициализация системы
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ СЃРёСЃС‚РµРјС‹
     // ==============================================
-    top->clk_25mhz = 0;  // Начинаем с низкого уровня
+    top->clk_25mhz = 0;  // РќР°С‡РёРЅР°РµРј СЃ РЅРёР·РєРѕРіРѕ СѓСЂРѕРІРЅСЏ
     top->serial_rx = 1;
     top->sdram_dq_i = 0x0000;
     
-    // Инициализация debug интерфейса
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ debug РёРЅС‚РµСЂС„РµР№СЃР°
     top->debug_wb_cyc_i = 0;
     top->debug_wb_stb_i = 0;
     top->debug_wb_we_i = 0;
@@ -473,7 +473,7 @@ int main(int argc, char** argv) {
     std::cout << "\n=== Starting simulation ===" << std::endl;
     
     // ==============================================
-    // Переменные для симуляции
+    // РџРµСЂРµРјРµРЅРЅС‹Рµ РґР»СЏ СЃРёРјСѓР»СЏС†РёРё
     // ==============================================
     uint16_t bus_data = 0x0000;
     bool bus_has_data = false;
@@ -483,16 +483,16 @@ int main(int argc, char** argv) {
     WBDebugTester tester;
 
     // ==============================================
-    // Этап 1: Сброс и инициализация
+    // Р­С‚Р°Рї 1: РЎР±СЂРѕСЃ Рё РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ
     // ==============================================
     std::cout << "\nPhase 1: Reset and initialization" << std::endl;
     for (int cycle = 0; cycle < 200000; cycle++) {
-        // Выполняем одну фазу
+        // Р’С‹РїРѕР»РЅСЏРµРј РѕРґРЅСѓ С„Р°Р·Сѓ
         execute_phase();
         
-        // Эмуляция SDRAM - обрабатываем команды в фазе F1 (после фронта clk)
-        if (phase == 1) { // F2 - после того как clk стал 1
-            // SDRAM команды детектируются на фронте тактового сигнала
+        // Р­РјСѓР»СЏС†РёСЏ SDRAM - РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј РєРѕРјР°РЅРґС‹ РІ С„Р°Р·Рµ F1 (РїРѕСЃР»Рµ С„СЂРѕРЅС‚Р° clk)
+        if (phase == 1) { // F2 - РїРѕСЃР»Рµ С‚РѕРіРѕ РєР°Рє clk СЃС‚Р°Р» 1
+            // SDRAM РєРѕРјР°РЅРґС‹ РґРµС‚РµРєС‚РёСЂСѓСЋС‚СЃСЏ РЅР° С„СЂРѕРЅС‚Рµ С‚Р°РєС‚РѕРІРѕРіРѕ СЃРёРіРЅР°Р»Р°
             if (!top->sdram_cs_n && 
                 !top->sdram_ras_n && 
                 top->sdram_cas_n && 
@@ -520,8 +520,8 @@ int main(int argc, char** argv) {
             }
         }
         
-        // Данные SDRAM устанавливаются в фазу F2 (через 25% цикла после фронта)
-        if (phase == 1 && bus_has_data) { // F2 - через 25% после фронта
+        // Р”Р°РЅРЅС‹Рµ SDRAM СѓСЃС‚Р°РЅР°РІР»РёРІР°СЋС‚СЃСЏ РІ С„Р°Р·Сѓ F2 (С‡РµСЂРµР· 25% С†РёРєР»Р° РїРѕСЃР»Рµ С„СЂРѕРЅС‚Р°)
+        if (phase == 1 && bus_has_data) { // F2 - С‡РµСЂРµР· 25% РїРѕСЃР»Рµ С„СЂРѕРЅС‚Р°
             top->sdram_dq_i = bus_data;
             bus_has_data = false;
         } else if (phase == 1) {
@@ -535,19 +535,19 @@ int main(int argc, char** argv) {
     }
     
     // ==============================================
-    // Этап 2: Тестирование Wishbone debug bus
+    // Р­С‚Р°Рї 2: РўРµСЃС‚РёСЂРѕРІР°РЅРёРµ Wishbone debug bus
     // ==============================================
     std::cout << "\nPhase 2: Wishbone debug bus testing" << std::endl;
     tester.run_tests(top);
     
     // ==============================================
-    // Этап 3: Небольшая задержка и завершение
+    // Р­С‚Р°Рї 3: РќРµР±РѕР»СЊС€Р°СЏ Р·Р°РґРµСЂР¶РєР° Рё Р·Р°РІРµСЂС€РµРЅРёРµ
     // ==============================================
     std::cout << "\nPhase 3: Final delay and cleanup" << std::endl;
     for (int cycle = 0; cycle < 1000; cycle++) {
         execute_phase();
         
-        // Продолжаем эмуляцию SDRAM
+        // РџСЂРѕРґРѕР»Р¶Р°РµРј СЌРјСѓР»СЏС†РёСЋ SDRAM
         if (phase == 1) {
             if (!top->sdram_cs_n && 
                 !top->sdram_ras_n && 
@@ -587,7 +587,7 @@ int main(int argc, char** argv) {
     }
     
     // ==============================================
-    // Завершение
+    // Р—Р°РІРµСЂС€РµРЅРёРµ
     // ==============================================
     std::cout << "\n=== Simulation finished ===" << std::endl;
     std::cout << "Total SDRAM reads: " << sdram_reads << std::endl;
