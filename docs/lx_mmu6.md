@@ -329,13 +329,14 @@ S(t+1) =
 | Device / Description | RW | Legacy IO Address | Legacy Wishbone Address | Native IO Address | Native Wishbone Address | Size | CPU Access | DMA Access |
 |----------------------|----|-------------------|-------------------------|-------------------|-------------------------|------|------------|------------|
 | **MMIO_WINDOW** | RW | - | - | 00-7Fh | FF0000+{PAGE,ADDR[6:0]} | 128 | RW* | R* |
-| **MMIO_PAGE** | RW | - | - | D3h | FF00D3h | 1 | RW* | - |
-| **SYSCALL** | W | D400h | FF00D4h | D4h | FF00D4h | 1 | W | - |
-| **GLOBAL_CTRL** | RW | - | - | D7h | FF00D7h | 1 | RW* | - |
-| **SUPER_SLOT** | RW | - | - | D9h | FF00D9h | 1 | RW* | - |
-| **USER_SLOT** | RW | - | - | DBh | FF00DBh | 1 | RW* | - |
-| **BANK_0-3** | RW | - | - | DC-DFh | FF00DC-DFh | 4 | RW* | - |
-| **MMU_EXT** | RW | - | - | через окно | FF0080h-FF00BFh | 64 | RW* | - |
+| **CPU_CLOCK** | RW | - | - | D3h |  | 1 | RW* | - |
+| **MMIO_PAGE** | RW | - | - | D3h |  | 1 | RW* | - |
+| **SYSCALL** | W | D400h | FF00D4h | D4h |  | 1 | W | - |
+| **GLOBAL_CTRL** | RW | - | - | D7h |  | 1 | RW* | - |
+| **SUPER_SLOT** | RW | - | - | D9h |  | 1 | RW* | - |
+| **USER_SLOT** | RW | - | - | DBh |  | 1 | RW* | - |
+| **BANK_0-3** | RW | - | - | DC-DFh | | 4 | RW* | - |
+| **MMU_EXT** | RW | - | - | через окно | | 64 | RW* | - |
 | **PIC Controller** | RW | - | - | через окно | FF0000h-FF001Fh | 32 | RW | RW |
 | **IPC Mailbox** | RW | - | - | через окно | FF0020h-FF003Fh | 32 | RW | - |
 | **System Timer** | RW | - | - | через окно | FF0040h-FF005Fh | 32 | RW | - |
@@ -404,6 +405,13 @@ S(t+1) =
 | 4000-7FFF | 1 | 1 | bbb*4 + 1 | 3 | bbb*4 + 0 | bbb*4 + 1 | bbb*4 + 2 | bbb*4 + 3 |
 | 8000-BFFF | 2 | 2 | bbb*4 + 2 | 2 | 2 | 2 | 2 | 2 |
 | C000-FFFF | 3 | bbb*4 + 3 | bbb*4 + 3 | bbb*4 + 3 | 3 | 3 | 3 | 3 |
+
+### 10.5. CPU Clock
+
+| Бит | Назначение |
+|:----|:-----------|
+| 7-4 | Reserved |
+| 3-0 | **dddd** - Делитель чатоты шины на коэффициэнт для получеия тактовой процессора. |
 
 ## 11. Address Space Architecture Description
 

@@ -36,7 +36,9 @@ module mmu_native (
     input  logic        cpu_m1_n,                 // Machine cycle 1
     input  logic [7:0]  cpu_din,                  // Z80 data in
     output logic [7:0]  cpu_dout,                 // Z80 data out
-
+    output logic [3:0]  cpu_clock_conf,           // Control speed of Z80
+    output logic        mmu_access_o,             // Access to mmu
+    
     // -------------------------------------------------------------------------
     // MASTER Wishbone Interface (Memory/Device Access ONLY)
     // -------------------------------------------------------------------------
@@ -64,6 +66,7 @@ module mmu_native (
     );
     // Internal Registers
     // =========================================================================
+    logic [7:0] reg_clock;                        // Clock divider 
     logic [7:0] reg_control;                      // D7: [4]=mmio_userlock, [1]=supervisor, [0]=native
     logic [7:0] reg_mmio_page;                    // D3
     logic [7:0] reg_super_slot;                   // D9
@@ -217,6 +220,7 @@ module mmu_native (
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
             // По спецификации: после сброса supervisor=1, native=1, mmio_userlock=1
+            reg_clock      <= 8'b0000_0001;  // Divide clock by 2
             reg_control    <= 8'b0001_0011;  // [4]=1(lock), [1]=1(supervisor), [0]=1(native)
             reg_mmio_page  <= 8'h00;
             reg_super_slot <= 8'hFF;         // Supervisor: все страницы = слот 3
@@ -233,6 +237,7 @@ module mmu_native (
             // Запись в регистры
             if (is_mmu_access && is_write) begin
                 case (cpu_a[7:0])
+                    8'hD0: reg_clock      <= cpu_din;
                     8'hD3: reg_mmio_page  <= cpu_din;
                     8'hD7: reg_control    <= cpu_din;  // Может изменить supervisor_mode
                     8'hD9: reg_super_slot <= cpu_din;
@@ -259,6 +264,7 @@ module mmu_native (
             else if (is_mmu_access && is_read) begin
                 cpu_reg_read_valid <= 1'b1;
                 case (cpu_a[7:0])
+                    8'hD3: cpu_reg_read_data <= reg_clock;
                     8'hD3: cpu_reg_read_data <= reg_mmio_page;
                     8'hD7: cpu_reg_read_data <= reg_control;
                     8'hD9: cpu_reg_read_data <= reg_super_slot;
@@ -338,12 +344,17 @@ module mmu_native (
         end
     end
 
+    // =========================================================================
+    // 9. WAIT STATES 
+    // =========================================================================
+    assign mmu_access_o = is_mmu_access;
 
     // =========================================================================
     // 10. Other Outputs
     // =========================================================================
     assign native_mode_o    = native_mode;
     assign legacy_mode_o    = ~native_mode;
+    assign cpu_clock_conf   = reg_clock[3:0];
 
     // =========================================================================
     // 11. Debugging

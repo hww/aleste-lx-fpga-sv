@@ -555,7 +555,8 @@ end
 // ============================================================================
 
 // Display enable
-logic crtc_de = (crtc_h_count < reg_h_displayed) && 
+logic crtc_de;
+assign crtc_de = (crtc_h_count < reg_h_displayed) && 
                  (crtc_v_count < reg_v_displayed);
 
 // Traditional CRTC address

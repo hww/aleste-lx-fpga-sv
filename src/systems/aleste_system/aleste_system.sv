@@ -62,6 +62,7 @@ module aleste_system #(
 
 `ifdef SIMULATION
     // the UART bridge replacement for simulation
+    output logic        debug_wb_clk_o,
     input  logic        debug_wb_cyc_i,
     input  logic        debug_wb_stb_i,
     input  logic        debug_wb_we_i,
@@ -90,7 +91,7 @@ module aleste_system #(
     logic clk_27m, clk_270m, clk_54m, clk_108m;
     logic pll_locked;
     logic system_reset;
-    logic clk_pixel, clk_pixel_x2, clk_bus, clk_system, clk_cpu;
+    logic clk_pixel, clk_pixel_x2, clk_bus, clk_system;
 
     video_pll vid_pll(
         .rst(1'b0),
@@ -111,7 +112,6 @@ module aleste_system #(
     assign clk_bus = clk_54m;
     assign clk_pixel = clk_27m;
     assign clk_pixel_x2 = clk_54m;
-    assign clk_cpu = clk_27m;  // Z80 CPU clock
 
     // Системный сброс
     reset_controller reset_ctrl_inst(
@@ -273,6 +273,7 @@ module aleste_system #(
     assign debug_wb_dat_o = uart2wb_dat_in;
     assign debug_wb_ack_o = uart2wb_ack;
     assign debug_wb_err_o = uart2wb_err;
+    assign debug_wb_clk_o = clk_bus;
 `endif
 
     // ===========================================
@@ -280,9 +281,10 @@ module aleste_system #(
     // ===========================================
     z80_system z80_sys_inst (
         // Clock and Reset
-        .clk_i(clk_cpu),                    // 27MHz CPU clock
-        .nrst_i(~system_reset),
-        
+        .clk_i(clk_bus),                    // 27MHz CPU clock
+        .res_i(system_reset),
+        .res_short_i(~pll_locked),
+
         // Main Wishbone Master Interface
         .wbm_adr_o(z80_adr),
         .wbm_dat_i(z80_dat_in),

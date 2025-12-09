@@ -3,8 +3,9 @@
 module z80_system (
     // Clock and Reset
     input  logic        clk_i,
-    input  logic        nrst_i,
-    
+    input  logic        res_i,
+    input  logic        res_short_i,
+
     // Wishbone Master Interface
     output logic [23:0] wbm_adr_o,
     input  logic [7:0]  wbm_dat_i,
@@ -56,13 +57,13 @@ module z80_system (
     logic           legacy_mode, native_mode;
     
     // Legacy MMU - УБИРАЕМ wait выход!
-    logic           legacy_mmu_cyc, legacy_mmu_stb, legacy_mmu_we;
+    logic           legacy_mmu_cyc, legacy_mmu_stb, legacy_mmu_we, legacy_mmu_access;
     logic [23:0]    legacy_mmu_adr;
     logic [7:0]     legacy_mmu_dat_o, legacy_mmu_cpu_dout;
     // logic legacy_mmu_wait; // УБРАТЬ!
     
     // Native MMU - УБИРАЕМ wait выход!
-    logic           native_mmu_cyc, native_mmu_stb, native_mmu_we;
+    logic           native_mmu_cyc, native_mmu_stb, native_mmu_we, native_mmu_access;
     logic [23:0]    native_mmu_adr;
     logic [7:0]     native_mmu_dat_o, native_mmu_cpu_dout;
     // logic native_mmu_wait; // УБРАТЬ!
@@ -78,7 +79,7 @@ module z80_system (
     // =========================================================================
     // Wishbone Controller
     // =========================================================================
-    logic [7:0]     wb_read_data;
+    logic [7:0]     wb_dat_in_reg;
     logic           wb_data_valid;
     
     // Состояния FSM
@@ -91,11 +92,36 @@ module z80_system (
     wb_state_t wb_state;
 
     // =========================================================================
+    // TV80 CLOCK
+    // =========================================================================
+
+    logic [3:0] z80_clock_conf;
+    logic [3:0] z80_clock_divider;
+    logic z80_cke;
+
+    always_ff @(posedge clk_i or posedge res_short_i) begin
+        if (res_short_i) begin 
+            z80_clock_divider <= '0;
+            z80_cke <= '0;
+        end
+        else begin
+            z80_cke <= 0;
+            if (z80_clock_divider == '0) begin
+                z80_clock_divider <= z80_clock_conf;
+                z80_cke <= 1'b1;
+            end else begin 
+                z80_clock_divider <= z80_clock_divider - 1;
+            end
+        end
+    end
+
+    // =========================================================================
     // TV80 CORE
     // =========================================================================
-    tv80s z80_core (
+    tv80s z80_inst (
         .reset_n(z80_reset_n),
         .clk(clk_i),
+        .cen(z80_cke),
         .wait_n(z80_wait_n),
         .int_n(z80_int_n),
         .nmi_n(z80_nmi_n),
@@ -113,7 +139,7 @@ module z80_system (
         .dout(z80_do)
     );
 
-    assign z80_reset_n = nrst_i;
+    assign z80_reset_n = ~res_i;
     assign z80_int_n = ~int_req_i;
     assign z80_nmi_n = ~nmi_req_i;
     assign z80_busrq_n = ~busrq_i;
@@ -126,69 +152,86 @@ module z80_system (
     // Select active MMU
     logic active_cyc, active_stb, active_we;
     logic [23:0] active_adr;
-    logic [7:0] active_dat_o;
+    logic [7:0] active_dat, wb_dat_out_reg;
+    logic z80_wait;
     
+    // Или более компактно:
+    assign debug_z80_wait_n = ~z80_wait;
     assign active_cyc = native_mode ? native_mmu_cyc : legacy_mmu_cyc;
     assign active_stb = native_mode ? native_mmu_stb : legacy_mmu_stb;
     assign active_we  = native_mode ? native_mmu_we  : legacy_mmu_we;
     assign active_adr = native_mode ? native_mmu_adr : legacy_mmu_adr;
-    assign active_dat_o = native_mode ? native_mmu_dat_o : legacy_mmu_dat_o;
-    
+    assign active_dat = native_mode ? native_mmu_dat_o : legacy_mmu_dat_o;
+    assign wbm_dat_o = wb_dat_out_reg;
+
     // Wishbone FSM
-    always_ff @(posedge clk_i or negedge nrst_i) begin
-        if (!nrst_i) begin
+    always_ff @(posedge clk_i or posedge res_i) begin
+        if (res_i) begin
             wb_state <= WB_IDLE;
             wbm_cyc_o <= 1'b0;
             wbm_stb_o <= 1'b0;
-            wb_read_data <= 8'h00;
+            wb_dat_in_reg <= 8'h00;
             wb_data_valid <= 1'b0;
+            z80_wait <= 2'b00;
+            wb_dat_out_reg <= 8'h00;
         end else begin
-            // По умолчанию сбрасываем data_valid
-            wb_data_valid <= 1'b0;
-            
-            case (wb_state)
-                WB_IDLE: begin
-                    if (active_cyc && active_stb) begin
-                        // Начинаем новый цикл Wishbone
-                        wb_state <= WB_STB_ACTIVE;
-                        wbm_cyc_o <= 1'b1;
-                        wbm_stb_o <= 1'b1;
-                        wbm_we_o <= active_we;
-                        wbm_adr_o <= active_adr;
-                        wbm_dat_o <= active_dat_o;
-                    end else begin
-                        wbm_cyc_o <= 1'b0;
-                        wbm_stb_o <= 1'b0;
-                    end
-                end
+            if (!z80_cke) begin
+                // По умолчанию сбрасываем data_valid
+                wb_data_valid <= 1'b0;
                 
-                WB_STB_ACTIVE: begin
-                    if (wbm_ack_i) begin
-                        // ACK получен
-                        wbm_stb_o <= 1'b0;  // Снимаем STB
-                        
-                        if (!wbm_we_o) begin
-                            // Чтение: защёлкиваем данные
-                            wb_read_data <= wbm_dat_i;
-                            wb_data_valid <= 1'b1;  // Данные готовы!
+                case (wb_state)
+                    WB_IDLE: begin
+                        if (active_cyc && active_stb) begin
+                            // Начинаем новый цикл Wishbone
+                            wb_state <= WB_STB_ACTIVE;
+                            wbm_cyc_o <= 1'b1;
+                            wbm_stb_o <= 1'b1;
+                            wbm_we_o <= active_we;
+                            wbm_adr_o <= active_adr;
+                            wb_dat_out_reg <= active_dat;
+                            z80_wait <= 1'b1;
+                        end else begin
+                            wbm_cyc_o <= 1'b0;
+                            wbm_stb_o <= 1'b0;
+                            wb_dat_in_reg <= 8'h00;                        
+                            z80_wait <= 1'b0;
                         end
-                        
-                        // Переходим в состояние с CYC=1, STB=0
-                        wb_state <= WB_CYC_ACTIVE;
                     end
-                end
-                
-                WB_CYC_ACTIVE: begin
-                    // CYC=1, STB=0 - данные готовы для CPU
-                    // Ждём пока CPU снимет запрос (MREQ/IORQ)
                     
-                    if (!active_cyc) begin
-                        // CPU завершил цикл
-                        wbm_cyc_o <= 1'b0;
-                        wb_state <= WB_IDLE;
+                    WB_STB_ACTIVE: begin
+                        if (wbm_ack_i) begin
+                            // ACK получен
+                            wbm_stb_o <= 1'b0;  // Снимаем STB
+                            
+                            if (!wbm_we_o) begin
+                                // Чтение: защёлкиваем данные
+                                wb_dat_in_reg <= wbm_dat_i;
+                                wb_data_valid <= 1'b1;  // Данные готовы!
+                            end else begin
+                                // Запись: данные не нужны, просто ждём
+    
+                            end
+                            
+                            // Переходим в состояние с CYC=1, STB=0
+                            wb_state <= WB_CYC_ACTIVE;
+                            z80_wait <= 1'b1;
+                        end
                     end
-                end
-            endcase
+                    
+                    WB_CYC_ACTIVE: begin
+                        // CYC=1, STB=0 - данные готовы для CPU
+                        // Ждём пока CPU снимет запрос (MREQ/IORQ)
+                        z80_wait <= 1'b0;
+                        if (!active_cyc) begin
+                            // CPU завершил цикл
+                            wbm_cyc_o <= 1'b0;
+                            wb_state <= WB_IDLE;
+                            wb_dat_in_reg <= 8'h00;
+                            wb_dat_out_reg <= 8'h00;
+                        end
+                    end
+                endcase
+            end
         end
     end
 
@@ -197,7 +240,7 @@ module z80_system (
     // =========================================================================
     z80_debug debug_module (
         .clk(clk_i),
-        .reset(~nrst_i),
+        .reset(res_i),
         .dbus_addr_i(dbg_adr_i),
         .dbus_data_o(dbg_dat_o),
         .dbus_data_i(dbg_dat_i),
@@ -224,9 +267,9 @@ module z80_system (
     // MMU INSTANCES - УБИРАЕМ wait ВЫХОДЫ!
     // =========================================================================
 
-    mmu_legacy legacy_mmu (
+    mmu_legacy mmu_legacy_inst (
         .clk(clk_i),
-        .reset(~nrst_i),
+        .reset(res_i),
         .legacy_mode_i(legacy_mode),
         .m_wb_cyc_o(legacy_mmu_cyc),
         .m_wb_stb_o(legacy_mmu_stb),
@@ -245,17 +288,19 @@ module z80_system (
         // .cpu_wait(legacy_mmu_wait), // УБРАТЬ - генерация wait здесь!
         .graphic_mode(graphic_mode),
         .irq_control(irq_control),
+        .mmu_access_o(legacy_mmu_access),
         .debug_rom_access_o(),
         .debug_ram_access_o(),
         .debug_io_access_o()
     );
 
-    mmu_native native_mmu (
+    mmu_native mmu_native_inst (
         .clk(clk_i),
-        .reset(~nrst_i),
+        .reset(res_i),
         .legacy_mode_o(legacy_mode),
         .native_mode_o(native_mode),
-        .debug_supervisor_mode_i(1'b0),
+        .mmu_access_o(native_mmu_access),
+
         .cpu_a(z80_a),
         .cpu_mreq_n(z80_mreq_n),
         .cpu_iorq_n(z80_iorq_n),
@@ -264,7 +309,8 @@ module z80_system (
         .cpu_m1_n(z80_m1_n),
         .cpu_din(z80_do),
         .cpu_dout(native_mmu_cpu_dout),
-        // .cpu_wait(native_mmu_wait), // УБРАТЬ - генерация wait здесь!
+        .cpu_clock_conf(z80_clock_conf),
+ 
         .m_wb_cyc_o(native_mmu_cyc),
         .m_wb_stb_o(native_mmu_stb),
         .m_wb_we_o(native_mmu_we),
@@ -272,6 +318,8 @@ module z80_system (
         .m_wb_dat_o(native_mmu_dat_o),
         .m_wb_dat_i(wbm_dat_i),
         .m_wb_ack_i(wbm_ack_i),
+
+        .debug_supervisor_mode_i(1'b0),
         .debug_supervisor_mode_o(native_supervisor_mode),
         .debug_mmio_userlock_o(),
         .debug_syscall_function_o(),
@@ -290,45 +338,20 @@ module z80_system (
     // =========================================================================
     // Даём данные CPU когда они защёлканы и валидны
     always_comb begin
-        if (wb_data_valid) begin
-            // Данные из Wishbone (чтение)
-            z80_di = wb_read_data;
-        end else begin
+        if (native_mmu_access) begin
             // Данные от MMU (для внутренних регистров MMU)
-            z80_di = native_mode ? native_mmu_cpu_dout : legacy_mmu_cpu_dout;
-        end
-    end
-
-    // =========================================================================
-    // Z80 WAIT SIGNAL - ЦЕНТРАЛИЗОВАННАЯ ГЕНЕРАЦИЯ!
-    // =========================================================================
-    // Правила:
-    // 1. По умолчанию wait = 0 (CPU может работать)
-    // 2. При доступе к внутренним регистрам MMU - wait = 0 (данные сразу)
-    // 3. При доступе наружу (через Wishbone) - wait = 1 пока не получим ACK
-    
-    // Определяем: внутренний ли доступ?
-    // Если MMU не поставили CYC/STB - значит доступ внутренний
-    logic internal_access;
-    assign internal_access = !(active_cyc && active_stb);
-    
-    // Генерация wait
-    always_comb begin
-        if (wb_state == WB_STB_ACTIVE) begin
-            // Внешний доступ: ждём ACK от Wishbone
-            debug_z80_wait_n = 1'b0;
-        end else if (internal_access && wb_state == WB_IDLE) begin
-            // Внутренний доступ: данные сразу от MMU
-            debug_z80_wait_n = 1'b1;
+            z80_di = native_mmu_cpu_dout;
+        end else if (legacy_mmu_access) begin
+            // Данные от MMU (для внутренних регистров MMU)
+            z80_di = legacy_mmu_cpu_dout;        
         end else begin
-            // Все остальные случаи: CPU может работать
-            debug_z80_wait_n = 1'b1;
+            // По умолчанию 0xFF
+            z80_di = wb_dat_in_reg;        
         end
     end
-    
-    // Или более компактно:
-    // assign debug_z80_wait_n = !(wb_state == WB_STB_ACTIVE);
 
+
+ 
     // =========================================================================
     // OUTPUT SIGNALS
     // =========================================================================

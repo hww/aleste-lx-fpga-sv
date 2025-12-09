@@ -79,7 +79,12 @@ public:
         }
         return 0xDEAD;
     }
-    
+    void write(uint32_t word_addr, uint16_t data, uint8_t dm) {
+        if (word_addr < mem.size()) {
+            if ((dm & 0x1) == 0) mem[word_addr] = (mem[word_addr] & 0xFF00) | (data & 0x00FF);
+            if ((dm & 0x2) == 0) mem[word_addr] = (mem[word_addr] & 0x00FF) | (data & 0xFF00);
+        }
+    }
     void write_word(uint32_t word_addr, uint16_t data) {
         if (word_addr < mem.size()) {
             mem[word_addr] = data;
@@ -115,7 +120,7 @@ int main(int argc, char** argv) {
     Valeste_system* top = new Valeste_system;
     VerilatedVcdC* tfp = new VerilatedVcdC;
     top->trace(tfp, 99);
-    tfp->open("waveform.vcd");
+    tfp->open("waveform_z80.vcd");
     
     // ==============================================
     // Инициализация SDRAM
@@ -137,9 +142,13 @@ int main(int argc, char** argv) {
         sdram.fill_increment();
         
         // Тестовая программа
-        sdram.write_word(0, 0x05C3);  // Word 0: JP 0x0005
-        sdram.write_word(1, 0x0000);  // Word 1: NOPs
-        sdram.write_word(2, 0x7600);  // Word 2: HALT
+        sdram.write_word(0, 0x05C3);  // Word 0: JP 0x0005 (C3 05)
+        sdram.write_word(1, 0x0000);  // Word 1: 00 00 (NOPs)
+        sdram.write_word(2, 0x3E00);  // Word 2: 00 3E (LD A, - начинается с адреса 5!)
+        sdram.write_word(3, 0x3255);  // Word 3: 55 32 (LD (0003h), A - начало)
+        sdram.write_word(4, 0x0003);  // Word 4: 03 00 (адрес 0003h для LD)
+        sdram.write_word(5, 0x033A);  // Word 5: 3A 03 (LD A, (0003h) - начало)
+        sdram.write_word(6, 0x7600);  // Word 6: 00 76 (HALT + младший байт адреса)
     }
     
     // ==============================================
@@ -156,6 +165,7 @@ int main(int argc, char** argv) {
     // ==============================================
     int last_debug = -1;
     int reads = 0;
+    int writes = 0;
     uint16_t bus_data = 0x0000;
     bool bus_has_data = false;
     uint32_t row = 0;
@@ -210,7 +220,35 @@ int main(int argc, char** argv) {
                           << " -> data=0x" << bus_data << std::endl;
             }
         }
-        
+        // ==============================================
+        // Обнаружение WRITE команд
+        // ==============================================
+        if (!top->sdram_cs_n && 
+            top->sdram_ras_n && 
+            !top->sdram_cas_n && 
+            !top->sdram_we_n) {
+            
+            uint32_t col  = top->sdram_a & 0x1FF; // Извлечение COL 9 bit
+            uint32_t bank = top->sdram_ba & 0x3; // Извлечение BANK
+            
+            uint32_t row_low = row & 0xFFF;           // A[13:2] = ROW[11:0]
+            uint32_t col_low  = col & 0x1;            // A[1] = COL[0]
+            uint32_t col_high = (col >> 1) & 0xFF;    // A[21:14] = COL[8:1]
+            uint32_t byte_address = (bank << 22) | (col_high << 14) | (row_low << 2) | (col_low << 1);
+            uint32_t word_address = byte_address >> 1;  // Преобразование в адрес слова
+
+            uint16_t write_data = top->sdram_dq_o;
+            uint8_t sdram_dm = top->sdram_dm;
+            sdram.write(word_address & 0x3FFF, write_data, sdram_dm); // Запись данных в SDRAM
+            bus_has_data = true;
+            writes++;
+            
+            if (writes <= 10) {
+                std::cout << "Cycle " << std::dec << cycle << std::hex 
+                          << ": WRITE addr=0x" << word_address 
+                          << " -> data=0x" << write_data << std::endl;
+            }
+        } 
         // ==============================================
         // Выдача данных на шину
         // ==============================================

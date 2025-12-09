@@ -13,9 +13,11 @@ module address_decoder (
 
 
 // Address regions
-logic mmio_space    = (wb_adr_i[23:16] == 8'hFF);
-logic mmio_native   = mmio_space && !wb_adr_i[15] && !wb_adr_i[14];  // 0xFF0000-0xFF3FFF
-logic mmio_legacy   = mmio_space &&  wb_adr_i[15] &&  wb_adr_i[14];  // 0xFF4000-0xFFFFFF
+logic mmio_space,mmio_4000_FFFF,mmio_native,mmio_legacy;
+assign mmio_space     = (wb_adr_i[23:16] == 8'hFF);
+assign mmio_4000_FFFF = (wb_adr_i[15] || wb_adr_i[14]);   // 0x4000-0xFFFF
+assign mmio_native    = mmio_space && !mmio_4000_FFFF;    // 0xFF0000-0xFF3FFF
+assign mmio_legacy    = mmio_space &&  mmio_4000_FFFF;    // 0xFF4000-0xFFFFFF
 
 // TAG encoding - mutually exclusive
 always_comb begin

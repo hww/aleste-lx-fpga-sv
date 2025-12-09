@@ -59,7 +59,7 @@ TEST_SOURCES_WB = \
     OBUFDS.v \
     video_pll.v
 
-all: compile run
+all: z80
 
 find_loops:
 	$(VERILATOR) $(VERILATOR_FLAGS) \
@@ -82,10 +82,10 @@ compile_wb:
 		--Mdir obj_dir \
 		-o Vsim
 
-run: compile_z80
+z80: compile_z80
 	./obj_dir/Vsim $(SIM_ARGS)
 
-run_wb: compile_wb
+wb: compile_wb
 	./obj_dir/Vsim $(SIM_ARGS)
 
 wave:

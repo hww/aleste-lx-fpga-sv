@@ -39,7 +39,7 @@ module mmu_legacy (
     input  logic        cpu_wr_n,                 // Write strobe
     input  logic [7:0]  cpu_din,                  // Z80 data out
     output logic [7:0]  cpu_dout,                 // Z80 data in  
-
+    output logic        mmu_access_o,             // Access to mmu
     // -------------------------------------------------------------------------
     // CPC Control Outputs
     // -------------------------------------------------------------------------
@@ -294,5 +294,5 @@ module mmu_legacy (
     assign cpu_dout = m_wb_dat_i;
 
 
-
+    assign mmu_access_o = is_internal_io;
 endmodule

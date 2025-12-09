@@ -585,9 +585,11 @@ always_ff @(posedge clk_i) begin
                     bus_state <= BUS_IDLE;
                     bus_error_stb <= any_bus_error;
                     wb_cyc_o <= 1'b0;
-                    dbg_cyc_o <= 1'b0;
                     wb_stb_o <= 1'b0;
+                    wb_we_o <= 1'b0;
+                    dbg_cyc_o <= 1'b0;
                     dbg_stb_o <= 1'b0;
+                    dbg_we_o <= 1'b0;
                     bus_ack <= 1'b0;
                 end else begin 
                     if (wb_stb_o && wb_ack_i) begin 
@@ -615,9 +617,11 @@ always_ff @(posedge clk_i) begin
                     bus_ack <= 1'b0;
                     bus_state <= BUS_IDLE;
                     wb_cyc_o <= 1'b0;
-                    dbg_cyc_o <= 1'b0;
                     wb_stb_o <= 1'b0;
+                    wb_we_o <= 1'b0;
+                    dbg_cyc_o <= 1'b0;
                     dbg_stb_o <= 1'b0;
+                    dbg_we_o <= 1'b0;
                 end
                 
                 // 2. Нормальное завершение handshake - мастер принял данные
@@ -632,9 +636,11 @@ always_ff @(posedge clk_i) begin
                     bus_state <= BUS_IDLE;
                     bus_error_stb <= 1'b1;
                     wb_cyc_o <= 1'b0;
-                    dbg_cyc_o <= 1'b0;
                     wb_stb_o <= 1'b0;
+                    wb_we_o <= 1'b0;
+                    dbg_cyc_o <= 1'b0;
                     dbg_stb_o <= 1'b0;
+                    dbg_we_o <= 1'b0;
                 end
             end
             default: begin

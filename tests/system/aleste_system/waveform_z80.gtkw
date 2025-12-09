@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.125 (w)1999-2025 BSI
-[*] Sun Dec  7 12:40:00 2025
+[*] Mon Dec  8 16:04:58 2025
 [*]
-[dumpfile] "/home/valery/aleste-lx-fpga-sv/tests/system/aleste_system/waveform.vcd"
-[dumpfile_mtime] "Sun Dec  7 12:36:08 2025"
-[dumpfile_size] 8051959
-[savefile] "/home/valery/aleste-lx-fpga-sv/tests/system/aleste_system/waveform.gtkw"
-[timestart] 3499271
+[dumpfile] "/home/valery/aleste-lx-fpga-sv/tests/system/aleste_system/waveform_z80.vcd"
+[dumpfile_mtime] "Mon Dec  8 16:02:51 2025"
+[dumpfile_size] 8076267
+[savefile] "/home/valery/aleste-lx-fpga-sv/tests/system/aleste_system/waveform_z80.gtkw"
+[timestart] 1747239
 [size] 1920 1113
 [pos] -1 -1
-*-10.606181 3502021 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-10.306181 1750341 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.aleste_system.
 [treeopen] TOP.aleste_system.video_ctrl_inst.
@@ -17,10 +17,15 @@
 [sst_width] 290
 [signals_width] 158
 [sst_expanded] 1
-[sst_vpaned_height] 335
+[sst_vpaned_height] 728
 @28
 TOP.sdram_clock
+@29
+TOP.aleste_system.z80_sys_inst.clk_i
+@28
+TOP.aleste_system.z80_sys_inst.z80_clock_enable
 @22
+TOP.aleste_system.video_ctrl_inst.mem_arbiter.saved_addr[23:0]
 TOP.sdram_a[12:0]
 @28
 TOP.sdram_ba[1:0]
@@ -77,5 +82,6 @@ TOP.aleste_system.z80_sys_inst.wbm_dat_o[7:0]
 @28
 TOP.aleste_system.z80_sys_inst.wbm_ack_i
 TOP.aleste_system.z80_sys_inst.wb_state[1:0]
+TOP.aleste_system.z80_sys_inst.wbm_ack_i
 [pattern_trace] 1
 [pattern_trace] 0
