@@ -117,7 +117,12 @@ public:
         }
         return 0xDEAD;
     }
-    
+    void write(uint32_t word_addr, uint16_t data, uint8_t dm) {
+        if (word_addr < mem.size()) {
+            if ((dm & 0x1) == 0) mem[word_addr] = (mem[word_addr] & 0xFF00) | (data & 0x00FF);
+            if ((dm & 0x2) == 0) mem[word_addr] = (mem[word_addr] & 0x00FF) | (data & 0xFF00);
+        }
+    }    
     void write_word(uint32_t word_addr, uint16_t data) {
         if (word_addr < mem.size()) {
             mem[word_addr] = data;
@@ -150,169 +155,175 @@ public:
     int get_passed_tests() const { return passed_tests; }
     int get_failed_tests() const { return failed_tests; }
     
-    // Выполнить цикл чтения через Wishbone
-    bool wb_read(Valeste_system* top, uint32_t addr, uint8_t& data, bool check_err = true) {
-        total_tests++;
+// Выполнить цикл чтения через Wishbone
+bool wb_read(Valeste_system* top, uint32_t addr, uint8_t& data, bool check_err = true) {
+    total_tests++;
+    
+    // Завершаем текущий цикл
+    execute_n_phases(4);
+    
+    // F1: clock 0 -> 1
+    execute_phase();
+    
+    // F2: устанавливаем сигналы WB (через 25% цикла после фронта)
+    top->debug_wb_adr_i = addr;
+    top->debug_wb_we_i = 0;
+    top->debug_wb_cyc_i = 1;
+    top->debug_wb_stb_i = 1;
+    execute_phase();
+    
+    // F3: clock 1 -> 0
+    execute_phase();
+    
+    // F4: ничего
+    execute_phase();
+    
+    // Ждем ack с корректной синхронизацией
+    int timeout = 1000; // Увеличиваем таймаут
+    bool ack_received = false;
+    bool error_received = false;
+    
+    while (timeout > 0) {
+        // Выполняем полный цикл (4 фазы)
+        execute_phase(); // F1
+        execute_phase(); // F2
         
-        // Сброс сигналов
-        top->debug_wb_cyc_i = 0;
-        top->debug_wb_stb_i = 0;
-        top->debug_wb_we_i = 0;
-        top->debug_wb_adr_i = 0;
-        top->debug_wb_dat_i = 0;
-        
-        // Ждем фронта clk и устанавливаем WB с задержкой в 1 фазу
-        execute_n_phases(4); // Завершаем текущий цикл
-        
-        // F1: clock 0 -> 1
-        execute_phase();
-        
-        // F2: wb signals change state (25% сдвиг)
-        // Устанавливаем сигналы WB
-        top->debug_wb_adr_i = addr;
-        top->debug_wb_we_i = 0;
-        top->debug_wb_cyc_i = 1;
-        top->debug_wb_stb_i = 1;
-        execute_phase(); // WB сигналы установлены
-        
-        // F3: clock 1 -> 0
-        execute_phase();
-        
-        // F4: ничего
-        execute_phase();
-        
-        // Ждем ack (продолжаем тактирование)
-        int timeout = 100;
-        bool ack_received = false;
-        bool error_received = false;
-        
-        while (timeout > 0) {
-            // Продолжаем фазы
-            execute_phase();
+        // Проверяем сигналы в фазе F3 (после установки данных в F2)
+        if (top->debug_wb_ack_o) {
+            ack_received = true;
+            data = top->debug_wb_dat_o;
             
-            // Проверяем ack в фазе F1 (после фронта clk)
-            if (phase == 0 && top->debug_wb_ack_o) {
-                ack_received = true;
-                data = top->debug_wb_dat_o;
-                break;
-            }
-            
-            if (check_err && phase == 0 && top->debug_wb_err_o) {
-                error_received = true;
-                break;
-            }
-            
-            timeout--;
+            // Сбрасываем сигналы в следующей фазе
+            top->debug_wb_cyc_i = 0;
+            top->debug_wb_stb_i = 0;
+            execute_phase(); // F3
+            execute_phase(); // F4
+            break;
         }
         
-        // Завершаем транзакцию
-        // F2: сбрасываем WB сигналы
-        top->debug_wb_cyc_i = 0;
-        top->debug_wb_stb_i = 0;
-        execute_phase(); // F2 - WB сигналы сброшены
+        if (check_err && top->debug_wb_err_o) {
+            error_received = true;
+            // Сбрасываем сигналы
+            top->debug_wb_cyc_i = 0;
+            top->debug_wb_stb_i = 0;
+            execute_phase(); // F3
+            execute_phase(); // F4
+            break;
+        }
         
-        // Завершаем цикл
         execute_phase(); // F3
         execute_phase(); // F4
-        
-        if (!ack_received) {
-            if (error_received) {
-                failed_tests++;
-                results.push_back({"READ 0x" + to_hex(addr), false, 
-                    "WB error signal asserted (timeout after " + std::to_string(100-timeout) + " cycles)"});
-            } else {
-                failed_tests++;
-                results.push_back({"READ 0x" + to_hex(addr), false, 
-                    "No ack received (timeout after " + std::to_string(100-timeout) + " cycles)"});
-            }
-            return false;
-        }
-        
-        passed_tests++;
-        return true;
+        timeout--;
     }
     
-    // Выполнить цикл записи через Wishbone
-    bool wb_write(Valeste_system* top, uint32_t addr, uint8_t data, bool check_err = true) {
-        total_tests++;
-        
-        // Сброс сигналов
+    // Если таймаут, сбрасываем сигналы
+    if (timeout <= 0) {
         top->debug_wb_cyc_i = 0;
         top->debug_wb_stb_i = 0;
-        top->debug_wb_we_i = 0;
-        top->debug_wb_adr_i = 0;
-        top->debug_wb_dat_i = 0;
+        execute_n_phases(4); // Завершаем цикл
+    }
+    
+    if (!ack_received) {
+        if (error_received) {
+            failed_tests++;
+            results.push_back({"READ 0x" + to_hex(addr), false, 
+                "WB error signal asserted (timeout after " + std::to_string(1000-timeout) + " cycles)"});
+        } else {
+            failed_tests++;
+            results.push_back({"READ 0x" + to_hex(addr), false, 
+                "No ack received (timeout after " + std::to_string(1000-timeout) + " cycles)"});
+        }
+        return false;
+    }
+    
+    passed_tests++;
+    return true;
+}
+
+// Выполнить цикл записи через Wishbone
+bool wb_write(Valeste_system* top, uint32_t addr, uint8_t data, bool check_err = true) {
+    total_tests++;
+    
+    // Завершаем текущий цикл
+    execute_n_phases(4);
+    
+    // F1: clock 0 -> 1
+    execute_phase();
+    
+    // F2: устанавливаем сигналы WB
+    top->debug_wb_adr_i = addr;
+    top->debug_wb_dat_i = data;
+    top->debug_wb_we_i = 1;
+    top->debug_wb_cyc_i = 1;
+    top->debug_wb_stb_i = 1;
+    execute_phase();
+    
+    // F3: clock 1 -> 0
+    execute_phase();
+    
+    // F4: ничего
+    execute_phase();
+    
+    // Ждем ack
+    int timeout = 1000; // Увеличиваем таймаут
+    bool ack_received = false;
+    bool error_received = false;
+    
+    while (timeout > 0) {
+        // Выполняем полный цикл
+        execute_phase(); // F1
+        execute_phase(); // F2
         
-        // Ждем фронта clk и устанавливаем WB с задержкой в 1 фазу
-        execute_n_phases(4); // Завершаем текущий цикл
-        
-        // F1: clock 0 -> 1
-        execute_phase();
-        
-        // F2: wb signals change state (25% сдвиг)
-        // Устанавливаем сигналы WB
-        top->debug_wb_adr_i = addr;
-        top->debug_wb_dat_i = data;
-        top->debug_wb_we_i = 1;
-        top->debug_wb_cyc_i = 1;
-        top->debug_wb_stb_i = 1;
-        execute_phase(); // WB сигналы установлены
-        
-        // F3: clock 1 -> 0
-        execute_phase();
-        
-        // F4: ничего
-        execute_phase();
-        
-        // Ждем ack (продолжаем тактирование)
-        int timeout = 100;
-        bool ack_received = false;
-        bool error_received = false;
-        
-        while (timeout > 0) {
-            // Продолжаем фазы
-            execute_phase();
+        // Проверяем в фазе F3
+        if (top->debug_wb_ack_o) {
+            ack_received = true;
             
-            // Проверяем ack в фазе F1 (после фронта clk)
-            if (phase == 0 && top->debug_wb_ack_o) {
-                ack_received = true;
-                break;
-            }
-            
-            if (check_err && phase == 0 && top->debug_wb_err_o) {
-                error_received = true;
-                break;
-            }
-            
-            timeout--;
+            // Сбрасываем сигналы
+            top->debug_wb_cyc_i = 0;
+            top->debug_wb_stb_i = 0;
+            execute_phase(); // F3
+            execute_phase(); // F4
+            break;
         }
         
-        // Завершаем транзакцию
-        // F2: сбрасываем WB сигналы
-        top->debug_wb_cyc_i = 0;
-        top->debug_wb_stb_i = 0;
-        execute_phase(); // F2 - WB сигналы сброшены
+        if (check_err && top->debug_wb_err_o) {
+            error_received = true;
+            // Сбрасываем сигналы
+            top->debug_wb_cyc_i = 0;
+            top->debug_wb_stb_i = 0;
+            execute_phase(); // F3
+            execute_phase(); // F4
+            break;
+        }
         
-        // Завершаем цикл
         execute_phase(); // F3
         execute_phase(); // F4
-        
-        if (!ack_received) {
-            if (error_received) {
-                failed_tests++;
-                results.push_back({"WRITE 0x" + to_hex(addr), false, 
-                    "WB error signal asserted (timeout after " + std::to_string(100-timeout) + " cycles)"});
-            } else {
-                failed_tests++;
-                results.push_back({"WRITE 0x" + to_hex(addr), false, 
-                    "No ack received (timeout after " + std::to_string(100-timeout) + " cycles)"});
-            }
-            return false;
-        }
-        
-        passed_tests++;
-        return true;
+        timeout--;
     }
+    
+    // Если таймаут, сбрасываем сигналы
+    if (timeout <= 0) {
+        top->debug_wb_cyc_i = 0;
+        top->debug_wb_stb_i = 0;
+        execute_n_phases(4);
+    }
+    
+    if (!ack_received) {
+        if (error_received) {
+            failed_tests++;
+            results.push_back({"WRITE 0x" + to_hex(addr), false, 
+                "WB error signal asserted (timeout after " + std::to_string(1000-timeout) + " cycles)"});
+        } else {
+            failed_tests++;
+            results.push_back({"WRITE 0x" + to_hex(addr), false, 
+                "No ack received (timeout after " + std::to_string(1000-timeout) + " cycles)"});
+        }
+        return false;
+    }
+    
+    passed_tests++;
+    return true;
+}
     
     // Проверка чтения/записи с верификацией
     bool wb_read_write_verify(Valeste_system* top, uint32_t addr, uint8_t test_value) {
@@ -448,7 +459,7 @@ int main(int argc, char** argv) {
     top = new Valeste_system;
     tfp = new VerilatedVcdC;
     top->trace(tfp, 99);
-    tfp->open("waveform.vcd");
+    tfp->open("waveform_tb.vcd");
     
     // ==============================================
     // Инициализация SDRAM
@@ -479,6 +490,7 @@ int main(int argc, char** argv) {
     bool bus_has_data = false;
     uint32_t row = 0;
     int sdram_reads = 0;
+    int sdram_writes = 0;
     
     WBDebugTester tester;
 
@@ -499,7 +511,9 @@ int main(int argc, char** argv) {
                 top->sdram_we_n) {
                 row = top->sdram_a & 0x1FFF;
             }
-            
+            // ==============================================
+            // Обнаружение READ команд
+            // ==============================================            
             if (!top->sdram_cs_n && 
                 top->sdram_ras_n && 
                 !top->sdram_cas_n && 
@@ -519,7 +533,32 @@ int main(int argc, char** argv) {
                 sdram_reads++;
             }
         }
-        
+        if (!top->sdram_cs_n && 
+            top->sdram_ras_n && 
+            !top->sdram_cas_n && 
+            !top->sdram_we_n) {
+            
+            uint32_t col  = top->sdram_a & 0x1FF; // Извлечение COL 9 bit
+            uint32_t bank = top->sdram_ba & 0x3; // Извлечение BANK
+            
+            uint32_t row_low = row & 0xFFF;           // A[13:2] = ROW[11:0]
+            uint32_t col_low  = col & 0x1;            // A[1] = COL[0]
+            uint32_t col_high = (col >> 1) & 0xFF;    // A[21:14] = COL[8:1]
+            uint32_t byte_address = (bank << 22) | (col_high << 14) | (row_low << 2) | (col_low << 1);
+            uint32_t word_address = byte_address >> 1;  // Преобразование в адрес слова
+
+            uint16_t write_data = top->sdram_dq_o;
+            uint8_t sdram_dm = top->sdram_dm;
+            sdram.write(word_address & 0x3FFF, write_data, sdram_dm); // Запись данных в SDRAM
+            bus_has_data = true;
+            sdram_writes++;
+            
+            if (sdram_writes <= 10) {
+                std::cout << "Cycle " << std::dec << cycle << std::hex 
+                          << ": WRITE addr=0x" << word_address 
+                          << " -> data=0x" << write_data << std::endl;
+            }
+        } 
         // Данные SDRAM устанавливаются в фазу F2 (через 25% цикла после фронта)
         if (phase == 1 && bus_has_data) { // F2 - через 25% после фронта
             top->sdram_dq_i = bus_data;
@@ -544,7 +583,7 @@ int main(int argc, char** argv) {
     // Этап 3: Небольшая задержка и завершение
     // ==============================================
     std::cout << "\nPhase 3: Final delay and cleanup" << std::endl;
-    for (int cycle = 0; cycle < 1000; cycle++) {
+    for (int cycle = 0; cycle < 500000; cycle++) {
         execute_phase();
         
         // Продолжаем эмуляцию SDRAM
@@ -555,7 +594,9 @@ int main(int argc, char** argv) {
                 top->sdram_we_n) {
                 row = top->sdram_a & 0x1FFF;
             }
-            
+            // ==============================================
+            // Обнаружение READ команд
+            // ==============================================
             if (!top->sdram_cs_n && 
                 top->sdram_ras_n && 
                 !top->sdram_cas_n && 
@@ -574,8 +615,65 @@ int main(int argc, char** argv) {
                 bus_has_data = true;
                 sdram_reads++;
             }
+            // ==============================================
+            // Обнаружение WRITE команд
+            // ==============================================
+            if (!top->sdram_cs_n && 
+                top->sdram_ras_n && 
+                !top->sdram_cas_n && 
+                !top->sdram_we_n) {
+                
+                uint32_t col  = top->sdram_a & 0x1FF; // Извлечение COL 9 bit
+                uint32_t bank = top->sdram_ba & 0x3; // Извлечение BANK
+                
+                uint32_t row_low = row & 0xFFF;           // A[13:2] = ROW[11:0]
+                uint32_t col_low  = col & 0x1;            // A[1] = COL[0]
+                uint32_t col_high = (col >> 1) & 0xFF;    // A[21:14] = COL[8:1]
+                uint32_t byte_address = (bank << 22) | (col_high << 14) | (row_low << 2) | (col_low << 1);
+                uint32_t word_address = byte_address >> 1;  // Преобразование в адрес слова
+
+                uint16_t write_data = top->sdram_dq_o;
+                uint8_t sdram_dm = top->sdram_dm;
+                sdram.write(word_address & 0x3FFF, write_data, sdram_dm); // Запись данных в SDRAM
+                bus_has_data = true;
+                sdram_writes++;
+                
+                if (sdram_writes <= 10) {
+                    std::cout << "Cycle " << std::dec << cycle << std::hex 
+                            << ": WRITE addr=0x" << word_address 
+                            << " -> data=0x" << write_data << std::endl;
+                }
+            } 
         }
-        
+        // ==============================================
+        // Обнаружение WRITE команд
+        // ==============================================
+        if (!top->sdram_cs_n && 
+            top->sdram_ras_n && 
+            !top->sdram_cas_n && 
+            !top->sdram_we_n) {
+            
+            uint32_t col  = top->sdram_a & 0x1FF; // Извлечение COL 9 bit
+            uint32_t bank = top->sdram_ba & 0x3; // Извлечение BANK
+            
+            uint32_t row_low = row & 0xFFF;           // A[13:2] = ROW[11:0]
+            uint32_t col_low  = col & 0x1;            // A[1] = COL[0]
+            uint32_t col_high = (col >> 1) & 0xFF;    // A[21:14] = COL[8:1]
+            uint32_t byte_address = (bank << 22) | (col_high << 14) | (row_low << 2) | (col_low << 1);
+            uint32_t word_address = byte_address >> 1;  // Преобразование в адрес слова
+
+            uint16_t write_data = top->sdram_dq_o;
+            uint8_t sdram_dm = top->sdram_dm;
+            sdram.write(word_address & 0x3FFF, write_data, sdram_dm); // Запись данных в SDRAM
+            bus_has_data = true;
+            sdram_writes++;
+            
+            if (sdram_writes <= 10) {
+                std::cout << "Cycle " << std::dec << cycle << std::hex 
+                          << ": WRITE addr=0x" << word_address 
+                          << " -> data=0x" << write_data << std::endl;
+            }
+        } 
         if (phase == 1) {
             if (bus_has_data) {
                 top->sdram_dq_i = bus_data;
