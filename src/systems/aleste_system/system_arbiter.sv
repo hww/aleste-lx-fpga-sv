@@ -122,24 +122,24 @@ module system_arbiter (
             end
             
             STATE_Z80: begin
-                if (!z80_request || vid_ack_i) begin
-                    if (uart_request) begin
-                        next_state = STATE_UART;
-                    end else begin
+                if (!z80_request || vid_ack_i || sys_err_i) begin
+                    //if (uart_request) begin
+                    //    next_state = STATE_UART;
+                    //end else begin
                         next_state = STATE_IDLE;
-                    end
+                   // end
                 end else begin
                     next_state = STATE_Z80;
                 end
             end
             
             STATE_UART: begin
-                if (!uart_request || vid_ack_i) begin
-                    if (z80_request) begin
-                        next_state = STATE_Z80;
-                    end else begin
+                if (!uart_request || vid_ack_i || sys_err_i) begin
+                    //if (z80_request) begin
+                    //    next_state = STATE_Z80;
+                    //end else begin
                         next_state = STATE_IDLE;
-                    end
+                    //end
                 end else begin
                     next_state = STATE_UART;
                 end

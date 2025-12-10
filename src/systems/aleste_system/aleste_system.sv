@@ -62,7 +62,7 @@ module aleste_system #(
 
 `ifdef SIMULATION
     // the UART bridge replacement for simulation
-    output logic        debug_wb_clk_o,
+    output logic        debug_wb_clk_i,
     input  logic        debug_wb_cyc_i,
     input  logic        debug_wb_stb_i,
     input  logic        debug_wb_we_i,
@@ -109,9 +109,14 @@ module aleste_system #(
     localparam CLK_FREQ_CPU = 27_000_000;  // Z80 at 27MHz
 
     assign clk_system = clk_108m;
-    assign clk_bus = clk_54m;
+
     assign clk_pixel = clk_27m;
     assign clk_pixel_x2 = clk_54m;
+`ifdef SIMULATION
+    assign clk_bus = debug_wb_clk_i;
+`else 
+    assign clk_bus = clk_54m;
+`endif
 
     // Системный сброс
     reset_controller reset_ctrl_inst(
@@ -160,7 +165,7 @@ module aleste_system #(
     logic [1:0] debug_uart_bus_state;
 
     // Z80 CPU Signals
-    logic z80_cyc, z80_stb, z80_ack, z80_we, z80_grant;
+    logic z80_cyc, z80_stb, z80_ack, z80_we, z80_grant, z80_err;
     logic [23:0] z80_adr;
     logic [7:0] z80_dat_out, z80_dat_in;
     
@@ -273,7 +278,6 @@ module aleste_system #(
     assign debug_wb_dat_o = uart2wb_dat_in;
     assign debug_wb_ack_o = uart2wb_ack;
     assign debug_wb_err_o = uart2wb_err;
-    assign debug_wb_clk_o = clk_bus;
 `endif
 
     // ===========================================
@@ -293,6 +297,7 @@ module aleste_system #(
         .wbm_stb_o(z80_stb),
         .wbm_we_o(z80_we),
         .wbm_ack_i(z80_ack),
+        .wbm_err_i(z80_err),
         
         // (No Wishbone Slave interface - MMU registers accessed directly
         // via Z80 I/O ports)
@@ -357,7 +362,7 @@ module aleste_system #(
         .z80_dat_o(z80_dat_in),
         .z80_ack_o(z80_ack),
         .z80_grant_o(z80_grant),
-        .z80_err_o(),                      // Not used
+        .z80_err_o(z80_err),                      // Not used
         
         // UART Bridge Interface
         .uart_cyc_i(uart2wb_cyc),

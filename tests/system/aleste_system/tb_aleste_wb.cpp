@@ -7,38 +7,176 @@ vluint64_t sim_time = 0;
 Valeste_system* top;
 VerilatedVcdC* tfp;
 
-void tick() {
-    static int phase = 0;
+// Константы
+const int WDT = 1000;  // Watchdog timeout
+
+// Вспомогательные переменные для методов
+bool clk_25mhz_state = 0;
+bool wb_clk_state = 0;
+
+// Приватный метод для переключения 25MHz такта (используется только внутри set_wb_clk)
+static void private_toggle25mhz(int n = 1) {
+    while (n > 0) {
+        clk_25mhz_state = !clk_25mhz_state;
+        top->clk_25mhz = clk_25mhz_state;
+        top->eval();
+        tfp->dump(sim_time);
+        sim_time += 5;
+        n--;
+    }
+}
+
+// Методы для работы с тактом шины WB (деление 25MHz на 4)
+void set_wb_clk(bool v) {
+    wb_clk_state = v;
+    top->debug_wb_clk_i = wb_clk_state;
+    // Для получения wb_clk из 25MHz с делением на 4:
+    // wb_clk = 1 когда clk_25mhz был 1 в двух последних фазах из 4
+    // Просто делаем 4 такта 25MHz для одного такта WB
+    private_toggle25mhz(4);
+}
+
+void toggle_wb_clk(int n = 1) {
+    while (n > 0) {
+        set_wb_clk(!wb_clk_state);
+        n--;
+    }
+}
+
+void pulse_wb_clk(int n = 1) {
+    while (n > 0) {
+        toggle_wb_clk(2);  // Полный период: 0->1->0 или 1->0->1
+        n--;
+    }
+}
+
+// Метод для инициализации и сброса системы
+void init_and_reset(int num_cycles) {
+    std::cout << "Initializing and resetting system..." << std::endl;
     
-    switch (phase) {
-        case 0: top->clk_25mhz = 0; break;
-        case 1: top->clk_25mhz = 0; break;
-        case 2: top->clk_25mhz = 1; break;
-        case 3: top->clk_25mhz = 1; break;
+    // Просто делаем несколько тактов шины для инициализации
+    for (int i = 0; i < num_cycles; i++) {
+        pulse_wb_clk();
+    }
+}
+
+// Метод для записи в шину WB
+void wb_write(uint32_t address, uint32_t data) {
+    std::cout << "WB WRITE: addr=0x" << std::hex << address 
+              << " data=0x" << data << std::dec << std::endl;
+    
+    // Инициализация всех сигналов в 0
+    top->debug_wb_cyc_i = 0;
+    top->debug_wb_stb_i = 0;
+    top->debug_wb_we_i = 0;
+    top->debug_wb_adr_i = 0;
+    top->debug_wb_dat_i = 0;
+    
+    // Устанавливаем адрес и данные
+    top->debug_wb_adr_i = address;
+    top->debug_wb_dat_i = data;
+    top->debug_wb_we_i = 1;  // Режим записи
+    
+    // stb=1; cyc=1;
+    top->debug_wb_stb_i = 1;
+    top->debug_wb_cyc_i = 1;
+    
+    // clk=1;
+    set_wb_clk(1);
+    
+    int max_cycles = 0;
+    
+    // Ждем ACK
+    while (!top->debug_wb_ack_o && max_cycles < WDT) {
+        toggle_wb_clk();
+        max_cycles++;
     }
     
-    top->eval();
-    tfp->dump(sim_time);  // ВСЕГДА пишем в VCD!
-    sim_time++;
+    // Если такт шины в состоянии 1, делаем еще один такт
+    if (wb_clk_state) {
+        toggle_wb_clk();
+    }
     
-    phase = (phase + 1) % 4;
+    if (max_cycles >= WDT) {
+        std::cout << "ERROR: Watchdog timeout waiting for ACK!" << std::endl;
+    } else {
+        std::cout << "WB WRITE completed in " << max_cycles << " cycles" << std::endl;
+    }
+    
+    // Снимаем сигналы
+    top->debug_wb_cyc_i = 0;
+    top->debug_wb_stb_i = 0;
+    top->debug_wb_we_i = 0;
+    
+    // clk=1;
+    set_wb_clk(1);
+}
+
+// Метод для чтения из шины WB
+void wb_read(uint32_t address) {
+    std::cout << "WB READ: addr=0x" << std::hex << address << std::dec << std::endl;
+    
+    // Инициализация всех сигналов в 0
+    top->debug_wb_cyc_i = 0;
+    top->debug_wb_stb_i = 0;
+    top->debug_wb_we_i = 0;
+    top->debug_wb_adr_i = 0;
+    
+    // Устанавливаем адрес
+    top->debug_wb_adr_i = address;
+    top->debug_wb_we_i = 0;  // Режим чтения
+    
+    // stb=1; cyc=1;
+    top->debug_wb_stb_i = 1;
+    top->debug_wb_cyc_i = 1;
+    
+    // clk=1;
+    set_wb_clk(1);
+    
+    int max_cycles = 0;
+    
+    // Ждем ACK
+    while (!top->debug_wb_ack_o && max_cycles < WDT) {
+        toggle_wb_clk();
+        max_cycles++;
+    }
+    
+    // Если такт шины в состоянии 1, делаем еще один такт
+    if (wb_clk_state) {
+        toggle_wb_clk();
+    }
+    
+    if (max_cycles >= WDT) {
+        std::cout << "ERROR: Watchdog timeout waiting for ACK!" << std::endl;
+    } else {
+        uint32_t data = top->debug_wb_dat_o;
+        std::cout << "WB READ completed in " << max_cycles << " cycles, data=0x" 
+                  << std::hex << data << std::dec << std::endl;
+    }
+    
+    // Снимаем сигналы
+    top->debug_wb_cyc_i = 0;
+    top->debug_wb_stb_i = 0;
 }
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
-    Verilated::traceEverOn(true);  // ВКЛЮЧАЕМ трассировку
+    Verilated::traceEverOn(true);
     
     top = new Valeste_system;
     tfp = new VerilatedVcdC;
     
     top->trace(tfp, 99);
-    tfp->open("waveform_tb.vcd");  // ОТКРЫВАЕМ файл
+    tfp->open("waveform_tb.vcd");
     
     // Инициализация
+    clk_25mhz_state = 0;
+    wb_clk_state = 0;
     top->clk_25mhz = 0;
     top->serial_rx = 1;
     top->sdram_dq_i = 0x0000;
     
+    // Инициализация сигналов WB
     top->debug_wb_cyc_i = 0;
     top->debug_wb_stb_i = 0;
     top->debug_wb_we_i = 0;
@@ -47,65 +185,38 @@ int main(int argc, char** argv) {
     
     std::cout << "Starting test with tracing..." << std::endl;
     
-    // 1. Сброс и инициализация
-    for (int i = 0; i < 200000; i++) tick();
+    // 1. Сброс и инициализация (используем только методы WB тактов)
+    init_and_reset(20000);  // 1000 полных периодов такта шины
     
-    // 2. Пробуем WB транзакцию
-    std::cout << "WB clock state: " << (int)top->debug_wb_clk_o << std::endl;
+    // 2. Тестируем запись в шину WB
+    wb_write(0x00000001, 0xAAAAAAAA);
     
-    // Ждем спада wb_clk
-    int waited = 0;
-    while (top->debug_wb_clk_o == 1 && waited < 1000) {
-        tick();
-        waited++;
+    // 3. Небольшая пауза между операциями
+    pulse_wb_clk(); 
+    
+    // 4. Тестируем чтение из шины WB
+    wb_read(0x00000001);
+    
+    pulse_wb_clk();  
+    pulse_wb_clk();  
+
+    // 5. Еще одна запись
+    wb_write(0xFF0100, 0x55555555);
+
+    pulse_wb_clk();  
+
+    // 6. Еще одно чтение
+    wb_read(0xFF0100);
+    
+    // 7. Завершаем симуляцию
+    std::cout << "Completing simulation..." << std::endl;
+    
+    // Несколько дополнительных тактов шины
+    for (int i = 0; i < 50; i++) {
+        pulse_wb_clk();
     }
     
-    if (waited < 1000) {
-        // На спаде - выставляем адрес/данные
-        top->debug_wb_adr_i = 0x0000;
-        top->debug_wb_dat_i = 0xAA;
-        top->debug_wb_we_i = 1;
-        
-        // Setup time
-        for (int i = 0; i < 8; i++) tick();
-        
-        // Стартуем транзакцию
-        top->debug_wb_cyc_i = 1;
-        top->debug_wb_stb_i = 1;
-        
-        // Ждем ответа
-        bool last_wb_clk = top->debug_wb_clk_o;
-        int wb_edges = 0;
-        
-        for (int i = 0; i < 4000; i++) {
-            tick();
-            
-            bool current_wb_clk = top->debug_wb_clk_o;
-            if (!last_wb_clk && current_wb_clk) {
-                wb_edges++;
-                
-                if (top->debug_wb_ack_o) {
-                    std::cout << "ACK at wb edge " << wb_edges << std::endl;
-                    top->debug_wb_cyc_i = 0;
-                    top->debug_wb_stb_i = 0;
-                    break;
-                }
-                
-                if (top->debug_wb_err_o) {
-                    std::cout << "ERR at wb edge " << wb_edges << std::endl;
-                    top->debug_wb_cyc_i = 0;
-                    top->debug_wb_stb_i = 0;
-                    break;
-                }
-            }
-            last_wb_clk = current_wb_clk;
-        }
-    }
-    
-    // 3. Завершаем
-    for (int i = 0; i < 100; i++) tick();
-    
-    std::cout << "Test done. Waveform saved to wave.vcd" << std::endl;
+    std::cout << "Test done. Waveform saved to waveform_tb.vcd" << std::endl;
     
     tfp->close();
     delete tfp;

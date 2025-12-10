@@ -14,7 +14,8 @@ module z80_system (
     output logic        wbm_stb_o,
     output logic        wbm_we_o,
     input  logic        wbm_ack_i,
-    
+    input  logic        wbm_err_i,
+
     // Debug Interface
     input  logic [7:0]  dbg_adr_i,
     output logic [7:0]  dbg_dat_o,
@@ -199,7 +200,7 @@ module z80_system (
                     end
                     
                     WB_STB_ACTIVE: begin
-                        if (wbm_ack_i) begin
+                        if (wbm_ack_i || wbm_err_i) begin
                             // ACK получен
                             wbm_stb_o <= 1'b0;  // Снимаем STB
                             

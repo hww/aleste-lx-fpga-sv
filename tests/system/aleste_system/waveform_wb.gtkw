@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.125 (w)1999-2025 BSI
-[*] Tue Dec  9 16:36:54 2025
+[*] Wed Dec 10 04:51:09 2025
 [*]
 [dumpfile] "/home/valery/aleste-lx-fpga-sv/tests/system/aleste_system/waveform_tb.vcd"
-[dumpfile_mtime] "Tue Dec  9 16:14:36 2025"
-[dumpfile_size] 8392417
+[dumpfile_mtime] "Wed Dec 10 04:49:32 2025"
+[dumpfile_size] 9971541
 [savefile] "/home/valery/aleste-lx-fpga-sv/tests/system/aleste_system/waveform_wb.gtkw"
-[timestart] 199981
+[timestart] 795250
 [size] 1920 1113
 [pos] -1 -1
-*-4.357148 200026 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-11.257148 187693 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.aleste_system.
 [treeopen] TOP.aleste_system.video_ctrl_inst.
@@ -41,7 +41,7 @@ TOP.sdram_dq[15:0]
 @200
 -
 @28
-TOP.debug_wb_clk_o
+TOP.debug_wb_clk_i
 TOP.aleste_system.uart2wb_cyc
 TOP.aleste_system.uart2wb_stb
 TOP.aleste_system.uart2wb_we
@@ -97,6 +97,10 @@ TOP.aleste_system.video_ctrl_inst.wb_dat_o[7:0]
 @28
 TOP.aleste_system.video_ctrl_inst.mem_arbiter.current_state[1:0]
 TOP.aleste_system.video_ctrl_inst.mem_arbiter.wb_ack
+TOP.aleste_system.vid_pll.clk_270M
+TOP.aleste_system.vid_pll.clk_108M
+TOP.aleste_system.vid_pll.clk_54M
+TOP.aleste_system.vid_pll.clk_27M
 TOP.aleste_system.video_ctrl_inst.mem_arbiter.clk_i
 [pattern_trace] 1
 [pattern_trace] 0
