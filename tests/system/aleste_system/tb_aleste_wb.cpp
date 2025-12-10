@@ -61,7 +61,7 @@ void init_and_reset(int num_cycles) {
 }
 
 // Метод для записи в шину WB
-void wb_write(uint32_t address, uint32_t data) {
+void wb_write(uint32_t address, uint8_t data) {
     std::cout << "WB WRITE: addr=0x" << std::hex << address 
               << " data=0x" << data << std::dec << std::endl;
     
@@ -189,7 +189,7 @@ int main(int argc, char** argv) {
     init_and_reset(20000);  // 1000 полных периодов такта шины
     
     // 2. Тестируем запись в шину WB
-    wb_write(0x00000001, 0xAAAAAAAA);
+    wb_write(0x00000001, 0xAA);
     
     // 3. Небольшая пауза между операциями
     pulse_wb_clk(); 
@@ -199,15 +199,21 @@ int main(int argc, char** argv) {
     
     pulse_wb_clk();  
     pulse_wb_clk();  
-
-    // 5. Еще одна запись
-    wb_write(0xFF0100, 0x55555555);
-
     pulse_wb_clk();  
 
-    // 6. Еще одно чтение
+    // 5. Еще одна запись
+    wb_write(0xFF0100, 0x55);
+    pulse_wb_clk();  
     wb_read(0xFF0100);
-    
+
+    pulse_wb_clk();  
+    pulse_wb_clk();
+    pulse_wb_clk();  
+
+    wb_write(0xFF0120, 0xAA);
+    pulse_wb_clk();  
+    wb_read(0xFF0120);
+
     // 7. Завершаем симуляцию
     std::cout << "Completing simulation..." << std::endl;
     
