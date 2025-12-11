@@ -93,7 +93,7 @@ module aleste_system #(
     logic system_reset;
     logic clk_pixel, clk_pixel_x2, clk_bus, clk_system;
 
-    video_pll vid_pll(
+    video_pll vid_pll_inst(
         .rst(1'b0),
         .clkin_25M(clk_25mhz),
         .clk_270M(clk_270m),
@@ -121,10 +121,9 @@ module aleste_system #(
     // Системный сброс
     reset_controller reset_ctrl_inst(
         .clk(clk_system),
-        .clke(clk_pixel),
+        .reset_in('0),
         .pll_locked(pll_locked),
-        .system_reset(system_reset),
-        .boot_complete()
+        .system_reset(system_reset)
     );
 
     // ===========================================
@@ -211,8 +210,7 @@ module aleste_system #(
     // UART Bridge
     // ===========================================
     uart_bridge #(
-        .CLK_FREQ(CLK_FREQ_SYSTEM),
-        .BUS_FREQ(CLK_FREQ_BUS),
+        .CLK_FREQ(CLK_FREQ_BUS),
         .WB_ADDR_WIDTH(24),
         .DBG_ADDR_WIDTH(8),
         .UART_DATA_WIDTH(8),
@@ -233,8 +231,7 @@ module aleste_system #(
         .uart_tx_busy(uart_tx_busy),
 
         // Wishbone Master Interface
-
-`ifdef SIMULATION     
+`ifdef SIMULATION1    
         .wb_cyc_o(),
         .wb_stb_o(),
         .wb_we_o(),
@@ -253,6 +250,7 @@ module aleste_system #(
         .wb_ack_i(uart2wb_ack),
         .wb_err_i(uart2wb_err),  
 `endif
+
         .dbg_cyc_o(uart2dbg_cyc),
         .dbg_stb_o(uart2dbg_stb),
         .dbg_we_o(uart2dbg_we),
@@ -587,15 +585,58 @@ module aleste_system #(
     };
 
     // Debug output - можно выбрать разные источники для отладки
-    assign debug = {
-        debug_arbiter_state,
-        debug_uart_active,
-        debug_z80_active, 
-        z80_legacy_mode,
-        z80_native_mode,
-        z80_debug_halt_status,
-        system_reset
-    };
+    // ==========================
+    `define DEBUG_URART_2 // <<<< CONFIG
+    // ==========================
+       // Просто счетчик
+
+    
+//    `ifdef DEBUG_CLOK   
+//        assign debug = { 
+//            1'b0,  // вместо '0 для ясности
+//            system_reset,
+//            clk_bus,
+//            clk_25mhz,
+//            clk_27m,
+//            clk_54m, 
+//            clk_108m,
+//            pll_locked
+//        };
+//    `elsif DEBUG_URART
+        // UART Interface
+        assign debug = {
+            serial_rx_clk,
+            serial_tx_clk,
+            serial_rx,
+            serial_tx,            
+            uart_rx_ready,
+            uart_rx_idle,
+            uart_rx_eop,
+            uart_tx_busy
+        };
+//    `elsif DEBUG_URART_2     
+//     assign debug = {  
+//            serial_rx_clk,         
+//            serial_tx_clk,        
+//            debug_uart_cmd_state,
+//            clk_bus,
+//            system_reset
+//        };
+//    `elsif DEBUG_URART_BRIDGE
+//        // UART BRIDGE
+//        assign debug = {
+//            uart2wb_adr[0],
+//            uart2wb_err,  
+//            uart2wb_ack,
+//            uart2wb_stb,
+//            uart2wb_we,
+//            uart2wb_cyc,
+//            clk_bus  // ← запятой НЕ ДОЛЖНО БЫТЬ перед закрывающей скобкой
+//        };
+//    `else
+//        // По умолчанию - нули или какой-то дефолтный сигнал
+//        assign debug = '0;  // или {WIDTH{1'b0}} если нужно явно указать ширину
+//    `endif
 
 endmodule
 

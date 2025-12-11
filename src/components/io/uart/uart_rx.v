@@ -16,13 +16,13 @@
  *  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  */
+`default_nettype none
 
 `ifndef _uart_rx_v_
 `define _uart_rx_v_
 
 module uart_rx#(
 parameter CLK_FREQ = 54_000_000,
-parameter BUS_FREQ = CLK_FREQ / 2,
 parameter BAUD_RATE = 115200,
 parameter OVERSAMPLING = 8
 )(	
@@ -39,7 +39,6 @@ parameter OVERSAMPLING = 8
 	output reg rx_eop = 0, // asserted for one clock cycle when an end of packet has been detected
 	output os_tick
 );
-
 
 // we oversample the rx line at fixed rate to capture each rx data bit
 // 8 times oversampling by default, use 16 for higher reception quality.
@@ -59,7 +58,16 @@ localparam
 
 reg [3:0] rx_state = 0;
 
-baud_tick_gen #(.CLK_FREQ(CLK_FREQ), .BUS_FREQ(BUS_FREQ), .BAUD_RATE(BAUD_RATE), .OVERSAMPLING(OVERSAMPLING)) tickgen(.rst(rst), .clk(clk), .enable(1'b1), .tick(os_tick));
+baud_tick_gen #(
+	.CLK_FREQ(CLK_FREQ), 
+	.BAUD_RATE(BAUD_RATE), 
+	.OVERSAMPLING(OVERSAMPLING)) 
+	tickgen_rx(
+		.rst(rst), 
+		.clk(clk), 
+		.enable(1'b1), 
+		.tick(os_tick)
+	);
 
 // sync rx to our clock domain
 reg [1:0] rx_sync = 2'b11;

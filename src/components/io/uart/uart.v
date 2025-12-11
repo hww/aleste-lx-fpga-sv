@@ -2,7 +2,6 @@
 
 module uart #(
     parameter CLK_FREQ = 54_000_000,
-    parameter BUS_FREQ = CLK_FREQ / 2,
     parameter BAUD_RATE = 115200,
     parameter OVERSAMPLING = 16 // DOES NOT WORK IF 8 BECAUSE DEBUNCING SLOW
 )(
@@ -32,16 +31,15 @@ module uart #(
 wire tx_busy;
 uart_tx #(
     .CLK_FREQ(CLK_FREQ),
-    .BUS_FREQ(BUS_FREQ),
     .BAUD_RATE(BAUD_RATE)
 ) uart_tx_inst (
     .rst(rst_i),
     .clk(clk_i),
-    .tx_start(tx_wr_i),     // Твой tx_wr_i -> их tx_start
-    .tx_data(tx_data_i),    // Прямое подключение
-    .tx(tx_o),              // Выход
+    .tx_start(tx_wr_i),      // Твой tx_wr_i -> их tx_start
+    .tx_data(tx_data_i),     // Прямое подключение
+    .tx(tx_o),               // Выход
     .tx_busy(tx_busy),       // Статус занятости
-    .bit_tick(tx_baud_tick_o)
+    .bit_tick(tx_baud_tick_o)// Bit tick
 );
 
 assign tx_busy_o = tx_busy;
@@ -50,7 +48,6 @@ assign tx_busy_o = tx_busy;
 // Адаптация интерфейсов - здесь основная работа
 uart_rx #(
     .CLK_FREQ(CLK_FREQ), 
-    .BUS_FREQ(BUS_FREQ), 
     .BAUD_RATE(BAUD_RATE),
     .OVERSAMPLING(OVERSAMPLING)
 ) uart_rx_inst (
@@ -61,7 +58,7 @@ uart_rx #(
     .rx_data(rx_data_o),    // Прямое подключение
     .rx_idle(rx_idle_o),    // Дополнительные фичи
     .rx_eop(rx_eop_o),      // Дополнительные фичи
-    .os_tick(rx_os_tick_o)
+    .os_tick(rx_os_tick_o)  // Oversampling tick
 );
 
 endmodule

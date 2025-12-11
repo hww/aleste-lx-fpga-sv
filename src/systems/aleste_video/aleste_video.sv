@@ -96,10 +96,8 @@ module aleste_video #(
     // Системный сброс
     reset_controller reset_inst(
         .clk(clk_system),
-        .clke(clk_pixel),
         .pll_locked(pll_locked),
-        .system_reset(system_reset),
-        .boot_complete()
+        .system_reset(system_reset)
     );
 
     // ===========================================
@@ -155,8 +153,7 @@ module aleste_video #(
     // UART Bridge
     // ===========================================
     uart_bridge #(
-        .CLK_FREQ(CLK_FREQ_SYSTEM),
-        .BUS_FREQ(CLK_FREQ_BUS),
+        .CLK_FREQ(CLK_FREQ_BUS),
         .WB_ADDR_WIDTH(24),
         .DBG_ADDR_WIDTH(8),
         .UART_DATA_WIDTH(8),

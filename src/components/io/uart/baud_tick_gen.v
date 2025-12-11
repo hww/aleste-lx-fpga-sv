@@ -16,16 +16,15 @@
  *  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  */
-
-`ifndef _uart_baud_tick_gen_v_
-`define _uart_baud_tick_gen_v_
+`default_nettype none
+//`ifndef _uart_baud_tick_gen_v_
+//`define _uart_baud_tick_gen_v_
 
 /***
  * This module generates a bit baud tick multiplied by the oversampling parameter.
  */
 module baud_tick_gen #(
 	parameter CLK_FREQ = 54_000_000,
-	parameter BUS_FREQ = CLK_FREQ / 2,
 	parameter BAUD_RATE = 115200,
 	parameter OVERSAMPLING = 1
 )(
@@ -35,24 +34,19 @@ module baud_tick_gen #(
 	output tick
 );
 
-function integer log2(input integer v); begin log2=0; while(v >> log2) log2 = log2 + 1; end endfunction
+function integer log2(input integer v); begin log2=0; while((v >> log2)!=0) log2 = log2 + 1; end endfunction
 
-localparam acc_width = log2(BUS_FREQ / BAUD_RATE) + 8; // +/- 2% max timing error over a byte
+localparam acc_width = log2(CLK_FREQ / BAUD_RATE) + 8; // +/- 2% max timing error over a byte
 localparam shiftlimiter = log2((BAUD_RATE * OVERSAMPLING) >> (31 - acc_width)); // this makes sure inc calculation doesn't overflow (verilog uses 32bit variables internally)
-localparam inc = ((BAUD_RATE * OVERSAMPLING << (acc_width - shiftlimiter)) + (BUS_FREQ >> (shiftlimiter + 1))) / (BUS_FREQ >> shiftlimiter); // Calculate accumulate increment
+localparam inc = ((BAUD_RATE * OVERSAMPLING << (acc_width - shiftlimiter)) + (CLK_FREQ >> (shiftlimiter + 1))) / (CLK_FREQ >> shiftlimiter); // Calculate accumulate increment
 
 reg [acc_width:0] acc = 0;
-
 
 always @(posedge clk) begin
     if (rst) begin
         acc <= 0;
 	end else begin
-		if (enable) begin
-        	acc <= acc[acc_width-1:0] + inc[acc_width:0];
-		end else begin
-        	acc <= inc[acc_width:0];
-		end
+		acc <= {1'b0, acc[acc_width-1:0]} + {1'b0, inc[acc_width-1:0]};
 	end
 end
 
@@ -60,4 +54,4 @@ assign tick = acc[acc_width];
 
 endmodule
 
-`endif // _uart_baud_tick_gen_v_
+//`endif // _uart_baud_tick_gen_v_

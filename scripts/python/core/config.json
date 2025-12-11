@@ -1,6 +1,6 @@
 {
     "serial": {
-        "port": "/dev/ttyACM0",
+        "port": "/dev/ttyACM1",
         "baudrate": 115200,
         "timeout": 0.1,
         "write_timeout": 1.0

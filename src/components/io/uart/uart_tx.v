@@ -17,12 +17,13 @@
  *
  */
 
+`default_nettype none
+
 `ifndef _uart_tx_v_
 `define _uart_tx_v_
 
 module uart_tx #(
 	parameter CLK_FREQ = 54_000_000,
-	parameter BUS_FREQ = CLK_FREQ / 2,
 	parameter BAUD_RATE = 115200
 )(
 	input rst,
@@ -33,7 +34,15 @@ module uart_tx #(
 	output tx_busy,
 	output bit_tick);
 
-baud_tick_gen #(.CLK_FREQ(CLK_FREQ), .BUS_FREQ(BUS_FREQ), .BAUD_RATE(BAUD_RATE)) tickgen(.rst(rst), .clk(clk), .enable(tx_busy), .tick(bit_tick));
+baud_tick_gen #(
+	.CLK_FREQ(CLK_FREQ), 
+	.BAUD_RATE(BAUD_RATE)) 
+	tickgen_tx(
+		.rst(rst), 
+		.clk(clk), 
+		.enable(tx_busy), 
+		.tick(bit_tick)
+		);
 
 localparam
 	IDLE      = 4'b0000, // tx = high
