@@ -8,6 +8,7 @@ module wb_dma_tb (
     input  logic [DATA_WIDTH-1:0] wbs_dat_i,
     output logic [DATA_WIDTH-1:0] wbs_dat_o,
     input  logic wbs_we_i,
+    input  logic wbs_cs_i,    
     input  logic wbs_stb_i,
     input  logic wbs_cyc_i,
     output logic wbs_ack_o,
@@ -40,9 +41,7 @@ parameter bit [ADDR_WIDTH-1:0] ADDR_MASK = 24'hFF_0000;
 wb_dma #(
     .ADDR_WIDTH(ADDR_WIDTH),
     .DATA_WIDTH(DATA_WIDTH),
-    .CHANNELS(CHANNELS),
-    .BASE_ADDR(BASE_ADDR),
-    .ADDR_MASK(ADDR_MASK)
+    .CHANNELS(CHANNELS)
 ) dut (
     .*
 );

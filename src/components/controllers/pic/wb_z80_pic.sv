@@ -7,14 +7,15 @@
 // =============================================================================
 
 module wb_z80_pic #(
-    parameter BASE_ADDR = 24'hFC_00_20  // Base address in Wishbone space
+
 )(
     // Clock and Reset
     input wire         wb_clk_i,
     input wire         wb_rst_i,
-    
+
     // Wishbone Slave Interface
-    input  wire [23:0]  wb_adr_i,     // Address bus
+    input  wire        wb_cs_i,      // Chip select
+    input  wire [23:0] wb_adr_i,     // Address bus
     input  wire [7:0]  wb_dat_i,     // Data input
     output reg  [7:0]  wb_dat_o,     // Data output
     input  wire        wb_we_i,      // Write enable
@@ -50,7 +51,7 @@ module wb_z80_pic #(
     // Address Decoding Logic
     // =========================================================================
     // PIC registers are mapped to I/O addresses 0xD0-0xDF
-    assign wb_sel_o = (wb_adr_i[23:5] == BASE_ADDR[23:5]) && wb_stb_i && wb_cyc_i;
+    assign wb_sel_o = wb_cs_i && wb_stb_i && wb_cyc_i;;
 
     // Internal register select
     wire reg_sel_mask     = (wb_adr_i[3:0] == 4'h0); // Mask register (low)

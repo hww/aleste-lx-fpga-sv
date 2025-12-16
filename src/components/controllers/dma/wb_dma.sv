@@ -8,15 +8,14 @@
 module wb_dma #(
     parameter int ADDR_WIDTH = 24,     // Address bus width (24-bit = 16MB)
     parameter int DATA_WIDTH = 16,     // Data bus width (16-bit)
-    parameter int CHANNELS   = 4,      // Number of DMA channels
-    parameter bit [ADDR_WIDTH-1:0] BASE_ADDR = 24'h10_0000, // Base address in system
-    parameter bit [ADDR_WIDTH-1:0] ADDR_MASK = 24'hFF_0000   // Address mask for decoding
+    parameter int CHANNELS   = 4       // Number of DMA channels
 )(
     // Clock and Reset
     input  logic                         clk_i,      // System clock
     input  logic                         rst_i,      // Synchronous reset (active high)
 
     // Wishbone Slave Interface (for CPU programming)
+    input  logic                         wbs_cs_i,   // Chip select
     input  logic [ADDR_WIDTH-1:0]        wbs_adr_i,  // Address
     input  logic [DATA_WIDTH-1:0]        wbs_dat_i,  // Write data
     output logic [DATA_WIDTH-1:0]        wbs_dat_o,  // Read data
@@ -81,8 +80,7 @@ logic                            active_mode;    // Mode of active channel
 always_comb begin
     // Условие выбора: цикл начат И адрес попадает в диапазон устройства
     // (BASE_ADDR & ADDR_MASK) == (wbs_adr_i & ADDR_MASK)
-    wbs_sel_o = (wbs_cyc_i && wbs_stb_i) && 
-                ((wbs_adr_i & ADDR_MASK) == (BASE_ADDR & ADDR_MASK));
+    wbs_sel_o = (wbs_cyc_i && wbs_stb_i && wbs_cs_i);
 end
 
 // -----------------------------------------------------------------------------

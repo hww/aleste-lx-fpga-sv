@@ -39,6 +39,7 @@ void WbDmaTestUtils::wbs_idle() {
     top->wbs_we_i = 0;
     top->wbs_adr_i = 0;
     top->wbs_dat_i = 0;
+    top->wbs_cs_i = 0;
     eval(SETUP_TIME);
 }
 
@@ -52,6 +53,7 @@ void WbDmaTestUtils::wbs_write(uint32_t addr, uint16_t data) {
     top->wbs_we_i = 1;
     top->wbs_cyc_i = 1;
     top->wbs_stb_i = 1;
+    top->wbs_cs_i = 1;
     eval(CLK_REST_TIME);
     
     // Фаза 3: Falling edge
@@ -88,6 +90,7 @@ uint16_t WbDmaTestUtils::wbs_read(uint32_t addr) {
     top->wbs_we_i = 0;
     top->wbs_cyc_i = 1;
     top->wbs_stb_i = 1;
+    top->wbs_cs_i = 1;
     eval(CLK_REST_TIME);
     
     // Falling edge

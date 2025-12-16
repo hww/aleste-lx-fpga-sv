@@ -10,6 +10,7 @@ module ipc_mailbox #(
     input  logic        rst_i,          // System reset (active high)
     
     // Wishbone Slave Interface
+    input  logic        cs_i,           // Chips select signal
     input  logic        stb_i,          // Strobe signal
     input  logic        cyc_i,          // Cycle signal
     input  logic        we_i,           // Write enable
@@ -34,7 +35,7 @@ module ipc_mailbox #(
     logic       busy;          // Internal busy flag
 
     // Address detection
-    assign sel_o = (adr_i[23:2] == BASE_ADDR[23:2]) && stb_i && cyc_i;
+    assign sel_o = cs_i && stb_i && cyc_i;
     
     // Strobe signals
     assign write_strobe = sel_o && we_i;

@@ -39,12 +39,12 @@ module mmu_legacy (
     input  logic        cpu_wr_n,                 // Write strobe
     input  logic [7:0]  cpu_din,                  // Z80 data out
     output logic [7:0]  cpu_dout,                 // Z80 data in  
-    output logic        mmu_access_o,             // Access to mmu
+    output logic        cpu_mmu_access_o,         // Access to mmu
     // -------------------------------------------------------------------------
     // CPC Control Outputs
     // -------------------------------------------------------------------------
-    output logic [1:0]  graphic_mode,             // CPC graphics mode
-    output logic        irq_control,              // Interrupt control
+    output logic [1:0]  cfg_graphic_mode,             // CPC graphics mode
+    output logic        cfg_irq_control,              // Interrupt control
     
     // -------------------------------------------------------------------------
     // Debug Outputs (optional)
@@ -243,8 +243,8 @@ module mmu_legacy (
     // =========================================================================
     // CPC CONTROL OUTPUTS
     // =========================================================================
-    assign graphic_mode = reg_rmr[1:0];           // CPC graphics mode (0-3)
-    assign irq_control  = reg_rmr[4];             // Interrupt generation control
+    assign cfg_graphic_mode = reg_rmr[1:0];           // CPC graphics mode (0-3)
+    assign cfg_irq_control  = reg_rmr[4];             // Interrupt generation control
 
     // =========================================================================
     // DEBUG OUTPUTS
@@ -294,5 +294,5 @@ module mmu_legacy (
     assign cpu_dout = m_wb_dat_i;
 
 
-    assign mmu_access_o = is_internal_io;
+    assign cpu_mmu_access_o = is_internal_io;
 endmodule

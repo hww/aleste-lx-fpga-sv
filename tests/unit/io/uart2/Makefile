@@ -6,12 +6,11 @@ GTKWAVE   := gtkwave
 
 # Paths (customize these)
 PROJECT_ROOT  := ../../../..
-UART_RTL  := $(PROJECT_ROOT)/src/components/io/uart
+UART_RTL  := $(PROJECT_ROOT)/src/components/io/uart2
 TB_DIR    := .
 
 # Source Files
-UART_SOURCES := $(UART_RTL)/baud_tick_gen.v \
-                $(UART_RTL)/uart_rx.v \
+UART_SOURCES := $(UART_RTL)/uart_rx.v \
                 $(UART_RTL)/uart_tx.v \
                 $(UART_RTL)/uart.v
 

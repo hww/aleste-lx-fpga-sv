@@ -1,0 +1,81 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Sat Dec 13 18:33:02 2025
+[*]
+[dumpfile] "/home/valery/aleste-lx-fpga-sv/tests/system/aleste_system/tb_aleste_dbus.vcd"
+[dumpfile_mtime] "Sat Dec 13 18:32:03 2025"
+[dumpfile_size] 158373
+[savefile] "/home/valery/aleste-lx-fpga-sv/tests/system/aleste_system/tb_aleste_dbus.gtkw"
+[timestart] 9558
+[size] 1920 1123
+[pos] -1 -1
+*-7.013304 10128 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.z80_system.
+[sst_width] 297
+[signals_width] 190
+[sst_expanded] 1
+[sst_vpaned_height] 340
+@28
+TOP.wbm_ack_i
+@22
+TOP.z80_system.active_adr[23:0]
+TOP.wbm_adr_o[23:0]
+@28
+TOP.wbm_cyc_o
+@22
+TOP.wbm_dat_i[7:0]
+TOP.wbm_dat_o[7:0]
+@28
+TOP.wbm_err_i
+TOP.wbm_stb_o
+TOP.wbm_we_o
+@22
+TOP.z80_system.active_adr[23:0]
+TOP.z80_system.z80_a[15:0]
+@28
+TOP.z80_system.z80_busak_n
+TOP.z80_system.z80_busrq_n
+@200
+-
+@28
+TOP.z80_system.z80_cke
+TOP.z80_system.z80_reset_n
+@22
+TOP.z80_system.z80_di[7:0]
+TOP.z80_system.z80_do[7:0]
+@28
+TOP.z80_system.z80_halt_n
+TOP.z80_system.z80_int_n
+TOP.z80_system.z80_iorq_n
+TOP.z80_system.z80_m1_n
+TOP.z80_system.z80_mreq_n
+TOP.z80_system.z80_nmi_n
+TOP.z80_system.z80_rd_n
+TOP.z80_system.z80_rfsh_n
+TOP.z80_system.z80_wait_n
+TOP.z80_system.z80_wr_n
+@22
+TOP.z80_system.dbg_adr_i[7:0]
+@28
+TOP.z80_system.dbg_cpu_int
+TOP.z80_system.dbg_cpu_nmi
+TOP.z80_system.dbg_cpu_reset
+TOP.z80_system.dbg_cpu_wait
+TOP.z80_system.debug_module.clk
+TOP.z80_system.dbg_cs_i
+TOP.z80_system.dbg_cyc_i
+TOP.z80_system.dbg_we_i
+TOP.z80_system.dbg_ack_o
+@22
+TOP.z80_system.dbg_dat_i[7:0]
+TOP.z80_system.dbg_dat_o[7:0]
+@28
+TOP.z80_system.dbg_stb_i
+@22
+TOP.z80_system.debug_module.ctrl_action_reg[7:0]
+TOP.z80_system.debug_module.dbus_data_mux[7:0]
+@29
+TOP.z80_system.debug_module.dbg_step_next_o
+[pattern_trace] 1
+[pattern_trace] 0

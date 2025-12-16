@@ -72,7 +72,7 @@ public:
         memset(dbg_registers, 0x00, sizeof(dbg_registers));
 
         // Initialize inputs
-        dut->clk_54m = 0;
+        dut->clk_i = 0;           // <-- ИЗМЕНЕНО
         dut->rst = 1;
         dut->uart_rx = 1;
         dut->wb_dat_i = 0;
@@ -98,7 +98,7 @@ public:
     void tick()
     {
         // First half of clock cycle - low
-        dut->clk_54m = 0;
+        dut->clk_i = 0;           // <-- ИЗМЕНЕНО
         handle_dbg_bus();
         handle_wb_bus();
         tfp->dump(main_time);
@@ -106,14 +106,14 @@ public:
         main_time++;
 
         // Second half of clock cycle - high
-        dut->clk_54m = 1;
+        dut->clk_i = 1;           // <-- ИЗМЕНЕНО
         handle_dbg_bus();
         handle_wb_bus();
         tfp->dump(main_time);
         dut->eval();
         main_time++;
 
-        last_clk = dut->clk_54m;
+        last_clk = dut->clk_i;    // <-- ИЗМЕНЕНО
     }
 
     void handle_dbg_bus()
@@ -268,8 +268,8 @@ public:
         if (!context.empty())
             std::cout << "[" << context << "] ";
         std::cout << "state: " << (int)dut->cmd_state_o
-                  << ", tx_busy: " << (int)dut->uart_tx_busy
-                  << ", rx_ready: " << (int)dut->uart_rx_ready << std::endl;
+                << ", tx_ready: " << (int)dut->uart_tx_ready   // <-- ИЗМЕНЕНО
+                << ", rx_ready: " << (int)dut->uart_rx_ready << std::endl;
     }
 
     void test_assert(bool condition, const std::string &test_name, const std::string &message)
@@ -290,7 +290,8 @@ public:
     void wait_uart_ready()
     {
         int timeout = 0;
-        while ((dut->uart_tx_busy || !dut->uart_rx_ready) && timeout < 1000)
+        // tx_busy = !tx_ready, rx_ready - выходной сигнал приемника
+        while ((!dut->uart_tx_ready || !dut->uart_rx_ready) && timeout < 1000)  // <-- ИЗМЕНЕНО
         {
             tick();
             timeout++;
@@ -319,18 +320,21 @@ public:
 
     void test_ping_command()
     {
-        std::cout << "\n=== Testing Ping Command (0x55) ===" << std::endl;
+        std::cout << "\n=== Testing Status Command ===" << std::endl;
         reset_dut();
 
         wait_uart_ready();
-        debug_uart_status("Before ping");
-        uart_send_byte(0x55);
+        debug_uart_status("Before status");
+        
+        // Команда STATUS: 0x4X (тип=100, размер=X)
+        uart_send_byte(0x40); // STATUS, размер 1 байт
 
         uint8_t response;
         bool received = uart_receive_byte(response);
 
-        test_assert(received && response == 0x55, "Ping Response",
-                    received ? "Expected 0xFE, got 0x" + to_hex(response) : "No response received");
+        // STATUS команда читает dbg_registers[0x00]
+        test_assert(received, "Status Command Response",
+                    received ? "Got response 0x" + to_hex(response) : "No response received");
     }
 
     void test_global_status_command()

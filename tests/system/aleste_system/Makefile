@@ -20,10 +20,9 @@ SOURCES = \
     ../../../src/systems/aleste_video/wb_arbiter.sv \
     ../../../src/systems/aleste_video/memory_arbiter.sv \
     ../../../src/systems/aleste_video/address_decoder.sv \
-    ../../../src/components/io/uart/uart.v \
-    ../../../src/components/io/uart/uart_rx.v \
-    ../../../src/components/io/uart/uart_tx.v \
-    ../../../src/components/io/uart/baud_tick_gen.v \
+    ../../../src/components/io/uart2/uart.v \
+    ../../../src/components/io/uart2/uart_rx.v \
+    ../../../src/components/io/uart2/uart_tx.v \
     ../../../src/components/video/mc6845mod/mc6845mod.sv \
     ../../../src/components/video/video_buffer/video_buffer.sv \
     ../../../src/components/video/llhdmi/llhdmi.v \
@@ -59,6 +58,12 @@ TEST_SOURCES_WB = \
     OBUFDS.v \
     video_pll.v
 
+TEST_SOURCES_DBUS = \
+    tb_aleste_dbus.cpp \
+    ODDRX1F.v \
+    OBUFDS.v \
+    video_pll.v
+
 all: z80
 
 find_loops:
@@ -81,6 +86,12 @@ compile_wb:
 		$(SOURCES) $(TEST_SOURCES_WB) \
 		--Mdir obj_dir \
 		-o Vsim
+compile_dbus:
+	$(VERILATOR) $(VERILATOR_FLAGS) \
+		--top-module z80_system \
+		$(SOURCES) $(TEST_SOURCES_DBUS) \
+		--Mdir obj_dir \
+		-o Vsim
 
 z80: compile_z80
 	./obj_dir/Vsim $(SIM_ARGS)
@@ -88,8 +99,9 @@ z80: compile_z80
 wb: compile_wb
 	./obj_dir/Vsim $(SIM_ARGS)
 
-wave:
-	gtkwave waveform.vcd &
+dbus: compile_dbus
+	./obj_dir/Vsim $(SIM_ARGS)
+
 
 clean:
 	rm -rf obj_dir waveform.vcd Vsim

@@ -19,7 +19,7 @@ PALETTE_DIR := $(SRC_DIR)/components/video/palette
 PIXPIPE_DIR := $(SRC_DIR)/components/video/pixel_pipeline
 VIDBUF_DIR  := $(SRC_DIR)/components/video/video_buffer
 DEBUG_DIR   := $(SRC_DIR)/components/debug
-UART_DIR    := $(SRC_DIR)/components/io/uart
+UART_DIR    := $(SRC_DIR)/components/io/uart2
 CPU_DIR     := $(SRC_DIR)/components/cpu
 MMU_DIR     := $(SRC_DIR)/components/memory/mmu
 
@@ -30,7 +30,7 @@ CLOCK_CTRL  := $(CLOCK_DIR)/system_clock.sv
 CLOCK       := $(TARGET_DIR)/clocks/system_pll.v $(TARGET_DIR)/clocks/video_pll.v
 SDRAM_CTRL  := $(SDRAM_DIR)/sdram_wishbone.sv  
 WB          := $(WB_DIR)/uart_bridge.sv $(WB_DIR)/wb_wdt_simple.sv
-UART_BRIDGE := $(UART_DIR)/uart.v $(UART_DIR)/uart_rx.v $(UART_DIR)/uart_tx.v $(UART_DIR)/baud_tick_gen.v
+UART_BRIDGE := $(UART_DIR)/uart.v $(UART_DIR)/uart_rx.v $(UART_DIR)/uart_tx.v 
 HDMI        := $(LLHDMI_DIR)/llhdmi.v $(LLHDMI_DIR)/tmds_encoder.v $(LLHDMI_DIR)/OBUFDS.v
 CRTC        := $(CRTC_DIR)/mc6845mod.sv 
 SCALER      := $(SCALER_DIR)/dual_port_ram.sv $(SCALER_DIR)/hdmi_scaler.sv

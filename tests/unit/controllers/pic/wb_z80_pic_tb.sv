@@ -12,6 +12,7 @@ module wb_z80_pic_tb (
     input        wb_we_i,
     input        wb_stb_i,
     input        wb_cyc_i,
+    input        wb_cs_i,
     output       wb_ack_o,
     output       wb_sel_o,
     
@@ -38,6 +39,7 @@ module wb_z80_pic_tb (
         .wb_cyc_i(wb_cyc_i),
         .wb_ack_o(wb_ack_o),
         .wb_sel_o(wb_sel_o),
+        .wb_cs_i(wb_cs_i),
         .irq_i(irq_i),
         .int_req_o(int_req_o),
         .int_ack_i(int_ack_i),

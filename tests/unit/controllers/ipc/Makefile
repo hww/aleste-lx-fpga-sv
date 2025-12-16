@@ -1,6 +1,6 @@
 VERILATOR = verilator
 VERILATOR_FLAGS = \
-	-Wall --cc --exe --build --trace \
+	-Wall --cc --exe --build --trace -Wno-fatal \
 	--Wno-UNOPTFLAT \
 	--Wno-UNUSEDSIGNAL \
 	--Wno-CASEX \

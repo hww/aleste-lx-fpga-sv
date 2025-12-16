@@ -6,13 +6,14 @@
 // =============================================================================
 
 module wb_z80_nmi_ctrl #(
-    parameter BASE_ADDR = 24'hFC_00_30  // Base address in Wishbone space
+
 )(
     // Clock and Reset
     input wire        wb_clk_i,
     input wire        wb_rst_i,
-    
+
     // Wishbone Slave Interface
+    input  wire        wb_cs_i,
     input  wire [23:0] wb_adr_i,
     input  wire [7:0]  wb_dat_i,
     output reg  [7:0]  wb_dat_o,
@@ -81,7 +82,7 @@ module wb_z80_nmi_ctrl #(
     // =========================================================================
     // Address Decoding Logic
     // =========================================================================
-    assign wb_sel_o = (wb_adr_i[23:4] == BASE_ADDR[23:4]) && wb_stb_i && wb_cyc_i;
+    assign wb_sel_o = wb_cs_i && wb_stb_i && wb_cyc_i;
     wire [3:0] reg_address = wb_adr_i[3:0];
 
     // =========================================================================

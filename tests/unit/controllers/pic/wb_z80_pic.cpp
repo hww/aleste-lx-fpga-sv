@@ -31,6 +31,7 @@ int main(int argc, char **argv)
     top->wb_we_i = 0;
     top->wb_stb_i = 0;
     top->wb_cyc_i = 0;
+    top->wb_cs_i = 0;
     top->irq_i = 0;
     top->int_ack_i = 0;
 

@@ -74,6 +74,7 @@ void WbNmiTestUtils::write_reg(uint32_t addr, uint8_t data) {
     top->wb_we_i = 1;
     top->wb_cyc_i = 1;
     top->wb_stb_i = 1;
+    top->wb_cs_i = 1;
     eval(CLK_REST_TIME);
     
     // Falling edge
@@ -110,6 +111,7 @@ uint8_t WbNmiTestUtils::read_reg(uint32_t addr) {
     top->wb_we_i = 0;
     top->wb_cyc_i = 1;
     top->wb_stb_i = 1;
+    top->wb_cs_i = 1;
     eval(CLK_REST_TIME);
     
     // Falling edge

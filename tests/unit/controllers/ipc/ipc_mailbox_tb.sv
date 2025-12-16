@@ -7,6 +7,7 @@ module ipc_mailbox_tb (
     input  logic        wb_rst_i,
     
     // Wishbone signals
+    input  logic        wb_cs_i,
     input  logic        wb_stb_i,
     input  logic        wb_cyc_i,
     input  logic        wb_we_i,
@@ -21,10 +22,10 @@ module ipc_mailbox_tb (
 );
 
     ipc_mailbox #(
-        .BASE_ADDR(24'hFC_00_40)  // Base address for IPC
     ) u_ipc_mailbox (
         .clk_i(wb_clk_i),
         .rst_i(wb_rst_i),
+        .cs_i(wb_cs_i),
         .stb_i(wb_stb_i),
         .cyc_i(wb_cyc_i),
         .we_i(wb_we_i),

@@ -95,9 +95,11 @@ module aleste_video #(
 
     // Системный сброс
     reset_controller reset_inst(
-        .clk(clk_system),
-        .pll_locked(pll_locked),
-        .system_reset(system_reset)
+        .clk_i(clk_system),
+        .pll_locked_i(pll_locked),
+        .rst_i('0),             // External reset signal
+        .rst_o(system_reset),   // Reset of the system
+        .eof_rst_o()            // Short pulse after reset
     );
 
     // ===========================================
@@ -125,9 +127,9 @@ module aleste_video #(
     logic [7:0] wb_dat_out, wb_dat_in;
     logic [1:0] wb_sel;
       
-    logic uart_rx_ready, uart_rx_idle, uart_rx_eop;
-    logic serial_rx_clk, serial_tx_clk;
-    logic uart_tx_busy;
+    logic uart_rx_valid, uart_rx_ready;
+    logic serial_rx_clk, serial_rx_clk_mid, serial_tx_clk;
+    logic uart_tx_ready, uart_tx_valid;
 
     logic       uart2dbg_cyc, uart2dbg_stb, uart2dbg_we, uart2dbg_ack;
     logic [7:0] uart2dbg_adr;
@@ -166,12 +168,13 @@ module aleste_video #(
         // UART Interface
         .uart_rx(serial_rx),
         .uart_tx(serial_tx),
-        .uart_rx_clk(serial_rx_clk),
+        .uart_rx_bit_tick(serial_rx_clk),
+        .uart_rx_bit_tick_mid(serial_rx_clk_mid),
         .uart_tx_clk(serial_tx_clk),
+        .uart_rx_valid(uart_rx_valid),
         .uart_rx_ready(uart_rx_ready),
-        .uart_rx_idle(uart_rx_idle),
-        .uart_rx_eop(uart_rx_eop),
-        .uart_tx_busy(uart_tx_busy),
+        .uart_tx_valid(uart_tx_valid),
+        .uart_tx_ready(uart_tx_ready),
 
         // Wishbone Master Interface
         .wb_cyc_o(wb_cyc),
@@ -414,8 +417,17 @@ module aleste_video #(
     };
 
     // Debug output - можно выбрать разные источники для отладки
-    assign debug = video_debug; // Используем отладку из видеоконтроллера
+    //assign debug = video_debug; // Используем отладку из видеоконтроллера
 
+    assign debug = {
+    uart_tx_valid,
+    uart_tx_ready,
+    serial_tx_clk,
+    uart_rx_ready,
+    uart_rx_valid,
+    serial_rx_clk_mid,
+    serial_rx_clk
+    };
     /*
     // Альтернативные варианты отладки:
     
@@ -423,7 +435,7 @@ module aleste_video #(
     assign debug = {
         debug_sdram_ready,     
         debug_sdram_init_complete, 
-        uart_rx_ready,         
+        uart_rx_valid,         
         wb_err,          
         wb_ack,           
         wb_we,           

@@ -20,7 +20,7 @@ RESET      := $(RESET_DIR)/reset_controller.sv
 CLOCK      := $(TARGET_DIR)/clocks/video_pll.v
 SDRAM_CTRL := $(SDRAM_DIR)/sdram_wishbone.sv
 WB         := $(WB_DIR)/uart_bridge.sv $(WB_DIR)/wb_wdt_simple.sv
-UART_BRIDGE := $(UART_DIR)/uart.v $(UART_DIR)/uart_rx.v $(UART_DIR)/uart_tx.v $(UART_DIR)/baud_tick_gen.v
+UART_BRIDGE := $(UART_DIR)/uart.v $(UART_DIR)/uart_rx.v $(UART_DIR)/uart_tx.v
 TOP_MODULE := $(SYSTEM_DIR)/uart_bridge_test.sv
 CLOCKS     := $(CLOCKS_DIR)/system_clock.sv
 

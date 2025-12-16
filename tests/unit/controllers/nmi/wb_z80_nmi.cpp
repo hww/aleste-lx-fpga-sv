@@ -31,6 +31,7 @@ int main(int argc, char **argv)
     top->wb_we_i = 0;
     top->wb_stb_i = 0;
     top->wb_cyc_i = 0;
+    top->wb_cs_i = 0;
     top->nmi_wishbone_error_i = 0;
     top->nmi_panic_button_i = 0;
     top->nmi_ext_board_error_i = 0;

@@ -4,6 +4,7 @@ module wb_z80_nmi_tb (
     // Clock and Reset
     input wire        wb_clk_i,
     input wire        wb_rst_i,
+    input wire        wb_cs_i,
     
     // Wishbone Slave Interface
     input  wire [23:0] wb_adr_i,
@@ -34,11 +35,12 @@ module wb_z80_nmi_tb (
 );
 
     wb_z80_nmi_ctrl #(
-        .BASE_ADDR(24'hFC_00_30)
+
     ) nmi_controller_inst (
         .wb_clk_i(wb_clk_i),
         .wb_rst_i(wb_rst_i),
-        
+        .wb_cs_i(wb_cs_i),
+
         .wb_adr_i(wb_adr_i),
         .wb_dat_i(wb_dat_i),
         .wb_dat_o(wb_dat_o),

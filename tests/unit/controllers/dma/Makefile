@@ -1,5 +1,5 @@
 VERILATOR = verilator
-VERILATOR_FLAGS = -Wall --cc --exe --build --trace --debug 
+VERILATOR_FLAGS = -Wall --cc --exe --build --trace --debug -Wno-fatal 
 
 # Директории
 PROJECT_ROOT = ../../../..

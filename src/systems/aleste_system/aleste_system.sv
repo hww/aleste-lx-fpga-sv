@@ -119,11 +119,12 @@ module aleste_system #(
 `endif
 
     // Системный сброс
-    reset_controller reset_ctrl_inst(
-        .clk(clk_system),
-        .reset_in('0),
-        .pll_locked(pll_locked),
-        .system_reset(system_reset)
+    reset_controller reset_inst(
+        .clk_i(clk_system),
+        .pll_locked_i(pll_locked),
+        .rst_i('0),             // External reset signal
+        .rst_o(system_reset),   // Reset of the system
+        .eof_rst_o()            // Short pulse after reset
     );
 
     // ===========================================
@@ -151,9 +152,9 @@ module aleste_system #(
     logic [7:0] uart2wb_dat_out, uart2wb_dat_in;
     logic [1:0] uart2wb_sel;
       
-    logic uart_rx_ready, uart_rx_idle, uart_rx_eop;
-    logic serial_rx_clk, serial_tx_clk;
-    logic uart_tx_busy;
+    logic uart_rx_valid, uart_rx_ready;
+    logic serial_rx_clk, serial_rx_clk_mid, serial_tx_clk;
+    logic uart_tx_ready, uart_tx_valid;
 
     logic uart2dbg_cyc, uart2dbg_stb, uart2dbg_we, uart2dbg_ack;
     logic [7:0] uart2dbg_adr;
@@ -174,7 +175,7 @@ module aleste_system #(
     logic z80_supervisor_mode;
     logic z80_legacy_mode;
     logic z80_native_mode;
-    logic z80_debug_halt_status;
+    logic z80_debug_halt, z80_debug_reset;
     logic [7:0] z80_debug_control;
 
     // System Arbiter Signals
@@ -223,15 +224,17 @@ module aleste_system #(
         // UART Interface
         .uart_rx(serial_rx),
         .uart_tx(serial_tx),
-        .uart_rx_clk(serial_rx_clk),
+        .uart_rx_bit_tick(serial_rx_clk),
+        .uart_rx_bit_tick_mid(serial_rx_clk_mid),
         .uart_tx_clk(serial_tx_clk),
+        .uart_rx_valid(uart_rx_valid),
         .uart_rx_ready(uart_rx_ready),
-        .uart_rx_idle(uart_rx_idle),
-        .uart_rx_eop(uart_rx_eop),
-        .uart_tx_busy(uart_tx_busy),
+        .uart_tx_valid(uart_tx_valid),
+        .uart_tx_ready(uart_tx_ready),
 
         // Wishbone Master Interface
-`ifdef SIMULATION1    
+
+`ifdef SIMULATION     
         .wb_cyc_o(),
         .wb_stb_o(),
         .wb_we_o(),
@@ -250,7 +253,6 @@ module aleste_system #(
         .wb_ack_i(uart2wb_ack),
         .wb_err_i(uart2wb_err),  
 `endif
-
         .dbg_cyc_o(uart2dbg_cyc),
         .dbg_stb_o(uart2dbg_stb),
         .dbg_we_o(uart2dbg_we),
@@ -277,6 +279,9 @@ module aleste_system #(
     assign debug_wb_ack_o = uart2wb_ack;
     assign debug_wb_err_o = uart2wb_err;
 `endif
+    wire uart2wb_cs_z80 = uart2wb_adr[7:5] == 3'b000;
+    wire uart2wb_cs_ppi = uart2wb_adr[7:5] == 3'b001;
+    wire uart2wb_cs_fdc = uart2wb_adr[7:5] == 3'b010;
 
     // ===========================================
     // Z80 CPU System
@@ -305,16 +310,15 @@ module aleste_system #(
         .dbg_dat_o(uart2dbg_dat_in),
         .dbg_dat_i(uart2dbg_dat_out),
         .dbg_we_i(uart2dbg_we),
+        .dbg_cyc_i(uart2dbg_cyc),
         .dbg_stb_i(uart2dbg_stb),
-        .dbg_cs_i(uart2dbg_stb),
+        .dbg_cs_i(uart2wb_cs_z80),
         .dbg_ack_o(uart2dbg_ack),           // immediate answer
         
         // Z80-specific Interface
         .nmi_req_i(1'b0),                   // No NMI for now
         .int_req_i(1'b0),                   // No interrupts for now
-        .busrq_i(1'b0),                     // No bus requests for now
-        .busak_o(),
-        
+   
         // System Control Outputs
         .graphic_mode(z80_graphic_mode),
         .irq_control(z80_irq_control),
@@ -323,7 +327,8 @@ module aleste_system #(
         .native_mode_o(z80_native_mode),
 
         // Debug Status Outputs
-        .debug_halt_status(z80_debug_halt_status),
+        .debug_z80_reset_o(z80_debug_reset),
+        .debug_z80_halt_o(z80_debug_halt),
         .debug_control_o(z80_debug_control)
     );
 
@@ -581,62 +586,59 @@ module aleste_system #(
     // RGB LED
     assign debug_leds = {
         debug_sdram_ready,      
-        debug_sdram_init_complete
+        z80_debug_reset,
+        z80_debug_halt
     };
 
     // Debug output - можно выбрать разные источники для отладки
     // ==========================
     `define DEBUG_URART_2 // <<<< CONFIG
     // ==========================
-       // Просто счетчик
-
-    
-//    `ifdef DEBUG_CLOK   
-//        assign debug = { 
-//            1'b0,  // вместо '0 для ясности
-//            system_reset,
-//            clk_bus,
-//            clk_25mhz,
-//            clk_27m,
-//            clk_54m, 
-//            clk_108m,
-//            pll_locked
-//        };
-//    `elsif DEBUG_URART
+    `ifdef DEBUG_CLOK   
+        assign debug = { 
+            1'b0,  // вместо '0 для ясности
+            system_reset,
+            clk_bus,
+            clk_25mhz,
+            clk_27m,
+            clk_54m, 
+            clk_108m,
+            pll_locked
+        };
+    `elsif DEBUG_URART
         // UART Interface
         assign debug = {
-            serial_rx_clk,
+            uart_tx_valid,
+            uart_tx_ready,
             serial_tx_clk,
-            serial_rx,
-            serial_tx,            
             uart_rx_ready,
-            uart_rx_idle,
-            uart_rx_eop,
-            uart_tx_busy
+            uart_rx_valid,
+            serial_rx_clk_mid,
+            serial_rx_clk
         };
-//    `elsif DEBUG_URART_2     
-//     assign debug = {  
-//            serial_rx_clk,         
-//            serial_tx_clk,        
-//            debug_uart_cmd_state,
-//            clk_bus,
-//            system_reset
-//        };
-//    `elsif DEBUG_URART_BRIDGE
-//        // UART BRIDGE
-//        assign debug = {
-//            uart2wb_adr[0],
-//            uart2wb_err,  
-//            uart2wb_ack,
-//            uart2wb_stb,
-//            uart2wb_we,
-//            uart2wb_cyc,
-//            clk_bus  // ← запятой НЕ ДОЛЖНО БЫТЬ перед закрывающей скобкой
-//        };
-//    `else
-//        // По умолчанию - нули или какой-то дефолтный сигнал
-//        assign debug = '0;  // или {WIDTH{1'b0}} если нужно явно указать ширину
-//    `endif
+    `elsif DEBUG_URART_2     
+     assign debug = {  
+            serial_rx_clk,         
+            serial_tx_clk,        
+            debug_uart_cmd_state,
+            clk_bus,
+            system_reset
+        };
+    `elsif DEBUG_URART_BRIDGE
+        // UART BRIDGE
+        assign debug = {
+            uart2wb_adr[0],
+            uart2wb_err,  
+            uart2wb_ack,
+            uart2wb_stb,
+            uart2wb_we,
+            uart2wb_cyc,
+            clk_bus  // ← запятой НЕ ДОЛЖНО БЫТЬ перед закрывающей скобкой
+        };
+    `else
+        // По умолчанию - нули или какой-то дефолтный сигнал
+        assign debug = '0;  // или {WIDTH{1'b0}} если нужно явно указать ширину
+    `endif
 
 endmodule
 

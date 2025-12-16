@@ -37,7 +37,7 @@ module mmu_native (
     input  logic [7:0]  cpu_din,                  // Z80 data in
     output logic [7:0]  cpu_dout,                 // Z80 data out
     output logic [3:0]  cpu_clock_conf,           // Control speed of Z80
-    output logic        mmu_access_o,             // Access to mmu
+    output logic        cpu_mmu_access_o,         // Access to mmu
     
     // -------------------------------------------------------------------------
     // MASTER Wishbone Interface (Memory/Device Access ONLY)
@@ -347,7 +347,7 @@ module mmu_native (
     // =========================================================================
     // 9. WAIT STATES 
     // =========================================================================
-    assign mmu_access_o = is_mmu_access;
+    assign cpu_mmu_access_o = is_mmu_access;
 
     // =========================================================================
     // 10. Other Outputs

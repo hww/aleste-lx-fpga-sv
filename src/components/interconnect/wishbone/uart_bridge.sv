@@ -4,7 +4,8 @@ module uart_bridge #(
     parameter WB_ADDR_WIDTH = 24,
     parameter DBG_ADDR_WIDTH = 8,
     parameter UART_DATA_WIDTH = 8,
-    parameter CLK_FREQ = 54_000_000,
+    parameter CLK_FREQ = 108_000_000,
+    parameter BUS_FREQ = CLK_FREQ / 2,
     parameter BAUD_RATE = 115200,
     parameter OVERSAMPLING = 16 // 8 does not work
 ) (
@@ -14,12 +15,13 @@ module uart_bridge #(
     // UART Interface
     input  logic                       uart_rx,
     output logic                       uart_tx,
-    output logic                       uart_rx_clk,
+    output logic                       uart_rx_bit_tick,
+    output logic                       uart_rx_bit_tick_mid,
     output logic                       uart_tx_clk,
-    output logic                       uart_tx_busy,
+    output logic                       uart_tx_ready,
+    output logic                       uart_tx_valid,
+    output logic                       uart_rx_valid,
     output logic                       uart_rx_ready,
-    output logic                       uart_rx_idle,
-    output logic                       uart_rx_eop,
 
     // Wishbone Master Interface
     output logic                       wb_cyc_o,
@@ -82,9 +84,7 @@ localparam TIMEOUT_UART_TX = 16'd32_768;     // ~0.6 ms
 // ============================================================================
 
 logic [7:0] uart_tx_data;
-logic       uart_tx_start;
 logic [7:0] uart_rx_data;
-logic       uart_rx_ack;
 
 uart #(
     .CLK_FREQ(CLK_FREQ),
@@ -97,18 +97,18 @@ uart #(
     
     // transmitter
     .tx_data_i(uart_tx_data),
-    .tx_wr_i(uart_tx_start),
-    .tx_o(uart_tx),
-    .tx_busy_o(uart_tx_busy),
+    .tx_data_valid_i(uart_tx_valid),
+    .tx_data_ready_o(uart_tx_ready),
     .tx_baud_tick_o(uart_tx_clk),
+    .tx_o(uart_tx),
     
     // receiver  
     .rx_i(uart_rx),
-    .rx_ready_o(uart_rx_ready),
+    .rx_valid_o(uart_rx_valid),
+    .rx_ready_i(uart_rx_ready),
     .rx_data_o(uart_rx_data),
-    .rx_os_tick_o(uart_rx_clk),
-    .rx_idle_o(uart_rx_idle),
-    .rx_eop_o(uart_rx_eop)
+    .rx_bit_tick_o(uart_rx_bit_tick),
+    .rx_bit_tick_mid_o(uart_rx_bit_tick_mid)
 );
 
 // ============================================================================
@@ -222,8 +222,8 @@ always_ff @(posedge clk_i) begin
         args_to_receive <= '0;
         data_size <= '0;
         bytes_remaining <= '0;
-        uart_rx_ack <= '0;
-        uart_tx_start <= '0;
+        uart_rx_ready <= '0;
+        uart_tx_valid <= '0;
         response_data <= '0;
         cmd_error_stb <= '0;
         bus_cyc <= '0;
@@ -236,8 +236,8 @@ always_ff @(posedge clk_i) begin
         timeout_active <= '0;
 
     end else begin
-        uart_rx_ack <= '0;
-        uart_tx_start <= '0;
+        uart_rx_ready <= '0;
+        uart_tx_valid <= '0;
         timeout_start_stb <= '0;
         state_errors_reset_stb <= '0;
         cmd_error_stb <= '0;
@@ -247,8 +247,8 @@ always_ff @(posedge clk_i) begin
                 bus_cyc <= '0;
                 timeout_active <= '0; // do not allow to trigger
 
-                if (uart_rx_ready && !uart_rx_ack) begin
-                    uart_rx_ack <= 1'b1;
+                if (uart_rx_valid && !uart_rx_ready) begin
+                    uart_rx_ready <= 1'b1;
                     current_cmd <= uart_rx_data;
                     timeout_start_stb <= '1;
                     cmd_state <= CMD_PARSE;
@@ -304,10 +304,10 @@ always_ff @(posedge clk_i) begin
             end
             
             CMD_READ_ARGS: begin
-                if (uart_rx_ready && !uart_rx_ack && args_to_receive > 0) begin
+                if (uart_rx_valid && !uart_rx_ready && args_to_receive > 0) begin
                     timeout_active <= '1;
                     timeout_start_stb <= '1;
-                    uart_rx_ack <= 1'b1;
+                    uart_rx_ready <= 1'b1;
                     current_addr <= {current_addr[15:0], uart_rx_data};
                     args_to_receive <= args_to_receive - 1;
                 end else if (wdt_trigger) begin
@@ -333,9 +333,9 @@ always_ff @(posedge clk_i) begin
             end
             
             CMD_BUS_WRITE: begin
-                if (uart_rx_ready && !uart_rx_ack && bytes_remaining > 0) begin
+                if (uart_rx_valid && !uart_rx_ready && bytes_remaining > 0) begin
                     timeout_start_stb <= '1;                    
-                    uart_rx_ack <= 1'b1;
+                    uart_rx_ready <= 1'b1;
                     bus_wr_data <= uart_rx_data;
                     bus_stb <= 1'b1;
                     cmd_state <= CMD_WAIT_WRITE_ACK;
@@ -365,20 +365,20 @@ always_ff @(posedge clk_i) begin
             end
             
             CMD_BUS_READ: begin
-                if (uart_rx_ready || bus_error_stb) begin
+                if (uart_rx_valid || bus_error_stb) begin
                     cmd_error_stb <= '1;
                     cmd_state <= CMD_ERROR;
-                    uart_rx_ack <= '1;
+                    uart_rx_ready <= '1;
                 end 
                 if (!bus_stb) begin
                     bus_stb <= 1'b1;
                 end else begin               
                     // bus_ack теперь уровень - данные гарантированно в bus_rd_data
-                    if (bus_ack && !uart_tx_busy) begin
+                    if (bus_ack && uart_tx_ready) begin
                         bus_stb <= 1'b0;  // Снимаем STB - сигнал что данные приняты
         
                         timeout_start_stb <= '1;
-                        uart_tx_start <= 1'b1;
+                        uart_tx_valid <= 1'b1;
                         uart_tx_data <= bus_rd_data;
                         bytes_remaining <= bytes_remaining - 1;
                         
@@ -396,8 +396,8 @@ always_ff @(posedge clk_i) begin
             end
 
             CMD_SEND_READ_STATE: begin
-                if (!uart_tx_busy && !uart_tx_start) begin
-                    uart_tx_start <= 1'b1;  // Импульс на 1 такт
+                if (uart_tx_ready && !uart_tx_valid) begin
+                    uart_tx_valid <= 1'b1;  // Импульс на 1 такт
                     state_reg_cnt <= state_reg_cnt == 3'd7 ? 3'd7 : state_reg_cnt + 3'd1;
                     case (state_reg_cnt) 
                         0: uart_tx_data <= state_reg_errors;      // [2:0] ошибки
@@ -416,16 +416,16 @@ always_ff @(posedge clk_i) begin
             end
 
             CMD_SEND_RESPONSE: begin
-                if (!uart_tx_busy) begin
-                    uart_tx_start <= 1'b1;  // Импульс на 1 такт
+                if (uart_tx_ready) begin
+                    uart_tx_valid <= 1'b1;  // Импульс на 1 такт
                     uart_tx_data <= response_data;
                     cmd_state <= CMD_IDLE;
                 end
             end
 
             CMD_ERROR: begin
-                if (!uart_tx_busy) begin
-                    uart_tx_start <= 1'b1;  // Импульс на 1 такт
+                if (uart_tx_ready) begin
+                    uart_tx_valid <= 1'b1;  // Импульс на 1 такт
                     uart_tx_data <= response_data;
                     cmd_state <= CMD_IDLE;
                 end
