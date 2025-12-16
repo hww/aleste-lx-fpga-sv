@@ -15,9 +15,9 @@ module uart_bridge #(
     // UART Interface
     input  logic                       uart_rx,
     output logic                       uart_tx,
-    output logic                       uart_rx_bit_tick,
-    output logic                       uart_rx_bit_tick_mid,
-    output logic                       uart_tx_clk,
+    output logic                       uart_rx_tick,
+    output logic                       uart_rx_tick_mid,
+    output logic                       uart_tx_tick,
     output logic                       uart_tx_ready,
     output logic                       uart_tx_valid,
     output logic                       uart_rx_valid,
@@ -99,7 +99,7 @@ uart #(
     .tx_data_i(uart_tx_data),
     .tx_data_valid_i(uart_tx_valid),
     .tx_data_ready_o(uart_tx_ready),
-    .tx_baud_tick_o(uart_tx_clk),
+    .tx_baud_tick_o(uart_tx_tick),
     .tx_o(uart_tx),
     
     // receiver  
@@ -107,8 +107,8 @@ uart #(
     .rx_valid_o(uart_rx_valid),
     .rx_ready_i(uart_rx_ready),
     .rx_data_o(uart_rx_data),
-    .rx_bit_tick_o(uart_rx_bit_tick),
-    .rx_bit_tick_mid_o(uart_rx_bit_tick_mid)
+    .rx_bit_tick_o(uart_rx_tick),
+    .rx_bit_tick_mid_o(uart_rx_tick_mid)
 );
 
 // ============================================================================
@@ -163,19 +163,19 @@ logic        bus_error_stb;
 
 // Счетчики таймаутов
 logic [15:0] wdt_counter;
-logic timeout_active, timeout_start_stb, wdt_trigger;
+logic wdt_restart_stb, wdt_trigger;
 
 always_ff @(posedge clk_i) begin
     if (rst) begin
         wdt_trigger <= '0;
         wdt_counter <= 0;
     end else begin
-        if (timeout_start_stb) begin
+        if (wdt_restart_stb) begin
             wdt_trigger <= '0;
             wdt_counter <= TIMEOUT_UART_TX;
-        end else if (timeout_active) begin
+        end else begin
             wdt_trigger <= '0;
-            if (uart_tx_clk) begin
+            if (uart_rx_tick) begin
                 if (wdt_counter != 1) begin
                     wdt_counter <= wdt_counter - 1;
                 end else begin
@@ -233,24 +233,23 @@ always_ff @(posedge clk_i) begin
         bus_addr <= '0;
         bus_wr_data <= '0;
         state_errors_reset_stb <= '0;
-        timeout_active <= '0;
+
 
     end else begin
         uart_rx_ready <= '0;
         uart_tx_valid <= '0;
-        timeout_start_stb <= '0;
+        wdt_restart_stb <= '0;
         state_errors_reset_stb <= '0;
         cmd_error_stb <= '0;
 
         case (cmd_state)
             CMD_IDLE: begin
                 bus_cyc <= '0;
-                timeout_active <= '0; // do not allow to trigger
 
                 if (uart_rx_valid && !uart_rx_ready) begin
                     uart_rx_ready <= 1'b1;
                     current_cmd <= uart_rx_data;
-                    timeout_start_stb <= '1;
+                    wdt_restart_stb <= '1;
                     cmd_state <= CMD_PARSE;
                 end
             end
@@ -292,7 +291,7 @@ always_ff @(posedge clk_i) begin
                     end
                     CMD_TYPE_STATE_READ: begin
                         state_reg_cnt <= 0;
-                        timeout_start_stb <= '1;
+                        wdt_restart_stb <= '1;
                         cmd_state <= CMD_SEND_READ_STATE;
                     end
                     default: begin
@@ -304,17 +303,16 @@ always_ff @(posedge clk_i) begin
             end
             
             CMD_READ_ARGS: begin
-                if (uart_rx_valid && !uart_rx_ready && args_to_receive > 0) begin
-                    timeout_active <= '1;
-                    timeout_start_stb <= '1;
+                if (args_to_receive == 0) begin
+                    cmd_state <= CMD_START_BUS_OP;
+                end if (uart_rx_valid && !uart_rx_ready) begin
+                    wdt_restart_stb <= '1;
                     uart_rx_ready <= 1'b1;
                     current_addr <= {current_addr[15:0], uart_rx_data};
                     args_to_receive <= args_to_receive - 1;
                 end else if (wdt_trigger) begin
                     cmd_error_stb <= '1;
                     cmd_state <= CMD_ERROR;
-                end else if (args_to_receive == 0) begin
-                    cmd_state <= CMD_START_BUS_OP;
                 end
             end
             
@@ -322,8 +320,7 @@ always_ff @(posedge clk_i) begin
                 bytes_remaining <= data_size;
                 bus_addr <= current_addr;
                 bus_cyc <= 1'b1;
-                timeout_start_stb <= '1;
-                timeout_active <= '1;
+                wdt_restart_stb <= '1;
 
                 if (bus_we) begin
                     cmd_state <= CMD_BUS_WRITE;
@@ -334,7 +331,7 @@ always_ff @(posedge clk_i) begin
             
             CMD_BUS_WRITE: begin
                 if (uart_rx_valid && !uart_rx_ready && bytes_remaining > 0) begin
-                    timeout_start_stb <= '1;                    
+                    wdt_restart_stb <= '1;                    
                     uart_rx_ready <= 1'b1;
                     bus_wr_data <= uart_rx_data;
                     bus_stb <= 1'b1;
@@ -377,7 +374,7 @@ always_ff @(posedge clk_i) begin
                     if (bus_ack && uart_tx_ready) begin
                         bus_stb <= 1'b0;  // Снимаем STB - сигнал что данные приняты
         
-                        timeout_start_stb <= '1;
+                        wdt_restart_stb <= '1;
                         uart_tx_valid <= 1'b1;
                         uart_tx_data <= bus_rd_data;
                         bytes_remaining <= bytes_remaining - 1;

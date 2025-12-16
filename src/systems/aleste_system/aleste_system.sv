@@ -224,9 +224,9 @@ module aleste_system #(
         // UART Interface
         .uart_rx(serial_rx),
         .uart_tx(serial_tx),
-        .uart_rx_bit_tick(serial_rx_clk),
-        .uart_rx_bit_tick_mid(serial_rx_clk_mid),
-        .uart_tx_clk(serial_tx_clk),
+        .uart_rx_tick(serial_rx_clk),
+        .uart_rx_tick_mid(serial_rx_clk_mid),
+        .uart_tx_tick(serial_tx_clk),
         .uart_rx_valid(uart_rx_valid),
         .uart_rx_ready(uart_rx_ready),
         .uart_tx_valid(uart_tx_valid),
