@@ -4,6 +4,7 @@ module i8255_wb
 	input            clk_i,
 	input            rst_i,
 	
+	input            cs_i,
 	input      [1:0] adr_i,
 	input      [7:0] dat_i,
 	output reg [7:0] dat_o,
@@ -70,7 +71,7 @@ always @(posedge clk_i) begin
 		end
 		
 		// Write operations
-		if (stb_i && we_i && !ack_o) begin
+		if (cs_i && stb_i && we_i && !ack_o) begin
 			case(adr_i)
 				2'b00: opa_r <= dat_i;
 				2'b01: opb_r <= dat_i;
@@ -91,7 +92,7 @@ always @(*) begin
 	ack_next = 1'b0;
 	dat_next = 8'hFF;
 	
-	if (stb_i && !ack_o) begin
+	if (cs_i && stb_i && !ack_o) begin
 		ack_next = 1'b1;
 		
 		if (we_i) begin
