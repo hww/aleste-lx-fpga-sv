@@ -58,11 +58,12 @@ module z80_debug (
     // ============================================================================
     // 0x01: SYSTEM STATUS 
     logic [7:0] system_status;
-
+    // Бит 0: CPU_STOPPED   (1 = CPU остановлен отладчиком)
+    // Бит 1: BP_HIT        (1 = сработала точка останова)
 
     // 0x01: CTRL_ACTION - одноразовые действия
     logic [7:0] ctrl_action_reg;
-    // Бит 0: CPU_RESET     (1 = сброс)
+    // Бит 0: - резерв
     // Бит 1: CPU_NMI       (1 = генерация NMI, автосброс)
     // Бит 2: CPU_INT       (1 = генерация INT, автосброс)
     // Бит 3: dbg_step_next_o     (1 = выполнить один шаг, автосброс)
@@ -95,10 +96,10 @@ module z80_debug (
     
     // 0x10: STATUS_CPU - статус процессора
     logic [7:0] status_cpu_reg;
-    // Бит 0: CPU_HALTED    (1 = CPU в состоянии HALT)
-    // Бит 1: CPU_WAITING   (1 = CPU в состоянии WAIT)
-    // Бит 2: CPU_STOPPED   (1 = CPU остановлен отладчиком)
-    // Бит 3: BP_HIT        (1 = сработала точка останова)
+    // Бит 0: CPU_STOPPED   (1 = CPU остановлен отладчиком)
+    // Бит 1: BP_HIT        (1 = сработала точка останова)
+    // Бит 2: CPU_HALTED    (1 = CPU в состоянии HALT)
+    // Бит 3: CPU_WAITING   (1 = CPU в состоянии WAIT)
     // Бит 4: M1_CYCLE      (1 = текущий цикл M1)
     // Бит 5: MEM_ACCESS    (1 = активен доступ к памяти)
     // Бит 6: IO_ACCESS     (1 = активен доступ к IO)
@@ -116,9 +117,8 @@ module z80_debug (
     // Бит 7: SLOT1         (current slot bit 1)
     
 
-    assign system_status[1:0] = system_status_i[1:0];
-    assign system_status[2] = status_cpu_reg[2];
-    assign system_status[7:3] = system_status_i[7:3];
+    assign system_status[1:0] = status_cpu_reg[1:0];
+    assign system_status[7:2] = system_status_i[7:2];
 
     // ============================================================================
     // Детекция состояний шины
@@ -232,10 +232,10 @@ module z80_debug (
     
     // STATUS_CPU регистр (0x10)
     always_comb begin
-        status_cpu_reg[0] = (z80_halt_n == 0);      // CPU_HALTED
-        status_cpu_reg[1] = (z80_wait_n == 0) || cpu_stopped; // CPU_WAITING
-        status_cpu_reg[2] = cpu_stopped;            // CPU_STOPPED
-        status_cpu_reg[3] = breakpoint_hit;         // BP_HIT
+        status_cpu_reg[0] = cpu_stopped;            // CPU_STOPPED
+        status_cpu_reg[1] = breakpoint_hit;         // BP_HIT
+        status_cpu_reg[2] = (z80_halt_n == 0);      // CPU_HALTED
+        status_cpu_reg[3] = (z80_wait_n == 0) || cpu_stopped; // CPU_WAITING
         status_cpu_reg[4] = is_m1_cycle;            // M1_CYCLE
         status_cpu_reg[5] = is_mem_access;          // MEM_ACCESS
         status_cpu_reg[6] = is_io_access;           // IO_ACCESS

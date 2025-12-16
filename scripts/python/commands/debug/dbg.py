@@ -128,7 +128,7 @@ class Z80Debugger:
             timeout = time.time() + 1.0
             while time.time() < timeout:
                 status = self.reg.read(0x10)
-                if status is not None and (status & 0x04):
+                if status is not None and (status & 0x01):
                     break
                 time.sleep(0.001)
             else:
@@ -226,8 +226,8 @@ class Z80Debugger:
             # Ждем
             timeout = time.time() + 1.0
             while time.time() < timeout:
-                status = self.reg.read(0x10)
-                if status is not None and (status & 0x04):
+                status = self.reg.read(0x0)
+                if status is not None and (status & 0x01):
                     break
                 time.sleep(0.001)
             else:
@@ -458,10 +458,10 @@ class Z80Debugger:
                 'pc': (((mmu >> 6) & 0x03) << 14) + (addr & 0x3FFF),
                 'bus': bus,
                 'type': op_type,
-                'halted': bool(status & 0x01),
-                'waiting': bool(status & 0x02),
-                'stopped': bool(status & 0x04),
-                'bp_hit': bool(status & 0x08),
+                'stopped': bool(status & 0x01),
+                'bp_hit': bool(status & 0x02),
+                'halted': bool(status & 0x04),
+                'waiting': bool(status & 0x08),
                 'm1': bool(status & 0x10),
                 'mmu_native': bool(mmu & 0x01)
             }
