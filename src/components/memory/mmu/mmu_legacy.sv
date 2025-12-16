@@ -40,6 +40,7 @@ module mmu_legacy (
     input  logic [7:0]  cpu_din,                  // Z80 data out
     output logic [7:0]  cpu_dout,                 // Z80 data in  
     output logic        cpu_mmu_access_o,         // Access to mmu
+
     // -------------------------------------------------------------------------
     // CPC Control Outputs
     // -------------------------------------------------------------------------
@@ -56,11 +57,35 @@ module mmu_legacy (
 );
 
     // =========================================================================
+    // Constants
+    // =========================================================================
+    localparam TOTAL_ROM_BANKS = 256;             // 256 unique ROM banks
+    localparam LOWER_ROM_BANK = 8'hFC;            // Bank (FC) for Lower ROM, (FF) for CPM 
+    localparam CPC_RAM_SLOT = 2'b00;              // Slot 0: 0xC00000-0xFFFFFF
+    localparam CPC_ROM_SLOT = 2'b01;              // Slot 1: 0xC00000-0xFFFFFF
+
+    // =========================================================================
     // Internal Registers (CPC 6128 Compatible)
     // =========================================================================
     logic [7:0] reg_rmr;                          // RMR: Control Interrupt counter, ROM mapping
     logic [7:0] reg_mmr;                          // MMR: RAM memory mapping  
     logic [7:0] reg_upper_rom;                    // Upper ROM selection register
+    logic [1:0] gate_array_reg;                   // Gate Array register type
+    
+    // =========================================================================
+    // Memory Configuration
+    // =========================================================================
+    logic [2:0]  rmr_config;                   // Current memory configuration
+    logic [2:0]  rmr_bank;                     // Current memory bank base
+    logic cfg_lower_rom, cfg_upper_rom;
+
+    assign rmr_config =  reg_mmr[2:0];          // Memory configuration bits
+    assign rmr_bank   =  reg_mmr[5:3];          // 64KB memory bank base address
+    
+    assign cfg_graphic_mode = reg_rmr[1:0];           // CPC graphics mode (0-3)
+    assign cfg_lower_rom    = reg_rmr[2];             // 1=Lower ROM area disable, 0=Lower ROM area enable 
+    assign cfg_upper_rom    = reg_rmr[3];             // 1=Upper ROM area disable, 0=Upper ROM area enable 
+    assign cfg_irq_control  = reg_rmr[4];             // Interrupt generation control
 
     // =========================================================================
     // Z80 Bus Decoding Signals
@@ -74,16 +99,6 @@ module mmu_legacy (
     logic        is_internal_io;                  // Internal I/O register access
     logic        is_gate_array_reg_write;         // Gate Array register write
 
-    // =========================================================================
-    // Gate Array Control Signals
-    // =========================================================================
-    logic [1:0]  gate_array_reg;                  // Gate Array register type
-
-    // =========================================================================
-    // Memory Configuration
-    // =========================================================================
-    logic [2:0]  memory_config;                   // Current memory configuration
-    logic [4:0]  memory_bank;                     // Current memory bank base
 
     // =========================================================================
     // Address Calculation
@@ -122,7 +137,7 @@ module mmu_legacy (
     assign gate_array_reg = cpu_din[7:6];         // Register type from data bits
 
     // =========================================================================
-    // CPC REGISTER UPDATE FROM Z80 BUS (DIRECT CPU ACCESS)
+    // CPC REGISTER UPDATE FROM Z80 BUS
     // =========================================================================
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -151,12 +166,93 @@ module mmu_legacy (
     // =========================================================================
     // MEMORY CONFIGURATION DECODING
     // =========================================================================
-    assign memory_config = reg_mmr[2:0];          // Memory configuration bits
-    assign memory_bank   = {reg_mmr[5:3], 2'b00}; // 64KB memory bank base address
+    logic [2:0] ram_page_num;
 
-    // =========================================================================
-    // COMPLEX MEMORY ADDRESS CALCULATION (CPC 6128 COMPATIBLE)
-    // =========================================================================
+    always_comb begin
+        case (rmr_config)  // rmr_config = reg_mmr[2:0]
+            // Config 0: RAM_0, RAM_1, RAM_2, RAM_3
+            3'b000: begin
+                case (cpu_a[15:14])
+                    2'b00: ram_page_num = 3'd0;  // RAM_0
+                    2'b01: ram_page_num = 3'd1;  // RAM_1
+                    2'b10: ram_page_num = 3'd2;  // RAM_2
+                    2'b11: ram_page_num = 3'd3;  // RAM_3
+                endcase
+            end
+            
+            // Config 1: RAM_0, RAM_1, RAM_2, RAM_7
+            3'b001: begin
+                case (cpu_a[15:14])
+                    2'b00: ram_page_num = 3'd0;  // RAM_0
+                    2'b01: ram_page_num = 3'd1;  // RAM_1
+                    2'b10: ram_page_num = 3'd2;  // RAM_2
+                    2'b11: ram_page_num = 3'd7;  // RAM_7
+                endcase
+            end
+            
+            // Config 2: RAM_4, RAM_5, RAM_6, RAM_7
+            3'b010: begin
+                case (cpu_a[15:14])
+                    2'b00: ram_page_num = 3'd4;  // RAM_4
+                    2'b01: ram_page_num = 3'd5;  // RAM_5
+                    2'b10: ram_page_num = 3'd6;  // RAM_6
+                    2'b11: ram_page_num = 3'd7;  // RAM_7
+                endcase
+            end
+            
+            // Config 3: RAM_0, RAM_3, RAM_2, RAM_7
+            3'b011: begin
+                case (cpu_a[15:14])
+                    2'b00: ram_page_num = 3'd0;  // RAM_0
+                    2'b01: ram_page_num = 3'd3;  // RAM_3
+                    2'b10: ram_page_num = 3'd2;  // RAM_2
+                    2'b11: ram_page_num = 3'd7;  // RAM_7
+                endcase
+            end
+            
+            // Config 4: RAM_0, RAM_4, RAM_2, RAM_3
+            3'b100: begin
+                case (cpu_a[15:14])
+                    2'b00: ram_page_num = 3'd0;  // RAM_0
+                    2'b01: ram_page_num = 3'd4;  // RAM_4
+                    2'b10: ram_page_num = 3'd2;  // RAM_2
+                    2'b11: ram_page_num = 3'd3;  // RAM_3
+                endcase
+            end
+            
+            // Config 5: RAM_0, RAM_5, RAM_2, RAM_3
+            3'b101: begin
+                case (cpu_a[15:14])
+                    2'b00: ram_page_num = 3'd0;  // RAM_0
+                    2'b01: ram_page_num = 3'd5;  // RAM_5
+                    2'b10: ram_page_num = 3'd2;  // RAM_2
+                    2'b11: ram_page_num = 3'd3;  // RAM_3
+                endcase
+            end
+            
+            // Config 6: RAM_0, RAM_6, RAM_2, RAM_3
+            3'b110: begin
+                case (cpu_a[15:14])
+                    2'b00: ram_page_num = 3'd0;  // RAM_0
+                    2'b01: ram_page_num = 3'd6;  // RAM_6
+                    2'b10: ram_page_num = 3'd2;  // RAM_2
+                    2'b11: ram_page_num = 3'd3;  // RAM_3
+                endcase
+            end
+            
+            // Config 7: RAM_0, RAM_7, RAM_2, RAM_3
+            3'b111: begin
+                case (cpu_a[15:14])
+                    2'b00: ram_page_num = 3'd0;  // RAM_0
+                    2'b01: ram_page_num = 3'd7;  // RAM_7
+                    2'b10: ram_page_num = 3'd2;  // RAM_2
+                    2'b11: ram_page_num = 3'd3;  // RAM_3
+                endcase
+            end
+
+        endcase        
+    end
+
     always_comb begin
         // Default values
         io_physical_address = 24'h000000;
@@ -166,55 +262,29 @@ module mmu_legacy (
         ram_access = 1'b1;
 
         if (is_mem_access) begin
-            // CPC 6128 memory mapping configurations
-            case (memory_config)
-                // Config 0: Standard 64K mapping
-                3'b000: ram_physical_address = {8'h00, cpu_a};
-                
-                // Config 1: RAM 0,1,2,3 (sequential banks)
-                3'b001: begin
-                    case (cpu_a[15:14])
-                        2'b00: ram_physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
-                        2'b01: ram_physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
-                        2'b10: ram_physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
-                        2'b11: ram_physical_address = {memory_bank + 3'd3, cpu_a[13:0]};
-                    endcase
-                end
-                
-                // Config 2: RAM 0,1,2,7 (bank 7 in upper memory)
-                3'b010: begin
-                    case (cpu_a[15:14])
-                        2'b00: ram_physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
-                        2'b01: ram_physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
-                        2'b10: ram_physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
-                        2'b11: ram_physical_address = {memory_bank + 3'd7, cpu_a[13:0]};
-                    endcase
-                end
-                
-                // Config 3: RAM 0,1,2,3 (with bank offset)
-                3'b011: begin
-                    case (cpu_a[15:14])
-                        2'b00: ram_physical_address = {memory_bank + 3'd0, cpu_a[13:0]};
-                        2'b01: ram_physical_address = {memory_bank + 3'd1, cpu_a[13:0]};
-                        2'b10: ram_physical_address = {memory_bank + 3'd2, cpu_a[13:0]};
-                        2'b11: ram_physical_address = {memory_bank + 3'd3, cpu_a[13:0]};
-                    endcase
-                end
-                
-                // Config 4-7: Similar patterns
-                default: ram_physical_address = {memory_bank, cpu_a[15:0]};
-            endcase
+
+            if (ram_page_num[2] == 0) begin
+                // standart
+                //                         2bits      3bits    3bits       16bits
+                ram_physical_address = {CPC_RAM_SLOT, 3'b000, 3'b000,   cpu_a[15:0]};
+            end else begin
+                // expanded
+                //                         2bits      3bits    3bits        2bits           14bits
+                ram_physical_address = {CPC_RAM_SLOT, 3'b010, rmr_bank, ram_page_num[1:0], cpu_a[13:0]};
+            end
 
             // ROM access overrides (CPC ROM banking)
-            if (cpu_a[15:14] == 2'b00 && ~reg_rmr[2]) begin
+            if (cpu_a[15:14] == 2'b00 && ~cfg_lower_rom) begin
                 // Lower ROM access (0000-3FFF) when enabled
-                rom_physical_address = {10'b0100000000, cpu_a[13:0]}; // Fixed ROM address
+                //                      2bits            8bits              16bits
+                rom_physical_address = {CPC_ROM_SLOT, LOWER_ROM_BANK[7:2], cpu_a[15:0]}; // Fixed ROM address
                 rom_access = 1'b1;
                 ram_access = 1'b0;
             end
-            else if (cpu_a[15:14] == 2'b11 && ~reg_rmr[3]) begin
+            else if (cpu_a[15:14] == 2'b11 && ~cfg_upper_rom) begin
                 // Upper ROM access (C000-FFFF) when enabled
-                rom_physical_address = {2'b01, reg_upper_rom, cpu_a[13:0]};
+                //                        2bits         8bits           14bits
+                rom_physical_address = {CPC_ROM_SLOT, reg_upper_rom, cpu_a[13:0]};
                 rom_access = 1'b1;
                 ram_access = 1'b0;
             end
@@ -222,8 +292,8 @@ module mmu_legacy (
         // IO Address      
         else if (is_io_access & ~is_internal_io) begin
             // External I/O accesses go to Wishbone
-            // Map to FFxxxxh IO space (24-bit address)
-            io_physical_address = {8'hFF, cpu_a};
+            // Map to 3Fxxxxh IO space (24-bit address)
+            io_physical_address = {8'h3F, cpu_a};
         end
     end
 
@@ -239,12 +309,6 @@ module mmu_legacy (
             physical_address = ram_physical_address;
         end
     end
-
-    // =========================================================================
-    // CPC CONTROL OUTPUTS
-    // =========================================================================
-    assign cfg_graphic_mode = reg_rmr[1:0];           // CPC graphics mode (0-3)
-    assign cfg_irq_control  = reg_rmr[4];             // Interrupt generation control
 
     // =========================================================================
     // DEBUG OUTPUTS
@@ -293,6 +357,6 @@ module mmu_legacy (
     // Простое чтение данных от Wishbone
     assign cpu_dout = m_wb_dat_i;
 
-
     assign cpu_mmu_access_o = is_internal_io;
+
 endmodule
