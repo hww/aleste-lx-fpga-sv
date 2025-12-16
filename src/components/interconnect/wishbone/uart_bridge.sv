@@ -122,8 +122,9 @@ typedef enum logic [3:0] {
     CMD_START_BUS_OP,
     CMD_BUS_WRITE,
     CMD_WAIT_WRITE_ACK,
-    CMD_BUS_READ,
+    CMD_BUS_READ,      
     CMD_WAIT_READ_ACK,
+    CMD_SEND_READ_DATA,
     CMD_SEND_READ_STATE,
     CMD_SEND_RESPONSE,
     CMD_ERROR
@@ -330,70 +331,85 @@ always_ff @(posedge clk_i) begin
             end
             
             CMD_BUS_WRITE: begin
-                if (uart_rx_valid && !uart_rx_ready && bytes_remaining > 0) begin
-                    wdt_restart_stb <= '1;                    
-                    uart_rx_ready <= 1'b1;
-                    bus_wr_data <= uart_rx_data;
-                    bus_stb <= 1'b1;
-                    cmd_state <= CMD_WAIT_WRITE_ACK;
+                if (bytes_remaining == 0) begin
+                    bus_cyc     <= 1'b0;
+                    cmd_state   <= CMD_IDLE;       
+                end else if (uart_rx_valid && !uart_rx_ready) begin
+                    wdt_restart_stb <= 1'b1;                    
+                    uart_rx_ready   <= 1'b1;
+                    bus_stb         <= 1'b1;
+                    bus_wr_data     <= uart_rx_data;
+                    cmd_state       <= CMD_WAIT_WRITE_ACK;
                 end
             end
-            
+
             CMD_WAIT_WRITE_ACK: begin
                 if (bus_ack) begin
-                    bus_stb <= 1'b0;
+                    bus_stb         <= 1'b0;
                     bytes_remaining <= bytes_remaining - 1;
-                    
-                    if (bytes_remaining == 1) begin
-                        bus_cyc <= 1'b0;
-                        //response_data <= RESP_OK;
-                        //cmd_state <= CMD_SEND_RESPONSE;
-                        cmd_state <= CMD_IDLE;
-                    end else begin
-                        bus_addr <= bus_addr + 1;
-                        cmd_state <= CMD_BUS_WRITE;
-                    end
-                end else if (bus_error_stb || wdt_trigger) begin
-                    bus_cyc <= 1'b0;
-                    response_data <= RESP_ERROR;
-                    cmd_error_stb <= '1;
-                    cmd_state <= CMD_ERROR;
+                    bus_addr        <= bus_addr + 1;
+                    cmd_state       <= CMD_BUS_WRITE;
+                end else if (bus_error_stb) begin
+                    bus_cyc         <= 1'b0;
+                    cmd_error_stb   <= 1'b1;
+                    response_data   <= RESP_ERROR;
+                    cmd_state       <= CMD_ERROR;
                 end
             end
-            
+
+         
             CMD_BUS_READ: begin
-                if (uart_rx_valid || bus_error_stb) begin
+                if (bytes_remaining == 0) begin
+                    bus_cyc         <= 1'b0;
+                    cmd_state       <= CMD_IDLE;
+                end else begin
+                    // Активируем шину если ещё не активирована
+                    if (!bus_stb) begin
+                        bus_stb <= 1'b1;
+                        cmd_state <= CMD_WAIT_READ_ACK;
+                    end
+                end
+            end
+
+            CMD_WAIT_READ_ACK: begin
+                if (bus_ack) begin
+                    // Данные гарантированно в bus_rd_data
+                    bus_stb         <= 1'b0;
+                    //read_data       <= bus_rd_data;  // Сохраняем прочитанные данные
+                    bytes_remaining <= bytes_remaining - 1;
+                    cmd_state       <= CMD_SEND_READ_DATA;
+                end else if (bus_error_stb) begin
+                    bus_cyc         <= 1'b0;
+                    bus_stb         <= 1'b0;
+                    cmd_error_stb   <= 1'b1;
+                    response_data   <= RESP_ERROR;
+                    cmd_state       <= CMD_ERROR;
+                end
+            end
+
+            CMD_SEND_READ_DATA: begin
+                // Ждём готовности UART TX для отправки
+                if (uart_tx_ready) begin
+                    wdt_restart_stb <= 1'b1;
+                    uart_tx_valid   <= 1'b1;
+                    uart_tx_data    <= bus_rd_data;  // Используем сохранённые данные
+                    
+                    if (bytes_remaining == 0) begin
+                        bus_cyc     <= 1'b0;
+                        cmd_state   <= CMD_IDLE;
+                    end else begin
+                        bus_addr    <= bus_addr + 1;
+                        cmd_state   <= CMD_BUS_READ;  // Возвращаемся за следующим байтом
+                    end
+                end else if (wdt_trigger) begin
                     cmd_error_stb <= '1;
                     cmd_state <= CMD_ERROR;
-                    uart_rx_ready <= '1;
-                end 
-                if (!bus_stb) begin
-                    bus_stb <= 1'b1;
-                end else begin               
-                    // bus_ack теперь уровень - данные гарантированно в bus_rd_data
-                    if (bus_ack && uart_tx_ready) begin
-                        bus_stb <= 1'b0;  // Снимаем STB - сигнал что данные приняты
-        
-                        wdt_restart_stb <= '1;
-                        uart_tx_valid <= 1'b1;
-                        uart_tx_data <= bus_rd_data;
-                        bytes_remaining <= bytes_remaining - 1;
-                        
-                        if (bytes_remaining == 1) begin
-                            bus_cyc <= 1'b0;
-                            //response_data <= RESP_OK;
-                            //cmd_state <= CMD_SEND_RESPONSE;
-                            cmd_state <= CMD_IDLE;
-                        end else begin
-                            bus_addr <= bus_addr + 1;
-                            // Остаемся в CMD_BUS_READ для следующего байта
-                        end
-                    end
                 end
             end
 
             CMD_SEND_READ_STATE: begin
                 if (uart_tx_ready && !uart_tx_valid) begin
+                    wdt_restart_stb <= 1'b1;
                     uart_tx_valid <= 1'b1;  // Импульс на 1 такт
                     state_reg_cnt <= state_reg_cnt == 3'd7 ? 3'd7 : state_reg_cnt + 3'd1;
                     case (state_reg_cnt) 
@@ -409,7 +425,10 @@ always_ff @(posedge clk_i) begin
                             cmd_state <= CMD_IDLE;
                         end
                     endcase
-                end
+                end else if (wdt_trigger) begin
+                    cmd_error_stb <= '1;
+                    cmd_state <= CMD_ERROR;
+                end                    
             end
 
             CMD_SEND_RESPONSE: begin
@@ -425,7 +444,12 @@ always_ff @(posedge clk_i) begin
                     uart_tx_valid <= 1'b1;  // Импульс на 1 такт
                     uart_tx_data <= response_data;
                     cmd_state <= CMD_IDLE;
-                end
+                end else if (wdt_trigger) begin
+                    // Worst case we can't send back the answer with the error
+                    // strange but just gaveup
+                    cmd_error_stb <= '1;
+                    cmd_state <= CMD_IDLE;
+                end    
             end
             
             default: cmd_state <= CMD_IDLE;
