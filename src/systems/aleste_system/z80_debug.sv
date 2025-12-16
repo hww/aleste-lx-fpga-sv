@@ -33,11 +33,14 @@ module z80_debug (
     input  logic        z80_busrq_n,
     input  logic        z80_wait_n,
     
+    // Системный статус
+    input  logic [7:0]  system_status_i,
+
     // MMU Interface (мониторинг) - только режимы
     input  logic        mmu_native_mode,
     input  logic        mmu_supervisor,
     input  logic        mmu_native_user_lock,
-    input  logic [1:0]  mmu_current_slot,
+    input  logic [1:0]  mmu_page,
     input  logic        dbg_z80_wait_i,
 
     // CPU Control Outputs (минимальное управление)    
@@ -47,14 +50,17 @@ module z80_debug (
     output logic        dbg_int_o,       // Генерация INT (импульс)
     output logic        dbg_step_next_o  // Импульс шага
 );
-
+    wire dbg_step_mode;
     wire dbus_active = dbus_cyc_i && dbus_stb_i && dbus_cs_i;
 
     // ============================================================================
     // Регистры управления
     // ============================================================================
-    
-    // 0x00: CTRL_ACTION - одноразовые действия
+    // 0x01: SYSTEM STATUS 
+    logic [7:0] system_status;
+
+
+    // 0x01: CTRL_ACTION - одноразовые действия
     logic [7:0] ctrl_action_reg;
     // Бит 0: CPU_RESET     (1 = сброс)
     // Бит 1: CPU_NMI       (1 = генерация NMI, автосброс)
@@ -62,8 +68,8 @@ module z80_debug (
     // Бит 3: dbg_step_next_o     (1 = выполнить один шаг, автосброс)
     // Бит 4: - резерв
     // Бит 5: - резерв
-    // Бит 6: - резерв
-    // Бит 7: - резерв
+    // Бит 6: STEP_MODE     (1 = включить отладку)
+    // Бит 7: CPU_RESET     (1 = сброс)
     
     // 0x02: CTRL_STOP - управление остановками
     logic [7:0] ctrl_stop_reg;
@@ -109,6 +115,11 @@ module z80_debug (
     // Бит 6: SLOT0         (current slot bit 0)
     // Бит 7: SLOT1         (current slot bit 1)
     
+
+    assign system_status[1:0] = system_status_i[1:0];
+    assign system_status[2] = status_cpu_reg[2];
+    assign system_status[7:3] = system_status_i[7:3];
+
     // ============================================================================
     // Детекция состояний шины
     // ============================================================================
@@ -199,8 +210,10 @@ module z80_debug (
     // ============================================================================
     
     // RESET - уровень (удержание)
-    assign dbg_reset_o = ctrl_action_reg[0];
-    
+    assign dbg_reset_o = ctrl_action_reg[7];
+	// Вкобчить отладку
+    assign dbg_step_mode = ctrl_action_reg[6];
+
     // NMI - импульс (автосброс на следующем такте)
     assign dbg_nmi_o = ctrl_action_reg[1];
     
@@ -235,8 +248,8 @@ module z80_debug (
         mmu_status_reg[0] = mmu_native_mode;      // NATIVE_MODE
         mmu_status_reg[1] = mmu_supervisor;       // SUPERVISOR
         mmu_status_reg[4] = mmu_native_user_lock; // USER_LOCK
-        mmu_status_reg[6] = mmu_current_slot[0];  // SLOT0
-        mmu_status_reg[7] = mmu_current_slot[1];  // SLOT1
+        mmu_status_reg[6] = mmu_page[0];  // SLOT0
+        mmu_status_reg[7] = mmu_page[1];  // SLOT1
     end
     
     // ============================================================================
@@ -273,7 +286,7 @@ module z80_debug (
 
                     if (dbus_we_i) begin
                         case (dbus_addr_i)
-                            8'h00: ctrl_action_reg <= dbus_data_i;          // CTRL_ACTION
+                            8'h01: ctrl_action_reg <= dbus_data_i;          // CTRL_ACTION
                             8'h02: ctrl_stop_reg <= dbus_data_i;            // CTRL_STOP
                             8'h03: breakpoint_addr[23:16] <= dbus_data_i;   // BP_ADDR_H
                             8'h04: breakpoint_addr[15:8] <= dbus_data_i;    // BP_ADDR_M
@@ -294,8 +307,8 @@ module z80_debug (
     always_comb begin
         case (dbus_addr_i)
             // Регистры управления (R/W)
-            8'h00: dbus_data_mux = ctrl_action_reg;            // CTRL_ACTION
-            8'h01: dbus_data_mux = 8'hA5;                      // RESERV
+            8'h00: dbus_data_mux = system_status;              // SYSTEM STATUS
+            8'h01: dbus_data_mux = ctrl_action_reg;            // CTRL_ACTION
             8'h02: dbus_data_mux = ctrl_stop_reg;              // CTRL_STOP
             8'h03: dbus_data_mux = breakpoint_addr[23:16];     // BP_ADDR_H
             8'h04: dbus_data_mux = breakpoint_addr[15:8];      // BP_ADDR_M

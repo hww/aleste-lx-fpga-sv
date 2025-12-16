@@ -319,6 +319,9 @@ module aleste_system #(
         .nmi_req_i(1'b0),                   // No NMI for now
         .int_req_i(1'b0),                   // No interrupts for now
    
+        // System status
+        .system_status_i(8'h00),
+
         // System Control Outputs
         .graphic_mode(z80_graphic_mode),
         .irq_control(z80_irq_control),

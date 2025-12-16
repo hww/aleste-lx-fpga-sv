@@ -30,6 +30,9 @@ module z80_system (
     input  logic        nmi_req_i,
     input  logic        int_req_i,
 
+    // System status
+    input logic  [7:0]  system_status_i,
+
     // System Outputs
     output logic [1:0]  graphic_mode,
     output logic        irq_control,
@@ -274,7 +277,10 @@ module z80_system (
         .mmu_native_mode(native_mode),   // Работает нативный режим
         .mmu_supervisor(native_supervisor_mode),    // User lock редим 
         .mmu_native_user_lock(native_user_lock),    // 
-        .mmu_current_slot(native_current_slot),
+        .mmu_page(z80_a[15:14]),
+
+        // Статус системы
+        .system_status_i(system_status_i),
 
         // CPU Control Outputs
         .dbg_z80_wait_i(wbm_z80_wait),
