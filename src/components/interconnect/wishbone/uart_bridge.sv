@@ -116,21 +116,22 @@ uart #(
 // ============================================================================
 
 typedef enum logic [3:0] {
-    CMD_IDLE,
-    CMD_PARSE,
-    CMD_READ_ARGS,
-    CMD_START_BUS_OP,
-    CMD_BUS_WRITE,
-    CMD_WAIT_WRITE_ACK,
-    CMD_BUS_READ,      
-    CMD_WAIT_READ_ACK,
-    CMD_SEND_READ_DATA,
-    CMD_SEND_READ_STATE,
-    CMD_SEND_RESPONSE,
-    CMD_ERROR
+    STATE_IDLE,                         //0
+    STATE_COMMAND_PARSE,                //1
+    STATE_READ_ARGS,                    //2
+    STATE_BUS_OP_START,                 //3
+    STATE_BUS_WRITE_WAIT_RX,            //4
+    STATE_BUS_WRITE_WAIT_ACK,           //5
+    STATE_BUS_READ_START,               //6
+    STATE_BUS_READ_WAIT_TRANSMITTER,    //7  
+    STATE_BUS_READ_WAIT_ACK,            //8
+    STATE_BUS_READ_SEND_DATA,           //9
+    STATE_SEND_STATE,                   //10
+    STATE_SEND_OK,                      //11
+    STATE_SEND_ERROR                    //12
 } cmd_state_t;
 
-cmd_state_t cmd_state = CMD_IDLE;
+cmd_state_t cmd_state = STATE_IDLE;
 
 // Command registers
 logic [7:0]  current_cmd;
@@ -140,13 +141,13 @@ logic [7:0]  data_size;
 logic [7:0]  bytes_remaining;
 logic [2:0]  args_to_receive;
 logic [7:0]  response_data;
-logic        cmd_error_stb;
+logic        STATE_SEND_ERROR_stb;
 logic [7:0]  state_reg_command;
 logic [7:0]  state_reg_fsms;
 logic [2:0]  state_reg_cnt;
 logic [7:0]  state_reg_errors;    // Бит [2:0] - ошибки, [7:3] - резерв
 logic [7:0]  state_reg_bus_ctrl;  // Управление шиной
-logic        state_errors_reset_stb; // reset the state
+logic        STATE_SEND_ERRORs_reset_stb; // reset the state
 
 // Bus control signals (MASTER -> SLAVE)
 logic        bus_cyc;
@@ -216,7 +217,7 @@ endfunction
 
 always_ff @(posedge clk_i) begin
     if (rst) begin
-        cmd_state <= CMD_IDLE;
+        cmd_state <= STATE_IDLE;
         current_cmd <= '0;
         current_addr <= '0;
         current_data <= '0;
@@ -226,36 +227,36 @@ always_ff @(posedge clk_i) begin
         uart_rx_ready <= '0;
         uart_tx_valid <= '0;
         response_data <= '0;
-        cmd_error_stb <= '0;
+        STATE_SEND_ERROR_stb <= '0;
         bus_cyc <= '0;
         bus_stb <= '0;
         bus_we <= '0;
         bus_mem_access <= '0;
         bus_addr <= '0;
         bus_wr_data <= '0;
-        state_errors_reset_stb <= '0;
+        STATE_SEND_ERRORs_reset_stb <= '0;
 
 
     end else begin
         uart_rx_ready <= '0;
         uart_tx_valid <= '0;
         wdt_restart_stb <= '0;
-        state_errors_reset_stb <= '0;
-        cmd_error_stb <= '0;
+        STATE_SEND_ERRORs_reset_stb <= '0;
+        STATE_SEND_ERROR_stb <= '0;
 
         case (cmd_state)
-            CMD_IDLE: begin
+            STATE_IDLE: begin
                 bus_cyc <= '0;
 
                 if (uart_rx_valid && !uart_rx_ready) begin
                     uart_rx_ready <= 1'b1;
                     current_cmd <= uart_rx_data;
                     wdt_restart_stb <= '1;
-                    cmd_state <= CMD_PARSE;
+                    cmd_state <= STATE_COMMAND_PARSE;
                 end
             end
             
-            CMD_PARSE: begin
+            STATE_COMMAND_PARSE: begin
                 data_size <= get_data_size(current_cmd);
                 
                 case (get_cmd_type(current_cmd))
@@ -263,151 +264,148 @@ always_ff @(posedge clk_i) begin
                         args_to_receive <= 3;
                         bus_mem_access <= 1'b1;
                         bus_we <= 1'b0;
-                        cmd_state <= CMD_READ_ARGS;
+                        cmd_state <= STATE_READ_ARGS;
                     end
                     CMD_TYPE_MEM_WRITE: begin
                         args_to_receive <= 3;
                         bus_mem_access <= 1'b1;
                         bus_we <= 1'b1;
-                        cmd_state <= CMD_READ_ARGS;
+                        cmd_state <= STATE_READ_ARGS;
                     end
                     CMD_TYPE_REG_READ: begin
                         args_to_receive <= 1;
                         bus_mem_access <= 1'b0;
                         bus_we <= 1'b0;
-                        cmd_state <= CMD_READ_ARGS;
+                        cmd_state <= STATE_READ_ARGS;
                     end
                     CMD_TYPE_REG_WRITE: begin
                         args_to_receive <= 1;
                         bus_mem_access <= 1'b0;
                         bus_we <= 1'b1;
-                        cmd_state <= CMD_READ_ARGS;
+                        cmd_state <= STATE_READ_ARGS;
                     end
                     CMD_TYPE_STATUS: begin
                         args_to_receive <= 0;
                         bus_mem_access <= 1'b0;
                         bus_we <= 1'b0;
                         current_addr <= 0;
-                        cmd_state <= CMD_START_BUS_OP;
+                        cmd_state <= STATE_BUS_OP_START;
                     end
                     CMD_TYPE_STATE_READ: begin
                         state_reg_cnt <= 0;
                         wdt_restart_stb <= '1;
-                        cmd_state <= CMD_SEND_READ_STATE;
+                        cmd_state <= STATE_SEND_STATE;
                     end
                     default: begin
                         response_data <= RESP_ERROR;
-                        cmd_error_stb <= '1;
-                        cmd_state <= CMD_ERROR;
+                        STATE_SEND_ERROR_stb <= '1;
+                        cmd_state <= STATE_SEND_ERROR;
                     end
                 endcase
             end
             
-            CMD_READ_ARGS: begin
+            STATE_READ_ARGS: begin
                 if (args_to_receive == 0) begin
-                    cmd_state <= CMD_START_BUS_OP;
-                end if (uart_rx_valid && !uart_rx_ready) begin
+                    cmd_state <= STATE_BUS_OP_START;
+                end else if (uart_rx_valid && !uart_rx_ready) begin
                     wdt_restart_stb <= '1;
                     uart_rx_ready <= 1'b1;
                     current_addr <= {current_addr[15:0], uart_rx_data};
                     args_to_receive <= args_to_receive - 1;
                 end else if (wdt_trigger) begin
-                    cmd_error_stb <= '1;
-                    cmd_state <= CMD_ERROR;
+                    STATE_SEND_ERROR_stb <= '1;
+                    cmd_state <= STATE_SEND_ERROR;
                 end
             end
             
-            CMD_START_BUS_OP: begin
+            STATE_BUS_OP_START: begin
                 bytes_remaining <= data_size;
                 bus_addr <= current_addr;
                 bus_cyc <= 1'b1;
                 wdt_restart_stb <= '1;
 
                 if (bus_we) begin
-                    cmd_state <= CMD_BUS_WRITE;
+                    cmd_state <= STATE_BUS_WRITE_WAIT_RX;
                 end else begin
-                    cmd_state <= CMD_BUS_READ;
+                    cmd_state <= STATE_BUS_READ_START;
                 end
             end
             
-            CMD_BUS_WRITE: begin
+            STATE_BUS_WRITE_WAIT_RX: begin
                 if (bytes_remaining == 0) begin
                     bus_cyc     <= 1'b0;
-                    cmd_state   <= CMD_IDLE;       
+                    bus_stb     <= 1'b0;
+                    cmd_state   <= STATE_IDLE;       
                 end else if (uart_rx_valid && !uart_rx_ready) begin
                     wdt_restart_stb <= 1'b1;                    
                     uart_rx_ready   <= 1'b1;
                     bus_stb         <= 1'b1;
                     bus_wr_data     <= uart_rx_data;
-                    cmd_state       <= CMD_WAIT_WRITE_ACK;
+                    cmd_state       <= STATE_BUS_WRITE_WAIT_ACK;
                 end
             end
 
-            CMD_WAIT_WRITE_ACK: begin
+            STATE_BUS_WRITE_WAIT_ACK: begin
                 if (bus_ack) begin
                     bus_stb         <= 1'b0;
                     bytes_remaining <= bytes_remaining - 1;
                     bus_addr        <= bus_addr + 1;
-                    cmd_state       <= CMD_BUS_WRITE;
+                    cmd_state       <= STATE_BUS_WRITE_WAIT_RX;
                 end else if (bus_error_stb) begin
                     bus_cyc         <= 1'b0;
-                    cmd_error_stb   <= 1'b1;
+                    STATE_SEND_ERROR_stb   <= 1'b1;
                     response_data   <= RESP_ERROR;
-                    cmd_state       <= CMD_ERROR;
+                    cmd_state       <= STATE_SEND_ERROR;
                 end
             end
 
-         
-            CMD_BUS_READ: begin
+            STATE_BUS_READ_START: begin
                 if (bytes_remaining == 0) begin
                     bus_cyc         <= 1'b0;
-                    cmd_state       <= CMD_IDLE;
+                    bus_stb         <= 1'b0;                    
+                    cmd_state       <= STATE_IDLE;
                 end else begin
-                    // Активируем шину если ещё не активирована
-                    if (!bus_stb) begin
-                        bus_stb <= 1'b1;
-                        cmd_state <= CMD_WAIT_READ_ACK;
-                    end
+                    wdt_restart_stb <= 1'b1;
+                    cmd_state <= STATE_BUS_READ_WAIT_TRANSMITTER;
                 end
             end
 
-            CMD_WAIT_READ_ACK: begin
+            STATE_BUS_READ_WAIT_TRANSMITTER: begin
+                if (uart_tx_ready) begin
+                    // Активируем шину если ещё не активирована
+                    bus_stb <= 1'b1;
+                    cmd_state <= STATE_BUS_READ_WAIT_ACK;
+                end else if (wdt_trigger) begin
+                    STATE_SEND_ERROR_stb <= '1;
+                    cmd_state <= STATE_SEND_ERROR;                    
+                end
+            end
+
+            STATE_BUS_READ_WAIT_ACK: begin
                 if (bus_ack) begin
                     // Данные гарантированно в bus_rd_data
                     bus_stb         <= 1'b0;
-                    //read_data       <= bus_rd_data;  // Сохраняем прочитанные данные
-                    bytes_remaining <= bytes_remaining - 1;
-                    cmd_state       <= CMD_SEND_READ_DATA;
+                    cmd_state       <= STATE_BUS_READ_SEND_DATA;
                 end else if (bus_error_stb) begin
                     bus_cyc         <= 1'b0;
                     bus_stb         <= 1'b0;
-                    cmd_error_stb   <= 1'b1;
+                    STATE_SEND_ERROR_stb   <= 1'b1;
                     response_data   <= RESP_ERROR;
-                    cmd_state       <= CMD_ERROR;
+                    cmd_state       <= STATE_SEND_ERROR;
                 end
             end
 
-            CMD_SEND_READ_DATA: begin
-                // Ждём готовности UART TX для отправки
-                if (uart_tx_ready) begin
-                    wdt_restart_stb <= 1'b1;
-                    uart_tx_valid   <= 1'b1;
-                    uart_tx_data    <= bus_rd_data;  // Используем сохранённые данные
-                    
-                    if (bytes_remaining == 0) begin
-                        bus_cyc     <= 1'b0;
-                        cmd_state   <= CMD_IDLE;
-                    end else begin
-                        bus_addr    <= bus_addr + 1;
-                        cmd_state   <= CMD_BUS_READ;  // Возвращаемся за следующим байтом
-                    end
-                end else if (wdt_trigger) begin
-                    cmd_error_stb <= '1;
-                    cmd_state <= CMD_ERROR;
-                end
+            STATE_BUS_READ_SEND_DATA: begin
+                wdt_restart_stb <= 1'b1;
+                uart_tx_valid   <= 1'b1;
+                uart_tx_data    <= bus_rd_data;  // Используем сохранённые данные
+                // меняем адрес и счетчик остатка и перезапускаем цикл
+                bus_addr        <= bus_addr + 1;
+                bytes_remaining <= bytes_remaining - 1;
+                cmd_state       <= STATE_BUS_READ_START;  // Возвращаемся за следующим байтом
             end
 
-            CMD_SEND_READ_STATE: begin
+            STATE_SEND_STATE: begin
                 if (uart_tx_ready && !uart_tx_valid) begin
                     wdt_restart_stb <= 1'b1;
                     uart_tx_valid <= 1'b1;  // Импульс на 1 такт
@@ -421,38 +419,38 @@ always_ff @(posedge clk_i) begin
                         5: uart_tx_data <= current_addr[7:0];     // адрес L
                         default: begin 
                             uart_tx_data <= state_reg_command;     // команда
-                            state_errors_reset_stb <= 1;// сбросим флаги ошибок
-                            cmd_state <= CMD_IDLE;
+                            STATE_SEND_ERRORs_reset_stb <= 1;// сбросим флаги ошибок
+                            cmd_state <= STATE_IDLE;
                         end
                     endcase
                 end else if (wdt_trigger) begin
-                    cmd_error_stb <= '1;
-                    cmd_state <= CMD_ERROR;
+                    STATE_SEND_ERROR_stb <= '1;
+                    cmd_state <= STATE_SEND_ERROR;
                 end                    
             end
 
-            CMD_SEND_RESPONSE: begin
+            STATE_SEND_OK: begin
                 if (uart_tx_ready) begin
                     uart_tx_valid <= 1'b1;  // Импульс на 1 такт
                     uart_tx_data <= response_data;
-                    cmd_state <= CMD_IDLE;
+                    cmd_state <= STATE_IDLE;
                 end
             end
 
-            CMD_ERROR: begin
+            STATE_SEND_ERROR: begin
                 if (uart_tx_ready) begin
                     uart_tx_valid <= 1'b1;  // Импульс на 1 такт
                     uart_tx_data <= response_data;
-                    cmd_state <= CMD_IDLE;
+                    cmd_state <= STATE_IDLE;
                 end else if (wdt_trigger) begin
                     // Worst case we can't send back the answer with the error
                     // strange but just gaveup
-                    cmd_error_stb <= '1;
-                    cmd_state <= CMD_IDLE;
+                    STATE_SEND_ERROR_stb <= '1;
+                    cmd_state <= STATE_IDLE;
                 end    
             end
             
-            default: cmd_state <= CMD_IDLE;
+            default: cmd_state <= STATE_IDLE;
         endcase
     end
 end
@@ -462,7 +460,7 @@ end
 // ============================================================================
 
 logic any_bus_error = (wb_cyc_o && wb_err_i) || (dbg_cyc_o && dbg_err_i);
-logic any_error = any_bus_error || cmd_error_stb || wdt_trigger;
+logic any_error = any_bus_error || STATE_SEND_ERROR_stb || wdt_trigger;
 
 always_ff @(posedge clk_i) begin
     if (rst) begin
@@ -471,7 +469,7 @@ always_ff @(posedge clk_i) begin
         state_reg_bus_ctrl <= '0;
         state_reg_command <= '0;
     end else begin
-        if (state_errors_reset_stb) begin
+        if (STATE_SEND_ERRORs_reset_stb) begin
             state_reg_errors <= 8'b0000_0000;
             state_reg_fsms <= '0;
             state_reg_bus_ctrl <= '0;
@@ -479,7 +477,7 @@ always_ff @(posedge clk_i) begin
         end else if (!state_reg_errors[7]) begin
             if (any_error) begin
                 // update every clock untill error
-                state_reg_errors   <= {5'b10000, wdt_trigger, cmd_error_stb, wb_err_i};
+                state_reg_errors   <= {5'b10000, wdt_trigger, STATE_SEND_ERROR_stb, wb_err_i};
             end else begin
                 state_reg_command  <= current_cmd;
                 state_reg_bus_ctrl <= {args_to_receive, bus_mem_access, bus_cyc, bus_stb, bus_ack, bus_we};
@@ -493,11 +491,14 @@ end
 // Bus Controller FSM (SLAVE)
 // ============================================================================
 
-typedef enum logic [1:0] {
-    BUS_IDLE,
-    BUS_ACTIVE,
-    BUS_WAIT_ACK,
-    BUS_HANDSHAKE
+typedef enum logic [2:0] {
+    BUS_IDLE,           // 0 - начальное состояние
+    WB_ACTIVE,          // 1 - активация WB шины
+    WB_WAIT_ACK,        // 2 - ожидание ACK от WB
+    WB_HANDSHAKE,       // 3 - передача данных от WB
+    DBUS_ACTIVE,        // 4 - активация DBUS
+    DBUS_WAIT_ACK,      // 5 - ожидание ACK от DBUS
+    DBUS_HANDSHAKE      // 6 - передача данных от DBUS
 } bus_state_t;
 
 bus_state_t bus_state = BUS_IDLE;
@@ -524,25 +525,26 @@ always_ff @(posedge clk_i) begin
         bus_rd_data <= '0;
 
     end else begin
-        // Значения по умолчанию (только то что МОЖЕТ меняться)
+        // Значения по умолчанию
+        bus_ack <= 1'b0;
         bus_error_stb <= 1'b0;
         
         case (bus_state)
             BUS_IDLE: begin
                 bus_ready <= 1'b1;
-                bus_ack <= 1'b0;
                 wb_stb_o <= 1'b0;
                 dbg_stb_o <= 1'b0;
                 
                 if (bus_cyc) begin
-                    bus_state <= BUS_ACTIVE;
                     bus_ready <= 1'b0;
                     
                     if (bus_mem_access) begin
+                        bus_state <= WB_ACTIVE;
                         wb_cyc_o <= 1'b1;
                         wb_we_o <= bus_we;
                         wb_adr_o <= bus_addr;
                     end else begin
+                        bus_state <= DBUS_ACTIVE;
                         dbg_cyc_o <= 1'b1;
                         dbg_we_o <= bus_we;
                         dbg_adr_o <= bus_addr[7:0];
@@ -550,118 +552,117 @@ always_ff @(posedge clk_i) begin
                 end
             end
             
-            BUS_ACTIVE: begin
-                // stb_processed сбрасывается только в IDLE
-                // stb_o могут держаться несколько тактов
-                bus_ack <= 1'b0;
+            // ===== WB STATE MACHINE =====
+            WB_ACTIVE: begin
+                wb_stb_o <= 1'b0;  // по умолчанию сброс stb
+                
                 if (!bus_cyc) begin
                     // Завершение цикла
                     bus_state <= BUS_IDLE;
                     wb_cyc_o <= 1'b0;
-                    dbg_cyc_o <= 1'b0;
-                    wb_stb_o <= 1'b0;
-                    dbg_stb_o <= 1'b0;
+                    wb_we_o <= 1'b0;
                 end else if (bus_stb) begin
-                    // Enable bus strobs foor the transfer
-                    if (wb_cyc_o) begin
-                        //if  (!wb_stb_o) begin
-                            bus_state <= BUS_WAIT_ACK;
-                            if (!wb_ack_i) begin
-                                wb_stb_o <= 1'b1;
-                                wb_adr_o <= bus_addr;
-                                if (bus_we) begin
-                                    wb_dat_o <= bus_wr_data;
-                                end
-                            end
-                        //end
-                    end else if (dbg_cyc_o) begin
-                        //if (!dbg_stb_o) begin
-                            bus_state <= BUS_WAIT_ACK;
-                            if (!dbg_ack_i) begin
-                                dbg_stb_o <= 1'b1;
-                                dbg_adr_o <= bus_addr[7:0];
-                                if (bus_we) begin
-                                    dbg_dat_o <= bus_wr_data;
-                                end
-                            end
-                        //end
-                    end else begin
-                        bus_error_stb <= '1;
-                        wb_cyc_o <= 1'b0;
-                        dbg_cyc_o <= 1'b0;
-                        wb_stb_o <= 1'b0;
-                        dbg_stb_o <= 1'b0;
-                        bus_state <= BUS_IDLE;
+                    // Начало транзакции
+                    bus_state <= WB_WAIT_ACK;
+                    wb_stb_o <= 1'b1;
+                    wb_adr_o <= bus_addr;
+                    if (bus_we) begin
+                        wb_dat_o <= bus_wr_data;
                     end
                 end
             end
             
-            BUS_WAIT_ACK: begin
-                // bus_ack УРОВЕНЬ - держится пока не обработаны данные
-                // stb_o уже установлены в ACTIVE и держатся
-                if (!bus_cyc || any_bus_error) begin
-                    // Завершение цикла - ВЫСШИЙ ПРИОРИТЕТ
-                    bus_state <= BUS_IDLE;
-                    bus_error_stb <= any_bus_error;
-                    wb_cyc_o <= 1'b0;
-                    wb_stb_o <= 1'b0;
-                    wb_we_o <= 1'b0;
-                    dbg_cyc_o <= 1'b0;
-                    dbg_stb_o <= 1'b0;
-                    dbg_we_o <= 1'b0;
-                    bus_ack <= 1'b0;
-                end else begin 
-                    if (wb_stb_o && wb_ack_i) begin 
-                        // Получен ACK от шины
-                        bus_state <= BUS_HANDSHAKE;       
-                        wb_stb_o <= 1'b0;
-                        bus_ack <= 1'b1;  // Устанавливаем УРОВЕНЬ
-                        if (!bus_we) begin
-                            bus_rd_data <= wb_dat_i;
-                        end
-                    end else if (dbg_stb_o && dbg_ack_i) begin
-                        // Получен ACK от шины
-                        bus_state <= BUS_HANDSHAKE;       
-                        dbg_stb_o <= 1'b0;
-                        bus_ack <= 1'b1;  // Устанавливаем УРОВЕНЬ
-                        if (!bus_we) begin
-                            bus_rd_data <= dbg_dat_i;
-                        end
-                    end
-                end
-            end
-            BUS_HANDSHAKE: begin
-                // 1. ВЫСШИЙ ПРИОРИТЕТ - мастер завершил цикл (нормально или аварийно)
+            WB_WAIT_ACK: begin
+                // НЕ сбрасываем wb_cyc_o здесь!
                 if (!bus_cyc) begin
-                    bus_ack <= 1'b0;
+                    // Прерывание цикла
                     bus_state <= BUS_IDLE;
                     wb_cyc_o <= 1'b0;
                     wb_stb_o <= 1'b0;
                     wb_we_o <= 1'b0;
-                    dbg_cyc_o <= 1'b0;
-                    dbg_stb_o <= 1'b0;
-                    dbg_we_o <= 1'b0;
-                end
-                
-                // 2. Нормальное завершение handshake - мастер принял данные
-                else if (!bus_stb) begin
-                    bus_ack <= 1'b0;
-                    bus_state <= BUS_ACTIVE;
-                end
-                
-                // 3. Аварийное завершение по таймауту
-                else if (wdt_trigger) begin
-                    bus_ack <= 1'b0;
+                end else if (wb_err_i) begin
+                    // Ошибка
                     bus_state <= BUS_IDLE;
                     bus_error_stb <= 1'b1;
                     wb_cyc_o <= 1'b0;
                     wb_stb_o <= 1'b0;
                     wb_we_o <= 1'b0;
+                end else if (wb_ack_i) begin
+                    // Получен ACK
+                    bus_state <= WB_HANDSHAKE;
+                    wb_stb_o <= 1'b0;
+                    bus_ack <= 1'b1;
+                    if (!bus_we) begin
+                        bus_rd_data <= wb_dat_i;
+                    end
+                end
+                // Если нет ACK и нет ошибки - остаемся в WAIT_ACK
+            end
+            
+            WB_HANDSHAKE: begin
+                // Сбрасываем bus_ack (импульс)
+                bus_ack <= 1'b0;
+                
+                // Возвращаемся в ACTIVE для возможной следующей транзакции
+                // в том же цикле (burst transfer)
+                bus_state <= WB_ACTIVE;
+            end
+            
+            // ===== DBUS STATE MACHINE =====
+            DBUS_ACTIVE: begin
+                dbg_stb_o <= 1'b0;  // по умолчанию сброс stb
+                
+                if (!bus_cyc) begin
+                    // Завершение цикла
+                    bus_state <= BUS_IDLE;
+                    dbg_cyc_o <= 1'b0;
+                    dbg_we_o <= 1'b0;
+                end else if (bus_stb) begin
+                    // Начало транзакции
+                    bus_state <= DBUS_WAIT_ACK;
+                    dbg_stb_o <= 1'b1;
+                    dbg_adr_o <= bus_addr[7:0];
+                    if (bus_we) begin
+                        dbg_dat_o <= bus_wr_data;
+                    end
+                end
+            end
+            
+            DBUS_WAIT_ACK: begin
+                // НЕ сбрасываем dbg_cyc_o здесь!
+                if (!bus_cyc) begin
+                    // Прерывание цикла
+                    bus_state <= BUS_IDLE;
                     dbg_cyc_o <= 1'b0;
                     dbg_stb_o <= 1'b0;
                     dbg_we_o <= 1'b0;
+                end else if (dbg_err_i) begin
+                    // Ошибка
+                    bus_state <= BUS_IDLE;
+                    bus_error_stb <= 1'b1;
+                    dbg_cyc_o <= 1'b0;
+                    dbg_stb_o <= 1'b0;
+                    dbg_we_o <= 1'b0;
+                end else if (dbg_ack_i) begin
+                    // Получен ACK
+                    bus_state <= DBUS_HANDSHAKE;
+                    dbg_stb_o <= 1'b0;
+                    bus_ack <= 1'b1;
+                    if (!bus_we) begin
+                        bus_rd_data <= dbg_dat_i;
+                    end
                 end
+                // Если нет ACK и нет ошибки - остаемся в WAIT_ACK
             end
+            
+            DBUS_HANDSHAKE: begin
+                // Сбрасываем bus_ack (импульс)
+                bus_ack <= 1'b0;
+                
+                // Возвращаемся в ACTIVE для возможной следующей транзакции
+                bus_state <= DBUS_ACTIVE;
+            end
+            
             default: begin
                 bus_state <= BUS_IDLE;
             end
