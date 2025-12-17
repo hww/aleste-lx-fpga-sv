@@ -121,3 +121,16 @@ LOCATE COMP "debug_leds[4]" SITE "R2"; IOBUF PORT "debug_leds[4]" IO_TYPE=LVCMOS
 LOCATE COMP "debug_leds[5]" SITE "R3"; IOBUF PORT "debug_leds[5]" IO_TYPE=LVCMOS33;
 LOCATE COMP "debug_leds[6]" SITE "R4"; IOBUF PORT "debug_leds[6]" IO_TYPE=LVCMOS33;
 LOCATE COMP "debug_leds[7]" SITE "R5"; IOBUF PORT "debug_leds[7]" IO_TYPE=LVCMOS33;
+
+
+# ===========================================
+# JTAG 2
+# ===========================================
+#   TCK:  iCELink-PA14 -- ECP5-IO-PL8D  (25F-BG256-F5)
+#   TMS:  iCELink-PA13 -- ECP5-IO-PL17A (25F-BG256-H5)
+#   TDI:  iCELink-PA0  -- ECP5-IO-PL38A (25F-BG256-N4)
+#   TDO:  iCELink-PA1  -- ECP5-IO-PL17D (25F-BG256-J5)
+LOCATE COMP "jtag2_tck" SITE "F5"; IOBUF PORT "jtag2_tck" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
+LOCATE COMP "jtag2_tms" SITE "H5"; IOBUF PORT "jtag2_tms" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
+LOCATE COMP "jtag2_tdi" SITE "N4"; IOBUF PORT "jtag2_tdi" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
+LOCATE COMP "jtag2_tdo" SITE "J5"; IOBUF PORT "jtag2_tdo" IO_TYPE=LVCMOS33 DRIVE=4;

@@ -10,7 +10,7 @@ read_verilog -I. -I../../src/systems/aleste_system -DCONFIG_27MHZ -I../../src/co
 read_verilog ../../src/platforms/icesugar_pro/clocks/system_pll.v ../../src/platforms/icesugar_pro/clocks/video_pll.v
 read_verilog ../../src/components/video/llhdmi/llhdmi.v ../../src/components/video/llhdmi/tmds_encoder.v ../../src/components/video/llhdmi/OBUFDS.v
 read_verilog -sv ../../src/components/video/video_buffer/video_buffer.sv
-read_verilog -sv ../../src/components/debug/debug_shift_reg.sv
+read_verilog -sv ../../src/components/debug/debug_shift_reg.sv ../../src/components/debug/jtag_debug.sv
 read_verilog -sv ../../src/components/interconnect/wishbone/uart_bridge.sv ../../src/components/interconnect/wishbone/wb_wdt_simple.sv
 read_verilog -sv ../../src/components/memory/sdram/sdram_wishbone.sv  
 read_verilog -sv ../../src/components/io/uart2/uart.v ../../src/components/io/uart2/uart_rx.v ../../src/components/io/uart2/uart_tx.v 
@@ -28,4 +28,4 @@ hierarchy -top aleste_system
 tee -o stats_pre.txt stat
 synth_ecp5 -json aleste_system.json -no-rw-check
 tee -o stats_synt.txt stat
-# Sources: 37 files
+# Sources: 38 files

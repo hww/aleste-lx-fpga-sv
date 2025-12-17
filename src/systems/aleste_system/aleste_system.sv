@@ -79,7 +79,14 @@ module aleste_system #(
     
     // Отладочные выходы
     output logic [2:0] debug_leds,
-    output logic [7:0] debug
+    output logic [7:0] debug,
+
+
+    // JTAG2 интерфейс (подключение к iCELink)
+    input  wire jtag2_tck,  // Подключить к выводу F5
+    input  wire jtag2_tms,  // Подключить к выводу H5
+    input  wire jtag2_tdi,  // Подключить к выводу N4
+    output wire jtag2_tdo,  // Подключить к выводу J5
 );
 
     localparam HDMI_H_TOTAL       = HDMI_H_VISIBLE + HDMI_H_FRONT_PORCH + HDMI_H_SYNC_PULSE + HDMI_H_BACK_PORCH;
@@ -156,11 +163,11 @@ module aleste_system #(
     logic serial_rx_clk, serial_rx_clk_mid, serial_tx_clk;
     logic uart_tx_ready, uart_tx_valid;
 
-    logic uart2dbg_cyc, uart2dbg_stb, uart2dbg_we, uart2dbg_ack;
+    logic uart2dbg_cyc, uart2dbg_stb, uart2dbg_we, uart2dbg_ack, uart2dbg_err;
     logic [7:0] uart2dbg_adr;
     logic [7:0] uart2dbg_dat_in, uart2dbg_dat_out;
     logic [1:0] uart2dbg_sel;
-    logic debug_uart_bus_stb, debug_uart_bus_ack;
+    logic debug_uart_bus_stb, debug_uart_bus_ack, debug_uart_scl, debug_uart_sda;
     logic [3:0] debug_uart_cmd_state;
     logic [1:0] debug_uart_bus_state;
 
@@ -260,12 +267,17 @@ module aleste_system #(
         .dbg_dat_o(uart2dbg_dat_out),
         .dbg_dat_i(uart2dbg_dat_in),
         .dbg_ack_i(uart2dbg_ack),
-        .dbg_err_i('0),
+        .dbg_err_i(uart2dbg_err),
 
         .cmd_state_o(debug_uart_cmd_state),
         .bus_state_o(debug_uart_bus_state),
         .bus_ack_o(debug_uart_bus_ack),
-        .bus_stb_o(debug_uart_bus_stb)
+        .bus_stb_o(debug_uart_bus_stb),
+
+        .jtag_tck(jtag2_tck),    // подключить к F5 (PA14)
+        .jtag_tdi(jtag2_tdi),    // подключить к N4 (PA0) 
+        .jtag_tms(jtag2_tms),
+        .jtag_tdo(jtag2_tdo) 
     );
 
 `ifdef SIMULATION   
@@ -582,6 +594,17 @@ module aleste_system #(
         .err_o(sys_err)
     );
 
+    wb_wdt_simple #(
+        .TIMEOUT_CYCLES(32)
+    ) dbus_wdt_inst (
+        .clk_i(clk_bus),
+        .rst_i(system_reset),
+        .cyc_i(uart2dbg_cyc),
+        .stb_i(uart2dbg_stb),
+        .ack_i(uart2dbg_ack),
+        .err_o(uart2dbg_err)
+    );
+
     // ===========================================
     // Отладочные сигналы
     // ===========================================
@@ -595,7 +618,7 @@ module aleste_system #(
 
     // Debug output - можно выбрать разные источники для отладки
     // ==========================
-    `define DEBUG_URART_2 // <<<< CONFIG
+    `define DEBUG_URART_I2C // <<<< CONFIG
     // ==========================
     `ifdef DEBUG_CLOK   
         assign debug = { 
@@ -618,6 +641,12 @@ module aleste_system #(
             uart_rx_valid,
             serial_rx_clk_mid,
             serial_rx_clk
+        };
+    `elsif DEBUG_URART_I2C
+        assign debug = {
+            '0,
+            debug_uart_sda,
+            debug_uart_scl
         };
     `elsif DEBUG_URART_2     
      assign debug = {  

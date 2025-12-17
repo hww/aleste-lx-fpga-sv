@@ -24,7 +24,7 @@ CPU_DIR     := $(SRC_DIR)/components/cpu
 MMU_DIR     := $(SRC_DIR)/components/memory/mmu
 
 # Source files для aleste_system - ТОЛЬКО VERILOG!
-DEBUG       := $(DEBUG_DIR)/debug_shift_reg.sv
+DEBUG       := $(DEBUG_DIR)/debug_shift_reg.sv $(DEBUG_DIR)/jtag_debug.sv
 RESET_CTRL  := $(RESET_DIR)/reset_controller.sv
 CLOCK_CTRL  := $(CLOCK_DIR)/system_clock.sv
 CLOCK       := $(TARGET_DIR)/clocks/system_pll.v $(TARGET_DIR)/clocks/video_pll.v
@@ -160,6 +160,7 @@ rebuild: clean check-sources all
 .PHONY: program
 program: $(BITSTREAM)
 	@echo "Programming board..."
+	icesprog -j 1	
 	openocd -f icelink.cfg
 
 # Проверить TV80 файлы

@@ -46,7 +46,12 @@ module uart_bridge #(
     output logic [3:0]                 cmd_state_o,
     output logic [1:0]                 bus_state_o,
     output logic                       bus_stb_o,
-    output logic                       bus_ack_o
+    output logic                       bus_ack_o,
+
+    input  logic                       jtag_tck,    // подключить к F5 (PA14)
+    input  logic                       jtag_tdi,    // подключить к N4 (PA0) 
+    input  logic                       jtag_tms,
+    output logic                       jtag_tdo,    // подключить к J5 (PA1)
 );
 
 // ============================================================================
@@ -674,5 +679,18 @@ assign cmd_state_o = cmd_state;
 assign bus_state_o = bus_state[1:0];
 assign bus_stb_o = bus_stb;
 assign bus_ack_o = bus_ack;
+
+jtag_debug jtag_debug_inst(
+    .jtag_tck(jtag_tck),    // подключить к F5 (PA14)
+    .jtag_tdi(jtag_tdi),    // подключить к N4 (PA0) 
+    .jtag_tdo(jtag_tdo),    // подключить к J5 (PA1)
+    .jtag_tms(jtag_tms),
+    .data({      
+        8'h80,
+        1'b0, bus_state[2:0],
+        cmd_state[3:0]
+    })
+);
+
 
 endmodule
