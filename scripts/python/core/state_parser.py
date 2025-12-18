@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Парсер состояния FPGA - ОБНОВЛЕН ДЛЯ НОВОЙ СТРУКТУРЫ VERILOG
+Парсер состояния FPGA - ОБНОВЛЕН ДЛЯ НОВОЙ СТРУКТУРЫ
 """
 from typing import Dict, Any
 
@@ -9,67 +9,33 @@ class FPGAStateParser:
     @staticmethod
     def parse_state_response(data: bytes) -> Dict[str, Any]:
         """
-        Разобрать ответ команды состояния (7 байт)
+        Разобрать ответ команды состояния (1 байт)
         
-        НОВЫЙ формат из Verilog:
-        Байт 0: state_reg_errors      = [7]any_error, [6:3]reserved, [2]wdt, [1]cmd, [0]bus
-        Байт 1: state_reg_bus_ctrl    = [7:5]args, [4]mem_access, [3]cyc, [2]stb, [1]ack, [0]we
-        Байт 2: state_reg_fsms        = [7:4]cmd_state, [3:2]bus_state, [1:0]reserved
-        Байт 3: current_addr[23:16]   - адрес старший
-        Байт 4: current_addr[15:8]    - адрес средний
-        Байт 5: current_addr[7:0]     - адрес младший
-        Байт 6: state_reg_command     - текущая команда
+        НОВЫЙ формат (один байт):
+        Бит 7: success   - успешное выполнение
+        Бит 6: bad_cmd   - неверная команда
+        Бит 5: bus_err   - ошибка шины
+        Бит 4: wdt_err   - ошибка watchdog
+        Бит 3:0 token    - токен (0-15)
         """
-        if len(data) != 7:
+        if len(data) != 1:
             return None
         
-        errors_byte = data[0]    # state_reg_errors
-        bus_ctrl_byte = data[1]  # state_reg_bus_ctrl
-        fsm_byte = data[2]       # state_reg_fsms
-        addr_byte2 = data[3]     # addr[23:16]
-        addr_byte1 = data[4]     # addr[15:8]
-        addr_byte0 = data[5]     # addr[7:0]
-        cmd_byte = data[6]       # state_reg_command
+        status_byte = data[0]
         
-        # Ошибки
-        any_error = (errors_byte >> 7) & 0x1
-        wdt_error = (errors_byte >> 2) & 0x1
-        cmd_error = (errors_byte >> 1) & 0x1
-        bus_error = errors_byte & 0x1
-        
-        # Управление шиной
-        args_cnt = (bus_ctrl_byte >> 5) & 0x7
-        bus_mem_access = (bus_ctrl_byte >> 4) & 0x1
-        bus_cyc = (bus_ctrl_byte >> 3) & 0x1
-        bus_stb = (bus_ctrl_byte >> 2) & 0x1
-        bus_ack = (bus_ctrl_byte >> 1) & 0x1
-        bus_we = bus_ctrl_byte & 0x1
-        
-        # Состояния автоматов
-        cmd_state = (fsm_byte >> 0) & 0xF  # 4 бита
-        bus_state = (fsm_byte >> 4) & 0x3  # 2 бита
-        
-        # Адрес (big-endian как в Verilog)
-        address = (addr_byte2 << 16) | (addr_byte1 << 8) | addr_byte0
-        
-        # Команда
-        current_cmd = cmd_byte
+        success = (status_byte >> 7) & 0x1
+        bad_cmd = (status_byte >> 6) & 0x1
+        bus_err = (status_byte >> 5) & 0x1
+        wdt_err = (status_byte >> 4) & 0x1
+        token = status_byte & 0xF  # 4 бита токена (0-15)
         
         return {
-            'any_error': any_error,
-            'wdt_error': wdt_error,
-            'cmd_error': cmd_error,
-            'bus_error': bus_error,
-            'args_cnt': args_cnt,
-            'bus_mem_access': bus_mem_access,
-            'bus_cyc': bus_cyc,
-            'bus_stb': bus_stb,
-            'bus_ack': bus_ack,
-            'bus_we': bus_we,
-            'cmd_state': cmd_state,
-            'bus_state': bus_state,
-            'address': address,
-            'current_cmd': current_cmd
+            'status_byte': status_byte,  # сохраняем оригинальный байт
+            'success': success,
+            'bad_cmd': bad_cmd,
+            'bus_err': bus_err,
+            'wdt_err': wdt_err,
+            'token': token,
         }
 
     @staticmethod
@@ -77,40 +43,24 @@ class FPGAStateParser:
         """Форматировать состояние в одну строку"""
         if not state:
             return "❌ Invalid state"
- 
-        # Состояния командного автомата
-        cmd_states = [
-            'IDLE', 'PARSE', 'READ_ARGS', 'START_BUS_OP',
-            'BUS_WRITE', 'WAIT_WR_ACK', 'BUS_READ', 'WAIT_RD_ACK', 
-            'SEND_STATE', 'SEND_RESP', 'ERROR'
-        ]
         
-        # Состояния шинного автомата
-        bus_states = ['IDLE', 'ACTIVE', 'WAIT_ACK', 'HANDSHAKE']
+        # Hex представление байта
+        hex_str = f"0x{state['status_byte']:02X}"
         
-        cmd_state_name = cmd_states[state['cmd_state']] if state['cmd_state'] < len(cmd_states) else f"UNK({state['cmd_state']})"
-        bus_state_name = bus_states[state['bus_state']] if state['bus_state'] < len(bus_states) else f"UNK({state['bus_state']})"
-
-        # Адрес и команда
-        addr_str = f"0x{state['address']:06X}"
-        cmd_str = f"CMD:0x{state['current_cmd']:02X}"
-        
-        # Сигналы
-        access_type = "MEM" if state['bus_mem_access'] else "REG"
-        signals = f"CYC:{state['bus_cyc']} STB:{state['bus_stb']} ACK:{state['bus_ack']} WE:{state['bus_we']} {access_type}"
-        
-        # Аргументы
-        args_str = f"ARGS:{state['args_cnt']}"
+        # Статус выполнения
+        status = "SUCCESS" if state['success'] else "Ready"
         
         # Ошибки
         errors = []
-        if state['any_error']: errors.append("ANY")
-        if state['wdt_error']: errors.append("WDT")
-        if state['cmd_error']: errors.append("CMD")
-        if state['bus_error']: errors.append("BUS")
-        error_str = "|".join(errors) if errors else "OK"
+        if state['bad_cmd']: errors.append("BAD_CMD")
+        if state['bus_err']: errors.append("BUS_ERR")
+        if state['wdt_err']: errors.append("WDT_ERR")
+        error_str = "|".join(errors) if errors else "OL"
         
-        return f"{cmd_str} | {addr_str} | {cmd_state_name:12} | {bus_state_name:10} | {args_str} | {signals} | {error_str}"
+        # Токен
+        token_str = f"TOKEN:{state['token']}"
+        
+        return f"State: {hex_str} | Status: {status} | Errors: {error_str} | {token_str}"
 
     # Совместимость со старыми названиями методов
     @staticmethod
@@ -120,3 +70,29 @@ class FPGAStateParser:
     @staticmethod
     def format_hang_state_line(state: Dict[str, Any]) -> str:
         return FPGAStateParser.format_state_line(state)
+
+
+# Пример использования:
+if __name__ == "__main__":
+    # Пример байта: 0xF1 = 11110001
+    # Бит 7: 1 = success (но будет FAIL так как есть ошибки?)
+    # Бит 6: 1 = bad_cmd
+    # Бит 5: 1 = bus_err  
+    # Бит 4: 1 = wdt_err
+    # Бит 3:0: 0001 = token 1
+    
+    # Для вашего примера: State: 0xF1 | Status: FAIL | Errors: BUS_ERR | TOKEN:2
+    # 0xF1 = 11110001, token должен быть 1, а не 2
+    # Для token=2 и BUS_ERR: 10100010 = 0xA2
+    
+    test_bytes = [
+        0xA2,  # 10100010 = FAIL, BAD_CMD=0, BUS_ERR=1, WDT_ERR=0, TOKEN=2
+        0x80,  # 10000000 = SUCCESS, no errors, TOKEN=0
+        0xE3,  # 11100011 = FAIL, all errors, TOKEN=3
+        0x45,  # 01000101 = FAIL, BUS_ERR=1, TOKEN=5
+    ]
+    
+    for byte_val in test_bytes:
+        data = bytes([byte_val])
+        state = FPGAStateParser.parse_state_response(data)
+        print(FPGAStateParser.format_state_line(state))

@@ -113,7 +113,12 @@ $(YOSYS_SCRIPT): $(ALL_SOURCES)
 # Synthesis with Yosys
 $(JSON_FILE): $(YOSYS_SCRIPT)
 	@echo "Running Yosys synthesis..."
-	$(YOSYS) -q $<
+	@$(YOSYS) -q $< 2>&1 | tee yosys.log
+	@if grep -q "implicitly declared" yosys.log; then \
+		echo "ERROR: Found undeclared signals!"; \
+		grep "implicitly declared" yosys.log; \
+		exit 1; \
+	fi
 	@touch $@
 
 # Place and route with nextpnr

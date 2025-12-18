@@ -497,7 +497,92 @@ class Z80Debugger:
             bus = self.reg.read(0x15) or 0
             return f"db 0x{bus:02X}"
 
-
+    def cmd_exec(self, steps: int = 0, bp_addr: Optional[int] = None):
+        """Запустить выполнение до точки останова или определенного количества шагов"""
+        
+        # Настраиваем остановы
+        ctrl_stop = 0x0F  # Все остановы включены по умолчанию
+        
+        if bp_addr:
+            # Устанавливаем точку останова
+            self.reg.write(0x03, (bp_addr >> 16) & 0xFF)
+            self.reg.write(0x04, (bp_addr >> 8) & 0xFF)
+            self.reg.write(0x05, bp_addr & 0xFF)
+            ctrl_stop |= 0x10  # BP на инструкциях
+        
+        # Устанавливаем остановы
+        self.reg.write(0x02, ctrl_stop)
+        
+        # Выключаем пошаговый режим и запускаем
+        self.reg.write(0x01, 0x00)  # step mode off
+        
+        print(f"exec: running...")
+        
+        # Если задано ограничение по шагам
+        if steps > 0:
+            start_time = time.time()
+            for i in range(steps):
+                # Проверяем статус
+                status = self.reg.read(0x10)
+                if status is None:
+                    print("exec: communication error")
+                    return False
+                
+                # Проверяем условия остановки
+                if status & 0x01:  # Остановлен
+                    if status & 0x02:  # Точка останова
+                        print(f"exec: breakpoint hit at step {i}")
+                        break
+                    elif status & 0x04:  # HALT
+                        print(f"exec: halted at step {i}")
+                        break
+                    else:
+                        print(f"exec: stopped at step {i}")
+                        break
+                
+                # Небольшая задержка для CPU
+                time.sleep(0.0001)
+                
+                # Проверка таймаута
+                if time.time() - start_time > 10.0:  # 10 секунд
+                    print("exec: timeout")
+                    return False
+        else:
+            # Запускаем до остановки
+            print("exec: running until stop/breakpoint/halt...")
+            
+            # Ожидаем остановки
+            timeout = time.time() + 10.0  # 10 секунд
+            while time.time() < timeout:
+                status = self.reg.read(0x10)
+                if status is None:
+                    print("exec: communication error")
+                    return False
+                
+                if status & 0x01:  # Остановлен
+                    if status & 0x02:  # Точка останова
+                        print("exec: breakpoint hit")
+                        break
+                    elif status & 0x04:  # HALT
+                        print("exec: halted")
+                        break
+                    else:
+                        print("exec: stopped")
+                        break
+                
+                time.sleep(0.001)
+            else:
+                print("exec: timeout")
+                return False
+        
+        # Показываем текущее состояние
+        state = self._get_detailed_status()
+        if state:
+            print(f"exec: pc=0x{state['pc']:04X} addr=0x{state['addr']:06X}")
+        
+        # Сбрасываем остановы
+        self.reg.write(0x02, 0x00)
+        return True
 # --------------------------------------------------
 # 7. ПАРСИНГ АРГУМЕНТОВ И ГЛАВНАЯ ФУНКЦИЯ
 # --------------------------------------------------
@@ -526,7 +611,6 @@ def parse_addr(addr_str: str) -> int:
     if addr_str.startswith('0x'):
         return int(addr_str[2:], 16)
     return int(addr_str)
-
 
 def main():
     """Главная функция - максимально просто"""
@@ -594,7 +678,9 @@ def main():
     trace_parser.add_argument('-b', '--bp', help='Точка останова (hex)')
     trace_parser.add_argument('--bp-inst', action='store_true', help='BP на инструкциях')
     
-    trace_parser.add_argument('--stop', default='inst', help='Останов: inst,mrd,mwr,io,all')
+    # ИНВЕРТИРОВАННАЯ ЛОГИКА: по умолчанию всё включено, можно отключать
+    trace_parser.add_argument('--stop', default='all', 
+                             help='Остановы: all, или список через запятую: no-inst,no-mrd,no-mwr,no-io')
     
     trace_parser.add_argument('--no-step', action='store_true', help='Не показывать step')
     trace_parser.add_argument('--no-addr', action='store_true', help='Не показывать addr')
@@ -607,6 +693,15 @@ def main():
     trace_parser.add_argument('--flags', action='store_true', help='Показывать флаги')
     
     trace_parser.add_argument('file', help='Файл программы')
+    
+    # Добавляем команду exec (ДО проверки аргументов!)
+    exec_parser = subparsers.add_parser('exec', help='Запустить выполнение')
+    exec_parser.add_argument('-n', '--steps', type=int, default=0, 
+                            help='Максимальное количество шагов (0 = до остановки)')
+    exec_parser.add_argument('-b', '--bp', help='Адрес точки останова (hex)')
+    exec_parser.add_argument('file', nargs='?', help='Файл для загрузки (опционально)')
+    exec_parser.add_argument('-a', '--addr', help='Адрес загрузки (hex)')
+    exec_parser.add_argument('-j', '--jump', help='Адрес перехода (hex)')
     
     # Если нет аргументов
     if len(sys.argv) == 1:
@@ -690,7 +785,7 @@ def main():
             jump = parse_addr(args.jump) if args.jump else None
             bp = parse_addr(args.bp) if args.bp else 0
             
-            # Настройки трассировки
+            # Настройки трассировки (ИНВЕРТИРОВАННАЯ ЛОГИКА)
             inst, mrd, mwr, io = parse_stop(args.stop)
             
             opts = TraceOptions()
@@ -719,7 +814,22 @@ def main():
             time.sleep(0.01)
             
             dbg.cmd_trace(args.steps, opts)
+        
+        # 7. ВЫПОЛНЕНИЕ (новая команда)
+        elif args.cmd == 'exec':
+            # Загружаем файл если указан
+            if args.file:
+                addr = parse_addr(args.addr) if args.addr else 0
+                jump = parse_addr(args.jump) if args.jump else None
+                if not dbg.cmd_load(addr, args.file, jump):
+                    sys.exit(1)
+                
+                dbg.cmd_reset(True)
+                time.sleep(0.01)
             
+            # Запускаем выполнение
+            bp = parse_addr(args.bp) if args.bp else None
+            dbg.cmd_exec(args.steps, bp)            
         else:
             print(f"Неизвестная команда: {args.cmd}")
             sys.exit(1)
@@ -729,7 +839,6 @@ def main():
     except Exception as e:
         print(f"Ошибка: {e}")
         sys.exit(1)
-
 
 if __name__ == '__main__':
     main()

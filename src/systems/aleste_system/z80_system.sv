@@ -250,12 +250,12 @@ module z80_system (
         .dbus_addr_i(dbg_adr_i),
         .dbus_data_o(dbg_dat_o),
         .dbus_data_i(dbg_dat_i),
-        .dbus_we_i(dbg_we_i),
         .dbus_cyc_i(dbg_cyc_i),
         .dbus_stb_i(dbg_stb_i),
         .dbus_cs_i(dbg_cs_i),
         .dbus_ack_o(dbg_ack_o),
-        
+        .dbus_we_i(dbg_we_i),
+    
         // Z80 CPU Interface (мониторинг)
         .z80_a(active_adr),          // 24x битный логический адресс
         .z80_dout(z80_do),           // Выходные данные CPU
@@ -297,7 +297,7 @@ module z80_system (
 
     mmu_legacy mmu_legacy_inst (
         .clk(clk_i),
-        .reset(res_i),
+        .reset(~z80_reset_n),
         .legacy_mode_i(legacy_mode),
         // Master WB
         .m_wb_cyc_o(legacy_mmu_cyc),
@@ -327,7 +327,7 @@ module z80_system (
 
     mmu_native mmu_native_inst (
         .clk(clk_i),
-        .reset(res_i),
+        .reset(~z80_reset_n),
         .legacy_mode_o(legacy_mode),
         .native_mode_o(native_mode),
 

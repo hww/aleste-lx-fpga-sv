@@ -151,8 +151,8 @@ class FPGATransport:
         if op_type == 0b000:  # Memory Read
             size_map = {0:1, 1:2, 2:4, 3:8, 4:16, 5:32, 6:64, 7:128}
             return size_map.get(size_code, 4)
-        if op_type == 0b101:
-            return 7;
+        if op_type == 0b101:  # State read
+            return 1
 
         return 1
     

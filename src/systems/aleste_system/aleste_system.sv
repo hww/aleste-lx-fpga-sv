@@ -154,19 +154,19 @@ module aleste_system #(
     logic [7:0] video_debug;
 
     // UART Bridge Signals
-    logic uart2wb_cyc, uart2wb_stb, uart2wb_ack, uart2wb_we, uart2wb_grant, uart2wb_err;
-    logic [23:0] uart2wb_adr;
-    logic [7:0] uart2wb_dat_out, uart2wb_dat_in;
-    logic [1:0] uart2wb_sel;
+    logic uart_wb_cyc, uart_wb_stb, uart_wb_ack, uart_wb_we, uart_wb_grant, uart_wb_err;
+    logic [23:0] uart_wb_adr;
+    logic [7:0] uart_wb_dat_out, uart_wb_dat_in;
+    logic [1:0] uart_wb_sel;
       
     logic uart_rx_valid, uart_rx_ready;
     logic serial_rx_clk, serial_rx_clk_mid, serial_tx_clk;
     logic uart_tx_ready, uart_tx_valid;
 
-    logic uart2dbg_cyc, uart2dbg_stb, uart2dbg_we, uart2dbg_ack, uart2dbg_err;
-    logic [7:0] uart2dbg_adr;
-    logic [7:0] uart2dbg_dat_in, uart2dbg_dat_out;
-    logic [1:0] uart2dbg_sel;
+    logic uart_dbus_cyc, uart_dbus_stb, uart_dbus_we, uart_dbus_ack, uart_dbus_err;
+    logic [7:0] uart_dbus_adr;
+    logic [7:0] uart_dbus_dat_in, uart_dbus_dat_out;
+    logic [1:0] uart_dbus_sel;
     logic debug_uart_bus_stb, debug_uart_bus_ack, debug_uart_scl, debug_uart_sda;
     logic [3:0] debug_uart_cmd_state;
     logic [1:0] debug_uart_bus_state;
@@ -251,23 +251,23 @@ module aleste_system #(
         .wb_ack_i(1'b0),
         .wb_err_i(1'b0),  
 `else   
-        .wb_cyc_o(uart2wb_cyc),
-        .wb_stb_o(uart2wb_stb),
-        .wb_we_o(uart2wb_we),
-        .wb_adr_o(uart2wb_adr),
-        .wb_dat_o(uart2wb_dat_out),
-        .wb_dat_i(uart2wb_dat_in),
-        .wb_ack_i(uart2wb_ack),
-        .wb_err_i(uart2wb_err),  
+        .wb_cyc_o(uart_wb_cyc),
+        .wb_stb_o(uart_wb_stb),
+        .wb_we_o(uart_wb_we),
+        .wb_adr_o(uart_wb_adr),
+        .wb_dat_o(uart_wb_dat_out),
+        .wb_dat_i(uart_wb_dat_in),
+        .wb_ack_i(uart_wb_ack),
+        .wb_err_i(uart_wb_err),  
 `endif
-        .dbg_cyc_o(uart2dbg_cyc),
-        .dbg_stb_o(uart2dbg_stb),
-        .dbg_we_o(uart2dbg_we),
-        .dbg_adr_o(uart2dbg_adr),
-        .dbg_dat_o(uart2dbg_dat_out),
-        .dbg_dat_i(uart2dbg_dat_in),
-        .dbg_ack_i(uart2dbg_ack),
-        .dbg_err_i(uart2dbg_err),
+        .dbg_cyc_o(uart_dbus_cyc),
+        .dbg_stb_o(uart_dbus_stb),
+        .dbg_we_o(uart_dbus_we),
+        .dbg_adr_o(uart_dbus_adr),
+        .dbg_dat_o(uart_dbus_dat_out),
+        .dbg_dat_i(uart_dbus_dat_in),
+        .dbg_ack_i(uart_dbus_ack),
+        .dbg_err_i(uart_dbus_err),
 
         .cmd_state_o(debug_uart_cmd_state),
         .bus_state_o(debug_uart_bus_state),
@@ -282,18 +282,21 @@ module aleste_system #(
 
 `ifdef SIMULATION   
     // В симуляции напрямую подключаем debug интерфейс
-    assign uart2wb_cyc = debug_wb_cyc_i;
-    assign uart2wb_stb = debug_wb_stb_i;
-    assign uart2wb_we = debug_wb_we_i;
-    assign uart2wb_adr = debug_wb_adr_i;
-    assign uart2wb_dat_out = debug_wb_dat_i;
-    assign debug_wb_dat_o = uart2wb_dat_in;
-    assign debug_wb_ack_o = uart2wb_ack;
-    assign debug_wb_err_o = uart2wb_err;
+    // Входы к шине WB
+    assign uart_wb_cyc      = debug_wb_cyc_i;
+    assign uart_wb_stb      = debug_wb_stb_i;
+    assign uart_wb_we       = debug_wb_we_i;
+    assign uart_wb_adr      = debug_wb_adr_i;
+    assign uart_wb_dat_out  = debug_wb_dat_i;
+    // Выходы от шины WB
+    assign debug_wb_dat_o = uart_wb_dat_in;
+    assign debug_wb_ack_o = uart_wb_ack;
+    assign debug_wb_err_o = uart_wb_err;
 `endif
-    wire uart2wb_cs_z80 = uart2wb_adr[7:5] == 3'b000;
-    wire uart2wb_cs_ppi = uart2wb_adr[7:5] == 3'b001;
-    wire uart2wb_cs_fdc = uart2wb_adr[7:5] == 3'b010;
+
+    wire uart_dbus_cs_z80 = uart_dbus_adr[7:5] == 3'b000;
+    wire uart_dbus_cs_ppi = uart_dbus_adr[7:5] == 3'b001;
+    wire uart_dbus_cs_fdc = uart_dbus_adr[7:5] == 3'b010;
 
     // ===========================================
     // Z80 CPU System
@@ -318,14 +321,14 @@ module aleste_system #(
         // via Z80 I/O ports)
 
         // Debug Bus Interface
-        .dbg_adr_i(uart2dbg_adr),                  // Not used for now
-        .dbg_dat_o(uart2dbg_dat_in),
-        .dbg_dat_i(uart2dbg_dat_out),
-        .dbg_we_i(uart2dbg_we),
-        .dbg_cyc_i(uart2dbg_cyc),
-        .dbg_stb_i(uart2dbg_stb),
-        .dbg_cs_i(uart2wb_cs_z80),
-        .dbg_ack_o(uart2dbg_ack),           // immediate answer
+        .dbg_adr_i(uart_dbus_adr),                  // Not used for now
+        .dbg_dat_o(uart_dbus_dat_in),
+        .dbg_dat_i(uart_dbus_dat_out),
+        .dbg_we_i(uart_dbus_we),
+        .dbg_cyc_i(uart_dbus_cyc),
+        .dbg_stb_i(uart_dbus_stb),
+        .dbg_cs_i(uart_dbus_cs_z80),
+        .dbg_ack_o(uart_dbus_ack),           // immediate answer
         
         // Z80-specific Interface
         .nmi_req_i(1'b0),                   // No NMI for now
@@ -383,15 +386,15 @@ module aleste_system #(
         .z80_err_o(z80_err),                      // Not used
         
         // UART Bridge Interface
-        .uart_cyc_i(uart2wb_cyc),
-        .uart_stb_i(uart2wb_stb),
-        .uart_we_i(uart2wb_we),
-        .uart_adr_i(uart2wb_adr),
-        .uart_dat_i(uart2wb_dat_out),
-        .uart_dat_o(uart2wb_dat_in),
-        .uart_ack_o(uart2wb_ack),
-        .uart_grant_o(uart2wb_grant),
-        .uart_err_o(uart2wb_err),                     
+        .uart_cyc_i(uart_wb_cyc),
+        .uart_stb_i(uart_wb_stb),
+        .uart_we_i(uart_wb_we),
+        .uart_adr_i(uart_wb_adr),
+        .uart_dat_i(uart_wb_dat_out),
+        .uart_dat_o(uart_wb_dat_in),
+        .uart_ack_o(uart_wb_ack),
+        .uart_grant_o(uart_wb_grant),
+        .uart_err_o(uart_wb_err),                     
         
         // Video Controller Interface
         .vid_cyc_o(vid_cyc),
@@ -599,10 +602,10 @@ module aleste_system #(
     ) dbus_wdt_inst (
         .clk_i(clk_bus),
         .rst_i(system_reset),
-        .cyc_i(uart2dbg_cyc),
-        .stb_i(uart2dbg_stb),
-        .ack_i(uart2dbg_ack),
-        .err_o(uart2dbg_err)
+        .cyc_i(uart_dbus_cyc),
+        .stb_i(uart_dbus_stb),
+        .ack_i(uart_dbus_ack),
+        .err_o(uart_dbus_err)
     );
 
     // ===========================================
@@ -659,12 +662,12 @@ module aleste_system #(
     `elsif DEBUG_URART_BRIDGE
         // UART BRIDGE
         assign debug = {
-            uart2wb_adr[0],
-            uart2wb_err,  
-            uart2wb_ack,
-            uart2wb_stb,
-            uart2wb_we,
-            uart2wb_cyc,
+            uart_wb_adr[0],
+            uart_wb_err,  
+            uart_wb_ack,
+            uart_wb_stb,
+            uart_wb_we,
+            uart_wb_cyc,
             clk_bus  // ← запятой НЕ ДОЛЖНО БЫТЬ перед закрывающей скобкой
         };
     `else

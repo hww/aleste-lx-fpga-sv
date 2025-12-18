@@ -222,7 +222,7 @@ class FPGAMemory(FPGABase):
         try:
             cmd = 0b101 << 4
             response = self.transport.send_command(cmd)
-            return response if response and len(response) == 7 else None
+            return response if response and len(response) == 1 else None
         except (FPGATransportError, FPGAProtocolError) as e:
             print(f"❌ State read failed: {e}")
             return None

@@ -4,7 +4,7 @@ module jtag_debug(
     input  wire jtag_tms,
     input  wire jtag_tdi,
     output wire jtag_tdo,
-    input  wire [15:0] data
+    input  wire [31:0] data
 );
 
 // === TAP STATES ===
@@ -73,7 +73,7 @@ always @(posedge jtag_tck) begin
         if (tap_state == CAPTURE_DR) begin
             case (ir_reg)
                 4'b0001: dr_reg <= 32'h10001FFF;  // IDCODE
-                4'b0010: dr_reg <= {16'h0000, data}; // Debug данные
+                4'b0010: dr_reg <= data; // Debug данные
                 default: dr_reg <= 32'hDEADBEEF;
             endcase
         end else if (tap_state == SHIFT_DR) begin

@@ -132,8 +132,8 @@ typedef enum logic [3:0] {
     STATE_BUS_READ_WAIT_ACK,            //8
     STATE_BUS_READ_SEND_DATA,           //9
     STATE_SEND_STATE,                   //10
-    STATE_SEND_OK,                      //11
-    STATE_SEND_ERROR                    //12
+    STATE_BUS_WRITE_COMPLETE,           //11
+    STATE_ERROR                         //12
 } cmd_state_t;
 
 cmd_state_t cmd_state = STATE_IDLE;
@@ -146,13 +146,8 @@ logic [7:0]  data_size;
 logic [7:0]  bytes_remaining;
 logic [2:0]  args_to_receive;
 logic [7:0]  response_data;
-logic        STATE_SEND_ERROR_stb;
-logic [7:0]  state_reg_command;
-logic [7:0]  state_reg_fsms;
-logic [2:0]  state_reg_cnt;
-logic [7:0]  state_reg_errors;    // Бит [2:0] - ошибки, [7:3] - резерв
-logic [7:0]  state_reg_bus_ctrl;  // Управление шиной
-logic        STATE_SEND_ERRORs_reset_stb; // reset the state
+logic        state_reset_stb, state_cmd_ok_stb, state_cmd_err_stb, state_wdt_err_stb, state_bus_err_stb;
+logic [7:0]  state_register;    // Бит [2:0] - ошибки, [7:3] - резерв
 
 // Bus control signals (MASTER -> SLAVE)
 logic        bus_cyc;
@@ -232,22 +227,28 @@ always_ff @(posedge clk_i) begin
         uart_rx_ready <= '0;
         uart_tx_valid <= '0;
         response_data <= '0;
-        STATE_SEND_ERROR_stb <= '0;
+        state_reset_stb <= '0;
+        state_cmd_err_stb <= '0;
+        state_cmd_ok_stb <= '0;
+        state_bus_err_stb <= '0;
+        state_wdt_err_stb <= '0;
         bus_cyc <= '0;
         bus_stb <= '0;
         bus_we <= '0;
         bus_mem_access <= '0;
         bus_addr <= '0;
         bus_wr_data <= '0;
-        STATE_SEND_ERRORs_reset_stb <= '0;
 
 
     end else begin
         uart_rx_ready <= '0;
         uart_tx_valid <= '0;
+        state_reset_stb <= '0;
+        state_cmd_err_stb <= '0;
+        state_wdt_err_stb <= '0;
+        state_bus_err_stb <= '0;
+        state_cmd_ok_stb <= '0;
         wdt_restart_stb <= '0;
-        STATE_SEND_ERRORs_reset_stb <= '0;
-        STATE_SEND_ERROR_stb <= '0;
 
         case (cmd_state)
             STATE_IDLE: begin
@@ -260,51 +261,56 @@ always_ff @(posedge clk_i) begin
                     cmd_state <= STATE_COMMAND_PARSE;
                 end
             end
-            
+
+
             STATE_COMMAND_PARSE: begin
                 data_size <= get_data_size(current_cmd);
-                
+                current_addr <= 0;
                 case (get_cmd_type(current_cmd))
                     CMD_TYPE_MEM_READ: begin
                         args_to_receive <= 3;
                         bus_mem_access <= 1'b1;
                         bus_we <= 1'b0;
+                        state_reset_stb <= '1; // reset state register
                         cmd_state <= STATE_READ_ARGS;
                     end
                     CMD_TYPE_MEM_WRITE: begin
                         args_to_receive <= 3;
                         bus_mem_access <= 1'b1;
                         bus_we <= 1'b1;
+                        state_reset_stb <= '1; // reset state register
                         cmd_state <= STATE_READ_ARGS;
                     end
                     CMD_TYPE_REG_READ: begin
                         args_to_receive <= 1;
                         bus_mem_access <= 1'b0;
                         bus_we <= 1'b0;
+                        state_reset_stb <= '1; // reset state register
                         cmd_state <= STATE_READ_ARGS;
                     end
                     CMD_TYPE_REG_WRITE: begin
                         args_to_receive <= 1;
                         bus_mem_access <= 1'b0;
                         bus_we <= 1'b1;
+                        state_reset_stb <= '1; // reset state register
                         cmd_state <= STATE_READ_ARGS;
                     end
                     CMD_TYPE_STATUS: begin
                         args_to_receive <= 0;
                         bus_mem_access <= 1'b0;
                         bus_we <= 1'b0;
-                        current_addr <= 0;
+                        state_reset_stb <= '1; // reset state register
                         cmd_state <= STATE_BUS_OP_START;
                     end
                     CMD_TYPE_STATE_READ: begin
-                        state_reg_cnt <= 0;
                         wdt_restart_stb <= '1;
                         cmd_state <= STATE_SEND_STATE;
+                        // The command does not reset state
+                        // state_reset_stb <= '1; // reset state register
                     end
                     default: begin
-                        response_data <= RESP_ERROR;
-                        STATE_SEND_ERROR_stb <= '1;
-                        cmd_state <= STATE_SEND_ERROR;
+                        state_cmd_err_stb <= '1;
+                        cmd_state <= STATE_ERROR;
                     end
                 endcase
             end
@@ -318,8 +324,8 @@ always_ff @(posedge clk_i) begin
                     current_addr <= {current_addr[15:0], uart_rx_data};
                     args_to_receive <= args_to_receive - 1;
                 end else if (wdt_trigger) begin
-                    STATE_SEND_ERROR_stb <= '1;
-                    cmd_state <= STATE_SEND_ERROR;
+                    state_wdt_err_stb <= '1;
+                    cmd_state <= STATE_ERROR;
                 end
             end
             
@@ -340,13 +346,19 @@ always_ff @(posedge clk_i) begin
                 if (bytes_remaining == 0) begin
                     bus_cyc     <= 1'b0;
                     bus_stb     <= 1'b0;
-                    cmd_state   <= STATE_IDLE;       
+                    state_cmd_ok_stb <= 1'b1;
+                    cmd_state   <= STATE_BUS_WRITE_COMPLETE;       
                 end else if (uart_rx_valid && !uart_rx_ready) begin
                     wdt_restart_stb <= 1'b1;                    
                     uart_rx_ready   <= 1'b1;
                     bus_stb         <= 1'b1;
                     bus_wr_data     <= uart_rx_data;
                     cmd_state       <= STATE_BUS_WRITE_WAIT_ACK;
+                end else if (wdt_trigger) begin
+                    state_wdt_err_stb <= '1;
+                    bus_cyc <= 1'b0;                    
+                    bus_stb <= 1'b0;                    
+                    cmd_state <= STATE_ERROR;                  
                 end
             end
 
@@ -356,11 +368,11 @@ always_ff @(posedge clk_i) begin
                     bytes_remaining <= bytes_remaining - 1;
                     bus_addr        <= bus_addr + 1;
                     cmd_state       <= STATE_BUS_WRITE_WAIT_RX;
-                end else if (bus_error_stb) begin
-                    bus_cyc         <= 1'b0;
-                    STATE_SEND_ERROR_stb   <= 1'b1;
-                    response_data   <= RESP_ERROR;
-                    cmd_state       <= STATE_SEND_ERROR;
+                end else if (bus_error_stb) begin    
+                    state_bus_err_stb <= '1;                                    
+                    bus_cyc <= 1'b0;                    
+                    bus_stb <= 1'b0;                    
+                    cmd_state <= STATE_ERROR;
                 end
             end
 
@@ -368,7 +380,8 @@ always_ff @(posedge clk_i) begin
                 if (bytes_remaining == 0) begin
                     bus_cyc         <= 1'b0;
                     bus_stb         <= 1'b0;                    
-                    cmd_state       <= STATE_IDLE;
+                    state_cmd_ok_stb <= 1'b1;
+                    cmd_state       <= STATE_BUS_WRITE_COMPLETE;
                 end else begin
                     wdt_restart_stb <= 1'b1;
                     cmd_state <= STATE_BUS_READ_WAIT_TRANSMITTER;
@@ -381,8 +394,10 @@ always_ff @(posedge clk_i) begin
                     bus_stb <= 1'b1;
                     cmd_state <= STATE_BUS_READ_WAIT_ACK;
                 end else if (wdt_trigger) begin
-                    STATE_SEND_ERROR_stb <= '1;
-                    cmd_state <= STATE_SEND_ERROR;                    
+                    state_wdt_err_stb <= '1;
+                    bus_cyc <= 1'b0;                    
+                    bus_stb <= 1'b0;                    
+                    cmd_state <= STATE_ERROR;                  
                 end
             end
 
@@ -392,11 +407,10 @@ always_ff @(posedge clk_i) begin
                     bus_stb         <= 1'b0;
                     cmd_state       <= STATE_BUS_READ_SEND_DATA;
                 end else if (bus_error_stb) begin
+                    state_bus_err_stb <= '1;                                    
                     bus_cyc         <= 1'b0;
                     bus_stb         <= 1'b0;
-                    STATE_SEND_ERROR_stb   <= 1'b1;
-                    response_data   <= RESP_ERROR;
-                    cmd_state       <= STATE_SEND_ERROR;
+                    cmd_state       <= STATE_ERROR;
                 end
             end
 
@@ -413,48 +427,36 @@ always_ff @(posedge clk_i) begin
             STATE_SEND_STATE: begin
                 if (uart_tx_ready && !uart_tx_valid) begin
                     wdt_restart_stb <= 1'b1;
-                    uart_tx_valid <= 1'b1;  // Импульс на 1 такт
-                    state_reg_cnt <= state_reg_cnt == 3'd7 ? 3'd7 : state_reg_cnt + 3'd1;
-                    case (state_reg_cnt) 
-                        0: uart_tx_data <= state_reg_errors;      // [2:0] ошибки
-                        1: uart_tx_data <= state_reg_bus_ctrl;    // управление шиной
-                        2: uart_tx_data <= state_reg_fsms;        // состояния FSM
-                        3: uart_tx_data <= current_addr[23:16];   // адрес H
-                        4: uart_tx_data <= current_addr[15:8];    // адрес M  
-                        5: uart_tx_data <= current_addr[7:0];     // адрес L
-                        default: begin 
-                            uart_tx_data <= state_reg_command;     // команда
-                            STATE_SEND_ERRORs_reset_stb <= 1;// сбросим флаги ошибок
-                            cmd_state <= STATE_IDLE;
-                        end
-                    endcase
+                    uart_tx_valid   <= 1'b1;                  // Импульс на 1 такт
+                    uart_tx_data    <= state_register;    // управление шиной
+                    cmd_state       <= STATE_IDLE;
                 end else if (wdt_trigger) begin
-                    STATE_SEND_ERROR_stb <= '1;
-                    cmd_state <= STATE_SEND_ERROR;
+                    state_wdt_err_stb   <= '1;                    
+                    bus_cyc         <= 1'b0;
+                    bus_stb         <= 1'b0;
+                    cmd_state       <= STATE_ERROR;
                 end                    
             end
-
-            STATE_SEND_OK: begin
-                if (uart_tx_ready) begin
-                    uart_tx_valid <= 1'b1;  // Импульс на 1 такт
-                    uart_tx_data <= response_data;
-                    cmd_state <= STATE_IDLE;
-                end
-            end
-
-            STATE_SEND_ERROR: begin
-                if (uart_tx_ready) begin
-                    uart_tx_valid <= 1'b1;  // Импульс на 1 такт
-                    uart_tx_data <= response_data;
-                    cmd_state <= STATE_IDLE;
-                end else if (wdt_trigger) begin
-                    // Worst case we can't send back the answer with the error
-                    // strange but just gaveup
-                    STATE_SEND_ERROR_stb <= '1;
-                    cmd_state <= STATE_IDLE;
-                end    
-            end
             
+            STATE_BUS_WRITE_COMPLETE: begin
+                bus_cyc <= 1'b0;
+                bus_stb <= 1'b0;
+                // Ждем, пока шина не станет IDLE
+                if (bus_state == BUS_IDLE) begin
+                    state_cmd_ok_stb    <= 1'b1;
+                    cmd_state           <= STATE_IDLE;
+                end else if (wdt_trigger) begin
+                    state_wdt_err_stb   <= '1;                    
+                    cmd_state           <= STATE_ERROR;
+                end  
+            end
+
+            STATE_ERROR: begin
+                bus_cyc   <= 1'b0;
+                bus_stb   <= 1'b0;
+                cmd_state <= STATE_IDLE;
+            end
+    
             default: cmd_state <= STATE_IDLE;
         endcase
     end
@@ -464,30 +466,19 @@ end
 // Erorrs reg
 // ============================================================================
 
-logic any_bus_error = (wb_cyc_o && wb_err_i) || (dbg_cyc_o && dbg_err_i);
-logic any_error = any_bus_error || STATE_SEND_ERROR_stb || wdt_trigger;
-
 always_ff @(posedge clk_i) begin
     if (rst) begin
-        state_reg_errors <= 8'b0000_0000;
-        state_reg_fsms <= '0;
-        state_reg_bus_ctrl <= '0;
-        state_reg_command <= '0;
+        state_register <= 8'b0000_0000;
     end else begin
-        if (STATE_SEND_ERRORs_reset_stb) begin
-            state_reg_errors <= 8'b0000_0000;
-            state_reg_fsms <= '0;
-            state_reg_bus_ctrl <= '0;
-            state_reg_command <= '0;
-        end else if (!state_reg_errors[7]) begin
-            if (any_error) begin
-                // update every clock untill error
-                state_reg_errors   <= {5'b10000, wdt_trigger, STATE_SEND_ERROR_stb, wb_err_i};
-            end else begin
-                state_reg_command  <= current_cmd;
-                state_reg_bus_ctrl <= {args_to_receive, bus_mem_access, bus_cyc, bus_stb, bus_ack, bus_we};
-                state_reg_fsms     <= { 2'b00, bus_state, cmd_state };
-            end
+        if (state_reset_stb) begin
+            // At the start of each command
+            state_register[7:4] <= 4'b0000;
+            state_register[3:0] <= state_register[3:0] + 4'h1;
+        end else begin
+            if (state_cmd_ok_stb)   state_register[7] <= 1'b1;
+            if (state_cmd_err_stb)  state_register[6] <= 1'b1;
+            if (state_bus_err_stb)  state_register[5] <= 1'b1;
+            if (state_wdt_err_stb)  state_register[4] <= 1'b1;
         end
     end
 end
@@ -685,10 +676,20 @@ jtag_debug jtag_debug_inst(
     .jtag_tdi(jtag_tdi),    // подключить к N4 (PA0) 
     .jtag_tdo(jtag_tdo),    // подключить к J5 (PA1)
     .jtag_tms(jtag_tms),
-    .data({      
-        8'h80,
+    .data({   
+        8'h00,
+        bus_addr
+         /* 
+        wb_err_i,
+        wb_ack_i,
+        wb_stb_o,
+        wb_cyc_o,
+        dbg_err_i,
+        dbg_ack_i,
+        dbg_stb_o,
+        dbg_cyc_o,
         1'b0, bus_state[2:0],
-        cmd_state[3:0]
+        cmd_state[3:0]*/
     })
 );
 
