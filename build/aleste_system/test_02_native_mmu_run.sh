@@ -8,7 +8,7 @@ dbg="../../scripts/python/commands/debug/dbg.py"
 mem_dump="../../scripts/python/commands/memory/mem_dump.py"
 
 echo "1. Loading test to 0xC00000..."
-$dbg trace -n 100000 -a 0xC00000 test_01_native_mmu.bin
+$dbg trace -n 100000 -a 0xC00000 test_02_native_mmu.bin
 
 echo "2. Waiting for test to complete..."
 sleep 3

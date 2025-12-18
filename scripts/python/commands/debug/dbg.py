@@ -275,6 +275,10 @@ class Z80Debugger:
             dis = self._simple_disasm(state['addr'])
             if dis:
                 parts.append(f"dis:{dis}")
+            else:
+                parts.append(f"bus:0x{state['bus']:02X}")
+        else:
+            parts.append(f"bus:0x{state['bus']:02X}")
         
         if options.show_mmu:
             mmu = 'N' if state['mmu_native'] else 'Z'
