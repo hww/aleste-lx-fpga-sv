@@ -11,6 +11,7 @@ module mmu_legacy (
     // Clock and Reset
     // -------------------------------------------------------------------------
     input  logic        clk,
+    input  logic        clke,
     input  logic        reset,
     
     // -------------------------------------------------------------------------
@@ -69,8 +70,7 @@ module mmu_legacy (
     // =========================================================================
     logic [7:0] reg_rmr;                          // RMR: Control Interrupt counter, ROM mapping
     logic [7:0] reg_mmr;                          // MMR: RAM memory mapping  
-    logic [7:0] reg_upper_rom;                    // Upper ROM selection register
-    logic [1:0] gate_array_reg;                   // Gate Array register type
+    logic [7:0] reg_upper_rom;                    // Upper ROM selection registe           
     
     // =========================================================================
     // Memory Configuration
@@ -86,19 +86,6 @@ module mmu_legacy (
     assign cfg_lower_rom    = reg_rmr[2];             // 1=Lower ROM area disable, 0=Lower ROM area enable 
     assign cfg_upper_rom    = reg_rmr[3];             // 1=Upper ROM area disable, 0=Upper ROM area enable 
     assign cfg_irq_control  = reg_rmr[4];             // Interrupt generation control
-
-    // =========================================================================
-    // Z80 Bus Decoding Signals
-    // =========================================================================
-    logic        is_7fxx_write;                   // Gate Array write (7Fxxh)
-    logic        is_dfxx_write;                   // Upper ROM select write (DFxxh)
-    logic        is_mem_access;                   // Memory access active
-    logic        is_mem_write;                    // Memory write operation
-    logic        is_mem_read;                     // Memory read operation
-    logic        is_io_access;                    // I/O access active
-    logic        is_internal_io;                  // Internal I/O register access
-    logic        is_gate_array_reg_write;         // Gate Array register write
-
 
     // =========================================================================
     // Address Calculation
@@ -119,22 +106,29 @@ module mmu_legacy (
     // Z80 BUS DECODING
     // =========================================================================
 
+    // Memory and I/O access detection
+    wire is_mem_access = legacy_mode_i & ~cpu_mreq_n;    // Memory access active
+    wire is_mem_write  = is_mem_access & ~cpu_wr_n;      // Memory write operation
+    wire is_mem_read   = is_mem_access & ~cpu_rd_n;      // Memory read operation
+    wire is_io_access  = legacy_mode_i & ~cpu_iorq_n;    // I/O access active
+    wire is_io_write   = is_io_access & ~cpu_wr_n;;      // I/O write
+    wire is_io_read    = is_io_access &  cpu_wr_n;;      // I/O read
+
     // Gate Array access detection (7Fxxh write)
-    assign is_7fxx_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a[15:8] == 8'h7F);
+    wire is_7fxx_cs = (cpu_a[15:8] == 8'h7F);                   // Gate Array select (7Fxxh)
+    wire is_7fxx_write = is_io_access & ~cpu_wr_n & is_7fxx_cs; // Gate Array select (7Fxxh)
     
     // Upper ROM select detection (DFxxh write)
-    assign is_dfxx_write = ~cpu_iorq_n & ~cpu_wr_n & (cpu_a[15:8] == 8'hDF);
+    wire is_dfxx_cs = (cpu_a[15:8] == 8'hDF);                   // Upper ROM write (DFxxh)
+    wire is_dfxx_write = is_io_access & ~cpu_wr_n & is_dfxx_cs; // Upper ROM write (DFxxh)
     
-    // Memory and I/O access detection
-    assign is_mem_access = ~cpu_mreq_n;
-    assign is_io_access  = ~cpu_iorq_n;
-    assign is_mem_write  = is_mem_access & ~cpu_wr_n;
-    assign is_mem_read   = is_mem_access & ~cpu_rd_n;
 
     // Internal I/O registers (handled internally, not forwarded to Wishbone)
-    assign is_internal_io = is_7fxx_write | is_dfxx_write;
-    assign is_gate_array_reg_write = is_7fxx_write & legacy_mode_i;
-    assign gate_array_reg = cpu_din[7:6];         // Register type from data bits
+    wire is_internal_cs = (is_7fxx_cs | is_dfxx_cs);            // Internal I/O register access
+    wire is_internal_io_acc = is_io_access &  is_internal_cs;   // Internal I/O io
+    wire is_external_io_acc = is_io_access & ~is_internal_cs;   // Internal I/O io
+
+    wire [1:0] gate_array_reg_num = cpu_din[7:6];               // Gate Array register type
 
     // =========================================================================
     // CPC REGISTER UPDATE FROM Z80 BUS
@@ -145,10 +139,10 @@ module mmu_legacy (
             reg_rmr        <= 8'b10000000;        // Default RMR: Mode 0, ROMs enabled
             reg_mmr        <= 8'b11000000;        // Default MMR: Config 0, Bank 0
             reg_upper_rom  <= 8'h00;              // Default upper ROM bank 0
-        end else if (legacy_mode_i) begin
+        end else if (clke && legacy_mode_i) begin
             // Gate Array register writes (7Fxxh)
-            if (is_gate_array_reg_write) begin
-                case (gate_array_reg)
+            if (is_7fxx_write) begin
+                case (gate_array_reg_num)
                     2'b10: reg_rmr <= cpu_din;   // RMR write (Configuration)
                     2'b11: reg_mmr <= cpu_din;   // MMR write (Memory mapping)
                     // Other values (2'b00, 2'b01) are for palette, ignored here
@@ -290,10 +284,10 @@ module mmu_legacy (
             end
         end
         // IO Address      
-        else if (is_io_access & ~is_internal_io) begin
+        else if (is_external_io_acc) begin
             // External I/O accesses go to Wishbone
             // Map to 3Fxxxxh IO space (24-bit address)
-            io_physical_address = {8'h3F, cpu_a};
+            io_physical_address = {8'hFF, cpu_a};
         end
     end
 
@@ -328,7 +322,7 @@ module mmu_legacy (
             m_wb_adr_o  <= 24'h000000;
             m_wb_dat_o  <= 8'h00;
             wb_busy     <= 1'b0;
-        end else begin
+        end else if (clke) begin
             // Clear strobe on acknowledge
             if (m_wb_ack_i) begin
                 m_wb_stb_o <= 1'b0;
@@ -336,7 +330,7 @@ module mmu_legacy (
             end
             
             // Start new Wishbone transaction
-            if ((is_mem_access | (is_io_access & ~is_internal_io)) && ~wb_busy) begin
+            if ((is_mem_access | (is_io_access & ~is_internal_io_acc)) && ~wb_busy) begin
                 m_wb_cyc_o  <= 1'b1;
                 m_wb_stb_o  <= 1'b1;
                 m_wb_we_o   <= is_mem_write | (is_io_access & ~cpu_wr_n);
@@ -357,6 +351,6 @@ module mmu_legacy (
     // Простое чтение данных от Wishbone
     assign cpu_dout = m_wb_dat_i;
 
-    assign cpu_mmu_access_o = is_internal_io;
+    assign cpu_mmu_access_o = is_internal_io_acc;
 
 endmodule

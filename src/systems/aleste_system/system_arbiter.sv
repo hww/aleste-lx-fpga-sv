@@ -242,4 +242,3 @@ module system_arbiter (
 
 endmodule
 
-`default_nettype wire

@@ -5,6 +5,15 @@
 
 start:
     di
+    ld a, 0x00
+loop:
+    out (0xDB), a
+    in a, (0xD1)
+    inc a
+    jp loop
+
+
+
     ld sp, 0x3F00
     
     ; 1. Читаем D7

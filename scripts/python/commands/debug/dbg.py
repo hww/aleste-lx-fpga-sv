@@ -270,7 +270,14 @@ class Z80Debugger:
             parts.append(f"bus:0x{state['bus']:02X}")
         if options.show_type:
             parts.append(f"type:{state['type']:8s}")
+        if options.show_mmu:
+            parts.append(f"mmu:{state['mmu']}")
         
+        if options.show_flags:
+            parts.append(f"flags:{state['flags']}")
+    
+        parts.append(f"cap:0x{state['cap']:04X}")
+
         if options.show_disasm and state['m1']:
             dis = self._simple_disasm(state['addr'])
             if dis:
@@ -280,15 +287,7 @@ class Z80Debugger:
         else:
             parts.append(f"bus:0x{state['bus']:02X}")
         
-        if options.show_mmu:
-            mmu = 'N' if state['mmu_native'] else 'Z'
-        
-        if options.show_flags:
-            flags = []
-            if state['halted']: flags.append('H')
-            if state['waiting']: flags.append('W')
-            if flags:
-                parts.append(f"flags:{''.join(flags)}")
+
         
         print(' '.join(parts))
     
@@ -432,42 +431,79 @@ class Z80Debugger:
     def _get_detailed_status(self) -> Optional[Dict]:
         """Подробный статус"""
         try:
+            # Захват адреса
             addr_h = self.reg.read(0x12) or 0
             addr_m = self.reg.read(0x13) or 0
             addr_l = self.reg.read(0x14) or 0
             addr = (addr_h << 16) | (addr_m << 8) | addr_l
-            
+            # Захват данных
             bus = self.reg.read(0x15) or 0
+            # Захват статуса
             status = self.reg.read(0x10) or 0
             mmu = self.reg.read(0x11) or 0
-            sig2 = self.reg.read(0x19) or 0
-            
+            # Захват отладочной информации
+            cap_h = self.reg.read(0x18) or 0 
+            cap_l = self.reg.read(0x19) or 0 
+            cap = (cap_h << 8) | (cap_l)
+
             # Тип операции
             op_type = "?"
             if status & 0x10:
-                op_type = "FETCH"
+                op_type = "M1 "
             elif status & 0x20:
-                if sig2 & 0x80:
-                    op_type = "MEM_RD"
-                elif sig2 & 0x40:
-                    op_type = "MEM_WR"
+                if status & 0x80:
+                    op_type = "WR "
                 else:
-                    op_type = "MEM"
+                    op_type = "RD "
             elif status & 0x40:
-                op_type = "IO"
+                if status & 0x80:
+                    op_type = "OUT"
+                else:
+                    op_type = "IN "
             
+            # Состояния процессора
+            halted = bool(status & 0x04)
+            waiting = bool(status & 0x08)
+            
+            # Флаги
+            flags = []
+            flags.append('H' if halted else '-')
+            flags.append('W' if waiting else '-')
+            flags = ''.join(flags)
+
+            # Статус MMU
+            ammu = []
+            ammu.append('-')
+            ammu.append('-')
+            ammu.append('-')
+            ammu.append('L' if bool(mmu & 0x10) else '-')
+            ammu.append('-')
+            ammu.append('-')
+            ammu.append('S' if bool(mmu & 0x02) else '-')
+            ammu.append('N' if bool(mmu & 0x01) else '-')
+            ammu = ''.join(ammu)
+
             return {
                 'addr': addr,
                 # take the mmu_page[1:0] and a[13:0]
-                'pc': (((mmu >> 6) & 0x03) << 14) + (addr & 0x3FFF),
+                'pc': ((mmu & 0xC0) << 8) + (addr & 0x3FFF),
                 'bus': bus,
+                # Operation type
                 'type': op_type,
+                # debug status
                 'stopped': bool(status & 0x01),
-                'bp_hit': bool(status & 0x02),
-                'halted': bool(status & 0x04),
-                'waiting': bool(status & 0x08),
-                'm1': bool(status & 0x10),
-                'mmu_native': bool(mmu & 0x01)
+                'bp_hit':  bool(status & 0x02),
+                'halted':  halted,
+                'waiting': waiting,
+                'm1':      bool(status & 0x10),
+                # MMU
+                'mmu': ammu,
+                'mmu_native': bool(mmu & 0x01),
+                'mmu_super':  bool(mmu & 0x02),
+                'mmu_ulock':  bool(mmu & 0x10),
+                # Additional captured
+                'cap': cap,
+                'flags': flags
             }
         except:
             return None
@@ -504,89 +540,74 @@ class Z80Debugger:
     def cmd_exec(self, steps: int = 0, bp_addr: Optional[int] = None):
         """Запустить выполнение до точки останова или определенного количества шагов"""
         
-        # Настраиваем остановы
-        ctrl_stop = 0x0F  # Все остановы включены по умолчанию
+        # 1. Сброс держим
+        self.cmd_reset(True)
         
+        # 2. ОЧИЩАЕМ ВСЕ ОСТАНОВЫ
+        self.reg.write(0x02, 0x00)
+        
+        # 3. Если задан breakpoint - устанавливаем
         if bp_addr:
-            # Устанавливаем точку останова
             self.reg.write(0x03, (bp_addr >> 16) & 0xFF)
             self.reg.write(0x04, (bp_addr >> 8) & 0xFF)
             self.reg.write(0x05, bp_addr & 0xFF)
-            ctrl_stop |= 0x10  # BP на инструкциях
+            self.reg.write(0x02, 0x10)  # Включаем BP на инструкциях
+            print(f"exec: breakpoint at 0x{bp_addr:06X}")
         
-        # Устанавливаем остановы
-        self.reg.write(0x02, ctrl_stop)
+        # 5. Запускаем CPU вцключаем пошаговый
+        self.cmd_step_mode(False)
+        self.cmd_reset(False)
         
-        # Выключаем пошаговый режим и запускаем
-        self.reg.write(0x01, 0x00)  # step mode off
+        print("exec: running... (Ctrl+C to stop)")
         
-        print(f"exec: running...")
-        
-        # Если задано ограничение по шагам
-        if steps > 0:
-            start_time = time.time()
-            for i in range(steps):
-                # Проверяем статус
-                status = self.reg.read(0x10)
-                if status is None:
-                    print("exec: communication error")
-                    return False
-                
-                # Проверяем условия остановки
-                if status & 0x01:  # Остановлен
+        if bp_addr:
+            try:
+                while True:
+                    # Проверяем статус
+                    status = self.reg.read(0x10)
+                    if status is None:
+                        print("exec: communication error")
+                        return False
+                    
+                    # ВАЖНО: проверяем только ТОЧКИ ОСТАНОВА и HALT
+                    # Игнорируем WAIT состояние и другие флаги
+                    if status & 0x01:  # Точка останова
+                        print("\nexec: CPU stopped!")
+                        break
+                    
                     if status & 0x02:  # Точка останова
-                        print(f"exec: breakpoint hit at step {i}")
+                        print("\nexec: CPU break point!")
                         break
-                    elif status & 0x04:  # HALT
-                        print(f"exec: halted at step {i}")
+                    
+                    if status & 0x04:  # HALT инструкция
+                        print("\nexec: CPU halted")
                         break
-                    else:
-                        print(f"exec: stopped at step {i}")
-                        break
-                
-                # Небольшая задержка для CPU
-                time.sleep(0.0001)
-                
-                # Проверка таймаута
-                if time.time() - start_time > 10.0:  # 10 секунд
-                    print("exec: timeout")
-                    return False
-        else:
-            # Запускаем до остановки
-            print("exec: running until stop/breakpoint/halt...")
+                    
+                    # НЕ проверяем (status & 0x01) потому что он может включать WAIT
+                    # НЕ проверяем (status & 0x08) потому что WAIT нас не интересует
+                    
+                    time.sleep(0.1)
+                    
+            except KeyboardInterrupt:
+                print("\nexec: stopped by user")
             
-            # Ожидаем остановки
-            timeout = time.time() + 10.0  # 10 секунд
-            while time.time() < timeout:
-                status = self.reg.read(0x10)
-                if status is None:
-                    print("exec: communication error")
-                    return False
+            finally:
+                # Показываем состояние
+                state = self._get_detailed_status()
+                if state:
+                    print(f"exec: pc=0x{state['pc']:04X}")
+                    if state['m1']:
+                        dis = self._simple_disasm(state['addr'])
+                        if dis:
+                            print(f"       {dis}")
                 
-                if status & 0x01:  # Остановлен
-                    if status & 0x02:  # Точка останова
-                        print("exec: breakpoint hit")
-                        break
-                    elif status & 0x04:  # HALT
-                        print("exec: halted")
-                        break
-                    else:
-                        print("exec: stopped")
-                        break
-                
-                time.sleep(0.001)
-            else:
-                print("exec: timeout")
-                return False
+                # Очищаем breakpoint
+                self.reg.write(0x02, 0x00)
         
-        # Показываем текущее состояние
-        state = self._get_detailed_status()
-        if state:
-            print(f"exec: pc=0x{state['pc']:04X} addr=0x{state['addr']:06X}")
-        
-        # Сбрасываем остановы
-        self.reg.write(0x02, 0x00)
         return True
+    
+
+
 # --------------------------------------------------
 # 7. ПАРСИНГ АРГУМЕНТОВ И ГЛАВНАЯ ФУНКЦИЯ
 # --------------------------------------------------
@@ -810,26 +831,28 @@ def main():
             opts.show_mmu = args.mmu
             opts.show_flags = args.flags
             
+            dbg.cmd_reset(True)
+            time.sleep(0.01)
+
             # Загружаем и трассируем
             if not dbg.cmd_load(addr, args.file, jump):
                 sys.exit(1)
             
-            dbg.cmd_reset(True)
-            time.sleep(0.01)
             
             dbg.cmd_trace(args.steps, opts)
         
         # 7. ВЫПОЛНЕНИЕ (новая команда)
         elif args.cmd == 'exec':
+                
+            dbg.cmd_reset(True)
+            time.sleep(0.01)
+
             # Загружаем файл если указан
             if args.file:
                 addr = parse_addr(args.addr) if args.addr else 0
                 jump = parse_addr(args.jump) if args.jump else None
                 if not dbg.cmd_load(addr, args.file, jump):
                     sys.exit(1)
-                
-                dbg.cmd_reset(True)
-                time.sleep(0.01)
             
             # Запускаем выполнение
             bp = parse_addr(args.bp) if args.bp else None

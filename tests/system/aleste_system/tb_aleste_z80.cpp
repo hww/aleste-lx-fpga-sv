@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
     Valeste_system* top = new Valeste_system;
     VerilatedVcdC* tfp = new VerilatedVcdC;
     top->trace(tfp, 99);
-    tfp->open("waveform_z80.vcd");
+    tfp->open("tb_aleste_z80.vcd");
     
     // ==============================================
     // Инициализация SDRAM
@@ -149,6 +149,13 @@ int main(int argc, char** argv) {
         sdram.write_word(4, 0x0003);  // Word 4: 03 00 (адрес 0003h для LD)
         sdram.write_word(5, 0x033A);  // Word 5: 3A 03 (LD A, (0003h) - начало)
         sdram.write_word(6, 0x7600);  // Word 6: 00 76 (HALT + младший байт адреса)
+
+        // Добавляем IN и OUT инструкции для порта D7 (0xD7)
+        sdram.write_word(7, 0x00DB);  // Word 7: DB 00 (IN A, (00h) - начало)
+        sdram.write_word(8, 0xD700);  // Word 8: 00 D7 (порт D7 для IN)
+
+        sdram.write_word(9, 0x00D3);  // Word 9: D3 00 (OUT (00h), A - начало)
+        sdram.write_word(10, 0xD700); // Word 10: 00 D7 (порт D7 для OUT)
     }
     
     // ==============================================
@@ -175,7 +182,7 @@ int main(int argc, char** argv) {
     // ==============================================
     for (int cycle = 0; cycle < 100000; cycle++) {
         top->clk_25mhz = !top->clk_25mhz;
-        
+        top->debug_wb_clk_i = top->clk_25mhz;
         // ==============================================
         // Выполнение Verilog
         // ==============================================

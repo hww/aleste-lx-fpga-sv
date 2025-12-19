@@ -86,7 +86,7 @@ module aleste_system #(
     input  wire jtag2_tck,  // Подключить к выводу F5
     input  wire jtag2_tms,  // Подключить к выводу H5
     input  wire jtag2_tdi,  // Подключить к выводу N4
-    output wire jtag2_tdo,  // Подключить к выводу J5
+    output wire jtag2_tdo   // Подключить к выводу J5
 );
 
     localparam HDMI_H_TOTAL       = HDMI_H_VISIBLE + HDMI_H_FRONT_PORCH + HDMI_H_SYNC_PULSE + HDMI_H_BACK_PORCH;
@@ -272,12 +272,7 @@ module aleste_system #(
         .cmd_state_o(debug_uart_cmd_state),
         .bus_state_o(debug_uart_bus_state),
         .bus_ack_o(debug_uart_bus_ack),
-        .bus_stb_o(debug_uart_bus_stb),
-
-        .jtag_tck(jtag2_tck),    // подключить к F5 (PA14)
-        .jtag_tdi(jtag2_tdi),    // подключить к N4 (PA0) 
-        .jtag_tms(jtag2_tms),
-        .jtag_tdo(jtag2_tdo) 
+        .bus_stb_o(debug_uart_bus_stb)
     );
 
 `ifdef SIMULATION   
@@ -301,6 +296,7 @@ module aleste_system #(
     // ===========================================
     // Z80 CPU System
     // ===========================================
+    wire [7:0] debug_z80_bus;
     z80_system z80_sys_inst (
         // Clock and Reset
         .clk_i(clk_bus),                    // 27MHz CPU clock
@@ -347,7 +343,8 @@ module aleste_system #(
         // Debug Status Outputs
         .debug_z80_reset_o(z80_debug_reset),
         .debug_z80_halt_o(z80_debug_halt),
-        .debug_control_o(z80_debug_control)
+        .debug_control_o(z80_debug_control),
+        .debug_z80_bus_o(debug_z80_bus)
     );
 
     // ===========================================
@@ -619,9 +616,21 @@ module aleste_system #(
         z80_debug_halt
     };
 
+
+    jtag_debug jtag_debug_inst(
+        .jtag_tck(jtag2_tck),    // подключить к F5 (PA14)
+        .jtag_tdi(jtag2_tdi),    // подключить к N4 (PA0) 
+        .jtag_tdo(jtag2_tdo),    // подключить к J5 (PA1)
+        .jtag_tms(jtag2_tms),
+        .data({   
+            32'h00
+        })
+    );
+
+
     // Debug output - можно выбрать разные источники для отладки
     // ==========================
-    `define DEBUG_URART_I2C // <<<< CONFIG
+    `define DEBUG_Z80 // <<<< CONFIG
     // ==========================
     `ifdef DEBUG_CLOK   
         assign debug = { 
@@ -634,6 +643,8 @@ module aleste_system #(
             clk_108m,
             pll_locked
         };
+    `elsif DEBUG_Z80
+        assign debug = debug_z80_bus;
     `elsif DEBUG_URART
         // UART Interface
         assign debug = {

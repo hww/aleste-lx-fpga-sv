@@ -46,7 +46,7 @@ TV80_CORE   := $(CPU_DIR)/tv80/tv80_core.v
 TV80_REG    := $(CPU_DIR)/tv80/tv80_reg.v
 TV80_ALU    := $(CPU_DIR)/tv80/tv80_alu.v
 TV80_MCODE  := $(CPU_DIR)/tv80/tv80_mcode.v
-TV80_PACK   := $(CPU_DIR)/tv80/tv80s.v  # Используем tv80s.v вместо pack
+TV80_PACK   := $(CPU_DIR)/tv80/tv80lx.v
 
 CPU_VERILOG := $(TV80_CORE) $(TV80_REG) $(TV80_ALU) $(TV80_MCODE) $(TV80_PACK)
 

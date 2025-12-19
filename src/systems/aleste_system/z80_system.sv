@@ -43,7 +43,8 @@ module z80_system (
     // Debug Outputs
     output logic        debug_z80_reset_o,
     output logic        debug_z80_halt_o,
-    output logic [7:0]  debug_control_o
+    output logic [7:0]  debug_control_o,
+    output logic [7:0]  debug_z80_bus_o
 );
 
     // =========================================================================
@@ -63,12 +64,12 @@ module z80_system (
     // Legacy MMU
     logic           legacy_mmu_cyc, legacy_mmu_stb, legacy_mmu_we, legacy_mmu_access;
     logic [23:0]    legacy_mmu_adr;
-    logic [7:0]     legacy_mmu_dat_o, legacy_mmu_cpu_dout;
+    logic [7:0]     legacy_mmu_dat_o, z80_di_legacy_mmu;
     
     // Native MMU
     logic           native_mmu_cyc, native_mmu_stb, native_mmu_we, native_mmu_access;
     logic [23:0]    native_mmu_adr;
-    logic [7:0]     native_mmu_dat_o, native_mmu_cpu_dout;
+    logic [7:0]     native_mmu_dat_o, z80_di_native_mmu;
     
     // Native MMU Control
     logic           native_supervisor_mode;
@@ -123,7 +124,7 @@ module z80_system (
     // =========================================================================
     // TV80 CORE
     // =========================================================================
-    tv80s z80_inst (
+    tv80lx z80_inst (
         .reset_n(z80_reset_n),
         .clk(clk_i),
         .cen(z80_cke),
@@ -143,7 +144,17 @@ module z80_system (
         .di(z80_di),
         .dout(z80_do)
     );
+    assign debug_z80_bus_o = {
+        z80_do[0],
+        z80_wait_n,
+        z80_cke,
+        clk_i,
 
+        z80_wr_n,
+        z80_rd_n,
+        z80_iorq_n,
+        z80_mreq_n
+        };
 
     // CPU управления через отладчик ИЛИ внешние сигналы
     assign z80_reset_n = ~(res_i || dbg_cpu_reset);  // Отладчик может сбросить
@@ -278,9 +289,14 @@ module z80_system (
         .mmu_supervisor(native_supervisor_mode),    // User lock редим 
         .mmu_native_user_lock(native_user_lock),    // 
         .mmu_page(z80_a[15:14]),
+        .mmu_legacy_cs_i(legacy_mmu_access),
+        .mmu_natice_cs_i(native_mmu_access),
 
         // Статус системы
         .system_status_i(system_status_i),
+        
+        // Additional debugging capture
+        .dbg_capture_i('0),
 
         // CPU Control Outputs
         .dbg_z80_wait_i(wbm_z80_wait),
@@ -297,6 +313,7 @@ module z80_system (
 
     mmu_legacy mmu_legacy_inst (
         .clk(clk_i),
+        .clke(z80_cke),        
         .reset(~z80_reset_n),
         .legacy_mode_i(legacy_mode),
         // Master WB
@@ -307,14 +324,14 @@ module z80_system (
         .m_wb_dat_o(legacy_mmu_dat_o),
         .m_wb_dat_i(wbm_dat_i),
         .m_wb_ack_i(wbm_ack_i),
-        // Z80 Bus
+        // Z80 Bus 
         .cpu_a(z80_a),
         .cpu_mreq_n(z80_mreq_n),
         .cpu_iorq_n(z80_iorq_n),
         .cpu_rd_n(z80_rd_n),
         .cpu_wr_n(z80_wr_n),
         .cpu_din(z80_do),
-        .cpu_dout(legacy_mmu_cpu_dout),
+        .cpu_dout(z80_di_legacy_mmu),
         .cpu_mmu_access_o(legacy_mmu_access),
         // Configuration bits
         .cfg_graphic_mode(graphic_mode),
@@ -327,6 +344,7 @@ module z80_system (
 
     mmu_native mmu_native_inst (
         .clk(clk_i),
+        .clke(z80_cke),
         .reset(~z80_reset_n),
         .legacy_mode_o(legacy_mode),
         .native_mode_o(native_mode),
@@ -337,8 +355,8 @@ module z80_system (
         .cpu_rd_n(z80_rd_n),
         .cpu_wr_n(z80_wr_n),
         .cpu_m1_n(z80_m1_n),
-        .cpu_din(z80_do),
-        .cpu_dout(native_mmu_cpu_dout),
+        .cpu_din(z80_do),                   // z80 write
+        .cpu_dout(z80_di_native_mmu),     // z80 read
         .cpu_clock_conf(z80_clock_conf),
         .cpu_mmu_access_o(native_mmu_access),
  
@@ -371,10 +389,10 @@ module z80_system (
     always_comb begin
         if (native_mmu_access) begin
             // Данные от MMU (для внутренних регистров MMU)
-            z80_di = native_mmu_cpu_dout;
+            z80_di = z80_di_native_mmu;
         end else if (legacy_mmu_access) begin
             // Данные от MMU (для внутренних регистров MMU)
-            z80_di = legacy_mmu_cpu_dout;        
+            z80_di = z80_di_legacy_mmu;        
         end else begin
             // Данные от Wishbone (память и устройства)
             z80_di = wbm_dat_in_reg;        

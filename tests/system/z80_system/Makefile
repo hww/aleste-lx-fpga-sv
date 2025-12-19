@@ -18,7 +18,6 @@ VERILATOR_FLAGS = -Wall --cc --exe --build \
 
 
 SOURCES = \
-    ../../../src/systems/aleste_system/aleste_system.sv \
     ../../../src/systems/aleste_system/z80_system.sv \
     ../../../src/systems/aleste_system/system_arbiter.sv \
     ../../../src/systems/aleste_system/z80_debug.sv \
@@ -29,16 +28,6 @@ SOURCES = \
     ../../../src/components/io/uart2/uart.v \
     ../../../src/components/io/uart2/uart_rx.v \
     ../../../src/components/io/uart2/uart_tx.v \
-    ../../../src/components/video/mc6845mod/mc6845mod.sv \
-    ../../../src/components/video/video_buffer/video_buffer.sv \
-    ../../../src/components/video/llhdmi/llhdmi.v \
-    ../../../src/components/video/llhdmi/tmds_encoder.v \
-    ../../../src/components/video/palette/cpc_colors.sv \
-    ../../../src/components/video/palette/msx_colors.sv \
-    ../../../src/components/video/palette/color_palette.sv \
-    ../../../src/components/video/hdmi_scaler/dual_port_ram.sv \
-    ../../../src/components/video/hdmi_scaler/hdmi_scaler.sv \
-    ../../../src/components/video/pixel_pipeline/pixel_pipeline.sv \
     ../../../src/components/memory/mmu/mmu_native.sv \
     ../../../src/components/memory/mmu/mmu_legacy.sv \
     ../../../src/components/reset/reset_controller.sv \
@@ -53,28 +42,14 @@ SOURCES = \
     ../../../src/components/cpu/tv80/tv80_mcode.v
 # 
 TEST_SOURCES_Z80 = \
-    tb_aleste_z80.cpp \
-    ODDRX1F.v \
-    OBUFDS.v \
-    video_pll.v
+    tb_z80_system.cpp 
 
-TEST_SOURCES_WB = \
-    tb_aleste_wb.cpp \
-    ODDRX1F.v \
-    OBUFDS.v \
-    video_pll.v
-
-TEST_SOURCES_DBUS = \
-    tb_aleste_dbus.cpp \
-    ODDRX1F.v \
-    OBUFDS.v \
-    video_pll.v
 
 all: z80
 
 find_loops:
 	$(VERILATOR) $(VERILATOR_FLAGS) \
-		--lint-only --top-module aleste_system \
+		--lint-only --top-module z80_system \
 		$(SOURCES) $(TEST_SOURCES_Z80) \
 		--Mdir obj_dir \
 		-o Vsim \
@@ -82,32 +57,13 @@ find_loops:
 
 compile_z80:
 	$(VERILATOR) $(VERILATOR_FLAGS) \
-		--top-module aleste_system \
-		$(SOURCES) $(TEST_SOURCES_Z80) \
-		--Mdir obj_dir \
-		-o Vsim
-compile_wb:
-	$(VERILATOR) $(VERILATOR_FLAGS) \
-		--top-module aleste_system \
-		$(SOURCES) $(TEST_SOURCES_WB) \
-		--Mdir obj_dir \
-		-o Vsim
-compile_dbus:
-	$(VERILATOR) $(VERILATOR_FLAGS) \
 		--top-module z80_system \
-		$(SOURCES) $(TEST_SOURCES_DBUS) \
+		$(SOURCES) $(TEST_SOURCES_Z80) \
 		--Mdir obj_dir \
 		-o Vsim
 
 z80: compile_z80
 	./obj_dir/Vsim $(SIM_ARGS)
-
-wb: compile_wb
-	./obj_dir/Vsim $(SIM_ARGS)
-
-dbus: compile_dbus
-	./obj_dir/Vsim $(SIM_ARGS)
-
 
 clean:
 	rm -rf obj_dir waveform.vcd Vsim

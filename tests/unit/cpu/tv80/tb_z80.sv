@@ -26,6 +26,7 @@ assign di = D;
 
     tv80s dut (
         .clk(CLK),
+        .cen('1),
         .reset_n(nRESET),
         .A(A),
         .di(di),

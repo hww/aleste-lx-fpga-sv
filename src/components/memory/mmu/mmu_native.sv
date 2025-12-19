@@ -17,6 +17,7 @@ module mmu_native (
     // Clock and Reset
     // -------------------------------------------------------------------------
     input  logic        clk,
+    input  logic        clke,
     input  logic        reset,
     
     // -------------------------------------------------------------------------
@@ -36,6 +37,7 @@ module mmu_native (
     input  logic        cpu_m1_n,                 // Machine cycle 1
     input  logic [7:0]  cpu_din,                  // Z80 data in
     output logic [7:0]  cpu_dout,                 // Z80 data out
+    // Settings and info
     output logic [3:0]  cpu_clock_conf,           // Control speed of Z80
     output logic        cpu_mmu_access_o,         // Access to mmu
     
@@ -62,8 +64,9 @@ module mmu_native (
     output logic [7:0]  debug_selected_bank_o,
     output logic [1:0]  debug_current_slot_o,
     output logic [7:0]  debug_bank_index_o
-    // =========================================================================
     );
+
+    // =========================================================================
     // Internal Registers
     // =========================================================================
     logic [7:0] reg_clock;                        // Clock divider 
@@ -81,21 +84,18 @@ module mmu_native (
     logic [3:0]  bank_index;                      // Индекс в reg_bank
     logic [1:0]  cpu_page;                        // 00=0-3FFF, 01=4000-7FFF, 10=8000-BFFF, 11=C000-FFFF
     
-    logic        mmio_userlock;                   // запретить использовать mmio
-    logic        supervisor_mode;                 // Текущий режим привилегий
-    logic        native_mode;                     // Текущий режим работы
     logic [7:0]  syscall_function;
-    
-    logic        supervisor_mode_comb;            // Combinational supervisor view (includes test override)
+    logic        supervisor_mode_reg;             // Текущий режим привилегий
 
     // =========================================================================
     // Основные сигналы
     // =========================================================================
 
-    assign native_mode = reg_control[0];
-    assign mmio_userlock = reg_control[4];    
-
-    assign supervisor_mode_comb = supervisor_mode || debug_supervisor_mode_i;
+    wire native_mode    = reg_control[0];            // запретить использовать mmio
+    wire trap_enabled   = reg_control[2];
+    wire mmio_userlock  = reg_control[4];    
+    // Combinational supervisor view (includes test override)
+    wire supervisor_mode = supervisor_mode_reg || debug_supervisor_mode_i;
 
     // Z80 сигналы
     wire is_io_access  = ~cpu_iorq_n;
@@ -113,7 +113,7 @@ module mmu_native (
     // Current slot is bales of A[15:14] bits for memory access
     // amd based of A[1:0] for IO access
     always_comb begin
-        if (supervisor_mode_comb) begin
+        if (supervisor_mode) begin
             // Supervisor всегда использует свой слот
             case(cpu_page)
                 2'b00: current_slot = reg_super_slot[1:0];
@@ -145,32 +145,33 @@ module mmu_native (
     // =========================================================================
     // 3. СУПЕРВИЗОР MODE и TRAP (исправлено)
     // =========================================================================
-    wire trap_condition = m1_detected & reg_control[2] & 
-                         (cpu_a == 16'h0038 || cpu_a == 16'h0066);
+    // SysCall
+    wire syscall_trigger_cs = (8'hD4 == (native_mode ?  cpu_a[7:0] : cpu_a[15:8]));
+    wire syscall_trigger = is_mmu_access && is_write && syscall_trigger_cs;  
+    // Trap
+    wire trap_condition = m1_detected & trap_enabled & (cpu_a == 16'h0038 || cpu_a == 16'h0066);
     
     logic supervisor_exit_pending;
-    logic exit_sync_reg;
     
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
-            supervisor_mode <= 1'b1;
+            supervisor_mode_reg <= 1'b1;
             supervisor_exit_pending <= 1'b0;
-            exit_sync_reg <= 1'b0;
-        end else begin
-            // Вход в супервизор
-            if (trap_condition || debug_syscall_trigger_o) begin
-                supervisor_mode <= 1'b1;
+        end else if (clke) begin
+            // Вход в супервизор только с прерывания или системного вызова
+            if (trap_condition || syscall_trigger) begin
+                supervisor_mode_reg     <= 1'b1;
                 supervisor_exit_pending <= 1'b0;
-                exit_sync_reg <= 1'b0;
             end
             // Запрос на выход (из порта D7)
-            else if (is_mmu_access && is_write && (cpu_a[7:0] == 8'hD7) && 
-                    cpu_din[1] == 1'b0 && supervisor_mode) begin
-                supervisor_exit_pending <= 1'b1;
+            else if (is_mmu_access && is_write) begin
+                if ((cpu_a[7:0] == 8'hD7) && cpu_din[1] == 1'b0 && supervisor_mode_reg) begin
+                    supervisor_exit_pending <= 1'b1;
+                end
             end
             // Синхронизация выхода с M1
             else if (supervisor_exit_pending && m1_detected) begin
-                supervisor_mode <= 1'b0;
+                supervisor_mode_reg <= 1'b0;
                 supervisor_exit_pending <= 1'b0;
             end
         end
@@ -180,14 +181,12 @@ module mmu_native (
     // 4. ДОСТУП К РЕГИСТРАМ MMU (исправленная защита)
     // =========================================================================
 
-    wire addr_is_0000_00ff = (cpu_a[15:8] == 0);
-    wire addr_is_XX80_XXff = (cpu_a[7]);
-    wire addr_is_mmio_space = !addr_is_XX80_XXff && addr_is_0000_00ff;
-    wire addr_is_mmu_space  =  addr_is_XX80_XXff && addr_is_0000_00ff && (cpu_a[7] && cpu_a[6] && (cpu_a[5] || cpu_a[4]));
+    wire addr_is_mmio_space = !cpu_a[7];
+    wire addr_is_mmu_space  =  cpu_a[7] && (cpu_a[7] && cpu_a[6] && (cpu_a[5] || cpu_a[4]));
 
     // Разрешение доступа к портам: разрешено если supervisor ИЛИ unlock установлен
     // По архитектуре: user+lock блокирует, supervisor или unlock разрешает
-    wire port_access_grant = supervisor_mode_comb || ~mmio_userlock;  // supervisor OR user-unlock
+    wire port_access_grant = supervisor_mode || ~mmio_userlock;  // supervisor OR user-unlock
     
     // Is this an MMU register port (D0-DF)
     wire is_mmu_access = is_io_access && 
@@ -203,24 +202,18 @@ module mmu_native (
                           native_mode &&               // Только в Native режиме
                           port_access_grant;
 
-    // Helper: allow forwarding of generic IO ports to Wishbone
-    // Rules: forward IO if supervisor OR user-unlock, but never forward MMU register ports (D0..EF)
-    wire is_io_wb_access = is_io_access && ~addr_is_mmu_space;
-
     // =========================================================================
     // 6. ОБРАБОТКА РЕГИСТРОВ
     // =========================================================================
     logic [7:0] cpu_reg_read_data;
     logic       cpu_reg_read_valid;
 
-    // SysCall
-    wire is_syscall_trigger_address = (8'hD4 == (native_mode ?  cpu_a[7:0] : cpu_a[15:8]));
-    assign debug_syscall_trigger_o = is_mmu_access && is_write && is_syscall_trigger_address;   
+ 
 
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
             // По спецификации: после сброса supervisor=1, native=1, mmio_userlock=1
-            reg_clock      <= 8'b0000_0001;  // Divide clock by 2
+            reg_clock      <= 8'b0000_0010;  // Divide clock by 4
             reg_control    <= 8'b0001_0011;  // [4]=1(lock), [1]=1(supervisor), [0]=1(native)
             reg_mmio_page  <= 8'h00;
             reg_super_slot <= 8'hFF;         // Supervisor: все страницы = слот 3
@@ -231,7 +224,7 @@ module mmu_native (
             cpu_reg_read_valid <= 1'b0;
             cpu_reg_read_data  <= 8'h00;
             syscall_function   <= 8'h00;
-        end else begin
+        end else if (clke) begin
             cpu_reg_read_valid <= 1'b0;
             
             // Запись в регистры
@@ -239,11 +232,11 @@ module mmu_native (
                 case (cpu_a[7:0])
                     8'hD0: reg_clock      <= cpu_din;
                     8'hD3: reg_mmio_page  <= cpu_din;
+                    8'hD4: syscall_function <= cpu_din;
                     8'hD7: reg_control    <= cpu_din;  // Может изменить supervisor_mode
                     8'hD9: reg_super_slot <= cpu_din;
                     8'hDB: reg_user_slot  <= cpu_din;
-                    8'hD4: syscall_function <= cpu_din;
-                    
+                   
                     // Банковые регистры
                     8'hDC: reg_bank[{current_slot, 2'b00}] <= cpu_din;
                     8'hDD: reg_bank[{current_slot, 2'b01}] <= cpu_din;
@@ -264,13 +257,12 @@ module mmu_native (
             else if (is_mmu_access && is_read) begin
                 cpu_reg_read_valid <= 1'b1;
                 case (cpu_a[7:0])
-                    8'hD3: cpu_reg_read_data <= reg_clock;
+                    8'hD0: cpu_reg_read_data <= reg_clock;
                     8'hD3: cpu_reg_read_data <= reg_mmio_page;
+                    8'hD4: cpu_reg_read_data <= syscall_function;
                     8'hD7: cpu_reg_read_data <= reg_control;
                     8'hD9: cpu_reg_read_data <= reg_super_slot;
                     8'hDB: cpu_reg_read_data <= reg_user_slot;
-                    8'hD4: cpu_reg_read_data <= syscall_function;
-                    
                     // Банковые регистры
                     8'hDC: cpu_reg_read_data <= reg_bank[{current_slot, 2'b00}];
                     8'hDD: cpu_reg_read_data <= reg_bank[{current_slot, 2'b01}];
@@ -312,20 +304,13 @@ module mmu_native (
             if (native_mode) begin
                 // Native Mode: {slot, bank, offset}
                 m_wb_adr_o = {current_slot, selected_bank, cpu_a[13:0]};
-            end else begin
-                // Legacy mode is handled by a different MMU; do not produce
-                // a native mapping here — output zero (no transaction).
-                m_wb_adr_o = 24'h000000;
             end
         end
         else if (is_mmio_access) begin
             // MMIO: {FF, page, port}
-            m_wb_adr_o = {8'hFF, reg_mmio_page, cpu_a[7:0]};
+            m_wb_adr_o = {8'hFF, 2'b00, reg_mmio_page[7:0], cpu_a[7:0]};
         end
-        else if (is_io_wb_access) begin
-            // Внешние устройства: {FF, полный адрес порта}
-            m_wb_adr_o = {8'hFF, cpu_a};
-        end
+
 
         // CPU data output: MMU register reads take priority, otherwise passthrough from Wishbone
         if (cpu_reg_read_valid) begin
@@ -338,7 +323,7 @@ module mmu_native (
         // 1) always for memory accesses
         // 2) for IO ports when allowed (supervisor OR user-unlock) and not MMU registers
         // 3) mmio_access is handled separately (it already respects native_mode and locking)
-        if (is_mem_access || is_io_wb_access) begin
+        if (is_mem_access || is_mmio_access) begin
             m_wb_cyc_o = 1'b1;
             m_wb_stb_o = 1'b1;
         end
@@ -359,7 +344,7 @@ module mmu_native (
     // =========================================================================
     // 11. Debugging
     // =========================================================================
-    assign debug_supervisor_mode_o = supervisor_mode_comb;
+    assign debug_supervisor_mode_o = supervisor_mode;
     assign debug_mmio_userlock_o  = mmio_userlock;
     assign debug_selected_bank_o = selected_bank;
     assign debug_current_slot_o  = current_slot;
@@ -369,6 +354,6 @@ module mmu_native (
     assign debug_super_slot_o    = reg_super_slot;
     assign debug_user_slot_o     = reg_user_slot;
     assign debug_syscall_function_o = syscall_function;
-
+    assign debug_syscall_trigger_o = syscall_trigger;
 
 endmodule

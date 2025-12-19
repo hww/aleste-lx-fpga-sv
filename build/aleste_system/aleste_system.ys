@@ -4,7 +4,7 @@ read_verilog ../../src/components/cpu/tv80/tv80_core.v
 read_verilog ../../src/components/cpu/tv80/tv80_reg.v
 read_verilog ../../src/components/cpu/tv80/tv80_alu.v
 read_verilog ../../src/components/cpu/tv80/tv80_mcode.v
-read_verilog ../../src/components/cpu/tv80/tv80s.v
+read_verilog ../../src/components/cpu/tv80/tv80lx.v
 # SystemVerilog files
 read_verilog -I. -I../../src/systems/aleste_system -DCONFIG_27MHZ -I../../src/config -sv ../../src/systems/aleste_system/aleste_system.sv
 read_verilog ../../src/platforms/icesugar_pro/clocks/system_pll.v ../../src/platforms/icesugar_pro/clocks/video_pll.v
