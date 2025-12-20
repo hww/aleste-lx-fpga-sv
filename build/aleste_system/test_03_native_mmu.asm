@@ -7,8 +7,8 @@ start:
     di
     ld a, 0x00
 loop:
-    out (0xDB), a
-    in a, (0xD1)
+    out (0xF1), a
+    in a, (0x1)
     inc a
     jp loop
 
@@ -17,7 +17,7 @@ loop:
     ld sp, 0x3F00
     
     ; 1. Читаем D7
-    in a, (0xD7)
+    in a, (0xC0)
     ld (0x1000), a  ; Сохраняем
     
     ; 2. Пишем в D7
