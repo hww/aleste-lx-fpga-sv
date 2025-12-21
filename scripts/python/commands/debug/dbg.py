@@ -211,6 +211,8 @@ class Z80Debugger:
         
         # Пошаговый режим
         self.cmd_step_mode(True)
+        self.cmd_reset(False)
+        
         time.sleep(0.01)
         
         # Кэш
@@ -219,7 +221,7 @@ class Z80Debugger:
         # Шагаем
         for step in range(steps):
             # Шаг
-            if not self.reg.write(0x01, 0x08):
+            if not self.reg.write(0x01, 0x48):
                 print(f"trace step {step+1}: fail")
                 break
             
@@ -227,7 +229,8 @@ class Z80Debugger:
             timeout = time.time() + 1.0
             while time.time() < timeout:
                 status = self.reg.read(0x0)
-                if status is not None and (status & 0x01):
+                # Wait BP or step freeze
+                if status is not None and (status & 0x03):
                     break
                 time.sleep(0.001)
             else:
@@ -436,6 +439,7 @@ class Z80Debugger:
             addr_m = self.reg.read(0x13) or 0
             addr_l = self.reg.read(0x14) or 0
             addr = (addr_h << 16) | (addr_m << 8) | addr_l
+
             # Захват данных
             bus = self.reg.read(0x15) or 0
             # Захват статуса
@@ -498,8 +502,8 @@ class Z80Debugger:
                 'm1':      bool(status & 0x10),
                 # MMU
                 'mmu': ammu,
-                'mmu_native': bool(mmu & 0x01),
-                'mmu_super':  bool(mmu & 0x02),
+                'mmu_super':  bool(mmu & 0x01),
+                'mmu_native': bool(mmu & 0x02),
                 'mmu_ulock':  bool(mmu & 0x10),
                 # Additional captured
                 'cap': cap,

@@ -78,7 +78,7 @@ module video_ctrl #(
     output logic [7:0]  debug,
     
     // Конфигурационные сигналы
-    input  logic        cfg_legacy_i
+    input  logic        cfg_native_i
 );
 
     localparam HDMI_H_TOTAL       = HDMI_H_VISIBLE + HDMI_H_FRONT_PORCH + HDMI_H_SYNC_PULSE + HDMI_H_BACK_PORCH;
@@ -212,7 +212,7 @@ module video_ctrl #(
         // Wishbone
         .wb_rst_i(system_reset),
         .wb_clk_i(clk_bus),
-        .cfg_legacy_i(cfg_legacy_i),
+        .cfg_legacy_i(~cfg_native_i),
         .cfg_cpc_bpp_i('0),
 
         // Wishbone interface
@@ -378,7 +378,7 @@ module video_ctrl #(
     color_palette pal(
         .wb_rst_i(system_reset),
         .wb_clk_i(clk_bus),
-        .cfg_legacy_i(cfg_legacy_i),
+        .cfg_legacy_i(~cfg_native_i),
 
         // Wishbone interface
         .wb_adr_i(system2palette_adr),

@@ -149,7 +149,6 @@ module aleste_video #(
     logic debug_sdram_busy;
 
     // Configuration
-    logic cfg_legacy = 1'b0;
 
     // ===========================================
     // UART Bridge
@@ -168,8 +167,8 @@ module aleste_video #(
         // UART Interface
         .uart_rx(serial_rx),
         .uart_tx(serial_tx),
-        .uart_rx_bit_tick(serial_rx_clk),
-        .uart_rx_bit_tick_mid(serial_rx_clk_mid),
+        .uart_rx_tick(serial_rx_clk),
+        .uart_rx_tick_mid(serial_rx_clk_mid),
         .uart_tx_tick(serial_tx_clk),
         .uart_rx_valid(uart_rx_valid),
         .uart_rx_ready(uart_rx_ready),
@@ -226,7 +225,7 @@ module aleste_video #(
     logic [2:0] wb_tag;
 
     address_decoder adu (
-        .cfg_legacy_i(cfg_legacy),
+        .cfg_native_i(cfg_native),
         .wb_adr_i(wb_adr),
         
         .wb_tag_o(wb_tag),
@@ -241,6 +240,8 @@ module aleste_video #(
     // ===========================================
     // Video Controller
     // ===========================================
+
+    wire cfg_native = 1;
     video_ctrl #(
         .BASE_CLOCK(BASE_CLOCK),
         .SRC_H_VISIBLE(SRC_H_VISIBLE),
@@ -312,7 +313,7 @@ module aleste_video #(
         .debug(video_debug),
         
         // Конфигурационные сигналы
-        .cfg_legacy_i(cfg_legacy)
+        .cfg_native_i(cfg_native)
     );
 
     // ===========================================

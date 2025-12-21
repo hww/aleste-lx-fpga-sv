@@ -6,26 +6,41 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <map>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
 
 // ==============================================
-// Модель Wishbone Slave (память 64KB)
+// Модель Wishbone Slave (память 64KB + IO порты)
 // ==============================================
 class WB_Slave_Model {
 private:
     std::vector<uint8_t> mem;
+    std::map<uint32_t, uint8_t> io_registers;  // Регистры портов ввода-вывода
+    std::set<uint32_t> accessed_io_ports;      // Порты, к которым был доступ
     bool verbose;
+    uint32_t io_base_addr;
+    uint32_t mem_base_addr;
     
 public:
-    WB_Slave_Model(size_t size_kb = 64, bool verbose = false) : verbose(verbose) {
+    WB_Slave_Model(uint32_t mem_base = 0xC00000, uint32_t io_base = 0xFF0000, 
+                   size_t size_kb = 64, bool verbose = false) 
+        : verbose(verbose), io_base_addr(io_base), mem_base_addr(mem_base) {
         size_t bytes = size_kb * 1024;
-        mem.resize(bytes, 0);
-        std::cout << "WB Slave Memory: " << bytes << " bytes (" << size_kb << " KB)" << std::endl;
+        mem.resize(bytes, 0xFF);  // Заполняем 0xFF вместо 0
+        io_registers.clear();     // Очищаем порты
+        accessed_io_ports.clear(); // Очищаем историю доступа
+        
+        if (verbose) {
+            std::cout << "WB Slave Memory: " << bytes << " bytes (" << size_kb << " KB) at 0x" 
+                      << std::hex << mem_base << std::dec << std::endl;
+            std::cout << "IO Ports range: 0x" << std::hex << io_base 
+                      << "-0x" << (io_base + 0xFFFF) << std::dec << std::endl;
+        }
     }
     
-    // Загрузка бинарного файла по смещению
+    // Загрузка бинарного файла по смещению в память
     bool load_binary_file(const std::string& filename, uint32_t offset = 0) {
         std::ifstream file(filename, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
@@ -55,120 +70,185 @@ public:
         }
         
         std::cout << "Loaded " << size << " bytes from " << filename 
-                 << " to offset 0x" << std::hex << offset << std::dec << std::endl;
+                 << " to memory offset 0x" << std::hex << offset << std::dec << std::endl;
         return true;
     }
     
-    // Заполнение тестовой программой - БОЛЕЕ ПРОСТАЯ
-    void fill_test_program() {
-        // ОЧЕНЬ ПРОСТАЯ тестовая программа Z80
-        // Просто бесконечный цикл с операциями
-        
-        // 1. Загрузка разных значений в A
-        // 2. Запись в разные адреса
-        // 3. Чтение обратно
-        // 4. Бесконечный цикл
-        
-        mem[0] = 0x3E;     // LD A, 0xAA     (3E AA)
-        mem[1] = 0xAA;
-        mem[2] = 0x32;     // LD (0x1000), A (32 00 10)
-        mem[3] = 0x00;
-        mem[4] = 0x10;
-        mem[5] = 0x3E;     // LD A, 0x55     (3E 55)
-        mem[6] = 0x55;
-        mem[7] = 0x32;     // LD (0x1001), A (32 01 10)
-        mem[8] = 0x01;
-        mem[9] = 0x10;
-        mem[10] = 0x3A;    // LD A, (0x1000) (3A 00 10)
-        mem[11] = 0x00;
-        mem[12] = 0x10;
-        mem[13] = 0x3A;    // LD A, (0x1001) (3A 01 10)
-        mem[14] = 0x01;
-        mem[15] = 0x10;
-        mem[16] = 0xC3;    // JP 0x0000      (C3 00 00) - бесконечный цикл
-        mem[17] = 0x00;
-        mem[18] = 0x00;
-        
-        // Заполняем область данных
-        for (size_t i = 0x1000; i < 0x1010; i++) {
-            if (i < mem.size()) {
-                mem[i] = (i & 0xFF);
-            }
-        }
-        
-        std::cout << "Test program loaded (19 bytes) - infinite loop" << std::endl;
-        if (verbose) {
-            dump_memory(0, 32);
-        }
-    }
-    
-    // Чтение из памяти (по физическому адресу Wishbone)
+    // Чтение из памяти или портов
     uint8_t read(uint32_t addr) {
-        // Преобразование адреса: 0xC00000 -> 0x0000
-        uint32_t offset = 0;
-        if (addr >= 0xC00000) {
-            offset = addr - 0xC00000;
-        } else {
-            offset = addr;
-        }
-        
-        if (offset < mem.size()) {
-            uint8_t data = mem[offset];
-            if (verbose && addr >= 0xC00000 && addr < 0xC00100) {
-                std::cout << "  WB READ: addr=0x" << std::hex << addr 
-                         << " (offset=0x" << offset << ") = 0x" 
-                         << (int)data << std::dec << std::endl;
+        // Проверяем, это порт ввода-вывода (диапазон 0xFF0000-0xFFFFFF)?
+        if (addr >= io_base_addr && addr < (io_base_addr + 0x10000)) {
+            // Это порт ввода-вывода
+            uint32_t port_addr = addr;
+            accessed_io_ports.insert(port_addr);  // Отмечаем доступ
+            
+            // Возвращаем значение порта, если оно есть
+            if (io_registers.find(port_addr) != io_registers.end()) {
+                uint8_t data = io_registers[port_addr];
+                if (verbose) {
+                    std::cout << "  IO READ: port=0x" << std::hex << (port_addr & 0xFFFF)
+                             << " (addr=0x" << port_addr << ") = 0x" 
+                             << (int)data << std::dec << std::endl;
+                }
+                return data;
+            } else {
+                // Порт не инициализирован, возвращаем 0xFF
+                if (verbose) {
+                    std::cout << "  IO READ: port=0x" << std::hex << (port_addr & 0xFFFF)
+                             << " (addr=0x" << port_addr << ", uninitialized) = 0xFF" << std::dec << std::endl;
+                }
+                return 0xFF;
             }
-            return data;
         }
         
+        // Проверяем, это память (диапазон 0xC00000-0xC0FFFF)?
+        if (addr >= mem_base_addr && addr < (mem_base_addr + mem.size())) {
+            // Это память
+            uint32_t offset = addr - mem_base_addr;
+            
+            if (offset < mem.size()) {
+                uint8_t data = mem[offset];
+                if (verbose) {
+                    std::cout << "  MEM READ: addr=0x" << std::hex << addr 
+                             << " (offset=0x" << offset << ") = 0x" 
+                             << (int)data << std::dec << std::endl;
+                }
+                return data;
+            }
+        }
+        
+        // Неизвестный адрес
         std::cerr << "WB READ ERROR: invalid address 0x" 
                  << std::hex << addr << std::dec << std::endl;
         return 0xFF;
     }
     
-    // Запись в память
+    // Запись в память или порты
     void write(uint32_t addr, uint8_t data) {
-        // Преобразование адреса: 0xC00000 -> 0x0000
-        uint32_t offset = 0;
-        if (addr >= 0xC00000) {
-            offset = addr - 0xC00000;
-        } else {
-            offset = addr;
-        }
-        
-        if (offset < mem.size()) {
-            mem[offset] = data;
-            if (verbose && addr >= 0xC01000 && addr < 0xC01010) {
-                std::cout << "  WB WRITE: addr=0x" << std::hex << addr 
-                         << " (offset=0x" << offset << ") = 0x" 
+        // Проверяем, это порт ввода-вывода (диапазон 0xFF0000-0xFFFFFF)?
+        if (addr >= io_base_addr && addr < (io_base_addr + 0x10000)) {
+            // Это порт ввода-вывода
+            uint32_t port_addr = addr;
+            accessed_io_ports.insert(port_addr);  // Отмечаем доступ
+            
+            io_registers[port_addr] = data;
+            if (verbose) {
+                std::cout << "  IO WRITE: port=0x" << std::hex << (port_addr & 0xFFFF)
+                         << " (addr=0x" << port_addr << ") = 0x" 
                          << (int)data << std::dec << std::endl;
             }
-        } else {
-            std::cerr << "WB WRITE ERROR: invalid address 0x" 
-                     << std::hex << addr << std::dec << std::endl;
-        }
-    }
-    
-    // Дамп памяти
-    void dump_memory(uint32_t start, uint32_t size) {
-        if (start + size > mem.size()) {
-            size = mem.size() - start;
+            return;
         }
         
-        std::cout << "Memory dump from 0x" << std::hex << start 
-                 << " to 0x" << (start + size - 1) << ":" << std::dec << std::endl;
+        // Проверяем, это память (диапазон 0xC00000-0xC0FFFF)?
+        if (addr >= mem_base_addr && addr < (mem_base_addr + mem.size())) {
+            // Это память
+            uint32_t offset = addr - mem_base_addr;
+            
+            if (offset < mem.size()) {
+                mem[offset] = data;
+                if (verbose) {
+                    std::cout << "  MEM WRITE: addr=0x" << std::hex << addr 
+                             << " (offset=0x" << offset << ") = 0x" 
+                             << (int)data << std::dec << std::endl;
+                }
+            } else {
+                std::cerr << "MEM WRITE ERROR: invalid offset 0x" 
+                         << std::hex << offset << std::dec << std::endl;
+            }
+            return;
+        }
+        
+        // Неизвестный адрес
+        std::cerr << "WB WRITE ERROR: invalid address 0x" 
+                 << std::hex << addr << std::dec << std::endl;
+    }
+    
+    // Дамп памяти в заданном диапазоне
+    void dump_memory(uint32_t start_addr, uint32_t end_addr) {
+        if (start_addr < mem_base_addr || end_addr > mem_base_addr + mem.size()) {
+            std::cerr << "Invalid memory range for dump: 0x" << std::hex 
+                     << start_addr << "-0x" << end_addr << std::dec << std::endl;
+            return;
+        }
+        
+        uint32_t start_offset = start_addr - mem_base_addr;
+        uint32_t end_offset = end_addr - mem_base_addr;
+        uint32_t size = end_offset - start_offset + 1;
+        
+        std::cout << "\nMemory dump from 0x" << std::hex << start_addr 
+                 << " to 0x" << end_addr 
+                 << " (offset 0x" << start_offset << "-0x" << end_offset << "):" 
+                 << std::dec << std::endl;
         
         for (uint32_t i = 0; i < size; i++) {
             if (i % 16 == 0) {
                 if (i > 0) std::cout << std::endl;
-                std::cout << "0x" << std::hex << std::setw(4) << std::setfill('0') 
-                         << (start + i) << ": ";
+                std::cout << "0x" << std::hex << std::setw(6) << std::setfill('0') 
+                         << (start_addr + i) << ": ";
             }
             std::cout << std::hex << std::setw(2) << std::setfill('0') 
-                     << (int)mem[start + i] << " ";
+                     << (int)mem[start_offset + i] << " ";
         }
         std::cout << std::dec << std::endl;
+    }
+    
+    // Дамп всех задействованных IO портов
+    void dump_accessed_io_ports() {
+        std::cout << "\nAccessed IO Ports (0x" << std::hex << io_base_addr 
+                 << "-0x" << (io_base_addr + 0xFFFF) << "):" << std::dec << std::endl;
+        
+        if (accessed_io_ports.empty()) {
+            std::cout << "  No IO ports were accessed" << std::endl;
+            return;
+        }
+        
+        for (uint32_t port_addr : accessed_io_ports) {
+            uint8_t value = 0xFF;
+            if (io_registers.find(port_addr) != io_registers.end()) {
+                value = io_registers[port_addr];
+            }
+            std::cout << "  Port 0x" << std::hex << (port_addr & 0xFFFF)
+                     << " (addr 0x" << port_addr << ") = 0x" 
+                     << (int)value << std::dec << std::endl;
+        }
+    }
+    
+    // Дамп IO портов в заданном диапазоне
+    void dump_io_range(uint32_t start_port, uint32_t end_port) {
+        std::cout << "\nIO Ports dump from 0x" << std::hex << start_port 
+                 << " to 0x" << end_port << ":" << std::dec << std::endl;
+        
+        for (uint32_t port = start_port; port <= end_port; port++) {
+            uint32_t full_addr = io_base_addr | (port & 0xFFFF);
+            uint8_t value = 0xFF;
+            if (io_registers.find(full_addr) != io_registers.end()) {
+                value = io_registers[full_addr];
+            }
+            
+            if ((port - start_port) % 8 == 0) {
+                if (port > start_port) std::cout << std::endl;
+                std::cout << "0x" << std::hex << std::setw(4) << std::setfill('0')
+                         << port << ": ";
+            }
+            std::cout << std::hex << std::setw(2) << std::setfill('0')
+                     << (int)value << " ";
+        }
+        std::cout << std::dec << std::endl;
+    }
+    
+    // Получить значение порта
+    uint8_t get_io_port(uint32_t port_addr) {
+        uint32_t full_addr = io_base_addr | (port_addr & 0xFFFF);
+        if (io_registers.find(full_addr) != io_registers.end()) {
+            return io_registers[full_addr];
+        }
+        return 0xFF;
+    }
+    
+    // Очистить историю доступа к портам
+    void clear_io_access_history() {
+        accessed_io_ports.clear();
     }
 };
 
@@ -182,30 +262,56 @@ uint8_t get_bit(uint8_t value, int bit_pos) {
 // ==============================================
 int main(int argc, char** argv) {
     std::string binary_file;
-    bool test_mode = true;
     bool verbose = false;
-    int sim_cycles = 50000;
+    int sim_cycles = 200000;  // Увеличим лимит циклов
+    uint32_t dump_start_addr = 0xC01000;
+    uint32_t dump_end_addr = 0xC010FF;
+    bool dump_io_all = true;
+    uint32_t dump_io_start = 0x0000;
+    uint32_t dump_io_end = 0x00FF;
     
     // Парсинг аргументов командной строки
     for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "--load" && i + 1 < argc) {
             binary_file = argv[i + 1];
-            test_mode = false;
             i++;
         } else if (std::string(argv[i]) == "--verbose" || std::string(argv[i]) == "-v") {
             verbose = true;
         } else if (std::string(argv[i]) == "--cycles" && i + 1 < argc) {
             sim_cycles = atoi(argv[i + 1]);
             i++;
+        } else if (std::string(argv[i]) == "--dump-start" && i + 1 < argc) {
+            dump_start_addr = strtoul(argv[i + 1], nullptr, 16);
+            i++;
+        } else if (std::string(argv[i]) == "--dump-end" && i + 1 < argc) {
+            dump_end_addr = strtoul(argv[i + 1], nullptr, 16);
+            i++;
+        } else if (std::string(argv[i]) == "--io-start" && i + 1 < argc) {
+            dump_io_start = strtoul(argv[i + 1], nullptr, 16);
+            i++;
+        } else if (std::string(argv[i]) == "--io-end" && i + 1 < argc) {
+            dump_io_end = strtoul(argv[i + 1], nullptr, 16);
+            i++;
         } else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h") {
             std::cout << "Usage: " << argv[0] << " [options]\n"
                       << "Options:\n"
-                      << "  --load <filename>   Load binary file into memory\n"
-                      << "  --cycles <n>        Simulation cycles (default: 50000)\n"
-                      << "  --verbose, -v       Verbose output\n"
-                      << "  --help              Show this help message\n";
+                      << "  --load <filename>      Load binary file into memory (required)\n"
+                      << "  --cycles <n>           Simulation cycles (default: 200000)\n"
+                      << "  --dump-start <addr>    Memory dump start address (hex, default: C01000)\n"
+                      << "  --dump-end <addr>      Memory dump end address (hex, default: C010FF)\n"
+                      << "  --io-start <port>      IO dump start port (hex, default: 0000)\n"
+                      << "  --io-end <port>        IO dump end port (hex, default: 00FF)\n"
+                      << "  --verbose, -v          Verbose output\n"
+                      << "  --help                 Show this help message\n";
             return 0;
         }
+    }
+    
+    // Проверка обязательного параметра
+    if (binary_file.empty()) {
+        std::cerr << "Error: Binary file must be specified with --load option" << std::endl;
+        std::cerr << "Use --help for usage information" << std::endl;
+        return 1;
     }
     
     Verilated::commandArgs(argc, argv);
@@ -217,23 +323,22 @@ int main(int argc, char** argv) {
     tfp->open("tb_z80_system.vcd");
     
     // ==============================================
-    // Инициализация модели памяти Wishbone
+    // Инициализация модели памяти и портов Wishbone
     // ==============================================
-    WB_Slave_Model wb_slave(64, verbose);
+    WB_Slave_Model wb_slave(0xC00000, 0xFF0000, 64, verbose);
     
-    if (!binary_file.empty()) {
-        if (!wb_slave.load_binary_file(binary_file)) {
-            std::cerr << "Failed to load binary file, using test program instead" << std::endl;
-            test_mode = true;
-        } else {
-            std::cout << "Using binary file: " << binary_file << std::endl;
-        }
+    // Загрузка программы из файла
+    std::cout << "=== Loading program ===" << std::endl;
+    if (!wb_slave.load_binary_file(binary_file, 0)) {
+        std::cerr << "Fatal error: Failed to load binary file" << std::endl;
+        delete tfp;
+        delete top;
+        return 1;
     }
     
-    if (test_mode) {
-        std::cout << "Using built-in test program" << std::endl;
-        wb_slave.fill_test_program();
-    }
+    // Дамп загруженной программы
+    std::cout << "\n=== Program dump (first 256 bytes) ===" << std::endl;
+    wb_slave.dump_memory(0xC00000, 0xC000FF);
     
     // ==============================================
     // Инициализация системы
@@ -262,29 +367,39 @@ int main(int argc, char** argv) {
     // Статус системы
     top->system_status_i = 0x01;  // Нормальный статус
     
+    // Режимы графики (по умолчанию)
+    top->graphic_mode = 0;
+    top->irq_control = 0;
+    
     std::cout << "\n=== Starting Z80 System Simulation ===" << std::endl;
+    std::cout << "Binary file: " << binary_file << std::endl;
     std::cout << "Clock cycles to simulate: " << sim_cycles << std::endl;
+    std::cout << "Memory range: 0xC00000-0xC0FFFF" << std::endl;
+    std::cout << "IO range: 0xFF0000-0xFFFFFF" << std::endl;
+    std::cout << "Will dump memory: 0x" << std::hex << dump_start_addr 
+              << "-0x" << dump_end_addr << std::dec << std::endl;
+    std::cout << "Will dump IO ports: 0x" << std::hex << dump_io_start 
+              << "-0x" << dump_io_end << std::dec << std::endl;
     
     // ==============================================
     // Переменные для симуляции
     // ==============================================
     int last_z80_halt = 0;
-    uint8_t last_debug_bus = 0;
     int wb_transactions = 0;
     int cpu_cycles = 0;
     bool last_reset = 1;
+    bool halt_detected = false;
+    int halt_cycle = 0;
     
-    // Для отладки
-    int last_mreq = 1;
-    int last_iorq = 1;
-    int last_wr = 1;
-    int last_rd = 1;
-    
-    int print_count = 0;
+    int io_reads = 0;
+    int io_writes = 0;
+    int mem_reads = 0;
+    int mem_writes = 0;
     
     // ==============================================
     // Основной цикл симуляции
     // ==============================================
+    std::cout << "\n=== Running simulation ===" << std::endl;
     for (int cycle = 0; cycle < sim_cycles; cycle++) {
         // Тактовый сигнал - полноценные такты
         top->clk_i = !top->clk_i;
@@ -293,13 +408,12 @@ int main(int argc, char** argv) {
         if (cycle < 20) {
             top->res_i = 1;
             top->res_short_i = 1;
-            if (cycle == 10 && verbose) {
-                std::cout << "Reset active..." << std::endl;
-            }
         } else if (cycle == 20) {
             top->res_i = 0;
             top->res_short_i = 0;
-            std::cout << "Cycle " << cycle << ": Reset released" << std::endl;
+            if (verbose) {
+                std::cout << "Cycle " << cycle << ": Reset released" << std::endl;
+            }
         }
         
         // ==============================================
@@ -308,39 +422,51 @@ int main(int argc, char** argv) {
         if (top->clk_i) { // положительный фронт
             // Сброс ACK по умолчанию
             top->wbm_ack_i = 0;
+            top->wbm_err_i = 0;
             
             // Если есть активный цикл Wishbone
             if (top->wbm_cyc_o && top->wbm_stb_o) {
                 wb_transactions++;
                 
-                // Небольшая задержка для реалистичности
+                // Задержка для реалистичности
                 if (cycle > 50) {
-                    // Чтение
-                    if (!top->wbm_we_o) {
-                        if (print_count < 50) {
-                            std::cout << "Cycle " << std::dec << cycle 
-                                     << ": WB READ addr=0x" << std::hex << top->wbm_adr_o 
-                                     << std::dec << std::endl;
-                            print_count++;
+                    // Определяем тип доступа
+                    bool is_io_access = (top->wbm_adr_o >= 0xFF0000);
+                    bool is_mem_access = (top->wbm_adr_o >= 0xC00000 && top->wbm_adr_o < 0xC10000);
+                    
+                    if (is_io_access || is_mem_access) {
+                        // Чтение
+                        if (!top->wbm_we_o) {
+                            if (is_io_access) {
+                                io_reads++;
+                            } else {
+                                mem_reads++;
+                            }
+                            
+                            // Чтение из модели
+                            top->wbm_dat_i = wb_slave.read(top->wbm_adr_o);
+                            top->wbm_ack_i = 1;
+                            
+                        } 
+                        // Запись
+                        else {
+                            if (is_io_access) {
+                                io_writes++;
+                            } else {
+                                mem_writes++;
+                            }
+                            
+                            // Запись в модель
+                            wb_slave.write(top->wbm_adr_o, top->wbm_dat_o);
+                            top->wbm_ack_i = 1;
                         }
-                        
-                        // Чтение из модели памяти
-                        top->wbm_dat_i = wb_slave.read(top->wbm_adr_o);
-                        top->wbm_ack_i = 1;
-                        
-                    } 
-                    // Запись
-                    else {
-                        if (print_count < 50) {
-                            std::cout << "Cycle " << std::dec << cycle 
-                                     << ": WB WRITE addr=0x" << std::hex << top->wbm_adr_o 
-                                     << " data=0x" << (int)top->wbm_dat_o << std::dec << std::endl;
-                            print_count++;
+                    } else {
+                        // Неизвестный адрес
+                        if (verbose) {
+                            std::cerr << "Cycle " << cycle << ": Invalid WB address 0x" 
+                                     << std::hex << top->wbm_adr_o << std::dec << std::endl;
                         }
-                        
-                        // Запись в модель памяти
-                        wb_slave.write(top->wbm_adr_o, top->wbm_dat_o);
-                        top->wbm_ack_i = 1;
+                        top->wbm_err_i = 1;
                     }
                 }
             }
@@ -358,102 +484,37 @@ int main(int argc, char** argv) {
         if (!top->clk_i) { // отрицательный фронт
             cpu_cycles++;
             
-            // Мониторинг сброса
-            if (top->debug_z80_reset_o != last_reset) {
-                std::cout << "Cycle " << std::dec << cycle 
-                         << ": Z80 RESET changed to " << (int)top->debug_z80_reset_o << std::endl;
-                last_reset = top->debug_z80_reset_o;
-            }
-            
-            // Мониторинг сигналов Z80
-            uint8_t debug_bus = top->debug_z80_bus_o;
-            int current_mreq = get_bit(debug_bus, 0);
-            int current_iorq = get_bit(debug_bus, 1);
-            int current_rd = get_bit(debug_bus, 2);
-            int current_wr = get_bit(debug_bus, 3);
-            
-            if (verbose && cycle > 100) {
-                if (current_mreq != last_mreq || 
-                    current_iorq != last_iorq ||
-                    current_rd != last_rd ||
-                    current_wr != last_wr) {
+            // Проверка HALT состояния
+            if (top->debug_z80_halt_o != last_z80_halt) {
+                last_z80_halt = top->debug_z80_halt_o;
+                
+                if (top->debug_z80_halt_o && !halt_detected && cycle > 100) {
+                    halt_detected = true;
+                    halt_cycle = cycle;
+                    std::cout << "\nCycle " << std::dec << cycle 
+                             << ": CPU HALT detected" << std::endl;
                     
-                    std::cout << "Cycle " << std::dec << cycle 
-                             << ": Z80 Bus MREQ=" << current_mreq
-                             << " IORQ=" << current_iorq
-                             << " RD=" << current_rd
-                             << " WR=" << current_wr << std::endl;
-                    
-                    last_mreq = current_mreq;
-                    last_iorq = current_iorq;
-                    last_rd = current_rd;
-                    last_wr = current_wr;
+                    // Выходим из цикла после небольшой задержки
+                    if (cycle + 100 < sim_cycles) {
+                        sim_cycles = cycle + 100;  // Завершим через 100 циклов
+                    }
                 }
             }
             
-            // Проверка HALT состояния
-            if (top->debug_z80_halt_o != last_z80_halt) {
+            // Простой мониторинг каждые 5000 циклов
+            if (cycle % 5000 == 0 && cycle > 100 && verbose) {
                 std::cout << "Cycle " << std::dec << cycle 
-                         << ": Z80 HALT changed to " << (int)top->debug_z80_halt_o << std::endl;
-                last_z80_halt = top->debug_z80_halt_o;
-            }
-            
-            // Debug bus мониторинг
-            if (debug_bus != last_debug_bus && verbose) {
-                last_debug_bus = debug_bus;
-                std::cout << "Cycle " << std::dec << cycle 
-                         << ": Debug bus = 0x" << std::hex 
-                         << (int)debug_bus << std::dec << std::endl;
-            }
-            
-            // Статус каждые 2000 циклов
-            if (cycle % 2000 == 0 && cycle > 100) {
-                std::cout << "Cycle " << std::dec << cycle 
-                         << ": WB transactions=" << wb_transactions
+                         << ": WB trans=" << wb_transactions
+                         << " (IO R:" << io_reads << " W:" << io_writes
+                         << ", MEM R:" << mem_reads << " W:" << mem_writes << ")"
                          << ", CPU HALT=" << (int)top->debug_z80_halt_o
-                         << ", RESET=" << (int)top->debug_z80_reset_o
-                         << ", Mode: native=" << (int)top->native_mode_o
-                         << " legacy=" << (int)top->legacy_mode_o
-                         << " supervisor=" << (int)top->supervisor_mode_o 
                          << std::endl;
             }
             
-            // Тестирование прерываний
-            if (cycle == 1000) {
-                top->int_req_i = 1;
-                if (verbose) std::cout << "Cycle " << cycle << ": INT request set" << std::endl;
-            } else if (cycle == 1050) {
-                top->int_req_i = 0;
-            }
-            
-            if (cycle == 2000) {
-                top->nmi_req_i = 1;
-                if (verbose) std::cout << "Cycle " << cycle << ": NMI request set" << std::endl;
-            } else if (cycle == 2050) {
-                top->nmi_req_i = 0;
-            }
-            
-            // Тестирование debug интерфейса
-            if (cycle == 3000) {
-                top->dbg_cs_i = 1;
-                top->dbg_stb_i = 1;
-                top->dbg_cyc_i = 1;
-                top->dbg_adr_i = 0x01;
-                top->dbg_dat_i = 0xAA;
-                if (verbose) std::cout << "Cycle " << cycle << ": Debug write 0xAA to address 0x01" << std::endl;
-            } else if (cycle == 3010) {
-                top->dbg_stb_i = 0;
-                top->dbg_cyc_i = 0;
-                top->dbg_cs_i = 0;
-            }
-            
-            // Завершение симуляции по таймауту
-            if (cycle == sim_cycles - 100) {
-                std::cout << "Simulation nearing end at cycle " << cycle << std::endl;
-                // Дамп памяти для проверки
-                std::cout << "\nMemory dump of key areas:" << std::endl;
-                wb_slave.dump_memory(0, 32);
-                wb_slave.dump_memory(0x1000, 16);
+            // Прервем если достигли лимита и CPU не работает
+            if (cycle > 1000 && !halt_detected && 
+                wb_transactions == 0 && cycle % 10000 == 0 && verbose) {
+                std::cout << "Cycle " << cycle << ": No activity detected" << std::endl;
             }
         }
     }
@@ -462,27 +523,45 @@ int main(int argc, char** argv) {
     // Завершение
     // ==============================================
     std::cout << "\n=== Simulation finished ===" << std::endl;
-    std::cout << "Statistics:" << std::endl;
+    
+    // Основная статистика
+    std::cout << "\nSimulation statistics:" << std::endl;
     std::cout << "  Total clock cycles: " << cpu_cycles << std::endl;
-    std::cout << "  Wishbone transactions: " << wb_transactions << std::endl;
-    std::cout << "  Final Z80 state: HALT=" << (int)top->debug_z80_halt_o 
+    if (halt_detected) {
+        std::cout << "  CPU HALT detected at cycle: " << halt_cycle << std::endl;
+    } else {
+        std::cout << "  CPU HALT NOT detected (timeout)" << std::endl;
+    }
+    std::cout << "  Total WB transactions: " << wb_transactions << std::endl;
+    std::cout << "  Memory operations: reads=" << mem_reads << ", writes=" << mem_writes << std::endl;
+    std::cout << "  IO operations: reads=" << io_reads << ", writes=" << io_writes << std::endl;
+    
+    // Дамп состояния процессора
+    std::cout << "\nFinal Z80 state:" << std::endl;
+    std::cout << "  HALT=" << (int)top->debug_z80_halt_o 
              << ", RESET=" << (int)top->debug_z80_reset_o << std::endl;
     std::cout << "  System Mode: native=" << (int)top->native_mode_o
-             << ", legacy=" << (int)top->legacy_mode_o
              << ", supervisor=" << (int)top->supervisor_mode_o << std::endl;
-    std::cout << "  Control register: 0x" << std::hex << (int)top->debug_control_o << std::dec << std::endl;
+    std::cout << "  Control register: 0x" << std::hex << (int)top->debug_reg_control_o << std::dec << std::endl;
     
-    // Дамп памяти для проверки
-    std::cout << "\nFinal memory dump:" << std::endl;
-    wb_slave.dump_memory(0, 64);
-    wb_slave.dump_memory(0x1000, 32);
+    // Дамп памяти как запрошено
+    std::cout << "\n=== Requested memory dump ===" << std::endl;
+    wb_slave.dump_memory(dump_start_addr, dump_end_addr);
     
+    // Дамп всех задействованных IO портов
+    std::cout << "\n=== Accessed IO ports dump ===" << std::endl;
+    wb_slave.dump_accessed_io_ports();
+    
+    // Дополнительно: дамп IO портов в указанном диапазоне
+    std::cout << "\n=== Full IO ports range dump ===" << std::endl;
+    wb_slave.dump_io_range(dump_io_start, dump_io_end);
+    
+    // Закрытие файлов и очистка
     tfp->close();
     delete tfp;
     delete top;
     
-    std::cout << "\nVCD file saved: tb_z80_system.vcd" << std::endl;
-    std::cout << "To view waveforms: gtkwave tb_z80_system.vcd" << std::endl;
+    std::cout << "\nVCD trace file saved: tb_z80_system.vcd" << std::endl;
     
     return 0;
 }

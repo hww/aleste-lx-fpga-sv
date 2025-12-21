@@ -32,7 +32,7 @@ module z80_debug (
     input  logic        z80_nmi_n,
     input  logic        z80_busrq_n,
     input  logic        z80_wait_n,
-    
+
     // Системный статус
     input  logic [7:0]  system_status_i,
 
@@ -110,8 +110,8 @@ module z80_debug (
     
     // 0x11: MMU_STATUS - статус MMU
     logic [7:0] mmu_status_reg;
-    // Бит 0: NATIVE_MODE   (1 = native, 0 = z80)
-    // Бит 1: SUPERVISOR    (1 = supervisor, 0 = user)
+    // Бит 0: SUPERVISOR    (1 = supervisor, 0 = user)
+    // Бит 1: NATIVE_MODE   (1 = native, 0 = z80)
     // Бит 2: - резерв
     // Бит 3: - резерв
     // Бит 4: USER_LOCK     (1 = user lock активен)
@@ -240,8 +240,8 @@ module z80_debug (
     // MMU_STATUS регистр (0x11)
     always_comb begin
         mmu_status_reg = 8'h00;
-        mmu_status_reg[0] = mmu_native_mode;      // NATIVE_MODE
-        mmu_status_reg[1] = mmu_supervisor;       // SUPERVISOR
+        mmu_status_reg[0] = mmu_supervisor;       // SUPERVISOR
+        mmu_status_reg[1] = mmu_native_mode;      // NATIVE_MODE
         mmu_status_reg[4] = mmu_native_user_lock; // USER_LOCK
         mmu_status_reg[6] = mmu_page[0];          // SLOT0
         mmu_status_reg[7] = mmu_page[1];          // SLOT1
@@ -345,7 +345,7 @@ module z80_debug (
             };          
             8'h18: dbus_data_mux = dbg_capture_i[15:8];
             8'h19: dbus_data_mux = dbg_capture_i[7:0];
-            
+
             default: dbus_data_mux = 8'h00;
         endcase
     end

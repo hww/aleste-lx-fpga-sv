@@ -123,5 +123,5 @@ module tv80lx (
     end
   end
   
-endmodule
+endmodule // t80lx
 

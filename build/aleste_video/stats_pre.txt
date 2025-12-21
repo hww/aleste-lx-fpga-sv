@@ -30,17 +30,17 @@
 
         +----------Local Count, excluding submodules.
         | 
-       66 wires
-      118 wire bits
+       90 wires
+      142 wire bits
        10 public wires
        56 public wire bits
         6 ports
        52 port bits
         1 processes
-       53 cells
+       77 cells
        25   $eq
-       26   $logic_and
-        1   $logic_not
+       42   $logic_and
+        9   $logic_not
         1   $logic_or
 
 === wb_arbiter ===
@@ -219,13 +219,13 @@
 
         +----------Local Count, excluding submodules.
         | 
-       98 wires
-      363 wire bits
+       97 wires
+      362 wire bits
        91 public wires
       341 public wire bits
        19 ports
        61 port bits
-        3 processes
+        2 processes
         2 cells
         1   $mux
         1   ODDRX1F
@@ -244,17 +244,18 @@
 
         +----------Local Count, excluding submodules.
         | 
-       49 wires
-      139 wire bits
+       51 wires
+      141 wire bits
        14 public wires
        49 public wire bits
         7 ports
        14 port bits
         7 processes
-       22 cells
+       24 cells
         2   $add
-       15   $eq
+       16   $eq
         3   $logic_and
+        1   $logic_or
         1   $ne
         1   $shiftx
 
@@ -396,12 +397,14 @@
 
         +----------Local Count, excluding submodules.
         | 
-      115 wires
-      525 wire bits
+      118 wires
+      528 wire bits
       109 public wires
       479 public wire bits
        36 ports
       157 port bits
+        2 cells
+        2   $not
         8 submodules
         1   $paramod$2cbd44edbf047fb5030bdc8e3ba7dfd139b2488d\llhdmi
         1   $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod
@@ -456,21 +459,18 @@
 
         +----------Local Count, excluding submodules.
         | 
-      175 wires
-      887 wire bits
-       69 public wires
-      314 public wire bits
+      147 wires
+      815 wire bits
+       65 public wires
+      288 public wire bits
        31 ports
        93 port bits
-        8 processes
-       46 cells
+        6 processes
+       26 cells
         3   $add
         4   $eq
-        2   $gt
-       11   $logic_and
-       14   $logic_not
-        6   $logic_or
-        1   $mux
+        4   $logic_and
+       10   $logic_not
         1   $ne
         4   $sub
         1 submodules
@@ -480,7 +480,8 @@
 
         +----------Count including submodules.
         | 
-      548 aleste_video
+      556 aleste_video
+        2 $paramod$53f82b585305d76c6a460db88bafbc20e95e1ab8\video_ctrl
        23   $paramod$2cbd44edbf047fb5030bdc8e3ba7dfd139b2488d\llhdmi
        58     tmds_encoder
        81   $paramod$52f961cb5ad1b9dda9c78199a105c7bf9fbf6cc2\mc6845mod
@@ -493,13 +494,13 @@
         9   video_buffer
         1   wb_arbiter
        25 $paramod$624e4100e59ce16f2469cafbb864f5c69e740889\sdram_wishbone
-       46 $paramod$aa4928115b4317a332420c2afcc20e76a8c78875\uart_bridge
+       26 $paramod$aa4928115b4317a332420c2afcc20e76a8c78875\uart_bridge
         2   $paramod$09618a71990fcb91e9723a5336839038d7ceb5f7\uart
        34     $paramod$8851a9d0f5c4fdb10bc2b31de20470b92d720a4c\uart_rx
-       22     $paramod$8851a9d0f5c4fdb10bc2b31de20470b92d720a4c\uart_tx
+       24     $paramod$8851a9d0f5c4fdb10bc2b31de20470b92d720a4c\uart_tx
         3 $paramod\wb_wdt_simple\TIMEOUT_CYCLES=s32'00000000000000000000000000100000
         1 OBUFDS
-       53 address_decoder
+       77 address_decoder
         6 reset_controller
         1 video_pll
         2 wb_simple_reg
@@ -507,33 +508,33 @@
         +----------Count including submodules.
         | 
      2011 wires
-     9676 wire bits
-      875 public wires
-     3634 public wire bits
+     9632 wire bits
+      871 public wires
+     3608 public wire bits
       427 ports
      1639 port bits
         5 memories
     26820 memory bits
-      185 processes
-      548 cells
+      182 processes
+      556 cells
        75   $add
         6   $and
         2   $div
-      120   $eq
+      121   $eq
         6   $ge
-        5   $gt
+        3   $gt
         1   $le
-      101   $logic_and
-       36   $logic_not
-       26   $logic_or
+      110   $logic_and
+       40   $logic_not
+       21   $logic_or
        10   $lt
         2   $meminit_v2
         7   $memrd
         2   $mul
-       39   $mux
+       38   $mux
        10   $ne
         2   $neg
-       26   $not
+       28   $not
         3   $or
         2   $shift
         1   $shiftx

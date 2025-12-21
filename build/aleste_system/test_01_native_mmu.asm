@@ -4,31 +4,39 @@
 ; Отчёт по адресу 0x1000 (в той же странице)
 
 ; Порты Native Mode
-REG_CONTROL     equ 0xD7
-SUPER_SLOT_PORT equ 0xD9
-USER_SLOT_PORT  equ 0xDB
-BANK_0_PORT     equ 0xDC
-BANK_1_PORT     equ 0xDD
-BANK_2_PORT     equ 0xDE
-BANK_3_PORT     equ 0xDF
+REG_CONTROL     equ 0xF0
+
+; Слотовый регистр
+; биты
+; 1-0 управляеют слотом в странице 0000-3FFF
+; 3-2 управляеют слотом в странице 4000-7FFF
+; 5-4 управляеют слотом в странице 8000-BFFF
+; 7-6 управляеют слотом в странице C000-7FFF
+; Винимание!  Программа находится в страинице 0000-3FFF слота 3
+SUPER_SLOT_PORT equ 0xFA
+USER_SLOT_PORT  equ 0xFB
+BANK_0_PORT     equ 0xFC
+BANK_1_PORT     equ 0xFD
+BANK_2_PORT     equ 0xFE
+BANK_3_PORT     equ 0xFF
 
 ; Адреса
 REPORT_BUF      equ 0x1000  ; Отчёт в той же странице!
 TEXT_PTR        equ 0x3F00  ; Хранилище для указателя
-SIG_ADDR        equ 0x7FFE  ; Для тестируемых страниц
+SIG_ADDR_SLOT   equ 0x7FFE  ; Для тестируемых страниц
+SIG_ADDR_BANK   equ 0x7FFF  ; Для тестируемых страниц
 
     org 0x0000  ; Slot 3, Page 0 (логический 0xC000-0xFFFF)
 
+
+; Винимание!  Программа находится в страинице 0000-3FFF слота 3
 main:
     di
-    ld sp, 0x3F00
-    
     ; ============ ИНИЦИАЛИЗАЦИЯ ============
-    
-    ; Проверяем Native Mode
-    in a, (REG_CONTROL)
-    set 0, a        ; native_mode=1
-    out (REG_CONTROL), a
+    ld sp, 0x3F00
+
+    ld a,3
+    out (REG_CONTROL),a
     
     ; Очистка буфера отчёта
     ld hl, REPORT_BUF
@@ -47,60 +55,56 @@ main:
     call newline
     
     ; ============ ПРОХОД 1: ЗАПИСЬ ============
-    ld hl, msg_write
-    call print_str
-    
-    ld c, 0             ; Счётчик слота (0-3)
-    
+ld hl, msg_write
+call print_str
+
+ld c, 0
+
 write_slot_loop:
-    ; Устанавливаем текущий слот (остаёмся в Slot 3!)
+    ; Этот код РАБОТАЛ
     ld a, c
+    add a,a
+    add a,a
+    or a,3
     out (SUPER_SLOT_PORT), a
     
-    ; Тестируем 256 страниц через BANK_1 (4000-7FFF)
     ld b, 0
-    
 write_page_loop:
     push bc
-    
-    ; Устанавливаем BANK_1 на тестируемую страницу
     ld a, b
     out (BANK_1_PORT), a
     
-    ; Записываем сигнатуру
-    ld hl, SIG_ADDR
-    ld (hl), c          ; Слот
-    inc hl
-    ld (hl), b          ; Страница
+    ; Записываем сигнатуру КАК БЫЛО
+    ld a, c
+    ld (SIG_ADDR_SLOT), a
+    ld a, b  
+    ld (SIG_ADDR_BANK), a
     
-    ; Прогресс
-    ld a, b
-    and 0x0F
-    jr nz, write_next
-    ld a, '.'
-    call print_char
-    
-write_next:
     pop bc
     inc b
-    jr nz, write_page_loop
-    
+    jp nz, write_page_loop
+
+    ; Прогресс (работало!)
+    ld a, '.'
+    call print_char
+
     inc c
     ld a, c
     cp 4
-    jr nz, write_slot_loop
+    jp nz, write_slot_loop
     
-    call newline
-    
-    ; ============ ПРОХОД 2: ПРОВЕРКА ============
-    ld hl, msg_verify
-    call print_str
-    call newline
-    
-    ld c, 0
-    
+call newline
+
+; ============ ПРОХОД 2: ПРОВЕРКА ============
+; ФИКСИМ ТОЛЬКО ПРОВЕРКУ
+ld hl, msg_verify
+call print_str
+call newline
+call newline
+ld c, 0  ; ← ВАЖНО! Сбрасываем C в 0!
+
 verify_slot_loop:
-    ; Вывод номера слота
+    ; Вывод слота
     push bc
     ld hl, msg_slot
     call print_str
@@ -112,48 +116,40 @@ verify_slot_loop:
     call print_char
     pop bc
     
-    ; Устанавливаем слот
+    ; Устанавливаем слот (ТОТ ЖЕ КОД ЧТО ПРИ ЗАПИСИ)
     ld a, c
+    add a,a
+    add a,a
+    or a,3
     out (SUPER_SLOT_PORT), a
     
-    ; Тестируем страницы
+    ; Простая проверка - просто читаем и печатаем
     ld b, 0
-    ld e, 0             ; Счётчик ошибок
-    
 verify_page_loop:
     push bc
-    
-    ; Устанавливаем BANK_1
     ld a, b
     out (BANK_1_PORT), a
     
-    ; Проверяем сигнатуру
-    ld hl, SIG_ADDR
-    ld a, (hl)
-    cp c
-    jr nz, verify_fail
-    inc hl
-    ld a, (hl)
-    cp b
-    jr nz, verify_fail
+    ; Читаем что записали
+    ld a, (SIG_ADDR_SLOT)
+    call print_hex  ; Просто печатаем прочитанное
+    ld a, ' '
+    call print_char
+    
+    ld a, (SIG_ADDR_BANK)
+    call print_hex  ; Просто печатаем прочитанное
+    ld a, ' '
+    call print_char
     
     pop bc
     inc b
     jr nz, verify_page_loop
     
-    ; Слот проверен
-    ld a, e
-    or a
-    jr z, slot_ok
-    
-    ; Ошибки
-    push bc
-    ld hl, msg_errors
-    call print_str
-    ld a, e
-    call print_dec
-    pop bc
-    jr slot_next
+    call newline
+    inc c
+    ld a, c
+    cp 4
+    jr nz, verify_slot_loop
     
 slot_ok:
     ld hl, msg_ok
@@ -183,6 +179,68 @@ verify_fail:
     jr slot_next
 
 ; ============ ФУНКЦИИ ============
+print_ac:
+    ; Печатает A и C в hex: "(A-значение C-значение)"
+    ; Пример: A=0x13, C=0xC0 → напечатает "(13 C0) "
+    push af
+    ld a, '('
+    call print_char
+    pop af
+    
+    push af
+    push bc
+    
+    ; Печатаем A в hex
+    call print_hex
+    
+    ld a, ' '
+    call print_char
+    
+    ; Печатаем C в hex
+    ld a, c
+    call print_hex
+    
+    ld a, ')'
+    call print_char
+    
+    ld a, ' '
+    call print_char
+    
+    pop bc
+    pop af
+    ret
+
+print_ab:
+    ; Печатает A и B в hex: "(A-значение B-значение)"
+    ; Пример: A=0x03, B=0x00 → напечатает "(03 00) "
+    push af
+    ld a, '('
+    call print_char
+    pop af
+    
+    push af
+    push bc
+    
+    ; Печатаем A в hex
+    call print_hex
+    
+    ld a, ' '
+    call print_char
+    
+    ; Печатаем B в hex
+    ld a, b
+    call print_hex
+    
+    ld a, ')'
+    call print_char
+    
+    ld a, ' '
+    call print_char
+    
+    pop bc
+    pop af
+    ret
+
 print_char:
     ; A = символ
     push hl

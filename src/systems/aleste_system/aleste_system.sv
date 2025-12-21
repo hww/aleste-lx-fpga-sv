@@ -180,10 +180,9 @@ module aleste_system #(
     logic [1:0] z80_graphic_mode;
     logic z80_irq_control;
     logic z80_supervisor_mode;
-    logic z80_legacy_mode;
     logic z80_native_mode;
     logic z80_debug_halt, z80_debug_reset;
-    logic [7:0] z80_debug_control;
+    logic [7:0] z80_debug_reg_control, z80_debug_reg_mmio_page;
 
     // System Arbiter Signals
     logic vid_cyc, vid_stb, vid_ack, vid_we, vid_grant;
@@ -211,8 +210,6 @@ module aleste_system #(
     // Debug Register
     logic [7:0] dbg_data;
 
-    // Configuration
-    logic cfg_legacy = 1'b0;
 
     // ===========================================
     // UART Bridge
@@ -337,14 +334,16 @@ module aleste_system #(
         .graphic_mode(z80_graphic_mode),
         .irq_control(z80_irq_control),
         .supervisor_mode_o(z80_supervisor_mode),
-        .legacy_mode_o(z80_legacy_mode),
         .native_mode_o(z80_native_mode),
 
         // Debug Status Outputs
         .debug_z80_reset_o(z80_debug_reset),
         .debug_z80_halt_o(z80_debug_halt),
-        .debug_control_o(z80_debug_control),
-        .debug_z80_bus_o(debug_z80_bus)
+        .debug_z80_bus_o(debug_z80_bus),
+
+        // MMU Registers
+        .debug_reg_control_o(z80_debug_reg_control),
+        .debug_reg_mmio_page_o(z80_debug_reg_mmio_page)
     );
 
     // ===========================================
@@ -419,7 +418,7 @@ module aleste_system #(
     logic [7:0] cs_legacy;          // Native (legacy space) 32 bytes blocks
 
     address_decoder addr_dec_inst (
-        .cfg_legacy_i(cfg_legacy),  // Legacy mode
+        .cfg_native_i(z80_native_mode),  // Legacy mode
 
         .wb_adr_i(sys_adr),         // Input address lines
         
@@ -508,7 +507,7 @@ module aleste_system #(
         .debug(video_debug),
         
         // Конфигурационные сигналы
-        .cfg_legacy_i(cfg_legacy)
+        .cfg_native_i(z80_native_mode)
     );
 
     // ===========================================

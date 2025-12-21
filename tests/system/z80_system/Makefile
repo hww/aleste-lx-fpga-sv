@@ -63,7 +63,7 @@ compile_z80:
 		-o Vsim
 
 z80: compile_z80
-	./obj_dir/Vsim $(SIM_ARGS)
+	./obj_dir/Vsim $(SIM_ARGS) --load test_04_native_mmu.bin
 
 clean:
 	rm -rf obj_dir waveform.vcd Vsim

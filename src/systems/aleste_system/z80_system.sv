@@ -37,13 +37,16 @@ module z80_system (
     output logic [1:0]  graphic_mode,
     output logic        irq_control,
     output logic        supervisor_mode_o,
-    output logic        legacy_mode_o,
     output logic        native_mode_o,
 
     // Debug Outputs
     output logic        debug_z80_reset_o,
     output logic        debug_z80_halt_o,
-    output logic [7:0]  debug_control_o,
+    // MMU registers
+    output logic [7:0]  debug_reg_control_o,
+    output logic [7:0]  debug_reg_mmio_page_o,
+
+    // Various signals for GPIO
     output logic [7:0]  debug_z80_bus_o
 );
 
@@ -59,7 +62,7 @@ module z80_system (
     // =========================================================================
     // MMU Signals
     // =========================================================================
-    logic           legacy_mode, native_mode;
+    logic           native_mode;
     
     // Legacy MMU
     logic           legacy_mmu_cyc, legacy_mmu_stb, legacy_mmu_we, legacy_mmu_access;
@@ -296,14 +299,14 @@ module z80_system (
         .system_status_i(system_status_i),
         
         // Additional debugging capture
-        .dbg_capture_i('0),
+        .dbg_capture_i({8'h00, debug_reg_mmio_page_o}),
 
         // CPU Control Outputs
         .dbg_z80_wait_i(wbm_z80_wait),
         .dbg_reset_o(dbg_cpu_reset),     // Принудительный сброс
-        .dbg_wait_o(dbg_cpu_wait),      // Активация WAIT (остановка)
+        .dbg_wait_o(dbg_cpu_wait),       // Активация WAIT (остановка)
         .dbg_nmi_o(dbg_cpu_nmi),         // Генерация NMI
-        .dbg_int_o(dbg_cpu_int),       // Генерация INT (импульс)
+        .dbg_int_o(dbg_cpu_int),         // Генерация INT (импульс)
         .dbg_step_next_o()  // Импульс шага
     );
 
@@ -315,7 +318,7 @@ module z80_system (
         .clk(clk_i),
         .clke(z80_cke),        
         .reset(~z80_reset_n),
-        .legacy_mode_i(legacy_mode),
+        .legacy_mode_i(~native_mode),
         // Master WB
         .m_wb_cyc_o(legacy_mmu_cyc),
         .m_wb_stb_o(legacy_mmu_stb),
@@ -346,7 +349,6 @@ module z80_system (
         .clk(clk_i),
         .clke(z80_cke),
         .reset(~z80_reset_n),
-        .legacy_mode_o(legacy_mode),
         .native_mode_o(native_mode),
 
         .cpu_a(z80_a),
@@ -371,15 +373,18 @@ module z80_system (
         .debug_supervisor_mode_i(1'b0),
         .debug_supervisor_mode_o(native_supervisor_mode),
         .debug_mmio_userlock_o(native_user_lock),
-        .debug_syscall_function_o(),
         .debug_syscall_trigger_o(),
-        .debug_control_o(debug_control_o),
-        .debug_mmio_page_o(),
-        .debug_super_slot_o(),
-        .debug_user_slot_o(),
-        .debug_selected_bank_o(),
+        // Slot combinatorics
         .debug_current_slot_o(native_current_slot),
-        .debug_bank_index_o()
+        // Mapper
+        .debug_mapper_index_o(),
+        .debug_mapper_bank_o(),
+        // Registers
+        .debug_reg_syscall_function_o(),
+        .debug_reg_control_o(debug_reg_control_o),
+        .debug_reg_super_slot_o(),
+        .debug_reg_user_slot_o(),
+        .debug_reg_mmio_page_o(debug_reg_mmio_page_o)
     );
 
     // =========================================================================
@@ -403,7 +408,6 @@ module z80_system (
     // OUTPUT SIGNALS
     // =========================================================================
 
-    assign legacy_mode_o = legacy_mode;
     assign native_mode_o = native_mode;
     assign supervisor_mode_o = native_supervisor_mode;
     assign debug_z80_halt_o = ~z80_halt_n;  // Теперь от отладчика!
