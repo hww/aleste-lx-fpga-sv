@@ -26,7 +26,7 @@ SCREEN_WIDTH  equ 80      ; 640/8 = 80 байт на строку
 SCREEN_HEIGHT equ 25      ; 200/8 = 25 строк
 
 ; =============== НАЧАЛО ПРОГРАММЫ ===============
-    .org 0x0000
+    org 0x0000
     
 start:
     ; 1. Инициализация стека
@@ -140,22 +140,22 @@ crtc_loop:
     RET
 
 crtc_regs:
-    .db 0x00, 63    ; HTOTAL
-    .db 0x01, 40    ; HDISPLAY
-    .db 0x02, 46    ; HSYNCPOS
-    .db 0x03, 142   ; HSYNCWIDTH
-    .db 0x04, 38    ; VTOTAL
-    .db 0x05, 0     ; VADJUST
-    .db 0x06, 25    ; VDISPLAY
-    .db 0x07, 30    ; VSYNCPOS
-    .db 0x08, 0     ; INTERLACE
-    .db 0x09, 7     ; MAXSCAN
-    .db 0x0C, 0     ; START_ADDR_H
-    .db 0x0D, 0     ; START_ADDR_L
-    .db 0x0A, 0     ; CURSOR START
-    .db 0x0B, 0     ; CURSOR END
-    .db 0x0E, 0     ; CURSOR ADDR H
-    .db 0x0F, 0     ; CURSOR ADDR L
+    db 0x00, 63    ; HTOTAL
+    db 0x01, 40    ; HDISPLAY
+    db 0x02, 46    ; HSYNCPOS
+    db 0x03, 142   ; HSYNCWIDTH
+    db 0x04, 38    ; VTOTAL
+    db 0x05, 0     ; VADJUST
+    db 0x06, 25    ; VDISPLAY
+    db 0x07, 30    ; VSYNCPOS
+    db 0x08, 0     ; INTERLACE
+    db 0x09, 7     ; MAXSCAN
+    db 0x0C, 0     ; START_ADDR_H
+    db 0x0D, 0     ; START_ADDR_L
+    db 0x0A, 0     ; CURSOR START
+    db 0x0B, 0     ; CURSOR END
+    db 0x0E, 0     ; CURSOR ADDR H
+    db 0x0F, 0     ; CURSOR ADDR L
 
 ; =============== ВЫВОД СИМВОЛА (исправленный) ===============
 ; A = код символа, D = X (0-79), E = Y (0-24)
@@ -265,14 +265,16 @@ ps_done:
     RET
 
 ; =============== ДАННЫЕ ===============
-cursor_x:   .db 0
-cursor_y:   .db 0  
-char_code:  .db 0
-welcome_msg: .db "ALESTA LX TERMINAL READY", 0
+cursor_x:   db 0
+cursor_y:   db 0  
+char_code:  db 0
+welcome_msg: db "ALESTA LX TERMINAL READY", 0
 
 ; =============== ВЕКТОРЫ ===============
-    .org 0x0038
+    section interrupt
+    org 0x0038
     reti
     
-    .org 0x0066
+    section nmi
+    org 0x0066
     retn
