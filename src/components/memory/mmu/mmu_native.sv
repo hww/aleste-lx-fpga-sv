@@ -99,7 +99,7 @@ module mmu_native (
     // =========================================================================
     // Current State
     // =========================================================================
-    logic [1:0]  current_slot;                    // Текущий слот (0-3)
+    logic [1:0]  current_slot, current_slot_reg;  // Текущий слот (0-3)
     logic [7:0]  mapper_bank;                     // Текущий банк
     logic [3:0]  mapper_index;                    // Индекс в reg_bank
     logic [1:0]  cpu_page;                        // 00=0-3FFF, 01=4000-7FFF, 10=8000-BFFF, 11=C000-FFFF
@@ -243,12 +243,14 @@ module mmu_native (
             cpu_write_pending   <= 1'b0;
             cpu_write_stb       <= 1'b0;
             cpu_address_reg     <= 5'b0_0000;
+            current_slot_reg    <= 2'b00;
         end else begin
             // Автосброс строба записи (всегда длится 1 такт clk)
             cpu_write_stb       <= 1'b0;
             if ((is_syscall_access || is_mmu_access) && is_write) begin
                 // Защелкиваем данные только в момент процессорного такта (clke)
                 if (clke) begin
+                    current_slot_reg    <= current_slot;
                     cpu_write_data_reg  <= cpu_din;
                     cpu_write_pending   <= 1'b1;
                     cpu_address_reg     <= cpu_a[5:0];
@@ -288,10 +290,10 @@ module mmu_native (
                     SLOT_USER_ADDR[4:0]:    reg_user_slot           <= cpu_write_data_reg;
                    
                     // Банковые регистры
-                    MAPPER_0_ADDR[4:0]:     reg_bank[{current_slot, 2'b00}] <= cpu_write_data_reg;
-                    MAPPER_1_ADDR[4:0]:     reg_bank[{current_slot, 2'b01}] <= cpu_write_data_reg;
-                    MAPPER_2_ADDR[4:0]:     reg_bank[{current_slot, 2'b10}] <= cpu_write_data_reg;
-                    MAPPER_3_ADDR[4:0]:     reg_bank[{current_slot, 2'b11}] <= cpu_write_data_reg;
+                    MAPPER_0_ADDR[4:0]:     reg_bank[{current_slot_reg, 2'b00}] <= cpu_write_data_reg;
+                    MAPPER_1_ADDR[4:0]:     reg_bank[{current_slot_reg, 2'b01}] <= cpu_write_data_reg;
+                    MAPPER_2_ADDR[4:0]:     reg_bank[{current_slot_reg, 2'b10}] <= cpu_write_data_reg;
+                    MAPPER_3_ADDR[4:0]:     reg_bank[{current_slot_reg, 2'b11}] <= cpu_write_data_reg;
                     
                     // Расширенные регистры
                     5'b0????:               reg_bank[cpu_a[3:0]] <= cpu_write_data_reg;  // E0=0, E1=1, ..., EF=15

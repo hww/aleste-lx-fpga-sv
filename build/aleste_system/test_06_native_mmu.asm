@@ -28,98 +28,156 @@ SIG_ADDR_BANK   equ 0x7FFF  ; Для тестируемых страниц
 
 
 
-    REPORT_BUF      equ 0x1000  ; Отчёт в той же странице!
-    TEXT_PTR        equ 0x3F00  ; Хранилище для указателя
-
 ; Винимание!  Программа находится в страинице 0000-3FFF слота 3
-    org 0x0000
+   org 0x0000
     di
-    ld sp, 0x0FFF
+    ld sp, 0x3F00
     
-    ; Очистка буфера
+    ; Очистка
     ld hl, 0x1000
     ld de, 0x1001
-    ld bc, 0x0EFF
+    ld bc, 0x0FFF
     ld (hl), ' '
-    ldir
+    ;ldir
     
-    ; Указатель
     ld hl, 0x1000
     ld (0x3F00), hl
-
-    ld a, '('
-    call print_char
-
-    ; ===== ТЕСТ СЛОТОВ =====
-    ld c, 0
     
-test_slot_loop:
-    ; Устанавливаем слот
-    ld a, c
-    add a, a
-    add a, a
-    or 3
+    ; ===== ТЕСТ: Проверка работы BANK портов =====
+    ld hl, msg_test_ports
+    call print_str
+    
+    ; Тест 1: Прямая запись в разные банки
+    ; Устанавливаем слот 0 для страницы 4000-7FFF
+    ld a, 0x03  ; 0000-3FFF=слот3, 4000-7FFF=слот0
     out (0xFA), a
     
-    ; Страница 0
+    ld hl, msg_bank0
+    call print_str
+    
+    ; Банк 0
+    xor a
+    out (0xFD), a  ; BANK_1_PORT
+    
+    ; Записываем метку
+    ld a, 0xA0
+    ld (0x4000), a
+    
+    ; Читаем
+    ld a, (0x4000)
+    call print_hex
+    call newline
+    
+    ; Банк 1
+    ld hl, msg_bank1
+    call print_str
+    
+    ld a, 0x01
+    out (0xFD), a
+    
+    ; Записываем другую метку
+    ld a, 0xB1
+    ld (0x4000), a
+    
+    ; Читаем
+    ld a, (0x4000)
+    call print_hex
+    call newline
+    
+    ; Возвращаемся в банк 0
+    ld hl, msg_bank0_again
+    call print_str
+    
     xor a
     out (0xFD), a
     
-    ; Пишем метку
+    ; Читаем из банка 0 - должно быть A0
+    ld a, (0x4000)
+    call print_hex
+    call newline
+    
+    ; ===== ТЕСТ: Все порты банков =====
+    call newline
+    ld hl, msg_all_bank_ports
+    call print_str
+    
+    ; Тестируем все 4 порта банков
+    ld b, 4
+    ld c, 0xFC  ; BANK_0_PORT
+    
+test_bank_port:
+    push bc
+    
+    ; Устанавливаем значение через порт
+    ld a, b
+    dec a
+    out (c), a
+    
+    ; Пытаемся записать
+    ld a, b
+    add a, 0x30
+    ld (0x4000), a
+    
+    ; Выводим результат
+    ld a, 'P'
+    call print_char
+    ld a, ':'
+    call print_char
     ld a, c
-    add a, 0xA0      ; A0, A1, A2, A3
-    ld (0x7FFF), a
-    
-    ; Читаем обратно
-    ld a, (0x7FFF)
-    
-    ; Печатаем
     call print_hex
     ld a, ' '
     call print_char
-    
-    inc c
-    ld a, c
-    cp 4
-    jr nz, test_slot_loop
-    
-    ; Новая строка
-    ld a, 0x0D
+    ld a, 'V'
     call print_char
-    ld a, 0x0A
+    ld a, ':'
     call print_char
-    
-    ; ===== ТЕСТ СТРАНИЦ (только в слоте 0) =====
-    ; Slot 0
-    ld a, 0x03
-    out (0xFA), a
-    
-    ld b, 0
-    
-test_page_loop:
-    push bc
-    ld a, b
-    out (0xFD), a
-    
-    ; Пишем номер страницы
-    ld a, b
-    ld (0x7FFF), a
-    
-    ; Читаем
-    ld a, (0x7FFF)
+    ld a, (0x4000)
     call print_hex
     ld a, ' '
     call print_char
     
     pop bc
-    inc b
-    jr nz, test_page_loop
+    inc c
+    djnz test_bank_port
     
-    ld a, ')'
+    call newline
+    
+    ; ===== ТЕСТ: Дамп конфигурации =====
+    call newline
+    ld hl, msg_current_config
+    call print_str
+    
+    ; Читаем текущие настройки слотов
+    in a, (0xFA)
+    call print_hex
+    ld a, ' '
     call print_char
-
+    
+    ; Читаем текущие настройки банков
+    ld c, 0xFC
+    ld b, 4
+    
+read_bank_config:
+    in a, (c)
+    call print_hex
+    ld a, ' '
+    call print_char
+    inc c
+    djnz read_bank_config
+    
+    call newline
+    
     halt
- 
+
+; Сообщения
+msg_test_ports:      db "Testing BANK ports:", 0x0D, 0x0A, 0
+msg_bank0:          db "Bank 0 write A0, read: ", 0
+msg_bank1:          db "Bank 1 write B1, read: ", 0
+msg_bank0_again:    db "Back to Bank 0, read: ", 0
+msg_all_bank_ports: db "All bank ports:", 0x0D, 0x0A, 0
+msg_current_config: db "Current config (slot,bank0-3): ", 0
+
+
 ; ============ ФУНКЦИИ ============
 print_ac:
     ; Печатает A и C в hex: "(A-значение C-значение)"
@@ -243,14 +301,6 @@ newline:
     ld a, 0x0A
     jp print_char
 
-; ============ СООБЩЕНИЯ ============
-msg_start:   db "MMU Test v1.0", 0
-msg_write:   db "Writing... ", 0
-msg_verify:  db "Verifying:", 0
-msg_slot:    db "Slot ", 0
-msg_ok:      db " OK", 0
-msg_errors:  db " ERR:", 0
-msg_done:    db "Test complete", 0
 
 ; ============ ДАННЫЕ ============
     ds 0x1000 - $, 0  ; Заполняем до буфера отчёта

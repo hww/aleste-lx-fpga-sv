@@ -47,14 +47,17 @@ assign cs_system_o[5] = cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b0
 assign cs_system_o[6] = cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b10);
 assign cs_system_o[7] = cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b11);
 
+
 // Legacy devices (8 devices, 32 bytes each) - во втором native блоке  
-assign cs_legacy_o[0] = !cfg_native_i && cs_native_o[2] && (wb_adr_i[6:5] == 2'b00);
-assign cs_legacy_o[1] = !cfg_native_i && cs_native_o[2] && (wb_adr_i[6:5] == 2'b01);
-assign cs_legacy_o[2] = !cfg_native_i && cs_native_o[2] && (wb_adr_i[6:5] == 2'b10);
-assign cs_legacy_o[3] = !cfg_native_i && cs_native_o[2] && (wb_adr_i[6:5] == 2'b11);
-assign cs_legacy_o[4] = !cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b00);
-assign cs_legacy_o[5] = !cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b01);
-assign cs_legacy_o[6] = !cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b10);
-assign cs_legacy_o[7] = !cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b11);
+assign cs_legacy_o[0] = cfg_native_i && cs_native_o[2] && (wb_adr_i[6:5] == 2'b00);
+assign cs_legacy_o[1] = cfg_native_i && cs_native_o[2] && (wb_adr_i[6:5] == 2'b01);
+assign cs_legacy_o[2] = cfg_native_i && cs_native_o[2] && (wb_adr_i[6:5] == 2'b10);
+assign cs_legacy_o[3] = cfg_native_i && cs_native_o[2] && (wb_adr_i[6:5] == 2'b11);
+assign cs_legacy_o[4] = cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b00);
+assign cs_legacy_o[5] = cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b01);
+assign cs_legacy_o[6] = cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b10);
+assign cs_legacy_o[7] = cfg_native_i && cs_native_o[1] && (wb_adr_i[6:5] == 2'b11);
+
+wire cfg_legacy = !cfg_native_i;
 
 endmodule

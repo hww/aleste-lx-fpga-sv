@@ -149,6 +149,7 @@ module aleste_video #(
     logic debug_sdram_busy;
 
     // Configuration
+    logic cfg_native = 1'b1;
 
     // ===========================================
     // UART Bridge
@@ -240,8 +241,6 @@ module aleste_video #(
     // ===========================================
     // Video Controller
     // ===========================================
-
-    wire cfg_native = 1;
     video_ctrl #(
         .BASE_CLOCK(BASE_CLOCK),
         .SRC_H_VISIBLE(SRC_H_VISIBLE),
