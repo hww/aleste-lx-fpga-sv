@@ -209,7 +209,7 @@ module mmu_native (
             
             if (clke) begin
                 // Вход в супервизор только с прерывания или системного вызова
-                if (trap_condition || is_syscall_trigger) begin
+                if (~supervisor_mode && (trap_condition || is_syscall_trigger)) begin
                     supervisor_mode_reg     <= 1'b1;
                     supervisor_exit_pending <= 1'b0;
                 end
