@@ -5,7 +5,7 @@ void console_init(void);
 
 int main() {
     /* Инициализация */
-    sys_init_video();
+    sys_scr_init_video();
     console_init();
     
     /* Тестируем printf - должен работать */
@@ -13,14 +13,6 @@ int main() {
     printf("Testing printf output:\n");
     printf("Decimal: %d\n", 12345);
     printf("Hex: 0x%X\n", 0xABCD);
-    
-    /* Если нужен ввод, но он не реализован - комментируем */
-    /*
-    printf("\nEnter something: ");
-    char buffer[100];
-    fgets(buffer, sizeof(buffer), stdin);
-    printf("You entered: %s\n", buffer);
-    */
     
     /* Просто бесконечный цикл с выводом */
     int counter = 0;

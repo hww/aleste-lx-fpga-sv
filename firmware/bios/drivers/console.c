@@ -30,7 +30,7 @@ int fputc_cons(int c) {
         return c;
     }
     
-    sys_put_char(c, cursor_x, cursor_y);
+    sys_scr_put_char(c, cursor_x, cursor_y);
     cursor_x++;
     
     if (cursor_x >= 64) {
@@ -121,5 +121,5 @@ void console_init(void) {
     cursor_x = 0;
     cursor_y = 0;
     input_pos = 0;
-    sys_clear_screen();
+    sys_scr_clear_screen();
 }

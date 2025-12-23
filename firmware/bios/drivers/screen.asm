@@ -25,11 +25,11 @@ ENDIF
 SCREEN_WIDTH  equ 80      ; 640/8 = 80 байт на строку
 SCREEN_HEIGHT equ 25      ; 200/8 = 25 строк
 
-PUBLIC _clear_screen
-PUBLIC _put_char
-EXTERN _font_data
-PUBLIC _clear_screen
-PUBLIC _init_video
+PUBLIC _scr_clear_screen
+PUBLIC _scr_put_char
+EXTERN _scr_font_data
+PUBLIC _scr_clear_screen
+PUBLIC _scr_init_video
 
 ; =============== НАСТРОЙКА ПАМЯТИ ===============
 setup_memory_map:
@@ -52,8 +52,8 @@ setup_memory_map:
     RET
 
 ; =============== ИНИЦИАЛИЗАЦИЯ ВИДЕО ===============
-_init_video:
-init_video:
+_scr_init_video:
+scr_init_video:
     ; 1. Настроить CRTC (страница 3 MMIO)
     LD A, 3
     OUT (MMIO_PAGE), A
@@ -131,8 +131,8 @@ crtc_regs:
 
 ; =============== ВЫВОД СИМВОЛА (исправленный) ===============
 ; A = код символа, D = X (0-79), E = Y (0-24)
-_put_char:
-put_char:
+_scr_put_char:
+scr_put_char:
     PUSH HL
     PUSH DE
     PUSH BC
@@ -180,7 +180,7 @@ put_char:
     SLA E
     RL D            ; *8
     
-    LD BC, _font_data    ; Шрифт в слоте 3
+    LD BC, _scr_font_data    ; Шрифт в слоте 3
     ADD HL, BC      ; BC = адрес в шрифте
     
     ; Скопировать 8 байт
@@ -206,8 +206,8 @@ copy_loop:
     RET
 
 ; =============== ОСТАЛЬНЫЕ ФУНКЦИИ ===============
-_clear_screen:
-clear_screen:
+_scr_clear_screen:
+scr_clear_screen:
     ; Заполнить VRAM нулями
     LD HL, VRAM_BASE
     LD DE, VRAM_BASE + 1
@@ -215,8 +215,8 @@ clear_screen:
     LD (HL), 0
     LDIR
     RET
-_print_string:
-print_string:
+_scr_print_string:
+scr_print_string:
     ; HL = строка, D = X, E = Y
     PUSH AF
 ps_loop:
@@ -226,7 +226,7 @@ ps_loop:
     
     PUSH HL
     PUSH DE
-    CALL put_char
+    CALL scr_put_char
     POP DE
     POP HL
     

@@ -3,12 +3,13 @@ SECTION code_user
 ;ORG 0xFD00
 
 ; ==================== ВИДЕО ДРАЙВЕР ====================
-PUBLIC _sys_clear_screen, _sys_put_char, _sys_font_data, _sys_clear_screen, _sys_init_video
-EXTERN _clear_screen
-EXTERN _put_char
-EXTERN _font_data
-EXTERN _clear_screen
-EXTERN _init_video
+PUBLIC _sys_scr_clear_screen, _sys_scr_put_char, _sys_scr_ont_data, _sys_scr_clear_screen, _sys_scr_init_video
+EXTERN _scr_clear_screen
+EXTERN _scr_put_char
+EXTERN _scr_clear_screen
+EXTERN _scr_init_video
+
+EXTERN _scr_font_data
 
 ; ==================== MMU ДРАЙВЕР ====================
 PUBLIC _sys_mmu_get_current_slot, _sys_mmu_set_bank_for_page, _sys_mmu_get_bank_for_page
@@ -32,14 +33,14 @@ EXTERN _mmu_copy_cross_slot
 ; ==================== ТАБЛИЦА ПЕРЕХОДОВ ====================
 
 ; Видео драйвер
-_sys_init_video:
-    jp _init_video
+_sys_scr_init_video:
+    jp _scr_init_video
 
-_sys_clear_screen:   
-    jp _clear_screen
+_sys_scr_clear_screen:   
+    jp _scr_clear_screen
 
-_sys_put_char:        
-    jp _put_char
+_sys_scr_put_char:        
+    jp _scr_put_char
 
 ; MMU драйвер
 _sys_mmu_get_current_slot:    
@@ -77,8 +78,8 @@ _sys_mmu_copy_cross_slot:
 
 ; ==================== КОНАСТАНТЫ ====================
 
-_sys_font_data:
-    dw _font_data
+_sys_scr_ont_data:
+    dw _scr_font_data
 
 ; Заполняем до 0xFD40 (оставляем место для будущих функций)
 defs 0xFD40 - $, 0xFF
