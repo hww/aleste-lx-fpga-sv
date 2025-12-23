@@ -27,7 +27,7 @@ SCREEN_HEIGHT equ 25      ; 200/8 = 25 строк
 
 PUBLIC _clear_screen
 PUBLIC _put_char
-PUBLIC _font_data
+EXTERN _font_data
 PUBLIC _clear_screen
 PUBLIC _init_video
 
@@ -180,7 +180,7 @@ put_char:
     SLA E
     RL D            ; *8
     
-    LD BC, font    ; Шрифт в слоте 3
+    LD BC, _font_data    ; Шрифт в слоте 3
     ADD HL, BC      ; BC = адрес в шрифте
     
     ; Скопировать 8 байт
@@ -242,24 +242,4 @@ ps_done:
 cursor_x:   db 0
 cursor_y:   db 0  
 char_code:  db 0
-welcome_msg: db "ALESTA LX TERMINAL READY", 0
-
-; =============== ВЕКТОРЫ ===============
-    section interrupt
-    org 0x0038
-    reti
-
-    
-    section nmi
-    org 0x0066
-    retn
-
-
-
-; =============== ШРИФТ ===============
-    section rodata_compiler  ; Измените на эту секцию!
-_font_data:
-font:    
-    incbin "../fonts/WIN-1252.FNT"
-
 

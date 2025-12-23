@@ -1,6 +1,6 @@
 ; JUMP_TABLE.ASM - Исправленная версия
 SECTION code_user
-ORG 0xFD00
+;ORG 0xFD00
 
 ; ==================== ВИДЕО ДРАЙВЕР ====================
 PUBLIC _sys_clear_screen, _sys_put_char, _sys_font_data, _sys_clear_screen, _sys_init_video
