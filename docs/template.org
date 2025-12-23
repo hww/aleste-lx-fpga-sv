@@ -1,0 +1,28 @@
+\documentclass[11pt, a4paper, DIV=12]{scrartcl}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage{siunitx}
+\usepackage[style=numeric, sorting=ynt]{biblatex}
+\addbibresource{refs.bib}
+
+\title{Краткое и ясное название}
+\author{И. О. Фамилия}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+    Аннотация здесь.
+\end{abstract}
+
+\section{Введение}
+Используем \LaTeX, ссылаемся на работу \cite{key}.
+
+\printbibliography
+\end{document}
