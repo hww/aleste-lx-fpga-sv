@@ -116,7 +116,7 @@ module mmu_native (
 
     // Разрешение доступа к портам: разрешено если supervisor ИЛИ unlock установлен
     // По архитектуре: user+lock блокирует, supervisor или unlock разрешает
-    wire port_access_grant = supervisor_mode || reg_ctrl_user_unlock;  // supervisor OR user-unlock
+    wire port_access_grant = supervisor_mode || !reg_ctrl_user_lock;  // supervisor OR user-unlock
     
     // Is this an MMU register port (D0-DF)
     wire is_mmu_access = is_io_access && 
@@ -139,7 +139,7 @@ module mmu_native (
     wire reg_ctrl_super_in     = cpu_write_data_reg[0];  // Бит отвечающий за режим супервизора
     wire reg_ctrl_native_mode  = reg_control[1];  // запретить использование легаси регистров
     wire reg_ctrl_trap_enabled = reg_control[2];  // разрешить ловушку для supervisor
-    wire reg_ctrl_user_unlock  = reg_control[4];  // разрешить доступ к портам в режиме пользователя
+    wire reg_ctrl_user_lock    = reg_control[4];  // разрешить доступ к портам в режиме пользователя
     // Combinational supervisor view (includes test override)
     wire supervisor_mode = supervisor_mode_reg || debug_supervisor_mode_i;
 
@@ -407,7 +407,7 @@ module mmu_native (
     // 11. Debugging
     // =========================================================================
     assign debug_supervisor_mode_o  = supervisor_mode;
-    assign debug_mmio_userlock_o    = reg_ctrl_user_unlock;
+    assign debug_mmio_userlock_o    = reg_ctrl_user_lock;
     assign debug_mapper_bank_o      = mapper_bank;
     assign debug_current_slot_o     = current_slot;
     assign debug_mapper_index_o     = mapper_index;
