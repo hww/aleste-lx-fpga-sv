@@ -1,10 +1,7 @@
 /* console.c - полный драйвер с input/output */
-#include <stdio.h>
-#include "../src/syscalls.h"
 
-/* Глобальные переменные которые требуются z88dk */
-FILE *stdout = (FILE*)0x01;
-FILE *stderr = (FILE*)0x02;
+#include "../kernel/syscalls.h"
+
 
 /* Для вывода */
 static unsigned char cursor_x = 0;

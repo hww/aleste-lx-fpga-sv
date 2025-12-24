@@ -1,0 +1,25 @@
+#+  SETUPFILE: template.org
+
+
+#+LaTeX_HEADER: \usepackage{fontspec}
+#+LaTeX_HEADER: \setmainfont[BoldFont={Cardo Bold}, ItalicFont={Cardo Italic}]{Cardo}
+
+#+LaTeX_HEADER: \usepackage{polyglossia}
+#+LaTeX_HEADER: \setmainlanguage{english}
+#+LaTeX_HEADER: \setotherlanguage{russian}
+#+LaTeX_HEADER: \newfontfamily\hebrewfont{SBL Hebrew}
+
+
+В документе рассмотрены вопросы разработки прибора автоматического тестирования печатных плат ICT. Также описаны: способы тестирования, измерения и поиска неисправностей. Рассмотрены некоторые вопросы конструкции устройства. В конце документа приведен исходный код предложенного в статье алгоритма измерения импеданса, индуктивности, емкости и ESR.\\\\Документ не является техническим заданием и его можно считать рекомендацией.}
+
+\newpage
+
+# -------------------------------------------------------------------------------
+# TOCS
+# -------------------------------------------------------------------------------
+
+#+LATEX: \tableofcontents
+# +LATEX: \listoftables
+# +LATEX: \listoffigures
+
+\newpage

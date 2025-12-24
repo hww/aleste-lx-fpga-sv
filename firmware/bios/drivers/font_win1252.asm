@@ -1,5 +1,6 @@
 ; drivers/font_win1252.asm - Сконвертированный шрифт
-SECTION CRT_FONT_DATA
+SECTION BANK_20_MYFONT
+org 0x2000
 PUBLIC _scr_font_data, _scr_font_size
 
 _scr_font_data:

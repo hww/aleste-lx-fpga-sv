@@ -1,0 +1,10 @@
+*.log
+*.fls
+*.pdf
+*.fdb*
+*.bcf*
+*.aux*
+*.tex
+*.toc
+
+

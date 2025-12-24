@@ -1,0 +1,20 @@
+# -------------------------------------------------------------------------------
+# Control default ORG variables
+# -------------------------------------------------------------------------------
+#+OPTIONS: ^:nil
+#+OPTIONS: title:nil toc:nil author:nil date:nil
+#+LATEX_COMPILER: xelatex
+
+# -------------------------------------------------------------------------------
+# Language and localization
+# -------------------------------------------------------------------------------
+
+#+LANGUAGE: russian
+#+LATEX_HEADER: \usepackage{polyglossia}
+#+LATEX_HEADER: \setmainlanguage{russian}
+#+LATEX_HEADER: \setotherlanguage{english}
+#+LATEX_HEADER: \usepackage{fontspec}
+#+LATEX_HEADER: \setmainfont{Times New Roman} % Шрифт для основного языка (пример)
+#+LATEX_HEADER: \setotherfont{Arial} % Шрифт для другого языка (пример)
+
+#+LATEX_HEADER: \selectlanguage{russian}
