@@ -1,20 +1,22 @@
 TARGET = aleste
 
+SRCDIR = src
 DRV_SOURCES = \
-	utils/utils_drv.asm \
-	mmu/mmu_drv.asm \
-	int/int_drv.asm \
-	kbd/kbd_drv.asm \
-	audio/audio_drv.asm \
-	video/video_drv.asm \
-	sysinfo/sysinfo_drv.asm \
-	fs/fs_drv.asm \
-	net/net_drv.asm \
-	proc/proc_drv.asm
+	$(SRCDIR)/utils/utils_drv.asm \
+	$(SRCDIR)/mmu/mmu_drv.asm \
+	$(SRCDIR)/int/int_drv.asm \
+	$(SRCDIR)/kbd/kbd_drv.asm \
+	$(SRCDIR)/audio/audio_drv.asm \
+	$(SRCDIR)/video/video_drv.asm \
+	$(SRCDIR)/sysinfo/sysinfo_drv.asm \
+	$(SRCDIR)/fs/fs_drv.asm \
+	$(SRCDIR)/crt0_aleste.asm 
 
-SOURCES = main.c \
-	kernel/crt0_aleste.asm \
-	libs/console.c 
+
+
+
+SOURCES = $(SRCDIR)/main.c \
+	$(SRCDIR)/libs/console.c 
 
 all: clean compile
 
@@ -49,7 +51,7 @@ compile:
 
 clean:
 	rm -rf output build 2>/dev/null || true
-	rm -f *.bin *.map *.def *.asm *.i *.sym *.reloc 2>/dev/null || true
+	rm -f *.bin *.map *.def *.i *.sym *.reloc 2>/dev/null || true
 	rm -f $(TARGET)* 2>/dev/null || true
 	@echo "🧹 Очищено"
 

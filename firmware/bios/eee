@@ -1,0 +1,11 @@
+rm -rf output build 2>/dev/null || true
+rm -f *.bin *.map *.def *.i *.sym *.reloc 2>/dev/null || true
+rm -f aleste* 2>/dev/null || true
+🧹 Очищено
+zcc +z80 -vn -O3 -startup=0 \
+      -zorg=0xC000 \
+  	  -pragma-define:CRT_INTERRUPT_MODE=1 \
+  src/utils/utils_drv.asm src/mmu/mmu_drv.asm src/int/int_drv.asm src/kbd/kbd_drv.asm src/audio/audio_drv.asm src/video/video_drv.asm src/sysinfo/sysinfo_drv.asm src/fs/fs_drv.asm src/crt0_aleste.asm  \
+  src/main.c src/libs/console.c  \
+  -o aleste \
+  -create-app
