@@ -1,29 +1,28 @@
 TARGET = aleste
+
+DRV_SOURCES = \
+	utils/utils_drv.asm \
+	mmu/mmu_drv.asm \
+	int/int_drv.asm \
+	kbd/kbd_drv.asm \
+	audio/audio_drv.asm \
+	video/video_drv.asm \
+	sysinfo/sysinfo_drv.asm \
+	fs/fs_drv.asm \
+	net/net_drv.asm \
+	proc/proc_drv.asm
+
 SOURCES = main.c \
 	kernel/crt0_aleste.asm \
-	kernel/syscalls.asm \
-	kernel/process.asm \
-	kernel/system_info.asm \
-	drivers/audio.asm \
-	drivers/video.asm  \
-	drivers/mmu.asm \
-	drivers/mmu_ext.asm \
-	drivers/font_win1252.asm \
-	drivers/disk_ops.asm \
-	drivers/filesystem.asm \
-	drivers/graphics.asm \
-	drivers/interrupts.asm \
-	drivers/keyboard.asm \
-	drivers/network.asm \
-	std/console.c 
+	libs/console.c 
 
 all: clean compile
-#	  -pragma-define:CRT_ORG_CODE=0x0000 \
 
 compile:
 	zcc +z80 -vn -O3 -startup=0 \
-      -zorg=0x0200 \
+      -zorg=0xC000 \
   	  -pragma-define:CRT_INTERRUPT_MODE=1 \
+	  $(DRV_SOURCES) \
 	  $(SOURCES) \
 	  -o aleste \
 	  -create-app

@@ -1,0 +1,918 @@
+; video_api.asm
+; ============================================================================
+; VIDEO API - Интерфейс для остальной системы
+; ============================================================================
+module video_api
+
+EXTERN scr_init_video, scr_clear_screen, scr_put_char
+EXTERN scr_put_string, scr_set_cursor, scr_get_cursor
+EXTERN scr_scroll_up, scr_set_color, scr_get_color
+EXTERN scr_set_video_mode, scr_get_video_mode
+EXTERN scr_process_escape
+
+; Таблица переходов для jumptable
+PUBLIC _sys_scr_init_video, _sys_scr_clear_screen, _sys_scr_put_char
+PUBLIC _sys_scr_put_string, _sys_scr_set_cursor, _sys_scr_get_cursor
+PUBLIC _sys_scr_scroll_up, _sys_scr_set_color, _sys_scr_get_color
+PUBLIC _sys_scr_set_video_mode, _sys_scr_get_video_mode
+
+; ---- ВИДЕО ДРАЙВЕР ----
+_sys_scr_init_video:     jp _scr_init_video
+_sys_scr_clear_screen:   jp _scr_clear_screen
+_sys_scr_put_char:       jp _scr_put_char
+_sys_scr_put_string:     jp _scr_put_string
+_sys_scr_set_cursor:     jp _scr_set_cursor
+_sys_scr_get_cursor:     jp _scr_get_cursor
+_sys_scr_scroll_up:      jp _scr_scroll_up
+_sys_scr_set_color:      jp _scr_set_color
+_sys_scr_get_color:      jp _scr_get_color
+_sys_scr_draw_pixel:     jp _scr_draw_pixel
+_sys_scr_draw_line:      jp _scr_draw_line
+_sys_scr_draw_rect:      jp _scr_draw_rect
+_sys_scr_set_video_mode: jp scr_set_video_mode
+_sys_scr_get_video_mode: jp scr_get_video_mode; video_blit.asm
+; ============================================================================
+; GRAPHICS UTILITIES - Заглушки
+; ============================================================================
+module video_blitter
+
+
+; ----------------------------------------------------------------------------
+; gfx_fill - Заливка области
+; Вход: B = X
+;       C = Y
+;       D = ширина
+;       E = высота
+;       H = цвет
+; Выход: Нет
+; ----------------------------------------------------------------------------
+PUBLIC _gfx_fill
+_gfx_fill:
+gfx_fill_:
+    ; TODO: Реализовать заливку
+    ret
+
+; ----------------------------------------------------------------------------
+; gfx_copy_rect - Копирование прямоугольной области
+; Вход: B = src X
+;       C = src Y
+;       D = dst X
+;       E = dst Y
+;       H = ширина
+;       L = высота
+; Выход: Нет
+; ----------------------------------------------------------------------------
+PUBLIC _gfx_copy_rect
+_gfx_copy_rect:
+gfx_copy_rect_:
+    ; TODO: Реализовать копирование
+    ret
+
+; video_char.asm
+; ============================================================================
+; VIDEO CHARACTER RENDERER - Преобразование шрифта в пиксели
+; ============================================================================
+module video_char
+
+EXTERN _scr_font_data
+EXTERN current_mode, bytes_per_line
+EXTERN tetrada_table_2bpp, tetrada_table_4bpp, tetrada_table_8bpp
+
+; ----------------------------------------------------------------------------
+; char_render - Отрендерить символ
+; Вход: A = код символа, DE = адрес в VRAM
+; ----------------------------------------------------------------------------
+PUBLIC char_render
+char_render:
+    ; Вычислить адрес в шрифте
+    LD L, A
+    LD H, 0
+    ADD HL, HL  ; ×2
+    ADD HL, HL  ; ×4
+    ADD HL, HL  ; ×8
+    LD BC, _scr_font_data
+    ADD HL, BC  ; HL = шрифт
+    
+    ; Выбрать функцию рендеринга
+    LD A, (current_mode)
+    CP 1
+    JP Z, char_render_1bpp
+    CP 2
+    JP Z, char_render_2bpp
+    CP 4
+    JP Z, char_render_4bpp
+    JP char_render_8bpp
+
+; ----------------------------------------------------------------------------
+; char_render_1bpp - Рендеринг для монохромного режима
+; ----------------------------------------------------------------------------
+char_render_1bpp:
+    LD B, 8
+@loop:
+    LD A, (HL)
+    LD (DE), A
+    INC HL
+    
+    ; Следующая строка
+    LD A, E
+    ADD A, 80
+    LD E, A
+    JR NC, .next
+    INC D
+@next:
+    DJNZ @loop
+    RET
+
+; ----------------------------------------------------------------------------
+; char_render_2bpp - Рендеринг для 4-цветного режима
+; ----------------------------------------------------------------------------
+char_render_2bpp:
+    LD B, 8
+    LD IX, tetrada_table_2bpp
+@loop:
+    LD A, (HL)
+    INC HL
+    
+    ; Левая тетрада
+    AND $F0
+    RRCA×4
+    LD C, A
+    LD A, (IX + C)
+    LD (DE), A
+    INC DE
+    
+    ; Правая тетрада
+    LD A, (HL-1)
+    AND $0F
+    LD C, A
+    LD A, (IX + C)
+    LD (DE), A
+    INC DE
+    
+    ; Следующая строка
+    LD A, E
+    ADD A, 160 - 2
+    LD E, A
+    JR NC, .next
+    INC D
+@next:
+    DJNZ @loop
+    RET; video_conf.asm
+; =================== CPC РЕЖИМЫ ======================   
+MODE_ENTRY_SIZE equ 3
+
+; CPC Mode 2 (640x200, 2 colors)
+cpc_mode2_table:
+    ; CRTC базовые регистры
+    db 0x00, 63, 0xFF    ; R0: HTOTAL
+    db 0x01, 40, 0xFF    ; R1: HDISPLAY  
+    db 0x02, 46, 0xFF    ; R2: HSYNCPOS
+    db 0x03, 142, 0xFF   ; R3: HSYNCWIDTH
+    db 0x04, 38, 0x7F    ; R4: VTOTAL
+    db 0x05, 0, 0x1F     ; R5: VADJUST
+    db 0x06, 25, 0x7F    ; R6: VDISPLAY
+    db 0x07, 30, 0x7F    ; R7: VSYNCPOS
+    db 0x08, 0, 0x33     ; R8: INTERLACE
+    db 0x09, 7, 0x1F     ; R9: MAXSCAN
+    db 0x0C, 0, 0x3F     ; R12: START_ADDR_H
+    db 0x0D, 0, 0xFF     ; R13: START_ADDR_L
+    ; Расширенные регистры
+    db 0x12, 0b00000000, 0b00110011  ; R18: VIDEO_CONTROL (1bpp, CPC palette)
+    db 0x14, 0b00000000, 0b00110111  ; R20: ADDR_MODE (CPC 16KB)
+    db 0x15, 0b00000000, 0b00000011  ; R21: PIXEL_CTRL (2 bytes per 16clk)
+cpc_mode2_size equ ($ - cpc_mode2_table) / MODE_ENTRY_SIZE
+
+; CPC Mode 1 (320x200, 4 colors)
+cpc_mode1_table:
+    ; CRTC базовые регистры (такие же как mode2)
+    db 0x00, 63, 0xFF,   0x01, 40, 0xFF,   0x02, 46, 0xFF
+    db 0x03, 142, 0xFF,  0x04, 38, 0x7F,   0x05, 0, 0x1F
+    db 0x06, 25, 0x7F,   0x07, 30, 0x7F,   0x08, 0, 0x33
+    db 0x09, 7, 0x1F,    0x0C, 0, 0x3F,    0x0D, 0, 0xFF
+    ; Расширенные регистры
+    db 0x12, 0b00000001, 0b00110011  ; R18: 2bpp
+    db 0x14, 0b00000000, 0b00110111  ; R20: CPC 16KB
+    db 0x15, 0b00000000, 0b00000011  ; R21: 2 bytes
+cpc_mode1_size equ ($ - cpc_mode1_table) / MODE_ENTRY_SIZE
+
+; CPC Mode 0 (160x200, 16 colors)
+cpc_mode0_table:
+    ; CRTC базовые регистры
+    db 0x00, 63, 0xFF,   0x01, 40, 0xFF,   0x02, 46, 0xFF
+    db 0x03, 142, 0xFF,  0x04, 38, 0x7F,   0x05, 0, 0x1F
+    db 0x06, 25, 0x7F,   0x07, 30, 0x7F,   0x08, 0, 0x33
+    db 0x09, 7, 0x1F,    0x0C, 0, 0x3F,    0x0D, 0, 0xFF
+    ; Расширенные регистры
+    db 0x12, 0b00000010, 0b00110011  ; R18: 4bpp
+    db 0x14, 0b00000000, 0b00110111  ; R20: CPC 16KB
+    db 0x15, 0b00000000, 0b00000011  ; R21: 2 bytes
+cpc_mode0_size equ ($ - cpc_mode0_table) / MODE_ENTRY_SIZE
+
+; =================== 16KB РЕЖИМЫ ======================
+
+; 16k1b: LX 320x200 4 colors
+mode_16k1b_table:
+    ; CRTC базовые регистры
+    db 0x00, 63, 0xFF,   0x01, 40, 0xFF,   0x02, 46, 0xFF
+    db 0x03, 142, 0xFF,  0x04, 38, 0x7F,   0x05, 0, 0x1F
+    db 0x06, 25, 0x7F,   0x07, 30, 0x7F,   0x08, 0, 0x33
+    db 0x09, 7, 0x1F,    0x0C, 0, 0x3F,    0x0D, 0, 0xFF
+    ; Расширенные регистры
+    db 0x12, 0b00010000, 0b00110011  ; R18: 1bpp, Linear RGB
+    db 0x14, 0b00000001, 0b00110111  ; R20: EX 32KB mode (для 16KB)
+    db 0x15, 0b00000000, 0b00000011  ; R21: 2 bytes
+mode_16k1b_size equ ($ - mode_16k1b_table) / MODE_ENTRY_SIZE
+
+; 16k2b: LX 640x200 2 colors (текущий режим)
+mode_16k2b_table:
+    ; CRTC базовые регистры
+    db 0x00, 63, 0xFF,   0x01, 40, 0xFF,   0x02, 46, 0xFF
+    db 0x03, 142, 0xFF,  0x04, 38, 0x7F,   0x05, 0, 0x1F
+    db 0x06, 25, 0x7F,   0x07, 30, 0x7F,   0x08, 0, 0x33
+    db 0x09, 7, 0x1F,    0x0C, 0, 0x3F,    0x0D, 0, 0xFF
+    ; Расширенные регистры
+    db 0x12, 0b00010001, 0b00110011  ; R18: 2bpp, Linear RGB
+    db 0x14, 0b00000001, 0b00110111  ; R20: EX 32KB
+    db 0x15, 0b00000000, 0b00000011  ; R21: 2 bytes
+mode_16k2b_size equ ($ - mode_16k2b_table) / MODE_ENTRY_SIZE
+
+; 16k4b: LX 160x200 16 colors
+mode_16k4b_table:
+    ; CRTC базовые регистры
+    db 0x00, 63, 0xFF,   0x01, 40, 0xFF,   0x02, 46, 0xFF
+    db 0x03, 142, 0xFF,  0x04, 38, 0x7F,   0x05, 0, 0x1F
+    db 0x06, 25, 0x7F,   0x07, 30, 0x7F,   0x08, 0, 0x33
+    db 0x09, 7, 0x1F,    0x0C, 0, 0x3F,    0x0D, 0, 0xFF
+    ; Расширенные регистры
+    db 0x12, 0b00010010, 0b00110011  ; R18: 4bpp, Linear RGB
+    db 0x14, 0b00000001, 0b00110111  ; R20: EX 32KB
+    db 0x15, 0b00000000, 0b00000011  ; R21: 2 bytes
+mode_16k4b_size equ ($ - mode_16k4b_table) / MODE_ENTRY_SIZE
+
+; =================== 32KB РЕЖИМЫ ======================
+
+; 32k2b: LX 640x200 4 colors
+mode_32k2b_table:
+    ; CRTC базовые регистры
+    db 0x00, 63, 0xFF,   0x01, 40, 0xFF,   0x02, 46, 0xFF
+    db 0x03, 142, 0xFF,  0x04, 38, 0x7F,   0x05, 0, 0x1F
+    db 0x06, 25, 0x7F,   0x07, 30, 0x7F,   0x08, 0, 0x33
+    db 0x09, 7, 0x1F,    0x0C, 0, 0x3F,    0x0D, 0, 0xFF
+    ; Расширенные регистры
+    db 0x12, 0b00010001, 0b00110011  ; R18: 2bpp, Linear RGB
+    db 0x14, 0b00000011, 0b00000111  ; R20: LX 32KB
+    db 0x15, 0b00000001, 0b00000011  ; R21: 4 bytes
+mode_32k2b_size equ ($ - mode_32k2b_table) / MODE_ENTRY_SIZE
+
+; 32k4b: LX 320x200 16 colors
+mode_32k4b_table:
+    ; CRTC базовые регистры
+    db 0x00, 63, 0xFF,   0x01, 40, 0xFF,   0x02, 46, 0xFF
+    db 0x03, 142, 0xFF,  0x04, 38, 0x7F,   0x05, 0, 0x1F
+    db 0x06, 25, 0x7F,   0x07, 30, 0x7F,   0x08, 0, 0x33
+    db 0x09, 7, 0x1F,    0x0C, 0, 0x3F,    0x0D, 0, 0xFF
+    ; Расширенные регистры
+    db 0x12, 0b00010010, 0b00110011  ; R18: 4bpp, Linear RGB
+    db 0x14, 0b00000011, 0b00110111  ; R20: LX 32KB
+    db 0x15, 0b00000001, 0b00000011  ; R21: 4 bytes
+mode_32k4b_size equ ($ - mode_32k4b_table) / MODE_ENTRY_SIZE
+
+; 32k8b: LX 160x200 256 colors
+mode_32k8b_table:
+    ; CRTC базовые регистры
+    db 0x00, 63, 0xFF,   0x01, 40, 0xFF,   0x02, 46, 0xFF
+    db 0x03, 142, 0xFF,  0x04, 38, 0x7F,   0x05, 0, 0x1F
+    db 0x06, 25, 0x7F,   0x07, 30, 0x7F,   0x08, 0, 0x33
+    db 0x09, 7, 0x1F,    0x0C, 0, 0x3F,    0x0D, 0, 0xFF
+    ; Расширенные регистры
+    db 0x12, 0b00010011, 0b00110011  ; R18: 8bpp, Linear RGB
+    db 0x14, 0b00000011, 0b00110111  ; R20: LX 32KB
+    db 0x15, 0b00000001, 0b00000011  ; R21: 4 bytes
+mode_32k8b_size equ ($ - mode_32k8b_table) / MODE_ENTRY_SIZE
+
+; =================== 64KB РЕЖИМЫ ======================
+
+; 64k4b: LX 640x200 16 colors
+mode_64k4b_table:
+    ; CRTC базовые регистры
+    db 0x00, 63, 0xFF,   0x01, 40, 0xFF,   0x02, 46, 0xFF
+    db 0x03, 142, 0xFF,  0x04, 38, 0x7F,   0x05, 0, 0x1F
+    db 0x06, 25, 0x7F,   0x07, 30, 0x7F,   0x08, 0, 0x33
+    db 0x09, 7, 0x1F,    0x0C, 0, 0x3F,    0x0D, 0, 0xFF
+    ; Расширенные регистры
+    db 0x12, 0b00010010, 0b00110011  ; R18: 4bpp, Linear RGB
+    db 0x14, 0b00000111, 0b00000111  ; R20: LX 64KB
+    db 0x15, 0b00000010, 0b00000011  ; R21: 8 bytes
+mode_64k4b_size equ ($ - mode_64k4b_table) / MODE_ENTRY_SIZE
+
+; 64k8b: LX 320x200 256 colors
+mode_64k8b_table:
+    ; CRTC базовые регистры
+    db 0x00, 63, 0xFF,   0x01, 40, 0xFF,   0x02, 46, 0xFF
+    db 0x03, 142, 0xFF,  0x04, 38, 0x7F,   0x05, 0, 0x1F
+    db 0x06, 25, 0x7F,   0x07, 30, 0x7F,   0x08, 0, 0x33
+    db 0x09, 7, 0x1F,    0x0C, 0, 0x3F,    0x0D, 0, 0xFF
+    ; Расширенные регистры
+    db 0x12, 0b00010011, 0b00110011  ; R18: 8bpp, Linear RGB
+    db 0x14, 0b00000111, 0b00110111  ; R20: LX 64KB
+    db 0x15, 0b00000010, 0b00000011  ; R21: 8 bytes
+mode_64k8b_size equ ($ - mode_64k8b_table) / MODE_ENTRY_SIZE
+
+; Таблица указателей на режимы
+video_mode_table:
+    dw cpc_mode2_table, cpc_mode2_size  ; Mode 0: CPC Mode 2
+    dw cpc_mode1_table, cpc_mode1_size  ; Mode 1: CPC Mode 1  
+    dw cpc_mode0_table, cpc_mode0_size  ; Mode 2: CPC Mode 0
+    dw mode_16k1b_table, mode_16k1b_size ; Mode 3: 16k1b
+    dw mode_16k2b_table, mode_16k2b_size ; Mode 4: 16k2b (текущий)
+    dw mode_16k4b_table, mode_16k4b_size ; Mode 5: 16k4b
+    dw mode_32k2b_table, mode_32k2b_size ; Mode 6: 32k2b
+    dw mode_32k4b_table, mode_32k4b_size ; Mode 7: 32k4b
+    dw mode_32k8b_table, mode_32k8b_size ; Mode 8: 32k8b
+    dw mode_64k4b_table, mode_64k4b_size ; Mode 9: 64k4b
+    dw mode_64k8b_table, mode_64k8b_size ; Mode 10: 64k8b
+VIDEO_MODES_COUNT equ ($ - video_mode_table) / 4; video_crt.asm
+; ============================================================================
+; VIDEO CRTC CONTROLLER - Управление CRTC и расширенными регистрами
+; ============================================================================
+.module video_crt
+
+; =============== КОНСТАНТЫ ===============
+MMIO_PAGE     equ 0xF1
+CRTC_INDEX    equ 0x20
+CRTC_DATA     equ 0x21
+
+; =============== ТАБЛИЦЫ ГРАФИЧЕСКИХ РЕЖИМОВ ===============
+
+include "vide_crt_incl.asm"
+
+; =============== ПУБЛИЧНЫЕ ФУНКЦИИ ===============
+PUBLIC crtc_set_mode, crtc_set_start_addr
+PUBLIC crtc_set_palette, crtc_set_palette_color
+
+; ----------------------------------------------------------------------------
+; crtc_set_mode - Установить режим CRTC
+; Вход: HL = указатель на таблицу [reg,val,mask]...
+;       B = количество записей
+; ----------------------------------------------------------------------------
+crtc_set_mode:
+    LD A, 3          ; Страница MMIO для CRTC
+    OUT (MMIO_PAGE), A
+    
+    LD C, CRTC_INDEX
+@loop:
+    LD A, (HL)      ; Регистр
+    OUT (C), A
+    INC HL
+    
+    INC C           ; CRTC_DATA
+    LD A, (HL)      ; Значение
+    OUT (C), A
+    INC HL
+    
+    LD A, (HL)      ; Маска (пока не используем)
+    INC HL
+    
+    DEC C           ; Вернуться к INDEX
+    DJNZ @loop
+    RET
+
+; ----------------------------------------------------------------------------
+; crtc_set_start_addr - Установить начальный адрес отображения
+; Вход: HL = адрес в VRAM (0-65535)
+; ----------------------------------------------------------------------------
+crtc_set_start_addr:
+    LD A, 3
+    OUT (MMIO_PAGE), A
+    
+    LD A, 0x0C      ; START_ADDR_H
+    OUT (CRTC_INDEX), A
+    LD A, H
+    OUT (CRTC_DATA), A
+    
+    LD A, 0x0D      ; START_ADDR_L  
+    OUT (CRTC_INDEX), A
+    LD A, L
+    OUT (CRTC_DATA), A
+    RET
+
+
+include "video_char.asm"  
+include "video_conf.asm"  
+include "video_gfx.asm"  
+include "video_mem.asm"   
+include "video_pal.asm"     
+include "video_text.asm"
+include "video_blit.asm"  
+include "video_crt.asm"   
+include "video_mode.asm"  
+include "video_sprite.asm"; ============================================================================
+; VIDEO GRAPHICS PRIMITIVES - Точки, линии, прямоугольники
+; ============================================================================
+module video_gfx
+
+EXTERN current_mode, bytes_per_line, bytes_per_pixel
+EXTERN fg_color, bg_color
+
+; ----------------------------------------------------------------------------
+; gfx_draw_pixel - Нарисовать точку
+; Вход: B = X, C = Y, A = цвет
+; ----------------------------------------------------------------------------
+PUBLIC gfx_draw_pixel
+gfx_draw_pixel:
+    PUSH AF
+    CALL gfx_calc_addr  ; HL = адрес пикселя
+    POP AF
+    
+    LD D, A
+    LD A, (current_mode)
+    CP 1
+    JR Z, @pixel_1bpp
+    CP 2
+    JR Z, @pixel_2bpp
+    ; ... остальные режимы
+    ret
+    
+@pixel_1bpp:
+    ; Для монохрома: цвет 0 или 1
+    OR A
+    JR Z, @pixel_clear
+    ; Установить бит
+    LD A, (HL)
+    OR D  ; D содержит маску бита
+    LD (HL), A
+    RET
+    
+@pixel_clear:
+    ; Сбросить бит
+    LD A, (HL)
+    AND D
+    LD (HL), A
+    RET
+
+; ----------------------------------------------------------------------------
+; gfx_calc_addr - Вычислить адрес пикселя
+; Вход: B = X, C = Y
+; Выход: HL = адрес, A = маска бита (для 1bpp)
+; ----------------------------------------------------------------------------
+gfx_calc_addr:
+    ; HL = Y * bytes_per_line
+    LD H, 0
+    LD L, C
+    LD DE, (bytes_per_line)
+    CALL mul_hl_de
+    
+    ; + X * bytes_per_pixel
+    LD A, (bytes_per_pixel)
+    LD E, A
+    LD D, 0
+    LD A, B
+    CALL mul_de_a
+    ADD HL, DE
+    
+    ; + VRAM_BASE
+    LD DE, (vram_base)
+    ADD HL, DE
+    
+    ; Маска для 1bpp
+    LD A, B
+    AND 7
+    LD B, A
+    LD A, 0x80
+@mask_loop:
+    OR A
+    RLCA
+    DJNZ @mask_loop
+    RET
+
+#ifndef VIDEO_API_H
+#define VIDEO_API_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void sys_scr_init_video(void);
+void sys_scr_clear_screen(void);
+void sys_scr_put_char(char c, uint8_t x, uint8_t y);
+void sys_scr_put_string(const char* str);
+void sys_scr_set_cursor(uint8_t x, uint8_t y);
+void sys_scr_get_cursor(uint8_t* x, uint8_t* y);
+void sys_scr_scroll_up(void);
+void sys_scr_set_color(uint8_t fg, uint8_t bg);
+void sys_scr_get_color(uint8_t* fg, uint8_t* bg);
+void sys_scr_draw_pixel(uint16_t x, uint16_t y, uint8_t color);
+void sys_scr_draw_line(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t color);
+void sys_scr_draw_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t color);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // SYS_API_H; ============================================================================
+; VIDEO MEMORY MANAGER - Управление банками памяти и VRAM
+; ============================================================================
+module video_mem
+
+; =============== КОНСТАНТЫ ===============
+GLOBAL_CTRL   equ 0xF0
+SUPER_SLOT    equ 0xF9
+USER_SLOT     equ 0xFB
+BANK_0        equ 0xFC
+BANK_1        equ 0xFD
+BANK_2        equ 0xFE
+BANK_3        equ 0xFF
+
+
+; Публичные константы
+PUBLIC VRAM_BASE, SCREEN_WIDTH, SCREEN_HEIGHT
+
+VRAM_BASE equ 0x4000  
+
+SCREEN_WIDTH  equ 80
+SCREEN_HEIGHT equ 25
+
+; Данные
+PUBLIC current_vram_base
+current_vram_base: dw VRAM_BASE
+
+; =============== ПУБЛИЧНЫЕ ФУНКЦИИ ===============
+PUBLIC mem_setup_vram, mem_set_bank, mem_get_bank
+PUBLIC mem_map_address, mem_calc_vram_addr
+
+; ----------------------------------------------------------------------------
+; mem_setup_vram - Настроить VRAM в слотах 1 и 2
+; ----------------------------------------------------------------------------
+mem_setup_vram:
+    ; Слот 0: RAM (0000-3FFF) = страница 0
+    LD A, 0x00
+    OUT (BANK_0), A
+    
+    ; Слот 1: VRAM низ (4000-7FFF) = страница 0xCF
+    LD A, 0xCF
+    OUT (BANK_1), A
+    
+    ; Слот 2: VRAM верх (8000-BFFF) = страница 0xD0
+    LD A, 0xD0
+    OUT (BANK_2), A
+    
+    ; Слот 3: ROM (C000-FFFF) = страница 0xCE
+    LD A, 0xCE
+    OUT (BANK_3), A
+    
+    RET
+
+; ----------------------------------------------------------------------------
+; mem_set_bank - Установить банк для слота
+; Вход: A = номер слота (0-3)
+;       B = номер банка (0-255)
+; ----------------------------------------------------------------------------
+mem_set_bank:
+    PUSH AF
+    LD C, BANK_0
+    ADD A, C
+    LD C, A
+    LD A, B
+    OUT (C), A
+    POP AF
+    RET
+
+; ----------------------------------------------------------------------------
+; mem_get_bank - Получить текущий банк слота
+; Вход: A = номер слота (0-3)
+; Выход: A = номер банка
+; ----------------------------------------------------------------------------
+mem_get_bank:
+    LD C, BANK_0
+    ADD A, C
+    LD C, A
+    IN A, (C)
+    RET
+
+; ----------------------------------------------------------------------------
+; mem_calc_vram_addr - Вычислить адрес в VRAM
+; Вход: B = X (0-79), C = Y (0-24)
+;       D = bytes_per_pixel (1,2,4,8)
+; Выход: HL = адрес в VRAM
+; ----------------------------------------------------------------------------
+mem_calc_vram_addr:
+    ; HL = Y * SCREEN_WIDTH * bytes_per_pixel
+    LD H, 0
+    LD L, C
+    LD A, 80
+    CALL mul_hl_a    ; HL = Y * 80
+    
+    ; Умножить на bytes_per_pixel
+    LD A, D
+    DEC A
+    JR Z, @done_mult  ; Если 1, пропускаем
+@mult_loop:
+    ADD HL, HL       ; Умножаем на 2
+    DEC A
+    JR NZ, @mult_loop
+    
+@done_mult:
+    ; + X * bytes_per_pixel
+    LD A, B
+    LD E, A
+    LD D, 0
+    LD A, (bytes_per_pixel)
+    DEC A
+    JR Z, @add_x
+@x_mult_loop:
+    SLA E
+    RL D
+    DEC A
+    JR NZ, .x_mult_loop
+    
+@add_x:
+    ADD HL, DE
+    
+    ; + VRAM_BASE
+    LD DE, (current_vram_base)
+    ADD HL, DE
+    RET; ============================================================================
+; VIDEO MODE MANAGER - Режимы рендеринга и их параметры
+; ============================================================================
+module video_mode
+
+; Режимы
+MODE_1BPP equ 1
+MODE_2BPP equ 2  
+MODE_4BPP equ 4
+MODE_8BPP equ 8
+
+EXTERN video_mode_table  ; Из video_crt.asm
+
+; Данные режима
+current_mode:      db MODE_2BPP
+bytes_per_line:    dw 80
+bytes_per_pixel:   db 1
+vram_size:         dw 16000
+
+; ----------------------------------------------------------------------------
+; mode_set - Установить режим рендеринга
+; Вход: A = режим (1,2,4,8)
+; ----------------------------------------------------------------------------
+PUBLIC mode_set
+mode_set:
+    LD (current_mode), A
+    
+    ; Обновить параметры
+    CP MODE_1BPP
+    JR Z, @mode1
+    CP MODE_2BPP
+    JR Z, @mode2
+    CP MODE_4BPP
+    JR Z, @mode4
+    ; MODE_8BPP
+    return
+    
+@mode8:
+    LD HL, 640
+    LD (bytes_per_line), HL
+    LD A, 8
+    LD (bytes_per_pixel), A
+    LD HL, 640*200
+    LD (vram_size), HL
+    RET
+    
+@mode4:
+    LD HL, 320
+    LD (bytes_per_line), HL
+    LD A, 4
+    LD (bytes_per_pixel), A
+    LD HL, 320*200
+    LD (vram_size), HL
+    RET
+    
+@mode2:
+    LD HL, 160
+    LD (bytes_per_line), HL
+    LD A, 2
+    LD (bytes_per_pixel), A
+    LD HL, 160*200
+    LD (vram_size), HL
+    RET
+    
+@mode1:
+    LD HL, 80
+    LD (bytes_per_line), HL
+    LD A, 1
+    LD (bytes_per_pixel), A
+    LD HL, 80*200
+    LD (vram_size), HL
+    RET; ============================================================================
+; VIDEO PALETTE MANAGER - Управление палитрой и цветами
+; ============================================================================
+module video_pal
+
+; Публичные данные
+PUBLIC fg_color, bg_color
+PUBLIC pal_fg_color, pal_bg_color
+
+; Текущие цвета (формат зависит от режима)
+fg_color:   db 0xFF  ; Белый по умолчанию
+bg_color:   db 0x00  ; Черный по умолчанию
+
+; Палитровые цвета (RGB)
+pal_fg_color: ds 4   ; RGB компоненты
+pal_bg_color: ds 4
+
+; Таблицы преобразования (в RAM)
+PUBLIC tetrada_table_2bpp, tetrada_table_4bpp, tetrada_table_8bpp
+tetrada_table_2bpp: ds 16
+tetrada_table_4bpp: ds 32  
+tetrada_table_8bpp: ds 64
+
+; ----------------------------------------------------------------------------
+; pal_set_colors - Установить цвета текста и фона
+; Вход: A = цвет текста, B = цвет фона
+; ----------------------------------------------------------------------------
+PUBLIC pal_set_colors
+pal_set_colors:
+    LD (fg_color), A
+    LD A, B
+    LD (bg_color), A
+    JP pal_update_tables  ; Обновить таблицы
+
+; ----------------------------------------------------------------------------
+; pal_update_tables - Обновить таблицы преобразования
+; ----------------------------------------------------------------------------
+PUBLIC pal_update_tables
+pal_update_tables:
+    ; Вызывается при смене цвета или режима
+    ; Генерирует tetrada_table_* для текущих цветов
+    ; ... (реализация)
+    RET
+
+
+; ============================================================================
+; GRAPHICS UTILITIES - Заглушки
+; ============================================================================
+module video_sprite
+
+; ----------------------------------------------------------------------------
+; gfx_draw_sprite - Нарисовать спрайт
+; Вход: HL = указатель на данные спрайта
+;       B = X координата
+;       C = Y координата
+;       D = ширина спрайта
+;       E = высота спрайта
+; Выход: Нет
+; ----------------------------------------------------------------------------
+PUBLIC _gfx_draw_sprite
+_gfx_draw_sprite:
+gfx_draw_sprite_:
+    ; TODO: Реализовать отрисовку спрайта
+    ret
+
+; ----------------------------------------------------------------------------
+; gfx_transform - Применить трансформацию к спрайту
+; Вход: HL = указатель на исходный спрайт
+;       DE = указатель на целевой буфер
+;       B = операция (0=поворот, 1=масштаб, 2=отражение)
+;       C = параметр операции
+; Выход: A = код ошибки
+; ----------------------------------------------------------------------------
+PUBLIC _gfx_transform
+_gfx_transform:
+gfx_transform_:
+    xor a  ; Заглушка: успех
+    ret; video_text.asm
+; ============================================================================
+; VIDEO TEXT MANAGER - Курсор, управление, escape-коды
+; ============================================================================
+module video_text
+
+EXTERN cursor_x, cursor_y
+EXTERN char_render
+EXTERN fg_color, bg_color, pal_set_colors
+
+; ----------------------------------------------------------------------------
+; text_put_char - Вывести символ с обработкой управления
+; Вход: A = символ
+; ----------------------------------------------------------------------------
+PUBLIC text_put_char
+text_put_char:
+    CP 0x08      ; Backspace
+    JR Z, @bs
+    CP 0x09      ; Tab
+    JR Z, @tab
+    CP 0x0A      ; LF
+    JR Z, @lf
+    CP 0x0D      ; CR
+    JR Z, @cr
+    CP '\\'      ; Escape
+    JR Z, @esc
+    CP ' '       ; Управляющий символ?
+    JR C, @ret
+    
+    ; Обычный символ
+    PUSH AF
+    CALL text_calc_cursor_addr  ; DE = адрес
+    POP AF
+    CALL char_render
+    
+    ; Сдвинуть курсор
+    LD A, (cursor_x)
+    INC A
+    LD (cursor_x), A
+    CP 80
+    RET C
+    
+    ; Перенос строки
+    XOR A
+    LD (cursor_x), A
+    LD A, (cursor_y)
+    INC A
+    LD (cursor_y), A
+    CP 25
+    RET C
+    
+    ; Прокрутка
+    DEC A
+    LD (cursor_y), A
+    CALL text_scroll_up
+@ret:
+    RET
+
+@bs:    ; Backspace
+    LD A, (cursor_x)
+    OR A
+    JR Z, .bs_prev_line
+    DEC A
+    LD (cursor_x), A
+    RET
+@bs_prev_line:
+    LD A, 79
+    LD (cursor_x), A
+    LD A, (cursor_y)
+    OR A
+    RET Z
+    DEC A
+    LD (cursor_y), A
+    RET
+
+@tab:   ; Tab (4 пробела)
+    LD B, 4
+@tab_loop:
+    LD A, ' '
+    CALL text_put_char
+    DJNZ @tab_loop
+    RET
+
+@lf:    ; Line Feed
+    LD A, (cursor_y)
+    INC A
+    LD (cursor_y), A
+    CP 25
+    RET C
+    DEC A
+    LD (cursor_y), A
+    JP text_scroll_up
+
+@cr:    ; Carriage Return
+    XOR A
+    LD (cursor_x), A
+    RET
+
+@esc:   ; Escape последовательности
+    ; Обработка \c, \p, \C и т.д.
+    RET
+
+; ----------------------------------------------------------------------------
+; text_process_escape - Обработка escape-последовательности
+; Вход: HL = указатель на последовательность
+; ----------------------------------------------------------------------------
+text_process_escape:
+    INC HL
+    LD A, (HL)
+    CP 'c'      ; \c<fg><bg> - цвет
+    JR Z, @esc_color
+    CP 'p'      ; \p<xx><yy> - позиция
+    JR Z, @esc_pos
+    CP 'C'      ; \C - очистка
+    JR Z, @esc_clear
+    RET
+
+@esc_color:
+    INC HL
+    LD A, (HL)  ; Цвет текста
+    INC HL
+    LD B, (HL)  ; Цвет фона
+    JP pal_set_colors
+
+@esc_pos:
+    INC HL
+    LD A, (HL)  ; X
+    LD (cursor_x), A
+    INC HL
+    LD A, (HL)  ; Y
+    LD (cursor_y), A
+    RET
+
+@esc_clear:
+    JP text_clear_screen
