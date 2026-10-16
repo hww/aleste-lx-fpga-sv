@@ -46,6 +46,46 @@ Key aspects:
 
 ---
 
+> **Project status: on hold.**
+>
+> Work on Aleste LX has stopped. The project was never finished:
+> some of what was planned was never implemented, some was never
+> debugged on real hardware.
+>
+> But that is not the end of the story. The unfinished work was
+> picked up and brought to a working state by **Shaeon
+> (Carlos Palmero)** — he took Aleste LX as a base and built
+> complete FPGA cores for the MiST family of boards and for
+> MiSTer.
+>
+> See:
+>
+> - **[shaeon/aleste520ex](https://github.com/shaeon/aleste520ex)** —
+>   the Aleste 520EX core for MiST boards (Poseidon, SiDi,
+>   Calypso). Two machines in one: AMSTRAD mode (CPC 6128,
+>   BASIC 1.1, AMSDOS, tapes, disks, mice) and Aleste mode
+>   (BOOTMENU, SETUP, MSX-DOS 1, 640×200 and 320×200 with
+>   16 colours, 1 MB memory mapper, serial mouse, two floppy
+>   drives). Plus 8 and 16 MHz turbo, MagicSound, RTC, the
+>   520EX keyboard with Russian keys.
+>
+> - **[shaeon/Aleste520EX_MiSTer](https://github.com/shaeon/Aleste520EX_MiSTer)** —
+>   the MiSTer FPGA port of the same core. Adds the MiSTer
+>   glue, PLLs and the Quartus project around the
+>   Template_MiSTer framework. The core itself lives in a
+>   submodule and is not modified.
+>
+> Many thanks to Shaeon for picking up the work, finishing it
+> and publishing it. Without him this project would have
+> remained a pile of unfinished files.
+>
+> A separate thank you goes to the community that preserved
+> and published the Aleste 520EX material: ROMs, schematics,
+> manuals and software. Without that material there would be
+> no Aleste LX and no Shaeon cores.
+
+---
+
 ## 🚀 Features & Goals
 
 *   **Full Z80 Compatibility:** Certified with ZEXALL test suite
