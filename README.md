@@ -78,11 +78,6 @@ Key aspects:
 > Many thanks to Shaeon for picking up the work, finishing it
 > and publishing it. Without him this project would have
 > remained a pile of unfinished files.
->
-> A separate thank you goes to the community that preserved
-> and published the Aleste 520EX material: ROMs, schematics,
-> manuals and software. Without that material there would be
-> no Aleste LX and no Shaeon cores.
 
 ---
 
